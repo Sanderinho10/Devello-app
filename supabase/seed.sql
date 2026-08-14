@@ -29,26 +29,34 @@ values (
 )
 on conflict (company_id) do nothing;
 
--- Punktpris: bunta pris, arbeid og materiell samla.
-insert into price_list_items (company_id, kind, name, description, unit, unit_price, includes_labour, includes_material)
+-- Ei prisliste per type. Ein kunde kan ha fleire av kvar; her held éi.
+insert into price_lists (id, company_id, kind, name)
 values
-  ('00000000-0000-0000-0000-000000000001', 'punktpris', 'Montering stikkontakt, dobbel', 'Standard dobbel stikkontakt i eksisterande vegg', 'stk', 890, true, true),
-  ('00000000-0000-0000-0000-000000000001', 'punktpris', 'Kursopplegg frå sikringsskap', 'Ny kurs, inkl. kabel og automat', 'stk', 2450, true, true),
-  ('00000000-0000-0000-0000-000000000001', 'punktpris', 'Montering takpunkt med brytar', null, 'stk', 1340, true, true),
-  ('00000000-0000-0000-0000-000000000001', 'punktpris', 'Montering varmekabel', 'Per kvadratmeter, inkl. kabel og termostat-tilkopling', 'm²', 1150, true, true);
+  ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-000000000001', 'punktpris', 'Punktprisliste'),
+  ('00000000-0000-0000-0000-0000000000a2', '00000000-0000-0000-0000-000000000001', 'materiell', 'Materielliste'),
+  ('00000000-0000-0000-0000-0000000000a3', '00000000-0000-0000-0000-000000000001', 'time',      'Timeprisliste')
+on conflict (id) do nothing;
+
+-- Punktpris: bunta pris, arbeid og materiell samla.
+insert into price_list_items (company_id, price_list_id, kind, name, description, unit, unit_price, includes_labour, includes_material)
+values
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a1', 'punktpris', 'Montering stikkontakt, dobbel', 'Standard dobbel stikkontakt i eksisterande vegg', 'stk', 890, true, true),
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a1', 'punktpris', 'Kursopplegg frå sikringsskap', 'Ny kurs, inkl. kabel og automat', 'stk', 2450, true, true),
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a1', 'punktpris', 'Montering takpunkt med brytar', null, 'stk', 1340, true, true),
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a1', 'punktpris', 'Montering varmekabel', 'Per kvadratmeter, inkl. kabel og termostat-tilkopling', 'm²', 1150, true, true);
 
 -- Materiell: brukt i fastpris-spesifikasjon.
-insert into price_list_items (company_id, kind, name, unit, unit_price, includes_labour, includes_material)
+insert into price_list_items (company_id, price_list_id, kind, name, unit, unit_price, includes_labour, includes_material)
 values
-  ('00000000-0000-0000-0000-000000000001', 'materiell', 'Sikringsskap 24 modular', 'stk', 4200, false, true),
-  ('00000000-0000-0000-0000-000000000001', 'materiell', 'Jordfeilautomat 16 A', 'stk', 640, false, true),
-  ('00000000-0000-0000-0000-000000000001', 'materiell', 'Kabel PFSP 3G2,5', 'm', 38, false, true);
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a2', 'materiell', 'Sikringsskap 24 modular', 'stk', 4200, false, true),
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a2', 'materiell', 'Jordfeilautomat 16 A', 'stk', 640, false, true),
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a2', 'materiell', 'Kabel PFSP 3G2,5', 'm', 38, false, true);
 
 -- Timepris: brukt i fastpris og i tid og materiell.
-insert into price_list_items (company_id, kind, name, description, unit, unit_price, includes_labour, includes_material)
+insert into price_list_items (company_id, price_list_id, kind, name, description, unit, unit_price, includes_labour, includes_material)
 values
-  ('00000000-0000-0000-0000-000000000001', 'time', 'Timepris elektrikar', 'Ordinær arbeidstid', 'time', 1190, true, false),
-  ('00000000-0000-0000-0000-000000000001', 'time', 'Køyring', 'Per oppdrag innanfor Førde kommune', 'stk', 450, true, false);
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a3', 'time', 'Timepris elektrikar', 'Ordinær arbeidstid', 'time', 1190, true, false),
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a3', 'time', 'Køyring', 'Per oppdrag innanfor Førde kommune', 'stk', 450, true, false);
 
 -- Referansetilbod: fasiten agenten matchar tilbudstype mot.
 insert into reference_quotes (company_id, title, type, job_description)

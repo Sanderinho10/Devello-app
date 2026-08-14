@@ -67,6 +67,7 @@ Eller lim inn migrasjonane i SQL-editoren i rekkjefølgje, så `seed.sql`.
 | `0002_rls.sql` | RLS-policyar og storage-bøtter |
 | `0003_dev_auto_join.sql` | **Dev/pilot:** knyter nye brukarar til Star Elektro automatisk. Må fjernast i fase 3. |
 | `0004_hardening.sql` | Oppfølging av security advisor |
+| `0005_price_lists.sql` | Prisrader høyrer til namngjevne lister; fleire lister per type |
 
 ### 3. Azure
 

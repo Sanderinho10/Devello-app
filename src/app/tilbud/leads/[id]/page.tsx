@@ -34,21 +34,31 @@ export default async function LeadPage({
     .maybeSingle();
 
   // Prisfila følgjer med slik at brukaren kan leggje til postar i utkastet.
-  // Nye postar må kome herifrå — det er same regel som gjeld for agenten.
-  const [{ data: brand }, { data: priceItems }] = await Promise.all([
+  // Nye postar må kome herifrå — det er same regel som gjeld for agenten, og
+  // berre frå aktive lister, slik at ei deaktivert liste ikkje kan snike seg inn.
+  const [{ data: brand }, { data: activeLists }] = await Promise.all([
     supabase
       .from("company_brand")
       .select("*")
       .eq("company_id", lead.company_id)
       .maybeSingle(),
     supabase
-      .from("price_list_items")
-      .select("*")
+      .from("price_lists")
+      .select("id")
       .eq("company_id", lead.company_id)
-      .eq("active", true)
-      .order("kind")
-      .order("name"),
+      .eq("active", true),
   ]);
+
+  const listIds = (activeLists ?? []).map((list) => list.id);
+  const { data: priceItems } = listIds.length
+    ? await supabase
+        .from("price_list_items")
+        .select("*")
+        .in("price_list_id", listIds)
+        .eq("active", true)
+        .order("kind")
+        .order("name")
+    : { data: [] };
 
   return (
     <>

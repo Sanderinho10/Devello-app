@@ -7,6 +7,9 @@ export async function POST(request: NextRequest) {
   if (session instanceof NextResponse) return session;
 
   const body = await request.json();
+  if (!body.price_list_id) {
+    return NextResponse.json({ error: "Manglar prisliste" }, { status: 400 });
+  }
   if (!body.name || body.unit_price === undefined || body.unit_price === null) {
     return NextResponse.json(
       { error: "Namn og einingspris er påkravd" },
@@ -14,16 +17,33 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { error } = await supabaseAdmin().from("price_list_items").insert({
+  const admin = supabaseAdmin();
+
+  // Typen på raden kjem frå lista, ikkje frå klienten. Databasen krev at dei er
+  // like, så dette er både tilgangssjekk og datakontroll i eitt.
+  const { data: list } = await admin
+    .from("price_lists")
+    .select("id, kind")
+    .eq("id", body.price_list_id)
+    .eq("company_id", session.companyId)
+    .maybeSingle();
+
+  if (!list) {
+    return NextResponse.json({ error: "Fann ikkje prislista" }, { status: 404 });
+  }
+
+  const { error } = await admin.from("price_list_items").insert({
     company_id: session.companyId,
-    kind: body.kind,
-    code: body.code || null,
-    name: body.name,
-    description: body.description || null,
-    unit: body.unit || "stk",
+    price_list_id: list.id,
+    kind: list.kind,
+    code: body.code?.trim() || null,
+    name: body.name.trim(),
+    description: body.description?.trim() || null,
+    unit: body.unit?.trim() || "stk",
     unit_price: body.unit_price,
-    includes_labour: !!body.includes_labour,
-    includes_material: !!body.includes_material,
+    // Punktpris er bunta; dei andre dekker éin ting kvar.
+    includes_labour: list.kind !== "materiell",
+    includes_material: list.kind !== "time",
   });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

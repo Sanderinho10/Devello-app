@@ -53,9 +53,25 @@ export interface CompanyBrand {
   footer_note: string | null;
 }
 
+/**
+ * Ei namngjeven prisliste av éin type. Ein kunde kan ha fleire lister per type
+ * — t.d. ei punktprisliste for privatkundar og ei for næring.
+ */
+export interface PriceList {
+  id: string;
+  company_id: string;
+  kind: PriceItemKind;
+  name: string;
+  description: string | null;
+  active: boolean;
+  created_at: string;
+}
+
 export interface PriceListItem {
   id: string;
   company_id: string;
+  /** Lista raden høyrer til. Raden sin type må vere lik lista sin. */
+  price_list_id: string;
   kind: PriceItemKind;
   code: string | null;
   name: string;
@@ -65,6 +81,27 @@ export interface PriceListItem {
   includes_labour: boolean;
   includes_material: boolean;
   active: boolean;
+}
+
+export const PRICE_KIND_LABELS: Record<PriceItemKind, string> = {
+  punktpris: "Punktprisliste",
+  materiell: "Materielliste",
+  time: "Timeprisliste",
+};
+
+export const PRICE_KIND_HELP: Record<PriceItemKind, string> = {
+  punktpris:
+    "Bunta prisar der arbeid og materiell er samla i éin post. Brukt i punktpristilbod.",
+  materiell:
+    "Materiellpostar med einingspris. Brukt i materielldelen av eit fastpristilbod.",
+  time: "Timeprisar og faste tillegg. Brukt i arbeidsdelen av fastpris, og i tid og materiell.",
+};
+
+/** Kva listetypar ein tilbudstype hentar frå. */
+export function kindsForQuoteType(type: QuoteType): PriceItemKind[] {
+  if (type === "punktpris") return ["punktpris"];
+  if (type === "fastpris") return ["materiell", "time"];
+  return ["time"];
 }
 
 export interface ReferenceQuote {

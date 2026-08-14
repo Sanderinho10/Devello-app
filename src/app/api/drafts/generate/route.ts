@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const [{ data: company }, { data: priceItems }, { data: references }] =
+    const [{ data: company }, { data: references }, priceItems] =
       await Promise.all([
         admin
           .from("companies")
@@ -67,14 +67,10 @@ export async function POST(request: NextRequest) {
           .eq("id", session.companyId)
           .single(),
         admin
-          .from("price_list_items")
-          .select("*")
-          .eq("company_id", session.companyId)
-          .eq("active", true),
-        admin
           .from("reference_quotes")
           .select("title, type, job_description")
           .eq("company_id", session.companyId),
+        activePriceItems(admin, session.companyId),
       ]);
 
     const leadText = lead.body_text || lead.body_preview || "";
@@ -105,7 +101,7 @@ export async function POST(request: NextRequest) {
         name: company!.name,
         tone_settings: company!.tone_settings ?? {},
       },
-      priceItems: (priceItems ?? []) as PriceListItem[],
+      priceItems,
     });
 
     const { data: draft, error } = await admin
@@ -150,6 +146,34 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     return errorResponse(err);
   }
+}
+
+/**
+ * Prisrader frå aktive lister.
+ *
+ * Ei deaktivert liste blir liggjande i databasen, men skal ikkje kunne dukke opp
+ * i eit tilbod — difor filtrerer vi på lista og ikkje berre på raden.
+ */
+export async function activePriceItems(
+  admin: SupabaseClient,
+  companyId: string,
+): Promise<PriceListItem[]> {
+  const { data: lists } = await admin
+    .from("price_lists")
+    .select("id")
+    .eq("company_id", companyId)
+    .eq("active", true);
+
+  const listIds = (lists ?? []).map((list) => list.id);
+  if (listIds.length === 0) return [];
+
+  const { data: items } = await admin
+    .from("price_list_items")
+    .select("*")
+    .in("price_list_id", listIds)
+    .eq("active", true);
+
+  return (items ?? []) as PriceListItem[];
 }
 
 /**
