@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { FileDrop } from "@/components/FileDrop";
+import { Modal } from "@/components/Modal";
 import {
   QUOTE_TYPE_HELP,
   QUOTE_TYPE_LABELS,
@@ -12,33 +14,48 @@ import {
 
 const TYPES: QuoteType[] = ["punktpris", "fastpris", "tid_og_materiell"];
 
+const ACCEPT =
+  ".pdf,.doc,.docx,application/pdf,application/msword," +
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+/**
+ * Referansefilene er en samling filer merket med tilbudstype — ikke noe mer.
+ *
+ * Tittelen kommer fra filnavnet, så det eneste brukeren må ta stilling til er
+ * hvilken type tilbudet var. Alt annet ville vært et skjema å fylle ut.
+ */
 export function ReferenceFiles({ items }: { items: ReferenceQuote[] }) {
   const router = useRouter();
-  const [title, setTitle] = useState("");
-  const [type, setType] = useState<QuoteType>("punktpris");
-  const [jobDescription, setJobDescription] = useState("");
+  const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [type, setType] = useState<QuoteType>("punktpris");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  function close() {
+    setOpen(false);
+    setFile(null);
+    setError(null);
+  }
+
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (!file) return;
     setBusy(true);
     setError(null);
     try {
       const data = new FormData();
-      data.set("title", title);
       data.set("type", type);
-      data.set("job_description", jobDescription);
-      if (file) data.set("file", file);
+      data.set("file", file);
 
-      const res = await fetch("/api/reference-quotes", { method: "POST", body: data });
+      const res = await fetch("/api/reference-quotes", {
+        method: "POST",
+        body: data,
+      });
       const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error ?? "Kunne ikke lagre");
+      if (!res.ok) throw new Error(payload.error ?? "Kunne ikke laste opp");
 
-      setTitle("");
-      setJobDescription("");
-      setFile(null);
+      close();
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -47,84 +64,24 @@ export function ReferenceFiles({ items }: { items: ReferenceQuote[] }) {
     }
   }
 
-  async function remove(id: string) {
-    await fetch(`/api/reference-quotes?id=${id}`, { method: "DELETE" });
+  async function remove(item: ReferenceQuote) {
+    if (!window.confirm(`Slett «${item.title}»?`)) return;
+    await fetch(`/api/reference-quotes?id=${item.id}`, { method: "DELETE" });
     router.refresh();
   }
 
   return (
-    <div className="stack">
+    <>
       <div className="card">
         <div className="card-header">
-          <strong>Last opp referansetilbud</strong>
-        </div>
-        <form className="card-pad" onSubmit={submit}>
-          {error && <div className="banner error">{error}</div>}
-
-          <label className="field">
-            <span className="label">Tittel</span>
-            <input
-              className="input"
-              required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Tilbud — stikkontakter rekkehus Bjørkeveien"
-            />
-          </label>
-
-          <label className="field">
-            <span className="label">Tilbudstype</span>
-            <div className="type-switch">
-              {TYPES.map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  className={`type-option${option === type ? " active" : ""}`}
-                  onClick={() => setType(option)}
-                >
-                  {QUOTE_TYPE_LABELS[option]}
-                </button>
-              ))}
-            </div>
-            <span className="hint">{QUOTE_TYPE_HELP[type]}</span>
-          </label>
-
-          <label className="field">
-            <span className="label">Hva slags jobb gjaldt tilbudet?</span>
-            <textarea
-              className="textarea"
-              style={{ minHeight: 80 }}
-              required
-              value={jobDescription}
-              onChange={(e) => setJobDescription(e.target.value)}
-              placeholder="Montering av stikkontakter og takpunkt i nybygg. Standardiserte enheter, kjent omfang."
-            />
-            <span className="hint">
-              Dette er teksten klassifiseringen matcher nye forespørsler mot. Skriv
-              den så den beskriver jobbtypen, ikke bare kunden.
-            </span>
-          </label>
-
-          <label className="field">
-            <span className="label">Fil (valgfritt)</span>
-            <input
-              className="input"
-              type="file"
-              accept=".pdf,.doc,.docx,.txt"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            />
-          </label>
-
-          <button className="button" type="submit" disabled={busy}>
-            {busy ? "Lagrer…" : "Legg til"}
+          <strong>
+            {items.length} {items.length === 1 ? "fil" : "filer"}
+          </strong>
+          <button className="button" onClick={() => setOpen(true)}>
+            Legg til nytt tilbud
           </button>
-        </form>
-      </div>
-
-      <div className="card">
-        <div className="card-header">
-          <strong>{items.length} referansefiler</strong>
         </div>
+
         {items.length === 0 ? (
           <div className="empty">
             <div className="empty-title">Ingen referansefiler ennå</div>
@@ -136,9 +93,9 @@ export function ReferenceFiles({ items }: { items: ReferenceQuote[] }) {
           <table className="table">
             <thead>
               <tr>
-                <th>Tittel</th>
-                <th>Type</th>
-                <th>Lagt inn</th>
+                <th>Fil</th>
+                <th style={{ width: 170 }}>Tilbudstype</th>
+                <th style={{ width: 150 }}>Lagt inn</th>
                 <th style={{ width: 60 }} />
               </tr>
             </thead>
@@ -146,20 +103,21 @@ export function ReferenceFiles({ items }: { items: ReferenceQuote[] }) {
               {items.map((item) => (
                 <tr key={item.id}>
                   <td>
-                    <div style={{ fontWeight: 550 }}>{item.title}</div>
-                    {item.job_description && (
-                      <div className="tiny muted">{item.job_description}</div>
-                    )}
-                    {item.file_name && (
-                      <div className="tiny muted">📎 {item.file_name}</div>
-                    )}
+                    <a
+                      href={`/api/reference-quotes/${item.id}/file`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ fontWeight: 550, textDecoration: "underline" }}
+                    >
+                      {item.file_name ?? item.title}
+                    </a>
                   </td>
                   <td>
                     <span className="pill">{QUOTE_TYPE_LABELS[item.type]}</span>
                   </td>
                   <td className="muted tiny">{formatDate(item.created_at)}</td>
                   <td>
-                    <button className="button danger" onClick={() => remove(item.id)}>
+                    <button className="button danger" onClick={() => remove(item)}>
                       Slett
                     </button>
                   </td>
@@ -169,6 +127,50 @@ export function ReferenceFiles({ items }: { items: ReferenceQuote[] }) {
           </table>
         )}
       </div>
-    </div>
+
+      <Modal open={open} onClose={close} title="Legg til nytt tilbud">
+        <form onSubmit={submit}>
+          {error && <div className="banner error">{error}</div>}
+
+          <div className="field">
+            <span className="label">Fil</span>
+            <FileDrop
+              file={file}
+              onFile={setFile}
+              extensions={["pdf", "doc", "docx"]}
+              accept={ACCEPT}
+              label="Dra inn tilbudet, eller"
+              rejectHint="Vi tar imot PDF og Word."
+              autoFocus
+            />
+          </div>
+
+          <label className="field" style={{ marginBottom: 0 }}>
+            <span className="label">Tilbudstype</span>
+            <select
+              className="select"
+              value={type}
+              onChange={(e) => setType(e.target.value as QuoteType)}
+            >
+              {TYPES.map((option) => (
+                <option key={option} value={option}>
+                  {QUOTE_TYPE_LABELS[option]}
+                </option>
+              ))}
+            </select>
+            <span className="hint">{QUOTE_TYPE_HELP[type]}</span>
+          </label>
+
+          <div className="modal-actions">
+            <button type="button" className="button secondary" onClick={close}>
+              Avbryt
+            </button>
+            <button className="button" type="submit" disabled={busy || !file}>
+              {busy ? "Laster opp…" : "Legg til"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+    </>
   );
 }

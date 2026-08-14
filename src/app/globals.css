@@ -663,6 +663,53 @@ p {
   margin-left: auto;
 }
 
+/* Popup — bygget på <dialog>, så Esc og bakgrunnsklikk lukker */
+.modal {
+  border: none;
+  padding: 0;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  background: var(--surface);
+  color: var(--text);
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  overflow: visible;
+}
+
+.modal::backdrop {
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.modal-body {
+  padding: 22px 24px 20px;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.modal-head h2 {
+  font-size: 17px;
+}
+
+.modal-head .button.ghost {
+  font-size: 19px;
+  line-height: 1;
+  padding: 2px 9px;
+  color: var(--text-tertiary);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
 /* Søkbar velger for prisrader */
 .picker {
   position: relative;

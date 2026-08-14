@@ -164,6 +164,8 @@ npm run preview:pdf -- fastpris
 
 ### Kjent begrensning
 
-Uthenting av tekst fra opplastede PDF- og Word-referanser er ikke implementert —
-bare rene tekstfiler blir lest. Fram til da er det feltet «Hva slags jobb gjaldt
-tilbudet?» som bærer klassifiseringen, og det er obligatorisk ved opplasting.
+Uthenting av tekst fra opplastede PDF- og Word-referanser er ikke implementert.
+Referansefanen er bevisst enkel — en fil merket med tilbudstype, ikke noe mer —
+så inntil uthentingen er på plass er det **filnavnet og typen** agenten matcher
+mot, ikke innholdet i filen. Det gjør klassifiseringen svakere jo mindre
+beskrivende filnavnene er.

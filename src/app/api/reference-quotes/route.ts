@@ -8,54 +8,53 @@ export async function POST(request: NextRequest) {
 
   try {
     const form = await request.formData();
-    const title = String(form.get("title") ?? "").trim();
     const type = String(form.get("type") ?? "");
-    const jobDescription = String(form.get("job_description") ?? "").trim();
     const file = form.get("file");
 
-    if (!title || !type) {
+    if (!type) {
+      return NextResponse.json({ error: "Tilbudstype er påkrevd" }, { status: 400 });
+    }
+    if (!(file instanceof File) || file.size === 0) {
+      return NextResponse.json({ error: "Fil er påkrevd" }, { status: 400 });
+    }
+    if (!/\.(pdf|docx?)$/i.test(file.name)) {
       return NextResponse.json(
-        { error: "Tittel og type er påkrevd" },
+        { error: "Bare PDF- og Word-filer kan lastes opp." },
         { status: 400 },
       );
     }
 
     const admin = supabaseAdmin();
-    let storagePath: string | null = null;
-    let fileName: string | null = null;
-    let mimeType: string | null = null;
-    let extractedText: string | null = null;
+    const mimeType = file.type || "application/octet-stream";
+    const storagePath = `${session.companyId}/${Date.now()}-${sanitize(file.name)}`;
 
-    if (file instanceof File && file.size > 0) {
-      fileName = file.name;
-      mimeType = file.type || "application/octet-stream";
-      storagePath = `${session.companyId}/${Date.now()}-${sanitize(file.name)}`;
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const { error: uploadError } = await admin.storage
+      .from("reference-files")
+      .upload(storagePath, bytes, { contentType: mimeType, upsert: false });
+    if (uploadError) throw new Error(`Opplasting feilet: ${uploadError.message}`);
 
-      const bytes = Buffer.from(await file.arrayBuffer());
-      const { error: uploadError } = await admin.storage
-        .from("reference-files")
-        .upload(storagePath, bytes, { contentType: mimeType, upsert: false });
-      if (uploadError) throw new Error(`Opplasting feilet: ${uploadError.message}`);
-
-      // Ren tekst kan leses direkte. PDF- og Word-uthenting kommer senere —
-      // fram til da er det job_description som bærer klassifiseringen.
-      if (mimeType.startsWith("text/")) {
-        extractedText = bytes.toString("utf8").slice(0, 50_000);
-      }
-    }
+    // Tittelen er filnavnet uten endelse. Brukeren skal ikke måtte finne på et
+    // navn i tillegg til å velge fil og type.
+    const title = file.name.replace(/\.[^.]+$/, "").trim() || file.name;
 
     const { error } = await admin.from("reference_quotes").insert({
       company_id: session.companyId,
       title,
       type,
-      job_description: jobDescription || null,
-      file_name: fileName,
+      file_name: file.name,
       storage_path: storagePath,
       mime_type: mimeType,
-      extracted_text: extractedText,
+      // PDF- og Word-uthenting er ikke implementert. Fram til da er det typen
+      // og filnavnet agenten matcher mot, ikke innholdet i filen.
+      extracted_text: null,
     });
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      // Raden ble ikke til — la ikke filen bli liggende igjen i storage.
+      await admin.storage.from("reference-files").remove([storagePath]);
+      throw new Error(error.message);
+    }
     return NextResponse.json({ ok: true });
   } catch (err) {
     return errorResponse(err);

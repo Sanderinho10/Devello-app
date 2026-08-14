@@ -50,12 +50,17 @@ export async function classifyQuoteType(input: {
   body: string;
   references: Pick<ReferenceQuote, "title" | "type" | "job_description">[];
 }): Promise<Classification> {
+  // Referansefilene er filer merket med type. De fleste har bare et filnavn å
+  // gå på — Jobb-linjen kommer bare med når den faktisk har innhold, så
+  // modellen ikke matcher mot «(ikke beskrevet)» om og om igjen.
   const referenceBlock = input.references.length
     ? input.references
-        .map(
-          (ref) =>
-            `- [${ref.type}] ${ref.title}\n  Jobb: ${ref.job_description ?? "(ikke beskrevet)"}`,
-        )
+        .map((ref) => {
+          const head = `- [${ref.type}] ${ref.title}`;
+          return ref.job_description
+            ? `${head}\n  Jobb: ${ref.job_description}`
+            : head;
+        })
         .join("\n")
     : "(ingen referansefiler lagt inn ennå)";
 
