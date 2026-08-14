@@ -27,17 +27,22 @@ export async function structured<T>(options: {
   maxTokens?: number;
   effort?: "low" | "medium" | "high" | "xhigh" | "max";
 }): Promise<T> {
-  const response = await anthropic().messages.create({
-    model: MODEL,
-    max_tokens: options.maxTokens ?? 16000,
-    thinking: { type: "adaptive" },
-    output_config: {
-      effort: options.effort ?? "high",
-      format: { type: "json_schema", schema: options.schema },
-    },
-    system: options.system,
-    messages: [{ role: "user", content: options.prompt }],
-  });
+  let response;
+  try {
+    response = await anthropic().messages.create({
+      model: MODEL,
+      max_tokens: options.maxTokens ?? 16000,
+      thinking: { type: "adaptive" },
+      output_config: {
+        effort: options.effort ?? "high",
+        format: { type: "json_schema", schema: options.schema },
+      },
+      system: options.system,
+      messages: [{ role: "user", content: options.prompt }],
+    });
+  } catch (err) {
+    throw translateApiError(err);
+  }
 
   if (response.stop_reason === "refusal") {
     throw new Error(
@@ -50,4 +55,35 @@ export async function structured<T>(options: {
     throw new Error("Fekk ikkje tekst tilbake frå modellen.");
   }
   return JSON.parse(text.text) as T;
+}
+
+/**
+ * Rå SDK-feil er JSON-blobbar som ikkje seier brukaren noko. Dei tre tilstandane
+ * folk faktisk hamnar i — feil nøkkel, tom konto, for mange kall — fortener eit
+ * svar som seier kva ein skal gjere.
+ */
+function translateApiError(err: unknown): Error {
+  if (err instanceof Anthropic.AuthenticationError) {
+    return new Error(
+      "Anthropic avviste nøkkelen. Sjekk at ANTHROPIC_API_KEY i .env.local er " +
+        "komplett og utan hermeteikn, og at serveren er starta på nytt etterpå.",
+    );
+  }
+  if (err instanceof Anthropic.RateLimitError) {
+    return new Error("For mange kall mot Anthropic akkurat no. Prøv igjen om litt.");
+  }
+  if (err instanceof Anthropic.APIConnectionError) {
+    return new Error("Fekk ikkje kontakt med Anthropic. Sjekk nettverkstilkoplinga.");
+  }
+  // APIError er basen for alle HTTP-feil, så den må stå etter dei spesifikke.
+  if (err instanceof Anthropic.APIError) {
+    // Tom konto kjem som 400 med ei melding om credit balance.
+    if (err.message.toLowerCase().includes("credit balance")) {
+      return new Error(
+        "Anthropic-kontoen har ikkje kreditt. Legg til betaling under Billing i konsollen.",
+      );
+    }
+    return new Error(`Anthropic svarte ${err.status}: ${err.message}`);
+  }
+  return err instanceof Error ? err : new Error(String(err));
 }

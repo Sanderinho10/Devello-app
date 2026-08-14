@@ -60,11 +60,9 @@ export function LeadActions({
             ? "Hent leads"
             : "Generer utkast"}
       </button>
-      {error && (
-        <div className="banner error" style={{ marginTop: 10, width: "100%" }}>
-          {error}
-        </div>
-      )}
+      {/* Bryt til eiga linje under rada — elles pressar den emnet og
+          avsendaren ut av flex-rada. */}
+      {error && <div className="banner error row-break">{error}</div>}
     </>
   );
 }
