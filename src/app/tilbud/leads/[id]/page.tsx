@@ -2,7 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DraftEditor } from "./DraftEditor";
 import { supabaseServer } from "@/lib/supabase/server";
-import { formatDate, type Draft, type Lead } from "@/lib/types";
+import {
+  formatDate,
+  type Draft,
+  type Lead,
+  type PriceListItem,
+} from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -28,11 +33,22 @@ export default async function LeadPage({
     .eq("lead_id", id)
     .maybeSingle();
 
-  const { data: brand } = await supabase
-    .from("company_brand")
-    .select("*")
-    .eq("company_id", lead.company_id)
-    .maybeSingle();
+  // Prisfila følgjer med slik at brukaren kan leggje til postar i utkastet.
+  // Nye postar må kome herifrå — det er same regel som gjeld for agenten.
+  const [{ data: brand }, { data: priceItems }] = await Promise.all([
+    supabase
+      .from("company_brand")
+      .select("*")
+      .eq("company_id", lead.company_id)
+      .maybeSingle(),
+    supabase
+      .from("price_list_items")
+      .select("*")
+      .eq("company_id", lead.company_id)
+      .eq("active", true)
+      .order("kind")
+      .order("name"),
+  ]);
 
   return (
     <>
@@ -55,6 +71,7 @@ export default async function LeadPage({
           lead={lead as Lead}
           draft={draft as Draft}
           brand={brand ?? null}
+          priceItems={(priceItems ?? []) as PriceListItem[]}
         />
       ) : (
         <div className="card empty">

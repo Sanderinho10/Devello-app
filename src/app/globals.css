@@ -575,6 +575,48 @@ p {
   text-align: right;
 }
 
+/* Dra-handtak for å omorganisere postar */
+.grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 26px;
+  border-radius: 6px;
+  color: var(--text-tertiary);
+  cursor: grab;
+  font-size: 15px;
+  line-height: 1;
+  user-select: none;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.grip:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-secondary);
+}
+
+.grip:active {
+  cursor: grabbing;
+}
+
+.grip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  color: var(--accent);
+}
+
+/* Viser kvar rada blir sleppt */
+.doc-table tr.drag-over td {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.add-line {
+  margin-top: 10px;
+  max-width: 420px;
+  color: var(--text-secondary);
+}
+
 .doc-totals {
   margin: 22px 0 0 auto;
   width: 300px;

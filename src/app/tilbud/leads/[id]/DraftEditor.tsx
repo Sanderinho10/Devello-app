@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   QUOTE_TYPE_HELP,
   QUOTE_TYPE_LABELS,
@@ -11,20 +12,30 @@ import {
   type CompanyBrand,
   type Draft,
   type Lead,
+  type PriceItemKind,
+  type PriceListItem,
   type QuoteDocument,
+  type QuoteLine,
   type QuoteType,
 } from "@/lib/types";
 
 const ALL_TYPES: QuoteType[] = ["punktpris", "fastpris", "tid_og_materiell"];
 
+interface DragRef {
+  section: number;
+  line: number;
+}
+
 export function DraftEditor({
   lead,
   draft,
   brand,
+  priceItems,
 }: {
   lead: Lead;
   draft: Draft;
   brand: Partial<CompanyBrand> | null;
+  priceItems: PriceListItem[];
 }) {
   const router = useRouter();
 
@@ -33,10 +44,13 @@ export function DraftEditor({
   const [body, setBody] = useState(draft.email_body);
   const [document, setDocument] = useState<QuoteDocument | null>(draft.document);
 
-  const [busy, setBusy] = useState<null | "lagrar" | "bekreftar" | "regenererer">(null);
+  const [busy, setBusy] = useState<null | "bekreftar" | "regenererer">(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(draft.confirmed_at !== null);
   const [webLink, setWebLink] = useState(draft.outlook_web_link);
+
+  const [dragging, setDragging] = useState<DragRef | null>(null);
+  const [dragOver, setDragOver] = useState<DragRef | null>(null);
 
   const wantsDocument = hasDocument(quoteType);
   const totals = useMemo(
@@ -98,42 +112,74 @@ export function DraftEditor({
     }
   }
 
+  // ---------------------------------------------------------------- dokument --
+
   function updateDocument(patch: Partial<QuoteDocument>) {
     setDocument((current) => (current ? { ...current, ...patch } : current));
+  }
+
+  /** Alle endringar på postar går gjennom denne, så forma held seg. */
+  function updateSectionLines(
+    sectionIndex: number,
+    transform: (lines: QuoteLine[]) => QuoteLine[],
+  ) {
+    setDocument((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        sections: current.sections.map((section, si) =>
+          si !== sectionIndex ? section : { ...section, lines: transform(section.lines) },
+        ),
+      };
+    });
   }
 
   function updateLine(
     sectionIndex: number,
     lineIndex: number,
-    patch: Partial<QuoteDocument["sections"][number]["lines"][number]>,
+    patch: Partial<QuoteLine>,
   ) {
-    setDocument((current) => {
-      if (!current) return current;
-      const sections = current.sections.map((section, si) =>
-        si !== sectionIndex
-          ? section
-          : {
-              ...section,
-              lines: section.lines.map((line, li) =>
-                li !== lineIndex ? line : { ...line, ...patch },
-              ),
-            },
-      );
-      return { ...current, sections };
-    });
+    updateSectionLines(sectionIndex, (lines) =>
+      lines.map((line, li) => (li !== lineIndex ? line : { ...line, ...patch })),
+    );
   }
 
   function removeLine(sectionIndex: number, lineIndex: number) {
-    setDocument((current) => {
-      if (!current) return current;
-      const sections = current.sections.map((section, si) =>
-        si !== sectionIndex
-          ? section
-          : { ...section, lines: section.lines.filter((_, li) => li !== lineIndex) },
-      );
-      return { ...current, sections };
+    updateSectionLines(sectionIndex, (lines) =>
+      lines.filter((_, li) => li !== lineIndex),
+    );
+  }
+
+  function moveLine(sectionIndex: number, from: number, to: number) {
+    if (from === to) return;
+    updateSectionLines(sectionIndex, (lines) => {
+      const next = [...lines];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
     });
   }
+
+  /**
+   * Nye postar kjem frå prisfila, ikkje frå fritekst. Same regel som for agenten:
+   * skal ein pris endrast, endrar ein prisfila — då gjeld den for alle tilbod.
+   */
+  function addLine(sectionIndex: number, priceItemId: string) {
+    const item = priceItems.find((candidate) => candidate.id === priceItemId);
+    if (!item) return;
+    updateSectionLines(sectionIndex, (lines) => [
+      ...lines,
+      {
+        price_item_id: item.id,
+        description: item.name,
+        quantity: 1,
+        unit: item.unit,
+        unit_price: Number(item.unit_price),
+      },
+    ]);
+  }
+
+  const locked = confirmed || busy !== null;
 
   return (
     <div className="stack">
@@ -147,7 +193,7 @@ export function DraftEditor({
               type="button"
               className={`type-option${type === quoteType ? " active" : ""}`}
               onClick={() => changeType(type)}
-              disabled={busy !== null || confirmed}
+              disabled={locked}
             >
               {QUOTE_TYPE_LABELS[type]}
             </button>
@@ -256,80 +302,185 @@ export function DraftEditor({
             />
           </label>
 
-          {document.sections.map((section, sectionIndex) => (
-            <div key={sectionIndex} style={{ marginBottom: 18 }}>
-              <span className="label">
-                {document.sections.length > 1 ? section.title : "Postar"}
-              </span>
-              <table className="doc-table">
-                <thead>
-                  <tr>
-                    <th>Post</th>
-                    <th className="num" style={{ width: 100 }}>
-                      Antal
-                    </th>
-                    <th className="num" style={{ width: 130 }}>
-                      Einingspris
-                    </th>
-                    <th className="num" style={{ width: 120 }}>
-                      Sum
-                    </th>
-                    <th style={{ width: 34 }} />
-                  </tr>
-                </thead>
-                <tbody>
-                  {section.lines.map((line, lineIndex) => (
-                    <tr key={lineIndex}>
-                      <td>
-                        <input
-                          className="cell-input"
-                          value={line.description}
-                          onChange={(e) =>
-                            updateLine(sectionIndex, lineIndex, {
-                              description: e.target.value,
-                            })
-                          }
-                        />
-                      </td>
-                      <td className="num">
-                        <input
-                          className="cell-input num"
-                          type="number"
-                          min="0"
-                          step="0.5"
-                          value={line.quantity}
-                          onChange={(e) =>
-                            updateLine(sectionIndex, lineIndex, {
-                              quantity: Number(e.target.value),
-                            })
-                          }
-                        />
-                      </td>
-                      <td className="num">
-                        {/* Einingsprisen kjem frå prisfila og er ikkje redigerbar her —
-                            skal prisen endrast, endrar ein prisfila. */}
-                        <span className="muted">{formatNok(line.unit_price)}</span>
-                        <div className="tiny muted">per {line.unit}</div>
-                      </td>
-                      <td className="num">
-                        <strong>{formatNok(line.quantity * line.unit_price)}</strong>
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          className="button danger"
-                          title="Fjern post"
-                          onClick={() => removeLine(sectionIndex, lineIndex)}
-                        >
-                          ×
-                        </button>
-                      </td>
+          {document.sections.map((section, sectionIndex) => {
+            const available = itemsForSection(
+              quoteType,
+              sectionIndex,
+              section.title,
+              priceItems,
+            );
+
+            return (
+              <div key={sectionIndex} style={{ marginBottom: 22 }}>
+                <span className="label">
+                  {document.sections.length > 1 ? section.title : "Postar"}
+                </span>
+
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 30 }} />
+                      <th>Post</th>
+                      <th className="num" style={{ width: 100 }}>
+                        Antal
+                      </th>
+                      <th className="num" style={{ width: 130 }}>
+                        Einingspris
+                      </th>
+                      <th className="num" style={{ width: 120 }}>
+                        Sum
+                      </th>
+                      <th style={{ width: 34 }} />
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))}
+                  </thead>
+                  <tbody>
+                    {section.lines.map((line, lineIndex) => {
+                      const isDragTarget =
+                        dragOver?.section === sectionIndex &&
+                        dragOver?.line === lineIndex &&
+                        dragging?.section === sectionIndex &&
+                        dragging?.line !== lineIndex;
+
+                      return (
+                        <tr
+                          key={lineIndex}
+                          className={isDragTarget ? "drag-over" : undefined}
+                          onDragOver={(event) => {
+                            if (dragging?.section !== sectionIndex) return;
+                            event.preventDefault();
+                            setDragOver({ section: sectionIndex, line: lineIndex });
+                          }}
+                          onDrop={(event) => {
+                            if (dragging?.section !== sectionIndex) return;
+                            event.preventDefault();
+                            moveLine(sectionIndex, dragging.line, lineIndex);
+                            setDragging(null);
+                            setDragOver(null);
+                          }}
+                        >
+                          <td>
+                            {/* Berre handtaket er draggbart — elles kan ein ikkje
+                                markere tekst i felta på rada. */}
+                            <span
+                              className="grip"
+                              role="button"
+                              tabIndex={0}
+                              aria-label={`Flytt post ${lineIndex + 1} av ${section.lines.length}`}
+                              title="Dra for å flytte, eller bruk piltastane"
+                              draggable
+                              onDragStart={() =>
+                                setDragging({ section: sectionIndex, line: lineIndex })
+                              }
+                              onDragEnd={() => {
+                                setDragging(null);
+                                setDragOver(null);
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === "ArrowUp" && lineIndex > 0) {
+                                  event.preventDefault();
+                                  moveLine(sectionIndex, lineIndex, lineIndex - 1);
+                                }
+                                if (
+                                  event.key === "ArrowDown" &&
+                                  lineIndex < section.lines.length - 1
+                                ) {
+                                  event.preventDefault();
+                                  moveLine(sectionIndex, lineIndex, lineIndex + 1);
+                                }
+                              }}
+                            >
+                              ⠿
+                            </span>
+                          </td>
+                          <td>
+                            <input
+                              className="cell-input"
+                              value={line.description}
+                              onChange={(e) =>
+                                updateLine(sectionIndex, lineIndex, {
+                                  description: e.target.value,
+                                })
+                              }
+                            />
+                          </td>
+                          <td className="num">
+                            <input
+                              className="cell-input num"
+                              type="number"
+                              min="0"
+                              step="0.5"
+                              value={line.quantity}
+                              onChange={(e) =>
+                                updateLine(sectionIndex, lineIndex, {
+                                  quantity: Number(e.target.value),
+                                })
+                              }
+                            />
+                          </td>
+                          <td className="num">
+                            {/* Einingsprisen kjem frå prisfila og er ikkje redigerbar
+                                her — skal prisen endrast, endrar ein prisfila. */}
+                            <span className="muted">{formatNok(line.unit_price)}</span>
+                            <div className="tiny muted">per {line.unit}</div>
+                          </td>
+                          <td className="num">
+                            <strong>{formatNok(line.quantity * line.unit_price)}</strong>
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className="button danger"
+                              title="Fjern post"
+                              aria-label={`Fjern ${line.description}`}
+                              onClick={() => removeLine(sectionIndex, lineIndex)}
+                            >
+                              ×
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+
+                    {section.lines.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="muted tiny" style={{ padding: "14px 0" }}>
+                          Ingen postar i denne seksjonen.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+
+                {available.length > 0 ? (
+                  <select
+                    className="select add-line"
+                    value=""
+                    onChange={(event) => {
+                      if (event.target.value) {
+                        addLine(sectionIndex, event.target.value);
+                        event.target.value = "";
+                      }
+                    }}
+                  >
+                    <option value="">+ Legg til post frå prisfila…</option>
+                    {available.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name} — {formatNok(Number(item.unit_price))} per {item.unit}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="hint">
+                    Ingen passande prisrader.{" "}
+                    <Link href="/tilbud/prisfil" style={{ textDecoration: "underline" }}>
+                      Legg dei inn under Prisfil
+                    </Link>{" "}
+                    for å kunne bruke dei her.
+                  </p>
+                )}
+              </div>
+            );
+          })}
 
           {totals && (
             <div className="doc-totals">
@@ -417,4 +568,33 @@ export function DraftEditor({
       </div>
     </div>
   );
+}
+
+/**
+ * Kva prisrader som passar i ein gitt seksjon.
+ *
+ * Punktpris har éin seksjon med bunta prisar. Fastpris har materiell og arbeid
+ * kvar for seg — vi les seksjonstittelen først, og fell tilbake på rekkjefølgja
+ * dersom modellen har kalla seksjonane noko anna enn venta.
+ */
+function itemsForSection(
+  quoteType: QuoteType,
+  sectionIndex: number,
+  sectionTitle: string,
+  items: PriceListItem[],
+): PriceListItem[] {
+  if (quoteType === "punktpris") {
+    return items.filter((item) => item.kind === "punktpris");
+  }
+
+  let wanted: PriceItemKind;
+  if (/arbeid|time|timar/i.test(sectionTitle)) {
+    wanted = "time";
+  } else if (/materiell|material|utstyr/i.test(sectionTitle)) {
+    wanted = "materiell";
+  } else {
+    wanted = sectionIndex === 0 ? "materiell" : "time";
+  }
+
+  return items.filter((item) => item.kind === wanted);
 }
