@@ -616,6 +616,53 @@ p {
   max-width: 460px;
 }
 
+/* Filslepp for Excel-import */
+.drop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 20px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.drop:hover,
+.drop:focus-visible {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  outline: none;
+}
+
+.drop.over {
+  border-color: var(--accent);
+  border-style: solid;
+  background: var(--accent-soft);
+}
+
+.drop.has-file {
+  border-style: solid;
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.drop-icon {
+  font-size: 19px;
+  color: var(--text-tertiary);
+}
+
+.drop-link {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.drop .button.ghost {
+  margin-left: auto;
+}
+
 /* Søkbar veljar for prisrader */
 .picker {
   position: relative;

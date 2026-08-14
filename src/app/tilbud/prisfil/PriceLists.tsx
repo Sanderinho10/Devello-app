@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ExcelDrop } from "@/components/ExcelDrop";
 import type { PriceListWithCount } from "./page";
 import {
   PRICE_KIND_HELP,
@@ -54,25 +55,35 @@ function KindSection({
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [details, setDetails] = useState<string[]>([]);
 
   async function create(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
     setError(null);
+    setDetails([]);
     try {
-      const res = await fetch("/api/price-lists", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind, name, description }),
-      });
+      const data = new FormData();
+      data.set("kind", kind);
+      data.set("name", name);
+      data.set("description", description);
+      if (file) data.set("file", file);
+
+      const res = await fetch("/api/price-lists", { method: "POST", body: data });
       const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error ?? "Kunne ikkje opprette lista");
+      if (!res.ok) {
+        setDetails(payload.details ?? []);
+        throw new Error(payload.error ?? "Kunne ikkje opprette lista");
+      }
       setName("");
       setDescription("");
+      setFile(null);
       setAdding(false);
       router.refresh();
+      if (payload.imported > 0) router.push(`/tilbud/prisfil/${payload.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -116,7 +127,19 @@ function KindSection({
 
       {adding && (
         <form className="card-pad" onSubmit={create} style={{ background: "var(--surface-sunken)" }}>
-          {error && <div className="banner error">{error}</div>}
+          {error && (
+            <div className="banner error">
+              <div>{error}</div>
+              {details.length > 0 && (
+                <ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>
+                  {details.slice(0, 8).map((line, index) => (
+                    <li key={index}>{line}</li>
+                  ))}
+                  {details.length > 8 && <li>… og {details.length - 8} til.</li>}
+                </ul>
+              )}
+            </div>
+          )}
           <div className="grid-2">
             <label className="field">
               <span className="label">Namn</span>
@@ -139,8 +162,23 @@ function KindSection({
               />
             </label>
           </div>
+          <div className="field">
+            <span className="label">Prisrader frå Excel (valfritt)</span>
+            <ExcelDrop
+              file={file}
+              onFile={setFile}
+              templateHref={`/api/price-lists/template?kind=${kind}`}
+            />
+          </div>
+
           <button className="button" type="submit" disabled={busy}>
-            {busy ? "Opprettar…" : "Opprett liste"}
+            {busy
+              ? file
+                ? "Les inn fila…"
+                : "Opprettar…"
+              : file
+                ? "Opprett og importer"
+                : "Opprett tom liste"}
           </button>
         </form>
       )}

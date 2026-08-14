@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ExcelDrop } from "@/components/ExcelDrop";
 import {
   formatNok,
   type PriceItemKind,
@@ -34,6 +35,10 @@ export function ListItems({
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [details, setDetails] = useState<string[]>([]);
+  const [file, setFile] = useState<File | null>(null);
+  const [replace, setReplace] = useState(false);
+  const [imported, setImported] = useState<number | null>(null);
 
   const shown = useMemo(() => {
     const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
@@ -83,14 +88,109 @@ export function ListItems({
     router.refresh();
   }
 
+  async function importFile(event: React.FormEvent) {
+    event.preventDefault();
+    if (!file) return;
+    if (
+      replace &&
+      items.length > 0 &&
+      !window.confirm(
+        `Erstatt dei ${items.length} eksisterande radene i «${list.name}» med innhaldet i fila?`,
+      )
+    ) {
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    setDetails([]);
+    setImported(null);
+    try {
+      const data = new FormData();
+      data.set("price_list_id", list.id);
+      data.set("file", file);
+      data.set("mode", replace ? "replace" : "append");
+
+      const res = await fetch("/api/price-lists/import", { method: "POST", body: data });
+      const payload = await res.json();
+      if (!res.ok) {
+        setDetails(payload.details ?? []);
+        throw new Error(payload.error ?? "Importen feila");
+      }
+      setImported(payload.imported);
+      setFile(null);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="stack">
+      <div className="card">
+        <div className="card-header">
+          <strong>Importer frå Excel</strong>
+          <span className="tiny muted">
+            {items.length > 0 ? "Legg til eller erstatt radene" : "Fyll lista frå ei fil"}
+          </span>
+        </div>
+        <form className="card-pad" onSubmit={importFile}>
+          {imported !== null && (
+            <div className="banner success">
+              Importerte {imported} {imported === 1 ? "rad" : "rader"}.
+            </div>
+          )}
+
+          <ExcelDrop
+            file={file}
+            onFile={setFile}
+            templateHref={`/api/price-lists/template?kind=${list.kind}`}
+          />
+
+          {items.length > 0 && (
+            <label className="row" style={{ marginTop: 14, cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={replace}
+                onChange={(e) => setReplace(e.target.checked)}
+              />
+              <span className="tiny">
+                Erstatt dei {items.length} eksisterande radene i staden for å leggje til
+              </span>
+            </label>
+          )}
+
+          <button
+            className="button"
+            type="submit"
+            disabled={busy || !file}
+            style={{ marginTop: 14 }}
+          >
+            {busy ? "Les inn fila…" : replace ? "Erstatt rader" : "Importer rader"}
+          </button>
+        </form>
+      </div>
+
       <div className="card">
         <div className="card-header">
           <strong>Ny prisrad</strong>
         </div>
         <form className="card-pad" onSubmit={save}>
-          {error && <div className="banner error">{error}</div>}
+          {error && (
+            <div className="banner error">
+              <div>{error}</div>
+              {details.length > 0 && (
+                <ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>
+                  {details.slice(0, 8).map((line, index) => (
+                    <li key={index}>{line}</li>
+                  ))}
+                  {details.length > 8 && <li>… og {details.length - 8} til.</li>}
+                </ul>
+              )}
+            </div>
+          )}
 
           <div className="grid-2">
             <label className="field">
