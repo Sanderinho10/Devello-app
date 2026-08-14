@@ -50,15 +50,23 @@ Ligg Chromium ein annan stad, peik på binærfila med
 
 ### 2. Supabase
 
-Opprett eit prosjekt og køyr migrasjonane i rekkjefølgje:
+Prosjektet **Devello database** (`ufzpqztolqxcaumkipfk`) er alt sett opp med alle
+fire migrasjonane og seed-data for Star Elektro. Skal du byggje eit nytt
+prosjekt frå botnen:
 
 ```sh
 supabase link --project-ref <ref>
 supabase db push
 ```
 
-Eller lim inn `supabase/migrations/0001_init.sql` og `0002_rls.sql` i SQL-editoren.
-`supabase/seed.sql` inneheld utviklingsdata for Star Elektro.
+Eller lim inn migrasjonane i SQL-editoren i rekkjefølgje, så `seed.sql`.
+
+| Migrasjon | Innhald |
+| --- | --- |
+| `0001_init.sql` | Tabellar, enums, indeksar, triggerar |
+| `0002_rls.sql` | RLS-policyar og storage-bøtter |
+| `0003_dev_auto_join.sql` | **Dev/pilot:** knyter nye brukarar til Star Elektro automatisk. Må fjernast i fase 3. |
+| `0004_hardening.sql` | Oppfølging av security advisor |
 
 ### 3. Azure
 
@@ -79,9 +87,9 @@ Fyll inn Supabase-nøklane, `ANTHROPIC_API_KEY` og Microsoft-verdiane.
 npm run dev
 ```
 
-Logg inn på `/login` (e-postlenkje via Supabase Auth). Fyrste gong må brukaren
-knytast til eit selskap — sjå den kommenterte `insert into users` nedst i
-`supabase/seed.sql`.
+Logg inn på `/login` (e-postlenkje via Supabase Auth). Så lenge
+`0003_dev_auto_join.sql` er køyrd, blir brukaren knytt til Star Elektro
+automatisk ved fyrste innlogging.
 
 ## Flyten
 
