@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { PriceItemPicker } from "@/components/PriceItemPicker";
 import {
   QUOTE_TYPE_HELP,
   QUOTE_TYPE_LABELS,
@@ -452,23 +453,12 @@ export function DraftEditor({
                 </table>
 
                 {available.length > 0 ? (
-                  <select
-                    className="select add-line"
-                    value=""
-                    onChange={(event) => {
-                      if (event.target.value) {
-                        addLine(sectionIndex, event.target.value);
-                        event.target.value = "";
-                      }
-                    }}
-                  >
-                    <option value="">+ Legg til post frå prisfila…</option>
-                    {available.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.name} — {formatNok(Number(item.unit_price))} per {item.unit}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="add-line">
+                    <PriceItemPicker
+                      items={available}
+                      onSelect={(item) => addLine(sectionIndex, item.id)}
+                    />
+                  </div>
                 ) : (
                   <p className="hint">
                     Ingen passande prisrader.{" "}

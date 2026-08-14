@@ -613,7 +613,88 @@ p {
 
 .add-line {
   margin-top: 10px;
-  max-width: 420px;
+  max-width: 460px;
+}
+
+/* Søkbar veljar for prisrader */
+.picker {
+  position: relative;
+}
+
+.picker-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.picker-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 5px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+}
+
+.picker-option {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.picker-option.active {
+  background: var(--accent-soft);
+}
+
+.picker-name {
+  font-weight: 550;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+}
+
+.picker-code {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 5px;
+  padding: 1px 5px;
+  flex-shrink: 0;
+}
+
+.picker-price {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.picker-unit {
+  color: var(--text-tertiary);
+}
+
+.picker-description {
+  grid-column: 1 / -1;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.picker-empty {
+  padding: 10px 12px;
+  font-size: 13px;
   color: var(--text-secondary);
 }
 
