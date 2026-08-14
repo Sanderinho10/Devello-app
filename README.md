@@ -81,6 +81,12 @@ cp .env.example .env.local
 
 Fyll inn Supabase-nøklane, `ANTHROPIC_API_KEY` og Microsoft-verdiane.
 
+> **Windows PowerShell 5.1:** ikkje lag fila med `Set-Content -Encoding utf8` —
+> den skriv UTF-8 *med* BOM, og dei tre byta gjer at den fyrste variabelen i fila
+> ikkje blir lest. Symptomet er «Invalid supabaseUrl: Provided URL is malformed»
+> sjølv om URL-en ser rett ut. Bruk `-Encoding ascii`, eller
+> `[System.IO.File]::WriteAllText($path, $text, (New-Object System.Text.UTF8Encoding($false)))`.
+
 ### 5. Køyr
 
 ```sh
