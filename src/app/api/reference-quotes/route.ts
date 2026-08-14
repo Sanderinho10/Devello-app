@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
 
     if (!title || !type) {
       return NextResponse.json(
-        { error: "Tittel og type er påkravd" },
+        { error: "Tittel og type er påkrevd" },
         { status: 400 },
       );
     }
@@ -35,10 +35,10 @@ export async function POST(request: NextRequest) {
       const { error: uploadError } = await admin.storage
         .from("reference-files")
         .upload(storagePath, bytes, { contentType: mimeType, upsert: false });
-      if (uploadError) throw new Error(`Opplasting feila: ${uploadError.message}`);
+      if (uploadError) throw new Error(`Opplasting feilet: ${uploadError.message}`);
 
-      // Rein tekst kan lesast direkte. PDF- og Word-uthenting kjem seinare —
-      // fram til då er det job_description som ber klassifiseringa.
+      // Ren tekst kan leses direkte. PDF- og Word-uthenting kommer senere —
+      // fram til da er det job_description som bærer klassifiseringen.
       if (mimeType.startsWith("text/")) {
         extractedText = bytes.toString("utf8").slice(0, 50_000);
       }
@@ -67,7 +67,7 @@ export async function DELETE(request: NextRequest) {
   if (session instanceof NextResponse) return session;
 
   const id = request.nextUrl.searchParams.get("id");
-  if (!id) return NextResponse.json({ error: "Manglar id" }, { status: 400 });
+  if (!id) return NextResponse.json({ error: "Mangler id" }, { status: 400 });
 
   const admin = supabaseAdmin();
 

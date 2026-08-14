@@ -1,19 +1,19 @@
 # design/
 
-Statiske mockupar for tilbudsagenten. Dei lenkjer til `../src/app/globals.css`
-— den same fila appen brukar — slik at mockup og implementasjon ikkje driv frå
-kvarandre. Endrar du designsystemet, endrar begge seg.
+Statiske mockuper for tilbudsagenten. De lenker til `../src/app/globals.css`
+— den samme filen appen bruker — slik at mockup og implementasjon ikke driver fra
+hverandre. Endrer du designsystemet, endrer begge seg.
 
-Opne filene direkte i nettlesaren (`file://`), ingen byggesteg.
+Åpne filene direkte i nettleseren (`file://`), ingen byggesteg.
 
 | Fil | Viser |
 | --- | --- |
-| `dashboard.html` | Leads-lista og navigasjonsmønsteret: éin knapp per agent, med agentens faner inni. |
-| `draft-dokument.html` | Utkast for punktpris og fastpris — dokument-forhandsvisning med type-bryter og kort e-posttekst. |
+| `dashboard.html` | Leads-listen og navigasjonsmønsteret: én knapp per agent, med agentens faner inni. |
+| `draft-dokument.html` | Utkast for punktpris og fastpris — dokument-forhåndsvisning med type-bryter og kort e-posttekst. |
 | `draft-tekst.html` | Utkast for tid og materiell — redigerbar tekst, ingen PDF. |
 
-Sjølve tilbods-PDF-en har eit eige uttrykk (`src/lib/pdf/template.ts`) og er
-ikkje ein av desse mockupane. For å sjå den:
+Selve tilbuds-PDF-en har et eget uttrykk (`src/lib/pdf/template.ts`) og er
+ikke en av disse mockupene. For å se den:
 
 ```sh
 npm run preview:pdf            # punktpris

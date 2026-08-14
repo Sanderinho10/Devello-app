@@ -1,8 +1,8 @@
 -- Row Level Security. Alt er scoped til company_id.
--- Service role (API-rutene) omgår RLS og gjer sine eigne sjekkar.
+-- Service role (API-rutene) omgår RLS og gjør sine egne sjekker.
 
--- Hjelpefunksjon: kva company høyrer den innlogga brukaren til?
--- security definer så den kan lese users utan å trigge RLS på seg sjølv.
+-- Hjelpefunksjon: hvilket company hører den innloggede brukeren til?
+-- security definer så den kan lese users uten å trigge RLS på seg selv.
 create or replace function auth_company_id()
 returns uuid
 language sql
@@ -24,13 +24,13 @@ alter table drafts             enable row level security;
 alter table draft_versions     enable row level security;
 alter table agent_runs         enable row level security;
 
--- companies: les eige selskap, oppdater tone-innstillingar.
+-- companies: leser eget selskap, oppdater tone-innstillinger.
 create policy companies_select on companies
   for select using (id = auth_company_id());
 create policy companies_update on companies
   for update using (id = auth_company_id());
 
--- Tabellar med company_id direkte: full tilgang innanfor eige selskap.
+-- Tabeller med company_id direkte: full tilgang innenfor eget selskap.
 create policy company_brand_all on company_brand
   for all using (company_id = auth_company_id())
   with check (company_id = auth_company_id());
@@ -38,7 +38,7 @@ create policy company_brand_all on company_brand
 create policy users_select on users
   for select using (company_id = auth_company_id());
 
--- Tokens skal aldri lesast frå nettlesaren. Berre service role rører denne tabellen;
+-- Tokens skal aldri leses fra nettleseren. Bare service role rører denne tabellen;
 -- ingen policy => ingen tilgang for anon/authenticated.
 
 create policy price_list_items_all on price_list_items
@@ -56,7 +56,7 @@ create policy leads_all on leads
 create policy agent_runs_select on agent_runs
   for select using (company_id = auth_company_id());
 
--- drafts og draft_versions arvar company via lead.
+-- drafts og draft_versions arver company via lead.
 create policy drafts_all on drafts
   for all using (
     exists (
@@ -91,7 +91,7 @@ create policy draft_versions_all on draft_versions
     )
   );
 
--- Storage: referansefiler og genererte PDF-ar.
+-- Storage: referansefiler og genererte PDF-er.
 insert into storage.buckets (id, name, public)
   values ('reference-files', 'reference-files', false)
   on conflict (id) do nothing;

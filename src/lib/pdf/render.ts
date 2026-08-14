@@ -3,12 +3,12 @@ import { chromium, type Browser } from "playwright-core";
 /**
  * HTML → PDF.
  *
- * Implementasjonen er isolert bak denne funksjonen med vilje. Vil ein seinare
- * bytte til ei hosta PDF-teneste eller ein serverless-vennleg chromium-build,
- * er det denne fila som skal endrast — ingenting anna rører rendringa.
+ * Implementasjonen er isolert bak denne funksjonen med vilje. Vil man senere
+ * bytte til en hostet PDF-tjeneste eller en serverless-vennlig chromium-build,
+ * er det denne filen som skal endres — ingenting annet rører rendringen.
  *
- * PLAYWRIGHT_BROWSERS_PATH må peike på ein chromium-installasjon, eller
- * PLAYWRIGHT_CHROMIUM_EXECUTABLE på binærfila direkte.
+ * PLAYWRIGHT_BROWSERS_PATH må peke på en chromium-installasjon, eller
+ * PLAYWRIGHT_CHROMIUM_EXECUTABLE på binærfilen direkte.
  */
 
 let browserPromise: Promise<Browser> | null = null;
@@ -21,7 +21,7 @@ async function getBrowser(): Promise<Browser> {
         args: ["--no-sandbox", "--disable-dev-shm-usage"],
       })
       .catch((err) => {
-        // Ikkje cache eit mislukka oppstartsforsøk.
+        // Ikke cache et mislykket oppstartsforsøk.
         browserPromise = null;
         throw err;
       });
@@ -38,7 +38,7 @@ export async function htmlToPdf(html: string): Promise<Buffer> {
     const pdf = await page.pdf({
       format: "A4",
       printBackground: true,
-      // Margane ligg i @page-regelen i malen.
+      // Margene ligger i @page-regelen i malen.
       margin: { top: "0", right: "0", bottom: "0", left: "0" },
     });
     return Buffer.from(pdf);
@@ -47,7 +47,7 @@ export async function htmlToPdf(html: string): Promise<Buffer> {
   }
 }
 
-/** For test og for reint avslutning i skript. */
+/** For test og for ren avslutning i skript. */
 export async function closePdfRenderer(): Promise<void> {
   if (browserPromise) {
     const browser = await browserPromise;

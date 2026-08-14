@@ -1,9 +1,9 @@
 /*
  * Devello — designsystem.
  *
- * Reint, Apple-inspirert: systemfont, lite fargebruk, mjuke skuggar, romsleg.
- * Mockupane i design/ lenkjer til denne same fila, slik at mockup og app aldri
- * driv frå kvarandre.
+ * Rent, Apple-inspirert: systemfont, lite fargebruk, myke skygger, luftig.
+ * Mockupene i design/ lenker til den samme filen, slik at mockup og app aldri
+ * driver fra hverandre.
  */
 
 :root {
@@ -129,8 +129,8 @@ p {
 }
 
 /*
- * Navigasjonen er organisert per agent, ikkje per funksjon: éin knapp per agent,
- * med agentens faner inni. Mønsteret blir gjenbrukt for kvar ny agent.
+ * Navigasjonen er organisert per agent, ikke per funksjon: én knapp per agent,
+ * med agentens faner inni. Mønsteret blir gjenbrukt for hver ny agent.
  */
 .nav-agent {
   margin-bottom: 4px;
@@ -188,7 +188,7 @@ p {
   padding: 1px 7px;
 }
 
-/* Agent-faner: leads / prisfil / referansefiler / innstillingar */
+/* Agent-faner: leads / prisfil / referansefiler / innstillinger */
 .nav-tabs {
   display: flex;
   flex-direction: column;
@@ -365,7 +365,7 @@ p {
   transition: background 0.12s ease;
 }
 
-/* Element som skal ha heile breidda for seg sjølv i ei flex-rad. */
+/* Element som skal ha hele bredden for seg selv i en flex-rad. */
 .row-break {
   flex: 0 0 100%;
   margin-bottom: 0;
@@ -406,7 +406,7 @@ p {
   white-space: nowrap;
 }
 
-/* Type-bryter — brukaren kan endre agentens forslag før dei bekreftar */
+/* Type-bryter — brukeren kan endre agentens forslag før de bekrefter */
 .type-switch {
   display: flex;
   gap: 3px;
@@ -502,7 +502,7 @@ p {
   margin-top: 6px;
 }
 
-/* Dokument-forhandsvisning */
+/* Dokument-forhåndsvisning */
 .doc-preview {
   background: var(--surface);
   border-radius: var(--radius-lg);
@@ -575,7 +575,7 @@ p {
   text-align: right;
 }
 
-/* Dra-handtak for å omorganisere postar */
+/* Dra-håndtak for å omorganisere poster */
 .grip {
   display: inline-flex;
   align-items: center;
@@ -606,7 +606,7 @@ p {
   color: var(--accent);
 }
 
-/* Viser kvar rada blir sleppt */
+/* Viser hver raden blir sleppt */
 .doc-table tr.drag-over td {
   box-shadow: inset 0 2px 0 var(--accent);
 }
@@ -663,7 +663,7 @@ p {
   margin-left: auto;
 }
 
-/* Søkbar veljar for prisrader */
+/* Søkbar velger for prisrader */
 .picker {
   position: relative;
 }

@@ -5,14 +5,14 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import type { QuoteDocument, QuoteType } from "@/lib/types";
 
 /**
- * Lagrar utkastet utan å kalle modellen.
+ * Lagrer utkastet uten å kalle modellen.
  *
- * To grunnar til at denne finst: redigeringar skal overleve ei sideoppdatering,
- * og både PDF-forhandsvisninga og bekreft-flyten les frå databasen — utan ei
- * lagring ville dei vist ein eldre versjon enn den på skjermen.
+ * To grunner til at denne finnes: redigeringer skal overleve en sideoppdatering,
+ * og både PDF-forhåndsvisningen og bekreft-flyten leser fra databasen — uten en
+ * lagring ville de vist en eldre versjon enn den på skjermen.
  *
- * Endringar blir logga som ein «redigering»-versjon, men berre når noko faktisk
- * er annleis. Elles ville kvart tastetrykk bli ein rad i læringsdataa.
+ * Endringer blir logget som en «redigering»-versjon, men bare når noe faktisk
+ * er annerledes. Ellers ville hvert tastetrykk bli en rad i læringsdataene.
  */
 export async function PATCH(
   request: NextRequest,
@@ -39,7 +39,7 @@ export async function PATCH(
     .maybeSingle();
 
   if (!draft) {
-    return NextResponse.json({ error: "Fann ikkje utkastet" }, { status: 404 });
+    return NextResponse.json({ error: "Fant ikke utkastet" }, { status: 404 });
   }
 
   try {
@@ -68,7 +68,7 @@ export async function PATCH(
       .from("drafts")
       .update({
         ...after,
-        // Ein lagra PDF høyrer til det gamle innhaldet.
+        // En lagret PDF hører til det gamle innholdet.
         pdf_path: null,
       })
       .eq("id", draft.id);

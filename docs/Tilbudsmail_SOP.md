@@ -1,62 +1,62 @@
 # Tilbudsmail — SOP
 
-> **Merk:** Denne fila er kjelda for *kva som faktisk skal stå* i e-postteksten.
-> Byggspec-en styrer format og output-mekanikk (PDF vs. rein tekst); innhaldet
-> kjem herifrå. Innhaldet under er utgangspunktet for Star Elektro og skal
-> erstattast med / justerast mot den faktiske SOP-en før pilot.
+> **Merk:** Denne filen er kilden til *hva som faktisk skal stå* i e-postteksten.
+> Byggspec-en styrer format og output-mekanikk (PDF vs. ren tekst); innholdet
+> kommer herfra. Innholdet under er utgangspunktet for Star Elektro og skal
+> erstattes med / justeres mot den faktiske SOP-en før pilot.
 >
-> Fila blir lest ved generering (`src/lib/claude/sop.ts`) og lagt inn i prompten.
-> Endrar du teksten her, endrar du kva agenten skriv — ingen kodeendring trengst.
+> Filen blir lest ved generering (`src/lib/claude/sop.ts`) og lagt inn i prompten.
+> Endrer du teksten her, endrer du hva agenten skriver — ingen kodeendring trengs.
 
-## Fellesreglar
+## Fellesregler
 
-- Skriv på norsk, same målform som kunden brukte i førespurnaden.
-- Kort og konkret. Ingen salsprat, ingen superlativ.
-- Opne med å referere til det kunden faktisk spurde om, med deira eigne ord.
-- Éin tydeleg oppfordring til slutt: svar på e-posten om noko er uklart.
-- Aldri lov ei leveringstid som ikkje står i førespurnaden eller prisfila.
-- Aldri rekn ut prisar i teksten. Alle tal kjem frå prisfila og står i PDF-en.
-- Avslutt med signaturen frå tone-innstillingane.
+- Skriv på norsk bokmål, uansett hvilken målform kunden brukte i forespørselen.
+- Kort og konkret. Ingen salgsprat, ingen superlativer.
+- Åpne med å referere til det kunden faktisk spurte om, med deres egne ord.
+- Én tydelig oppfordring til slutt: svar på e-posten om noe er uklart.
+- Aldri lov en leveringstid som ikke står i forespørselen eller prisfilen.
+- Aldri regn ut priser i teksten. Alle tall kommer fra prisfilen og står i PDF-en.
+- Avslutt med signaturen fra tone-innstillingene.
 
 ## Punktpris
 
-E-postteksten er kort — PDF-en er hovudsaka.
+E-postteksten er kort — PDF-en er hovedsaken.
 
 Struktur:
 
-1. Takk for førespurnaden, gjenta kva jobben gjeld i éi setning.
-2. Vis til vedlagt tilbod, og nemn at kvar post er ein samla pris som dekker
+1. Takk for forespørselen, gjenta hva jobben gjelder i én setning.
+2. Vis til vedlagt tilbud, og nevn at hver post er en samlet pris som dekker
    både arbeid og materiell.
-3. Nemn kva som eventuelt kjem i tillegg (framkøyring, uføresett arbeid), dersom
+3. Nevn hva som eventuelt kommer i tillegg (framkjøring, uforutsett arbeid), hvis
    det er relevant for jobben.
-4. Gyldigheit: tilbodet gjeld i 30 dagar frå dato.
-5. Be dei ta kontakt om noko er uklart.
+4. Gyldighet: tilbudet gjelder i 30 dager fra dato.
+5. Be dem ta kontakt om noe er uklart.
 
 ## Fastpris
 
-Same struktur som punktpris, men med eitt tillegg:
+Samme struktur som punktpris, men med ett tillegg:
 
-- Forklar at tilbodet er spesifisert med materiell og timar kvar for seg, og at
-  **poenget med spesifikasjonen er å vise kva som kjem i tillegg** dersom jobben
-  krev meir materiell eller fleire timar enn det som står i spesifikasjonen.
-- Vis til «Føresetnader» i vedlegget for kva prisen byggjer på.
+- Forklar at tilbudet er spesifisert med materiell og timer hver for seg, og at
+  **poenget med spesifikasjonen er å vise hva som kommer i tillegg** hvis jobben
+  krever mer materiell eller flere timer enn det som står i spesifikasjonen.
+- Vis til «Forutsetninger» i vedlegget for hva prisen bygger på.
 
 ## Tid og materiell
 
-Ingen PDF. Heile tilbodet ligg i e-postteksten.
+Ingen PDF. Hele tilbudet ligger i e-postteksten.
 
 Struktur:
 
-1. Takk for førespurnaden, gjenta kva jobben gjeld i éi setning.
-2. Forklar kvifor det blir løpande regning: omfanget lèt seg ikkje fastsetje før
+1. Takk for forespørselen, gjenta hva jobben gjelder i én setning.
+2. Forklar hvorfor det blir løpende regning: omfanget lar seg ikke fastsette før
    arbeidet er i gang.
-3. Timepris — hentast frå prisfila (rad av typen `time`). Oppgi eks. mva.
-4. Materiell — fakturerast etter forbruk, med påslag i tråd med prisfila.
-5. Køyring og eventuelle faste tillegg.
-6. Tilbod om eit estimat etter befaring, dersom kunden ønskjer eit tak.
-7. Be dei ta kontakt om noko er uklart.
+3. Timepris — hentes fra prisfilen (rad av typen `time`). Oppgi eks. mva.
+4. Materiell — faktureres etter forbruk, med påslag i tråd med prisfilen.
+5. Kjøring og eventuelle faste tillegg.
+6. Tilbud om et estimat etter befaring, hvis kunden ønsker et tak.
+7. Be dem ta kontakt om noe er uklart.
 
 ## Emnefelt
 
-- Svarar vi på ein tråd: behald emnet frå kunden.
-- Ny e-post: `Tilbod — <kort jobbskildring>`.
+- Svarer vi på en tråd: behold emnet fra kunden.
+- Ny e-post: `Tilbud — <kort jobbeskrivelse>`.

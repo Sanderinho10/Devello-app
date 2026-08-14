@@ -5,15 +5,15 @@ import {
 } from "@/lib/types";
 
 /**
- * Excel-malen og innlesinga bur i same fil med vilje. Endrar ein kolonnane i
- * malen utan å endre innlesinga, får kunden ei fil som ikkje kan importerast —
- * og det er ein feil som ikkje viser seg før nokon prøver.
+ * Excel-malen og innlesingen bor i samme fil med vilje. Endrer man kolonnene i
+ * malen uten å endre innlesingen, får kunden en fil som ikke kan importeres —
+ * og det er en feil som ikke viser seg før noen prøver.
  */
 
 interface ColumnSpec {
-  /** Overskrifta som blir skriven i malen. */
+  /** Overskriften som blir skrevet i malen. */
   header: string;
-  /** Alt vi godtek som denne kolonnen ved innlesing, normalisert. */
+  /** Alt vi godtar som denne kolonnen ved innlesing, normalisert. */
   aliases: string[];
   width: number;
   required: boolean;
@@ -21,20 +21,22 @@ interface ColumnSpec {
 
 const COLUMNS = {
   name: {
-    header: "Namn",
-    aliases: ["namn", "navn", "produkt", "produktnavn", "produktnamn", "post", "beskrivelse", "tekst", "name"],
+    header: "Navn",
+    // Nynorskformene står igjen med vilje: filer laget før dette skal
+    // fortsatt kunne importeres.
+    aliases: ["navn", "namn", "produkt", "produktnavn", "produktnamn", "post", "tekst", "name"],
     width: 42,
     required: true,
   },
   unit: {
-    header: "Eining",
-    aliases: ["eining", "enhet", "einheit", "unit", "mengde", "måleeining", "maaleeining"],
+    header: "Enhet",
+    aliases: ["enhet", "eining", "einheit", "unit", "mengde", "måleenhet", "maaleenhet", "måleeining"],
     width: 12,
     required: true,
   },
   unit_price: {
     header: "Pris eks. mva",
-    aliases: ["pris eks. mva", "pris eks mva", "pris", "einingspris", "enhetspris", "kroner", "kr", "price", "sum"],
+    aliases: ["pris eks. mva", "pris eks mva", "pris", "enhetspris", "einingspris", "kroner", "kr", "price", "sum"],
     width: 16,
     required: true,
   },
@@ -45,8 +47,8 @@ const COLUMNS = {
     required: false,
   },
   description: {
-    header: "Skildring",
-    aliases: ["skildring", "beskrivelse", "merknad", "kommentar", "notat", "description"],
+    header: "Beskrivelse",
+    aliases: ["beskrivelse", "skildring", "merknad", "kommentar", "notat", "description"],
     width: 40,
     required: false,
   },
@@ -56,22 +58,22 @@ type ColumnKey = keyof typeof COLUMNS;
 
 const COLUMN_ORDER: ColumnKey[] = ["name", "unit", "unit_price", "code", "description"];
 
-/** Eksempelrader per listetype, så malen viser kva som er venta. */
+/** Eksempelrader per listetype, så malen viser hva som er forventet. */
 const EXAMPLES: Record<PriceItemKind, string[][]> = {
   punktpris: [
-    ["Montering stikkontakt, dobbel", "stk", "890", "EL-104", "Standard dobbel kontakt i eksisterande vegg"],
-    ["Montering takpunkt med brytar", "stk", "1340", "", ""],
-    ["Montering varmekabel", "m²", "1150", "", "Inkl. kabel og termostat-tilkopling"],
+    ["Montering stikkontakt, dobbel", "stk", "890", "EL-104", "Standard dobbel kontakt i eksisterende vegg"],
+    ["Montering takpunkt med bryter", "stk", "1340", "", ""],
+    ["Montering varmekabel", "m²", "1150", "", "Inkl. kabel og termostat-tilkobling"],
   ],
   materiell: [
-    ["Sikringsskap 24 modular", "stk", "4200", "M-2400", ""],
+    ["Sikringsskap 24 moduler", "stk", "4200", "M-2400", ""],
     ["Jordfeilautomat 16 A", "stk", "640", "", ""],
     ["Kabel PFSP 3G2,5", "m", "38", "", "Pris per meter"],
   ],
   time: [
-    ["Timepris elektrikar", "time", "1190", "", "Ordinær arbeidstid"],
+    ["Timepris elektriker", "time", "1190", "", "Ordinær arbeidstid"],
     ["Timepris lærling", "time", "760", "", ""],
-    ["Køyring", "stk", "450", "", "Per oppdrag innanfor kommunen"],
+    ["Kjøring", "stk", "450", "", "Per oppdrag innenfor kommunen"],
   ],
 };
 
@@ -106,7 +108,7 @@ export async function buildTemplate(kind: PriceItemKind): Promise<Buffer> {
     sheet.addRow(example);
   }
 
-  // Marker eksempelradene tydeleg, så dei ikkje blir importerte ved eit uhell.
+  // Marker eksempelradene tydelig, så de ikke blir importert ved et uhell.
   for (let rowNumber = 2; rowNumber <= 1 + EXAMPLES[kind].length; rowNumber++) {
     const row = sheet.getRow(rowNumber);
     row.font = { italic: true, color: { argb: "FF86868B" } };
@@ -114,7 +116,7 @@ export async function buildTemplate(kind: PriceItemKind): Promise<Buffer> {
 
   const note = sheet.getRow(2 + EXAMPLES[kind].length + 1);
   note.getCell(1).value =
-    "↑ Radene over er eksempel. Slett dei og lim inn dine eigne. Namn, eining og pris må vere utfylt.";
+    "↑ Radene over er eksempler. Slett dem og lim inn dine egne. Navn, enhet og pris må være utfylt.";
   note.getCell(1).font = { italic: true, color: { argb: "FF86868B" }, size: 10 };
 
   sheet.getColumn("unit_price").numFmt = "# ##0";
@@ -142,9 +144,9 @@ export interface ParsedRow {
 
 export interface ParseResult {
   rows: ParsedRow[];
-  /** Feil per rad. Er denne ikkje tom, blir ingenting importert. */
+  /** Feil per rad. Er denne ikke tom, blir ingenting importert. */
   errors: string[];
-  /** Tomme rader vi hoppa over utan å klage. */
+  /** Tomme rader vi hoppet over uten å klage. */
   skipped: number;
 }
 
@@ -156,7 +158,7 @@ export async function parseWorkbook(file: Buffer): Promise<ParseResult> {
     return {
       rows: [],
       errors: [
-        "Klarte ikkje å lese fila. Er den lagra som .xlsx? Gamle .xls-filer må lagrast på nytt i nyare format.",
+        "Klarte ikke å lese filen. Er den lagret som .xlsx? Gamle .xls-filer må lagres på nytt i nyere format.",
       ],
       skipped: 0,
     };
@@ -164,7 +166,7 @@ export async function parseWorkbook(file: Buffer): Promise<ParseResult> {
 
   const sheet = workbook.worksheets[0];
   if (!sheet) {
-    return { rows: [], errors: ["Arbeidsboka har ingen ark."], skipped: 0 };
+    return { rows: [], errors: ["Arbeidsboken har ingen ark."], skipped: 0 };
   }
 
   const mapping = mapHeaders(sheet.getRow(1));
@@ -183,30 +185,30 @@ export async function parseWorkbook(file: Buffer): Promise<ParseResult> {
     const unit = text(row.getCell(mapping.columns.unit));
     const rawPrice = row.getCell(mapping.columns.unit_price).value;
 
-    // Heilt tomme rader, og notatlinja i malen, går stille forbi.
+    // Helt tomme rader, og notatlinjen i malen, går stille forbi.
     if (!name && !unit && (rawPrice === null || rawPrice === undefined || rawPrice === "")) {
       skipped += 1;
       return;
     }
     if (!name || !unit) {
-      // Ei rad med berre tekst i fyrste kolonne er som regel ein kommentar.
+      // En rad med bare tekst i første kolonne er som regel en kommentar.
       if (name && !unit && (rawPrice === null || rawPrice === undefined || rawPrice === "")) {
         skipped += 1;
         return;
       }
-      errors.push(`Rad ${rowNumber}: namn og eining må vere utfylt.`);
+      errors.push(`Rad ${rowNumber}: navn og enhet må være utfylt.`);
       return;
     }
 
     const price = toNumber(rawPrice);
     if (price === null) {
       errors.push(
-        `Rad ${rowNumber}: «${text(row.getCell(mapping.columns.unit_price))}» er ikkje eit tal.`,
+        `Rad ${rowNumber}: «${text(row.getCell(mapping.columns.unit_price))}» er ikke et tall.`,
       );
       return;
     }
     if (price < 0) {
-      errors.push(`Rad ${rowNumber}: prisen kan ikkje vere negativ.`);
+      errors.push(`Rad ${rowNumber}: prisen kan ikke være negativ.`);
       return;
     }
 
@@ -222,7 +224,7 @@ export async function parseWorkbook(file: Buffer): Promise<ParseResult> {
   });
 
   if (rows.length === 0 && errors.length === 0) {
-    errors.push("Fann ingen rader med innhald under overskriftene.");
+    errors.push("Fant ingen rader med innhold under overskriftene.");
   }
 
   return { rows, errors, skipped };
@@ -251,8 +253,8 @@ function mapHeaders(headerRow: ExcelJS.Row): Mapping {
   if (missing.length > 0) {
     return {
       error:
-        `Fann ikkje kolonnen ${missing.map((key) => `«${COLUMNS[key].header}»`).join(" og ")} ` +
-        "i fyrste rad. Last ned malen og bruk overskriftene derifrå.",
+        `Fant ikke kolonnen ${missing.map((key) => `«${COLUMNS[key].header}»`).join(" og ")} ` +
+        "i første rad. Last ned malen og bruk overskriftene derfra.",
     };
   }
 
@@ -275,7 +277,7 @@ function normalize(value: string): string {
     .trim();
 }
 
-/** Celleverdiar frå Excel kan vere formlar, rike tekstar eller reine verdiar. */
+/** Celleverdier fra Excel kan være formler, rik tekst eller rene verdier. */
 function text(cell: ExcelJS.Cell): string {
   const value = cell.value;
   if (value === null || value === undefined) return "";
@@ -297,8 +299,8 @@ function text(cell: ExcelJS.Cell): string {
 }
 
 /**
- * Godtek «1 190», «1.190,50», «1190,50 kr» og «kr 1 190» — folk limer inn
- * prisar i alle desse formene, og å avvise dei ville berre skape arbeid.
+ * Godtar «1 190», «1.190,50», «1190,50 kr» og «kr 1 190» — folk limer inn
+ * priser i alle disse formene, og å avvise dem ville bare skape arbeid.
  */
 function toNumber(value: ExcelJS.CellValue): number | null {
   if (typeof value === "number") return value;
@@ -316,7 +318,7 @@ function toNumber(value: ExcelJS.CellValue): number | null {
     .trim();
   if (!raw) return null;
 
-  // Tusenskilje og desimalskilje varierer. Siste separator vinn som desimal.
+  // Tusenskille og desimalskille varierer. Siste separator vinner som desimal.
   const lastComma = raw.lastIndexOf(",");
   const lastDot = raw.lastIndexOf(".");
   if (lastComma > lastDot) {

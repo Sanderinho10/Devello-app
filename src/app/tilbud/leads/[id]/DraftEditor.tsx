@@ -51,7 +51,7 @@ export function DraftEditor({
   const [body, setBody] = useState(draft.email_body);
   const [document, setDocument] = useState<QuoteDocument | null>(draft.document);
 
-  const [busy, setBusy] = useState<null | "bekreftar" | "regenererer" | "lagrar">(
+  const [busy, setBusy] = useState<null | "bekrefter" | "regenererer" | "lagrer">(
     null,
   );
   const [error, setError] = useState<string | null>(null);
@@ -62,12 +62,12 @@ export function DraftEditor({
   const [dragOver, setDragOver] = useState<DragRef | null>(null);
 
   /**
-   * Utkast vi alt har sett i denne økta, per type.
+   * Utkast vi allerede har sett i denne økten, per type.
    *
-   * Utan denne kostar kvart klikk på type-bryteren eit modellkall — også når
-   * ein berre skal sjå tilbake på noko ein alt har generert. Cachen held òg på
-   * redigeringar som ikkje er lagra enno, så eit bytte fram og tilbake ikkje
-   * kastar arbeid.
+   * Uten denne koster hvert klikk på type-bryteren et modellkall — også når man
+   * bare skal se tilbake på noe man allerede har generert. Cachen holder også på
+   * redigeringer som ikke er lagret ennå, så et bytte fram og tilbake ikke
+   * kaster arbeid.
    */
   const [seen, setSeen] = useState<Partial<Record<QuoteType, Snapshot>>>({
     [draft.quote_type]: {
@@ -85,8 +85,8 @@ export function DraftEditor({
   );
 
   /**
-   * Byter brukaren type, må innhaldet genererast på nytt — eit punktpris-dokument
-   * kan ikkje gjenbrukast som ein tid-og-materiell-tekst.
+   * Bytter brukeren type, må innholdet genereres på nytt — et punktpris-dokument
+   * kan ikke gjenbrukes som en tid-og-materiell-tekst.
    */
   function currentSnapshot(): Snapshot {
     return { email_subject: subject, email_body: body, document };
@@ -101,7 +101,7 @@ export function DraftEditor({
   async function changeType(next: QuoteType) {
     if (next === quoteType) return;
 
-    // Ta vare på det vi står med, så redigeringar overlever eit bytte.
+    // Ta vare på det vi står med, så redigeringer overlever et bytte.
     const keep = currentSnapshot();
     setSeen((current) => ({ ...current, [quoteType]: keep }));
 
@@ -110,7 +110,7 @@ export function DraftEditor({
       setQuoteType(next);
       apply(cached);
       setReused(true);
-      // Databasen må følgje med, elles viser PDF-en og bekreft feil type.
+      // Databasen må følge med, ellers viser PDF-en og bekreft feil type.
       void save(next, cached);
       return;
     }
@@ -118,7 +118,7 @@ export function DraftEditor({
     await generate(next, false);
   }
 
-  /** Lagrar utan modellkall. Held databasen i takt med det som står på skjermen. */
+  /** Lagrer uten modellkall. Holder databasen i takt med det som står på skjermen. */
   async function save(type: QuoteType, snapshot: Snapshot) {
     try {
       await fetch(`/api/drafts/${draft.id}`, {
@@ -132,22 +132,22 @@ export function DraftEditor({
         }),
       });
     } catch {
-      // Lagring i bakgrunnen. Feilar den, får brukaren beskjed ved bekreft,
-      // som er den handlinga som faktisk må vere korrekt.
+      // Lagring i bakgrunnen. Feiler den, får brukeren beskjed ved bekreft,
+      // som er den handlingen som faktisk må være korrekt.
     }
   }
 
-  /** PDF-ruta les frå databasen, så vi lagrar før vi opnar den. */
+  /** PDF-ruten leser fra databasen, så vi lagrer før vi åpner den. */
   async function previewPdf() {
-    setBusy("lagrar");
+    setBusy("lagrer");
     await save(quoteType, currentSnapshot());
     setBusy(null);
     window.open(`/api/drafts/${draft.id}/pdf`, "_blank", "noopener");
   }
 
   /**
-   * force = true tvingar eit nytt modellkall. Utan det får vi eit lagra utkast
-   * tilbake dersom typen er generert for dette leadet før.
+   * force = true tvinger et nytt modellkall. Uten det får vi et lagret utkast
+   * tilbake hvis typen er generert for dette leadet før.
    */
   async function generate(type: QuoteType, force: boolean) {
     const previousType = quoteType;
@@ -161,7 +161,7 @@ export function DraftEditor({
         body: JSON.stringify({ lead_id: lead.id, quote_type: type, force }),
       });
       const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error ?? "Kunne ikkje generere");
+      if (!res.ok) throw new Error(payload.error ?? "Kunne ikke generere");
 
       const snapshot: Snapshot = {
         email_subject: payload.draft.email_subject,
@@ -180,7 +180,7 @@ export function DraftEditor({
   }
 
   async function confirm() {
-    setBusy("bekreftar");
+    setBusy("bekrefter");
     setError(null);
     try {
       const res = await fetch(`/api/drafts/${draft.id}/confirm`, {
@@ -194,7 +194,7 @@ export function DraftEditor({
         }),
       });
       const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error ?? "Kunne ikkje lage kladd");
+      if (!res.ok) throw new Error(payload.error ?? "Kunne ikke lage kladd");
       setConfirmed(true);
       setWebLink(payload.web_link ?? null);
       router.refresh();
@@ -211,7 +211,7 @@ export function DraftEditor({
     setDocument((current) => (current ? { ...current, ...patch } : current));
   }
 
-  /** Alle endringar på postar går gjennom denne, så forma held seg. */
+  /** Alle endringer på poster går gjennom denne, så formen holder seg. */
   function updateSectionLines(
     sectionIndex: number,
     transform: (lines: QuoteLine[]) => QuoteLine[],
@@ -254,8 +254,8 @@ export function DraftEditor({
   }
 
   /**
-   * Nye postar kjem frå prisfila, ikkje frå fritekst. Same regel som for agenten:
-   * skal ein pris endrast, endrar ein prisfila — då gjeld den for alle tilbod.
+   * Nye poster kommer fra prisfilen, ikke fra fritekst. Samme regel som for agenten:
+   * skal en pris endres, endrer man prisfilen — da gjelder den for alle tilbud.
    */
   function addLine(sectionIndex: number, priceItemId: string) {
     const item = priceItems.find((candidate) => candidate.id === priceItemId);
@@ -309,7 +309,7 @@ export function DraftEditor({
         <div className="row-between" style={{ marginTop: 14 }}>
           <span className="tiny muted">
             {reused
-              ? "Henta frå eit utkast du alt har generert. Ingen ny modellkøyring."
+              ? "Hentet fra et utkast du allerede har generert. Ingen ny modellkjøring."
               : "Utkastet er generert for denne typen."}
           </span>
           <button
@@ -317,7 +317,7 @@ export function DraftEditor({
             className="button secondary"
             onClick={() => generate(quoteType, true)}
             disabled={locked}
-            title="Køyrer modellen på nytt og kostar eit nytt kall"
+            title="Kjører modellen på nytt og koster et nytt kall"
           >
             Generer på nytt
           </button>
@@ -328,13 +328,13 @@ export function DraftEditor({
 
       {confirmed && (
         <div className="banner success">
-          Kladden er oppretta i Outlook.{" "}
+          Kladden er opprettet i Outlook.{" "}
           {webLink && (
             <a href={webLink} target="_blank" rel="noreferrer" style={{ textDecoration: "underline" }}>
-              Opne kladden
+              Åpne kladden
             </a>
           )}{" "}
-          Du sender sjølv.
+          Du sender selv.
         </div>
       )}
 
@@ -344,12 +344,12 @@ export function DraftEditor({
 
       {!wantsDocument && (
         <div className="banner info">
-          Tid og materiell gir ingen PDF. Heile tilbodet ligg i e-postteksten, og
+          Tid og materiell gir ingen PDF. Hele tilbudet ligger i e-postteksten, og
           teksten blir lagt rett inn i Outlook-kladden ved bekreft.
         </div>
       )}
 
-      {/* Dokument-forhandsvisning for punktpris og fastpris */}
+      {/* Dokument-forhåndsvisning for punktpris og fastpris */}
       {wantsDocument && document && (
         <div className="doc-preview">
           <div className="doc-head">
@@ -403,7 +403,7 @@ export function DraftEditor({
           </div>
 
           <label className="field">
-            <span className="label">Innleiing</span>
+            <span className="label">Innledning</span>
             <textarea
               className="textarea"
               style={{ minHeight: 80 }}
@@ -423,7 +423,7 @@ export function DraftEditor({
             return (
               <div key={sectionIndex} style={{ marginBottom: 22 }}>
                 <span className="label">
-                  {document.sections.length > 1 ? section.title : "Postar"}
+                  {document.sections.length > 1 ? section.title : "Poster"}
                 </span>
 
                 <table className="doc-table">
@@ -432,10 +432,10 @@ export function DraftEditor({
                       <th style={{ width: 30 }} />
                       <th>Post</th>
                       <th className="num" style={{ width: 100 }}>
-                        Antal
+                        Antall
                       </th>
                       <th className="num" style={{ width: 130 }}>
-                        Einingspris
+                        Enhetspris
                       </th>
                       <th className="num" style={{ width: 120 }}>
                         Sum
@@ -469,14 +469,14 @@ export function DraftEditor({
                           }}
                         >
                           <td>
-                            {/* Berre handtaket er draggbart — elles kan ein ikkje
-                                markere tekst i felta på rada. */}
+                            {/* Bare håndtaket er draggbart — ellers kan man ikke
+                                markere tekst i feltene på raden. */}
                             <span
                               className="grip"
                               role="button"
                               tabIndex={0}
                               aria-label={`Flytt post ${lineIndex + 1} av ${section.lines.length}`}
-                              title="Dra for å flytte, eller bruk piltastane"
+                              title="Dra for å flytte, eller bruk piltastene"
                               draggable
                               onDragStart={() =>
                                 setDragging({ section: sectionIndex, line: lineIndex })
@@ -528,8 +528,8 @@ export function DraftEditor({
                             />
                           </td>
                           <td className="num">
-                            {/* Einingsprisen kjem frå prisfila og er ikkje redigerbar
-                                her — skal prisen endrast, endrar ein prisfila. */}
+                            {/* Enhetsprisen kommer fra prisfilen og er ikke redigerbar
+                                her — skal prisen endres, endrer man prisfilen. */}
                             <span className="muted">{formatNok(line.unit_price)}</span>
                             <div className="tiny muted">per {line.unit}</div>
                           </td>
@@ -554,7 +554,7 @@ export function DraftEditor({
                     {section.lines.length === 0 && (
                       <tr>
                         <td colSpan={6} className="muted tiny" style={{ padding: "14px 0" }}>
-                          Ingen postar i denne seksjonen.
+                          Ingen poster i denne seksjonen.
                         </td>
                       </tr>
                     )}
@@ -570,11 +570,11 @@ export function DraftEditor({
                   </div>
                 ) : (
                   <p className="hint">
-                    Ingen passande prisrader.{" "}
+                    Ingen passende prisrader.{" "}
                     <Link href="/tilbud/prisfil" style={{ textDecoration: "underline" }}>
-                      Legg dei inn under Prisfil
+                      Legg dem inn under Prisfil
                     </Link>{" "}
-                    for å kunne bruke dei her.
+                    for å kunne bruke dem her.
                   </p>
                 )}
               </div>
@@ -599,7 +599,7 @@ export function DraftEditor({
           )}
 
           <label className="field" style={{ marginTop: 26 }}>
-            <span className="label">Føresetnader</span>
+            <span className="label">Forutsetninger</span>
             <textarea
               className="textarea"
               style={{ minHeight: 90 }}
@@ -610,7 +610,7 @@ export function DraftEditor({
                 })
               }
             />
-            <span className="hint">Éi linje per føresetnad.</span>
+            <span className="hint">Én linje per forutsetning.</span>
           </label>
         </div>
       )}
@@ -634,7 +634,7 @@ export function DraftEditor({
           />
           {wantsDocument && (
             <span className="hint">
-              Teksten følgjer med som melding når PDF-en blir lagt ved.
+              Teksten følger med som melding når PDF-en blir lagt ved.
             </span>
           )}
         </label>
@@ -648,18 +648,18 @@ export function DraftEditor({
             onClick={previewPdf}
             disabled={busy !== null}
           >
-            {busy === "lagrar" ? "Lagar PDF…" : "Forhandsvis PDF"}
+            {busy === "lagrer" ? "Lager PDF…" : "Forhåndsvis PDF"}
           </button>
         )}
         <span className="spacer" />
         <span className="muted tiny">
           {wantsDocument
-            ? "Bekreft lagar kladd i Outlook med PDF-en vedlagt. Du sender sjølv."
-            : "Bekreft lagar kladd i Outlook. Du sender sjølv."}
+            ? "Bekreft lager kladd i Outlook med PDF-en vedlagt. Du sender selv."
+            : "Bekreft lager kladd i Outlook. Du sender selv."}
         </span>
         <button className="button" onClick={confirm} disabled={busy !== null}>
-          {busy === "bekreftar"
-            ? "Lagar kladd…"
+          {busy === "bekrefter"
+            ? "Lager kladd…"
             : confirmed
               ? "Oppdater kladd"
               : "Bekreft og lag kladd"}
@@ -670,11 +670,11 @@ export function DraftEditor({
 }
 
 /**
- * Kva prisrader som passar i ein gitt seksjon.
+ * Hva prisrader som passer i en gitt seksjon.
  *
- * Punktpris har éin seksjon med bunta prisar. Fastpris har materiell og arbeid
- * kvar for seg — vi les seksjonstittelen først, og fell tilbake på rekkjefølgja
- * dersom modellen har kalla seksjonane noko anna enn venta.
+ * Punktpris har én seksjon med buntede priser. Fastpris har materiell og arbeid
+ * hver for seg — vi leser seksjonstittelen først, og faller tilbake på rekkefølgen
+ * hvis modellen har kalt seksjonene noe annet enn ventet.
  */
 function itemsForSection(
   quoteType: QuoteType,
@@ -687,7 +687,7 @@ function itemsForSection(
   }
 
   let wanted: PriceItemKind;
-  if (/arbeid|time|timar/i.test(sectionTitle)) {
+  if (/arbeid|time|timer/i.test(sectionTitle)) {
     wanted = "time";
   } else if (/materiell|material|utstyr/i.test(sectionTitle)) {
     wanted = "materiell";

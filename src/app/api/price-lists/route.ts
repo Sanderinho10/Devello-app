@@ -8,10 +8,10 @@ import type { PriceItemKind } from "@/lib/types";
 export const maxDuration = 120;
 
 /**
- * Opprettar ei prisliste, med valfri import frå ei Excel-fil.
+ * Oppretter en prisliste, med valgfri import fra en Excel-fil.
  *
- * Fila blir lest og validert FØR lista blir oppretta. Ei fil med feil skal ikkje
- * etterlate seg ei tom liste brukaren må rydde vekk.
+ * Filen blir lest og validert FØR listen blir opprettet. En fil med feil skal ikke
+ * etterlate seg en tom liste brukeren må rydde vekk.
  */
 export async function POST(request: NextRequest) {
   const session = await sessionOr401();
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     if (!name || !kind) {
       return NextResponse.json(
-        { error: "Namn og type er påkravd" },
+        { error: "Navn og type er påkrevd" },
         { status: 400 },
       );
     }
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       const parsed = await parseWorkbook(Buffer.from(await file.arrayBuffer()));
       if (parsed.errors.length > 0) {
         return NextResponse.json(
-          { error: "Fila kunne ikkje lesast", details: parsed.errors },
+          { error: "Filen kunne ikke leses", details: parsed.errors },
           { status: 400 },
         );
       }
@@ -75,7 +75,7 @@ export async function PATCH(request: NextRequest) {
   if (session instanceof NextResponse) return session;
 
   const body = await request.json();
-  if (!body.id) return NextResponse.json({ error: "Manglar id" }, { status: 400 });
+  if (!body.id) return NextResponse.json({ error: "Mangler id" }, { status: 400 });
 
   const patch: Record<string, unknown> = {};
   if (typeof body.active === "boolean") patch.active = body.active;
@@ -97,9 +97,9 @@ export async function DELETE(request: NextRequest) {
   if (session instanceof NextResponse) return session;
 
   const id = request.nextUrl.searchParams.get("id");
-  if (!id) return NextResponse.json({ error: "Manglar id" }, { status: 400 });
+  if (!id) return NextResponse.json({ error: "Mangler id" }, { status: 400 });
 
-  // Prisradene i lista forsvinn med den — det er cascade på framandnøkkelen.
+  // Prisradene i listen forsvinner med den — det er cascade på fremmednøkkelen.
   const { error } = await supabaseAdmin()
     .from("price_lists")
     .delete()
@@ -111,8 +111,8 @@ export async function DELETE(request: NextRequest) {
 }
 
 /**
- * Skriv radene i porsjonar. Ei ekte prisliste kan ha fleire tusen rader, og eit
- * enkelt insert med alle på ein gong sprenger både minne og kroppsgrensa.
+ * Skriver radene i porsjoner. En ekte prisliste kan ha flere tusen rader, og et
+ * enkelt insert med alle på en gang sprenger både minne og kroppsgrensen.
  */
 export async function insertRows(
   admin: SupabaseClient,
@@ -136,6 +136,6 @@ export async function insertRows(
       includes_material: kind !== "time",
     }));
     const { error } = await admin.from("price_list_items").insert(chunk);
-    if (error) throw new Error(`Import feila på rad ${start + 1}: ${error.message}`);
+    if (error) throw new Error(`Import feilet på rad ${start + 1}: ${error.message}`);
   }
 }

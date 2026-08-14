@@ -1,11 +1,11 @@
 import { requireEnv, supabaseAdmin } from "@/lib/supabase/server";
 
 /**
- * Scopes for tilkopla postkasse.
+ * Scopes for tilkoblet postkasse.
  *
- * Mail.Send er med vilje IKKJE med. Prinsippet er låst: appen lagar kladd,
- * mennesket trykker send sjølv. Mail.ReadWrite dekker det vi treng — å opprette
- * ein kladd med vedlegg — utan at vi nokon gong kan sende på vegner av brukaren.
+ * Mail.Send er med vilje IKKE med. Prinsippet er låst: appen lager kladd,
+ * mennesket trykker send selv. Mail.ReadWrite dekker det vi trenger — å opprette
+ * en kladd med vedlegg — uten at vi noen gang kan sende på vegne av brukeren.
  */
 export const GRAPH_SCOPES = [
   "offline_access",
@@ -33,7 +33,7 @@ export function buildAuthorizeUrl(state: string): string {
     response_mode: "query",
     scope: GRAPH_SCOPES.join(" "),
     state,
-    // Sluttbrukaren samtykker sjølv. Ingen IT-godkjenning frå kunden si side.
+    // Sluttbrukeren samtykker selv. Ingen IT-godkjenning fra kundens side.
     prompt: "select_account",
   });
   return `${authorityBase()}/authorize?${params.toString()}`;
@@ -77,14 +77,14 @@ async function tokenRequest(extra: Record<string, string>): Promise<TokenSet> {
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Token-kall mot Microsoft feila (${res.status}): ${text}`);
+    throw new Error(`Token-kall mot Microsoft feilet (${res.status}): ${text}`);
   }
   return res.json();
 }
 
 /**
- * Hentar eit gyldig access token for postkassa, og fornyar det om nødvendig.
- * Tokens ligg berre i databasen bak service role — dei skal aldri til nettlesaren.
+ * Henter et gyldig access token for postkassen, og fornyer det om nødvendig.
+ * Tokens ligger bare i databasen bak service role — de skal aldri til nettleseren.
  */
 export async function accessTokenFor(mailboxId: string): Promise<string> {
   const admin = supabaseAdmin();
@@ -95,10 +95,10 @@ export async function accessTokenFor(mailboxId: string): Promise<string> {
     .single();
 
   if (error || !mailbox) {
-    throw new Error(`Fann ikkje postkassa ${mailboxId}`);
+    throw new Error(`Fant ikke postkassen ${mailboxId}`);
   }
 
-  // Ligg det meir enn eit minutt igjen, bruk tokenet vi har.
+  // Ligger det mer enn et minutt igjen, bruk tokenet vi har.
   const expiresAt = mailbox.expires_at ? new Date(mailbox.expires_at) : null;
   const stillValid = expiresAt && expiresAt.getTime() - Date.now() > 60_000;
   if (stillValid && mailbox.access_token) {
@@ -111,7 +111,7 @@ export async function accessTokenFor(mailboxId: string): Promise<string> {
       .update({ status: "token_utlopt" })
       .eq("id", mailboxId);
     throw new Error(
-      "Postkassa har ikkje eit gyldig refresh token. Kople til på nytt under Innstillingar.",
+      "Postkassen har ikke et gyldig refresh token. Koble til på nytt under Innstillinger.",
     );
   }
 
@@ -121,7 +121,7 @@ export async function accessTokenFor(mailboxId: string): Promise<string> {
       .from("mailbox_connections")
       .update({
         access_token: tokens.access_token,
-        // Microsoft roterer refresh tokens — behald det nye når vi får eitt.
+        // Microsoft roterer refresh tokens — behold det nye når vi får ett.
         refresh_token: tokens.refresh_token ?? mailbox.refresh_token,
         expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
         scope: tokens.scope,

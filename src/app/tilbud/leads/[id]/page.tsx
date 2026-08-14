@@ -33,9 +33,9 @@ export default async function LeadPage({
     .eq("lead_id", id)
     .maybeSingle();
 
-  // Prisfila følgjer med slik at brukaren kan leggje til postar i utkastet.
-  // Nye postar må kome herifrå — det er same regel som gjeld for agenten, og
-  // berre frå aktive lister, slik at ei deaktivert liste ikkje kan snike seg inn.
+  // Prisfilen følger med slik at brukeren kan legge til poster i utkastet.
+  // Nye poster må komme herfra — det er samme regel som gjelder for agenten, og
+  // bare fra aktive lister, slik at en deaktivert liste ikke kan snike seg inn.
   const [{ data: brand }, { data: activeLists }] = await Promise.all([
     supabase
       .from("company_brand")
@@ -67,7 +67,7 @@ export default async function LeadPage({
           <Link className="button ghost" href="/tilbud/leads" style={{ marginLeft: -10 }}>
             ← Leads
           </Link>
-          <h1 style={{ marginTop: 6 }}>{lead.subject || "(utan emne)"}</h1>
+          <h1 style={{ marginTop: 6 }}>{lead.subject || "(uten emne)"}</h1>
           <p className="page-subtitle">
             {[lead.from_name, lead.from_email, formatDate(lead.received_at)]
               .filter(Boolean)
@@ -85,7 +85,7 @@ export default async function LeadPage({
         />
       ) : (
         <div className="card empty">
-          <div className="empty-title">Ingen utkast enno</div>
+          <div className="empty-title">Ingen utkast ennå</div>
           <div>Gå tilbake til leads og trykk «Generer utkast».</div>
         </div>
       )}

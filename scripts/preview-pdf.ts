@@ -1,11 +1,11 @@
 /**
- * Genererer ein eksempel-PDF frå malen, utan database eller Microsoft-tilkopling.
- * Nyttig når ein jobbar med sjølve designet på tilbodet.
+ * Genererer en eksempel-PDF fra malen, uten database eller Microsoft-tilkobling.
+ * Nyttig når man jobber med selve designet på tilbudet.
  *
  *   npm run preview:pdf            # punktpris
  *   npm run preview:pdf -- fastpris
  *
- * Resultatet hamnar i tmp/eksempel-tilbod.pdf.
+ * Resultatet havner i tmp/eksempel-tilbud.pdf.
  */
 import { mkdir, writeFile } from "node:fs/promises";
 import { closePdfRenderer, htmlToPdf } from "@/lib/pdf/render";
@@ -20,14 +20,14 @@ const punktpris: QuoteDocument = {
     contact: null,
     email: "marit.aasen@gmail.com",
     phone: "412 33 907",
-    address: "Bjørkevegen 22, 6800 Førde",
+    address: "Bjørkeveien 22, 6800 Førde",
   },
-  title: "Elektrisk arbeid — kjellarstove",
+  title: "Elektrisk arbeid — kjellerstue",
   intro:
-    "Takk for førespurnaden om elektrisk arbeid i den nye kjellarstova. Under finn du eit tilbod der kvar post er ein samla pris som dekker både arbeid og materiell.",
+    "Takk for forespørselen om elektrisk arbeid i den nye kjellerstua. Under finner du et tilbud der hver post er en samlet pris som dekker både arbeid og materiell.",
   sections: [
     {
-      title: "Postar",
+      title: "Poster",
       lines: [
         {
           price_item_id: null,
@@ -38,14 +38,14 @@ const punktpris: QuoteDocument = {
         },
         {
           price_item_id: null,
-          description: "Kursopplegg frå sikringsskap",
+          description: "Kursopplegg fra sikringsskap",
           quantity: 2,
           unit: "stk",
           unit_price: 2450,
         },
         {
           price_item_id: null,
-          description: "Montering takpunkt med brytar",
+          description: "Montering takpunkt med bryter",
           quantity: 3,
           unit: "stk",
           unit_price: 1340,
@@ -54,9 +54,9 @@ const punktpris: QuoteDocument = {
     },
   ],
   assumptions: [
-    "Prisen føreset framkome til sikringsskap og at veggar er opne ved montering.",
-    "Uføresett arbeid utover dette blir avtalt før det blir utført.",
-    "Tilbodet gjeld i 30 dagar frå dato.",
+    "Prisen forutsetter framkomst til sikringsskap og at vegger er åpne ved montering.",
+    "Uforutsett arbeid utover dette blir avtalt før det blir utført.",
+    "Tilbudet gjelder i 30 dager fra dato.",
   ],
   valid_until: "2026-09-13",
   vat_rate: 25,
@@ -66,14 +66,14 @@ const fastpris: QuoteDocument = {
   ...punktpris,
   title: "Oppgradering av sikringsskap",
   intro:
-    "Takk for førespurnaden om oppgradering av sikringsskapet. Tilbodet under er spesifisert med materiell og timar kvar for seg, slik at det går fram kva som kjem i tillegg dersom jobben krev meir enn det som er lagt inn.",
+    "Takk for forespørselen om oppgradering av sikringsskapet. Tilbudet under er spesifisert med materiell og timer hver for seg, slik at det går fram hva som kommer i tillegg hvis jobben krever mer enn det som er lagt inn.",
   sections: [
     {
       title: "Materiell",
       lines: [
         {
           price_item_id: null,
-          description: "Sikringsskap 24 modular",
+          description: "Sikringsskap 24 moduler",
           quantity: 1,
           unit: "stk",
           unit_price: 4200,
@@ -108,9 +108,9 @@ const fastpris: QuoteDocument = {
     },
   ],
   assumptions: [
-    "Prisen byggjer på 8,5 timar arbeid. Timar utover dette blir fakturert med 1 190 kr eks. mva. per time.",
-    "Materiellet over dekker eit skap med 24 modular. Krev anlegget fleire kursar, kjem materiellet for desse i tillegg.",
-    "Eventuell utbetring av eksisterande kablar er ikkje med i tilbodet.",
+    "Prisen bygger på 8,5 timer arbeid. Timer utover dette blir fakturert med 1 190 kr eks. mva. per time.",
+    "Materiellet over dekker et skap med 24 moduler. Krever anlegget flere kurser, kommer materiellet for disse i tillegg.",
+    "Eventuell utbedring av eksisterende kabler er ikke med i tilbudet.",
   ],
 };
 
@@ -128,15 +128,15 @@ const html = renderQuoteHtml({
     postal_code: "6800",
     city: "Førde",
     website: "starelektro.no",
-    footer_note: "Org.nr 912 345 678 MVA · Alle prisar er oppgitt eks. mva.",
+    footer_note: "Org.nr 912 345 678 MVA · Alle priser er oppgitt eks. mva.",
   },
 });
 
 const pdf = await htmlToPdf(html);
 await mkdir("tmp", { recursive: true });
-await writeFile("tmp/eksempel-tilbod.pdf", pdf);
+await writeFile("tmp/eksempel-tilbud.pdf", pdf);
 await closePdfRenderer();
 
 console.log(
-  `Skreiv tmp/eksempel-tilbod.pdf (${quoteType}, ${Math.round(pdf.byteLength / 1024)} kB)`,
+  `Skreiv tmp/eksempel-tilbud.pdf (${quoteType}, ${Math.round(pdf.byteLength / 1024)} kB)`,
 );

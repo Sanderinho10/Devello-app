@@ -49,7 +49,7 @@ export function SettingsForm({
         body: JSON.stringify(form),
       });
       const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error ?? "Kunne ikkje lagre");
+      if (!res.ok) throw new Error(payload.error ?? "Kunne ikke lagre");
       setSaved(true);
       router.refresh();
     } catch (err) {
@@ -62,7 +62,7 @@ export function SettingsForm({
   return (
     <form onSubmit={save} className="stack">
       {error && <div className="banner error">{error}</div>}
-      {saved && <div className="banner success">Lagra.</div>}
+      {saved && <div className="banner success">Lagret.</div>}
 
       <div className="card">
         <div className="card-header">
@@ -71,7 +71,7 @@ export function SettingsForm({
         <div className="card-pad">
           <div className="grid-2">
             <label className="field">
-              <span className="label">Namn</span>
+              <span className="label">Navn</span>
               <input
                 className="input"
                 value={form.name}
@@ -90,13 +90,13 @@ export function SettingsForm({
         </div>
       </div>
 
-      {/* Merkevare — dette blir injisert i Devello sin PDF-mal */}
+      {/* Merkevare — dette blir injisert i Devellos PDF-mal */}
       <div className="card">
         <div className="card-header">
           <div>
             <strong>Merkevare</strong>
             <div className="tiny muted">
-              Logo, farge og kontaktinfo blir lagt inn i Devello sin PDF-mal.
+              Logo, farge og kontaktinfo blir lagt inn i Devellos PDF-mal.
             </div>
           </div>
         </div>
@@ -165,7 +165,7 @@ export function SettingsForm({
               />
             </label>
             <label className="field">
-              <span className="label">Nettstad</span>
+              <span className="label">Nettsted</span>
               <input
                 className="input"
                 value={form.website}
@@ -193,7 +193,7 @@ export function SettingsForm({
               />
             </label>
             <label className="field">
-              <span className="label">Poststad</span>
+              <span className="label">Poststed</span>
               <input
                 className="input"
                 value={form.city}
@@ -203,7 +203,7 @@ export function SettingsForm({
           </div>
 
           <label className="field" style={{ marginBottom: 0 }}>
-            <span className="label">Botntekst i PDF</span>
+            <span className="label">Bunntekst i PDF</span>
             <textarea
               className="textarea"
               style={{ minHeight: 70 }}
@@ -215,13 +215,13 @@ export function SettingsForm({
         </div>
       </div>
 
-      {/* Tone — styrer korleis agenten formulerer e-postteksten */}
+      {/* Tone — styrer hvordan agenten formulerer e-postteksten */}
       <div className="card">
         <div className="card-header">
           <div>
             <strong>Tone</strong>
             <div className="tiny muted">
-              Styrer korleis agenten formulerer e-postteksten.
+              Styrer hvordan agenten formulerer e-postteksten.
             </div>
           </div>
         </div>
@@ -245,18 +245,18 @@ export function SettingsForm({
               style={{ minHeight: 80 }}
               value={form.signatur}
               onChange={(e) => set("signatur", e.target.value)}
-              placeholder={"Med venleg helsing\nOle Nordmann\nStar Elektro AS"}
+              placeholder={"Med vennlig hilsen\nOle Nordmann\nStar Elektro AS"}
             />
           </label>
 
           <label className="field" style={{ marginBottom: 0 }}>
-            <span className="label">Tilleggsinstruks (valfritt)</span>
+            <span className="label">Tilleggsinstruks (valgfritt)</span>
             <textarea
               className="textarea"
               style={{ minHeight: 70 }}
               value={form.tillegg}
               onChange={(e) => set("tillegg", e.target.value)}
-              placeholder="T.d. «Nemn alltid at vi er sertifiserte for anlegg over 400 V.»"
+              placeholder="F.eks. «Nevn alltid at vi er sertifiserte for anlegg over 400 V.»"
             />
           </label>
         </div>
@@ -265,7 +265,7 @@ export function SettingsForm({
       <div className="action-bar">
         <span className="spacer" />
         <button className="button" type="submit" disabled={busy}>
-          {busy ? "Lagrar…" : "Lagre"}
+          {busy ? "Lagrer…" : "Lagre"}
         </button>
       </div>
     </form>

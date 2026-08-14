@@ -5,13 +5,13 @@ import { useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 /**
- * To måtar å logge inn på.
+ * To måter å logge inn på.
  *
- * Passord er hovudvegen: tilbudsagenten er eit verktøy folk opnar fleire gonger
- * om dagen, og då er ei e-postlenkje kvar gong berre friksjon. Lenkje er med som
- * alternativ for fyrste gongs pålogging og for dei som ikkje vil ha eit passord.
+ * Passord er hovedveien: tilbudsagenten er et verktøy folk åpner flere ganger
+ * om dagen, og da er en e-postlenke hver gang bare friksjon. Lenke er med som
+ * alternativ for første gangs pålogging og for de som ikke vil ha et passord.
  */
-type Mode = "passord" | "lenkje";
+type Mode = "passord" | "lenke";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -58,7 +58,7 @@ export default function LoginPage() {
       <Shell>
         <h2>Sjekk e-posten</h2>
         <p className="muted" style={{ marginTop: 8 }}>
-          Vi sende ei innloggingslenkje til {email}.
+          Vi sendte en innloggingslenke til {email}.
         </p>
       </Shell>
     );
@@ -71,7 +71,7 @@ export default function LoginPage() {
         <p className="muted" style={{ margin: "6px 0 18px" }}>
           {mode === "passord"
             ? "Med e-post og passord."
-            : "Vi sender deg ei lenkje på e-post."}
+            : "Vi sender deg en lenke på e-post."}
         </p>
 
         {error && <div className="banner error">{error}</div>}
@@ -112,11 +112,11 @@ export default function LoginPage() {
         >
           {busy
             ? mode === "passord"
-              ? "Loggar inn…"
+              ? "Logger inn…"
               : "Sender…"
             : mode === "passord"
               ? "Logg inn"
-              : "Send lenkje"}
+              : "Send lenke"}
         </button>
 
         <button
@@ -124,13 +124,13 @@ export default function LoginPage() {
           className="button ghost"
           style={{ width: "100%", justifyContent: "center", marginTop: 10 }}
           onClick={() => {
-            setMode(mode === "passord" ? "lenkje" : "passord");
+            setMode(mode === "passord" ? "lenke" : "passord");
             setError(null);
           }}
         >
           {mode === "passord"
-            ? "Send meg ei lenkje i staden"
-            : "Bruk passord i staden"}
+            ? "Send meg en lenke i stedet"
+            : "Bruk passord i stedet"}
         </button>
       </form>
     </Shell>
@@ -150,17 +150,17 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Supabase svarar på engelsk. Dei vanlegaste meldingane fortener norsk. */
+/** Supabase svarer på engelsk. De vanligste meldingene fortjener norsk. */
 function translate(message: string): string {
   const lower = message.toLowerCase();
   if (lower.includes("invalid login credentials")) {
     return "Feil e-post eller passord.";
   }
   if (lower.includes("email rate limit") || lower.includes("rate limit")) {
-    return "For mange e-postar sendt. Vent litt, eller logg inn med passord i staden.";
+    return "For mange e-poster sendt. Vent litt, eller logg inn med passord i stedet.";
   }
   if (lower.includes("email not confirmed")) {
-    return "E-posten er ikkje stadfesta enno.";
+    return "E-posten er ikke bekreftet ennå.";
   }
   return message;
 }

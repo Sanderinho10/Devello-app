@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Devello — Tilbud / Leads</title>
 <!--
-  Mockup for hovudvisninga. Lenkjer til den same CSS-fila som appen brukar, slik
-  at mockup og implementasjon ikkje driv frå kvarandre.
+  Mockup for hovudvisninga. Lenker til den samme CSS-filen som appen bruker, slik
+  at mockup og implementasjon ikke driv fra hverandre.
 
   Poenget med denne mockupen er navigasjonsmønsteret: sidebar er organisert per
-  agent, ikkje per funksjon. Alt som høyrer til tilbudsagenten ligg som faner
-  inni éin «Tilbud»-knapp. Framtidige agentar blir eigne toppnivå-knappar med
-  sine eigne faner inni seg.
+  agent, ikke per funksjon. Alt som hører til tilbudsagenten ligger som faner
+  inni én «Tilbud»-knapp. Framtidige agenter blir egne toppnivå-knapper med
+  sine egne faner inni seg.
 -->
 <link rel="stylesheet" href="../src/app/globals.css">
 </head>
@@ -24,7 +24,7 @@
       Devello
     </div>
 
-    <!-- Aktiv agent: éin knapp, med agentens faner under -->
+    <!-- Aktiv agent: én knapp, med agentens faner under -->
     <div class="nav-agent">
       <button class="nav-button active">
         <span class="nav-icon">◆</span>
@@ -34,11 +34,11 @@
         <a class="nav-tab active" href="dashboard.html">Leads</a>
         <a class="nav-tab" href="#">Prisfil</a>
         <a class="nav-tab" href="#">Referansefiler</a>
-        <a class="nav-tab" href="#">Innstillingar</a>
+        <a class="nav-tab" href="#">Innstillinger</a>
       </nav>
     </div>
 
-    <!-- Framtidige agentar: same mønster, éin knapp kvar -->
+    <!-- Framtidige agenter: samme mønster, én knapp hver -->
     <div class="nav-agent">
       <button class="nav-button disabled">
         <span class="nav-icon">◇</span>
@@ -64,7 +64,7 @@
     <div class="page-header">
       <div>
         <h1>Leads</h1>
-        <p class="page-subtitle">Innkommande førespurnader frå post@starelektro.no</p>
+        <p class="page-subtitle">Innkommende forespørsler fra post@starelektro.no</p>
       </div>
       <button class="button">Hent leads</button>
     </div>
@@ -72,8 +72,8 @@
     <div class="card">
       <div class="card-header">
         <div class="row" style="gap:14px">
-          <strong>4 førespurnader</strong>
-          <span class="muted tiny">Sist henta 14. aug. 09:42</span>
+          <strong>4 forespørsler</strong>
+          <span class="muted tiny">Sist hentet 14. aug. 09:42</span>
         </div>
       </div>
 
@@ -81,17 +81,17 @@
 
         <div class="lead-row">
           <div class="lead-main">
-            <div class="lead-subject">Pristilbod — 8 stikkontaktar i ny kjellarstove</div>
+            <div class="lead-subject">Pristilbud — 8 stikkontakter i ny kjellerstue</div>
             <div class="lead-meta">Marit Aasen · marit.aasen@gmail.com</div>
           </div>
           <span class="pill utkast_klar">Utkast klart</span>
           <span class="lead-time">14. aug. 08:31</span>
-          <a class="button secondary" href="draft-dokument.html">Opne</a>
+          <a class="button secondary" href="draft-dokument.html">Åpne</a>
         </div>
 
         <div class="lead-row">
           <div class="lead-main">
-            <div class="lead-subject">Førespurnad: oppgradering av sikringsskap</div>
+            <div class="lead-subject">Forespørsel: oppgradering av sikringsskap</div>
             <div class="lead-meta">Ole Nordvik · ole@nordvikbygg.no</div>
           </div>
           <span class="pill ny">Ny</span>
@@ -101,22 +101,22 @@
 
         <div class="lead-row">
           <div class="lead-main">
-            <div class="lead-subject">Lys blinkar i heile 2. etasje — kva kostar det å sjå på?</div>
+            <div class="lead-subject">Lys blinker i hele 2. etasje — hva koster det å se på?</div>
             <div class="lead-meta">Hanne Lie · hanne.lie@outlook.com</div>
           </div>
           <span class="pill utkast_klar">Utkast klart</span>
           <span class="lead-time">13. aug. 16:12</span>
-          <a class="button secondary" href="draft-tekst.html">Opne</a>
+          <a class="button secondary" href="draft-tekst.html">Åpne</a>
         </div>
 
         <div class="lead-row">
           <div class="lead-main">
-            <div class="lead-subject">Tilbod på varmekablar bad — 6 m²</div>
+            <div class="lead-subject">Tilbud på varmekabler bad — 6 m²</div>
             <div class="lead-meta">Jonas Riise · jonas@riise.no</div>
           </div>
           <span class="pill bekrefta">Bekrefta</span>
           <span class="lead-time">12. aug. 11:04</span>
-          <button class="button secondary">Opne</button>
+          <button class="button secondary">Åpne</button>
         </div>
 
       </div>

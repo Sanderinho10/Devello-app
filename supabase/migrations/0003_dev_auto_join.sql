@@ -1,11 +1,11 @@
--- BERRE FOR UTVIKLING OG PILOT.
+-- BARE FOR UTVIKLING OG PILOT.
 --
--- Knyter kvar ny innlogga brukar til Star Elektro automatisk, slik at ein slepp
--- å køyre eit manuelt insert etter fyrste innlogging.
+-- Knytter hver ny innlogget bruker til Star Elektro automatisk, slik at man slipper
+-- å kjøre et manuelt insert etter første innlogging.
 --
--- Denne MÅ fjernast før plattforma tek imot fleire kundar (fase 3). Då skal
--- selskapstilhøyre kome frå ein invitasjon, ikkje frå ein hardkoda default —
--- elles hamnar kvar ny registrering hos Star Elektro.
+-- Denne MÅ fjernes før plattformen tar imot flere kunder (fase 3). Da skal
+-- selskapstilhørigheten komme fra en invitasjon, ikke fra en hardkodet default —
+-- ellers havner hver ny registrering hos Star Elektro.
 --
 --   drop trigger on_auth_user_created on auth.users;
 --   drop function handle_new_user();
@@ -32,7 +32,7 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function handle_new_user();
 
--- Ta med brukarar som alt har logga inn før triggeren fanst.
+-- Ta med brukere som allerede har logget inn før triggeren fantes.
 insert into users (id, company_id, email)
 select id, '00000000-0000-0000-0000-000000000001', email
 from auth.users

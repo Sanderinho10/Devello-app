@@ -10,7 +10,7 @@ import {
   type PriceListItem,
 } from "@/lib/types";
 
-/** Fornuftig standardeining per type, så feltet sjeldan må rørast. */
+/** Fornuftig standardenhet per type, så feltet sjelden må røres. */
 const DEFAULT_UNIT: Record<PriceItemKind, string> = {
   punktpris: "stk",
   materiell: "stk",
@@ -67,7 +67,7 @@ export function ListItems({
         }),
       });
       const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error ?? "Kunne ikkje lagre");
+      if (!res.ok) throw new Error(payload.error ?? "Kunne ikke lagre");
       setForm({
         code: "",
         name: "",
@@ -95,7 +95,7 @@ export function ListItems({
       replace &&
       items.length > 0 &&
       !window.confirm(
-        `Erstatt dei ${items.length} eksisterande radene i «${list.name}» med innhaldet i fila?`,
+        `Erstatt de ${items.length} eksisterende radene i «${list.name}» med innholdet i filen?`,
       )
     ) {
       return;
@@ -115,7 +115,7 @@ export function ListItems({
       const payload = await res.json();
       if (!res.ok) {
         setDetails(payload.details ?? []);
-        throw new Error(payload.error ?? "Importen feila");
+        throw new Error(payload.error ?? "Importen feilet");
       }
       setImported(payload.imported);
       setFile(null);
@@ -131,9 +131,9 @@ export function ListItems({
     <div className="stack">
       <div className="card">
         <div className="card-header">
-          <strong>Importer frå Excel</strong>
+          <strong>Importer fra Excel</strong>
           <span className="tiny muted">
-            {items.length > 0 ? "Legg til eller erstatt radene" : "Fyll lista frå ei fil"}
+            {items.length > 0 ? "Legg til eller erstatt radene" : "Fyll listen fra en fil"}
           </span>
         </div>
         <form className="card-pad" onSubmit={importFile}>
@@ -157,7 +157,7 @@ export function ListItems({
                 onChange={(e) => setReplace(e.target.checked)}
               />
               <span className="tiny">
-                Erstatt dei {items.length} eksisterande radene i staden for å leggje til
+                Erstatt de {items.length} eksisterende radene i stedet for å legge til
               </span>
             </label>
           )}
@@ -168,7 +168,7 @@ export function ListItems({
             disabled={busy || !file}
             style={{ marginTop: 14 }}
           >
-            {busy ? "Les inn fila…" : replace ? "Erstatt rader" : "Importer rader"}
+            {busy ? "Leser inn filen…" : replace ? "Erstatt rader" : "Importer rader"}
           </button>
         </form>
       </div>
@@ -194,7 +194,7 @@ export function ListItems({
 
           <div className="grid-2">
             <label className="field">
-              <span className="label">Namn</span>
+              <span className="label">Navn</span>
               <input
                 className="input"
                 required
@@ -204,7 +204,7 @@ export function ListItems({
               />
             </label>
             <label className="field">
-              <span className="label">Kode (valfritt)</span>
+              <span className="label">Kode (valgfritt)</span>
               <input
                 className="input"
                 value={form.code}
@@ -215,18 +215,18 @@ export function ListItems({
           </div>
 
           <label className="field">
-            <span className="label">Skildring (valfritt)</span>
+            <span className="label">Beskrivelse (valgfritt)</span>
             <input
               className="input"
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder="Hjelper agenten å velje rett post"
+              placeholder="Hjelper agenten å velge rett post"
             />
           </label>
 
           <div className="grid-2">
             <label className="field">
-              <span className="label">Eining</span>
+              <span className="label">Enhet</span>
               <input
                 className="input"
                 required
@@ -235,7 +235,7 @@ export function ListItems({
               />
             </label>
             <label className="field">
-              <span className="label">Einingspris eks. mva</span>
+              <span className="label">Enhetspris eks. mva</span>
               <input
                 className="input"
                 type="number"
@@ -249,7 +249,7 @@ export function ListItems({
           </div>
 
           <button className="button" type="submit" disabled={busy}>
-            {busy ? "Lagrar…" : "Legg til"}
+            {busy ? "Lagrer…" : "Legg til"}
           </button>
         </form>
       </div>
@@ -263,7 +263,7 @@ export function ListItems({
             <input
               className="input"
               style={{ maxWidth: 260 }}
-              placeholder="Søk i lista…"
+              placeholder="Søk i listen…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -274,20 +274,20 @@ export function ListItems({
           <div className="empty">
             {items.length === 0 ? (
               <>
-                <div className="empty-title">Lista er tom</div>
+                <div className="empty-title">Listen er tom</div>
                 <div>Legg inn prisrader over for å ta den i bruk.</div>
               </>
             ) : (
-              <>Ingen rader matchar «{query}».</>
+              <>Ingen rader matcher «{query}».</>
             )}
           </div>
         ) : (
           <table className="table">
             <thead>
               <tr>
-                <th>Namn</th>
-                <th>Eining</th>
-                <th className="num">Einingspris</th>
+                <th>Navn</th>
+                <th>Enhet</th>
+                <th className="num">Enhetspris</th>
                 <th style={{ width: 60 }} />
               </tr>
             </thead>

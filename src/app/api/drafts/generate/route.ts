@@ -10,11 +10,11 @@ import type { PriceListItem, QuoteType } from "@/lib/types";
 export const maxDuration = 300;
 
 /**
- * Genererer utkast for eit lead.
+ * Genererer utkast for et lead.
  *
- * 1. Klassifiser tilbudstype (om brukaren ikkje har valt ein sjølv)
- * 2. Hent strukturerte prisrader — agenten slår opp, reknar aldri
- * 3. Generer dokument + kort e-posttekst, eller berre tekst for tid og materiell
+ * 1. Klassifiser tilbudstype (om brukeren ikke har valgt en selv)
+ * 2. Hent strukturerte prisrader — agenten slår opp, regner aldri
+ * 3. Generer dokument + kort e-posttekst, eller bare tekst for tid og materiell
  * 4. Logg den originale AI-versjonen
  */
 export async function POST(request: NextRequest) {
@@ -24,11 +24,11 @@ export async function POST(request: NextRequest) {
   const body = (await request.json()) as {
     lead_id?: string;
     quote_type?: QuoteType;
-    /** Tvingar eit nytt modellkall sjølv om vi har eit lagra utkast frå før. */
+    /** Tvinger et nytt modellkall selv om vi har et lagret utkast fra før. */
     force?: boolean;
   };
   if (!body.lead_id) {
-    return NextResponse.json({ error: "Manglar lead_id" }, { status: 400 });
+    return NextResponse.json({ error: "Mangler lead_id" }, { status: 400 });
   }
 
   const admin = supabaseAdmin();
@@ -41,11 +41,11 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
 
   if (!lead) {
-    return NextResponse.json({ error: "Fann ikkje leadet" }, { status: 404 });
+    return NextResponse.json({ error: "Fant ikke leadet" }, { status: 404 });
   }
 
-  // Har vi generert denne typen for dette leadet før, brukar vi den lagra
-  // versjonen. Å bytte fram og tilbake på type-bryteren skal ikkje koste eit
+  // Har vi generert denne typen for dette leadet før, bruker vi den lagrede
+  // versjonen. Å bytte fram og tilbake på type-bryteren skal ikke koste et
   // modellkall per klikk.
   if (body.quote_type && !body.force) {
     const stored = await reuseStoredVersion(admin, lead.id, body.quote_type);
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
 
     const leadText = lead.body_text || lead.body_preview || "";
 
-    // Brukaren kan overstyre typen frå bryteren; elles klassifiserer agenten.
+    // Brukeren kan overstyre typen fra bryteren; ellers klassifiserer agenten.
     let quoteType = body.quote_type;
     let classificationNote: string | null = null;
 
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
           email_subject: generated.email_subject,
           email_body: generated.email_body,
           document: generated.document,
-          // Ny generering ugyldiggjer ein tidlegare PDF.
+          // Ny generering ugyldiggjør en tidligere PDF.
           pdf_path: null,
         },
         { onConflict: "lead_id" },
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
 
     if (error) throw new Error(error.message);
 
-    // Logg den originale AI-versjonen før brukaren rører noko.
+    // Logg den originale AI-versjonen før brukeren rører noe.
     await logDraftVersion(admin, {
       draftId: draft.id,
       source: "ai",
@@ -149,10 +149,10 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Prisrader frå aktive lister.
+ * Prisrader fra aktive lister.
  *
- * Ei deaktivert liste blir liggjande i databasen, men skal ikkje kunne dukke opp
- * i eit tilbod — difor filtrerer vi på lista og ikkje berre på raden.
+ * En deaktivert liste blir liggende i databasen, men skal ikke kunne dukke opp
+ * i et tilbud — derfor filtrerer vi på listen og ikke bare på raden.
  */
 export async function activePriceItems(
   admin: SupabaseClient,
@@ -177,11 +177,11 @@ export async function activePriceItems(
 }
 
 /**
- * Hentar den siste lagra versjonen for ein tilbudstype, om den finst.
+ * Henter den siste lagrede versjonen for en tilbudstype, om den finnes.
  *
- * draft_versions er alt ein full logg over kvar versjon med sin type, så vi
- * treng ingen eigen cache — og fordi vi hentar den *siste* versjonen, får
- * brukaren tilbake sine eigne redigeringar, ikkje den opphavlege AI-teksten.
+ * draft_versions er allerede en full logg over hver versjon med sin type, så vi
+ * trenger ingen egen cache — og fordi vi henter den *siste* versjonen, får
+ * brukeren tilbake sine egne redigeringer, ikke den opprinnelige AI-teksten.
  */
 async function reuseStoredVersion(
   admin: SupabaseClient,
@@ -212,7 +212,7 @@ async function reuseStoredVersion(
       email_subject: version.email_subject ?? "",
       email_body: version.email_body ?? "",
       document: version.document,
-      // PDF-en høyrer til den førre typen og er ikkje gyldig lenger.
+      // PDF-en hører til den forrige typen og er ikke gyldig lenger.
       pdf_path: null,
     })
     .eq("id", draft.id)

@@ -4,8 +4,8 @@ import { currentSession } from "@/lib/supabase/server";
 import { randomBytes } from "node:crypto";
 
 /**
- * Startar OAuth-flyten mot Microsoft. Sluttbrukaren samtykker sjølv — det trengst
- * ingen IT-godkjenning frå kunden si side, i motsetnad til M365-connector-vegen.
+ * Starter OAuth-flyten mot Microsoft. Sluttbrukeren samtykker selv — det trengs
+ * ingen IT-godkjenning fra kundens side, i motsetning til M365-connector-veien.
  */
 export async function GET() {
   const session = await currentSession();
@@ -13,7 +13,7 @@ export async function GET() {
     return NextResponse.redirect(new URL("/login", process.env.NEXT_PUBLIC_APP_URL));
   }
 
-  // State bind callbacken til denne brukaren og vernar mot CSRF.
+  // State binder callbacken til denne brukeren og verner mot CSRF.
   const nonce = randomBytes(16).toString("hex");
   const state = `${session.companyId}:${nonce}`;
 

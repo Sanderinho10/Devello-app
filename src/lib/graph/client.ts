@@ -16,7 +16,7 @@ export async function graphFetch<T>(
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Graph ${init.method ?? "GET"} ${path} feila (${res.status}): ${text}`);
+    throw new Error(`Graph ${init.method ?? "GET"} ${path} feilet (${res.status}): ${text}`);
   }
 
   if (res.status === 204) return undefined as T;
@@ -48,12 +48,12 @@ export async function getMe(accessToken: string): Promise<GraphUser> {
 }
 
 export interface FetchMessagesOptions {
-  /** Berre meldingar som kom inn etter dette tidspunktet. */
+  /** Bare meldinger som kom inn etter dette tidspunktet. */
   since?: string | null;
   limit?: number;
 }
 
-/** Hentar innkommande meldingar frå Innboks. */
+/** Henter innkommende meldinger fra Innboks. */
 export async function fetchInboxMessages(
   accessToken: string,
   options: FetchMessagesOptions = {},
@@ -75,7 +75,7 @@ export async function fetchInboxMessages(
   return data.value ?? [];
 }
 
-/** Strippar HTML til lesbar tekst. Claude får teksten, ikkje markupen. */
+/** Stripper HTML til lesbar tekst. Claude får teksten, ikke markupen. */
 export function messageToPlainText(message: GraphMessage): string {
   const body = message.body;
   if (!body) return message.bodyPreview ?? "";

@@ -1,10 +1,10 @@
 # Azure / Entra ID — multitenant appregistrering
 
-Dette er steg 1 i §8 «Neste konkrete steg». Det må gjerast éin gong, i Devello
-sin eigen Azure-tenant. Kundane treng ikkje gjere noko — sluttbrukaren samtykker
-sjølv i OAuth-dialogen.
+Dette er steg 1 i §8 «Neste konkrete steg». Det må gjøres én gang, i Devellos
+egen Azure-tenant. Kundene trenger ikke gjøre noe — sluttbrukeren samtykker
+selv i OAuth-dialogen.
 
-## 1. Opprett appregistreringa
+## 1. Opprett appregistreringen
 
 Azure-portalen → **Microsoft Entra ID** → **App registrations** → **New registration**.
 
@@ -14,59 +14,59 @@ Azure-portalen → **Microsoft Entra ID** → **App registrations** → **New re
 | Supported account types | **Accounts in any organizational directory (Any Microsoft Entra ID tenant — Multitenant)** |
 | Redirect URI | Web → `http://localhost:3000/api/auth/microsoft/callback` |
 
-Multitenant er poenget: utan det må kvar kunde registrere appen i sin eigen
+Multitenant er poenget: uten det må hver kunde registrere appen i sin egen
 tenant.
 
-Legg til produksjons-URI-en i tillegg når den finst:
+Legg til produksjons-URI-en i tillegg når den finnes:
 `https://<domene>/api/auth/microsoft/callback`.
 
 ## 2. Client secret
 
-**Certificates & secrets** → **New client secret**. Kopier *Value* med ein gong —
-den blir ikkje vist igjen. Denne går i `MS_CLIENT_SECRET`.
+**Certificates & secrets** → **New client secret**. Kopier *Value* med en gang —
+den blir ikke vist igjen. Denne går i `MS_CLIENT_SECRET`.
 
-## 3. API-tilgangar
+## 3. API-tilganger
 
 **API permissions** → **Add a permission** → **Microsoft Graph** → **Delegated
 permissions**. Legg til:
 
 - `offline_access` — nødvendig for refresh tokens
 - `openid`, `profile`, `email`
-- `User.Read` — for å lese kva postkasse brukaren kopla til
+- `User.Read` — for å lese hvilken postkasse brukeren koblet til
 - `Mail.Read` — lese innboksen (hent leads)
 - `Mail.ReadWrite` — opprette kladd med vedlegg
 
-**`Mail.Send` skal ikkje leggjast til.** Prinsippet er låst: appen lagar kladd,
-mennesket trykker send sjølv. Å ikkje be om tilgangen er den einaste garantien
-som held — ei kodesjekk kan endrast, ein manglande scope kan ikkje.
+**`Mail.Send` skal ikke legges til.** Prinsippet er låst: appen lager kladd,
+mennesket trykker send selv. Å ikke be om tilgangen er den eneste garantien
+som holder — en kodesjekk kan endres, et manglende scope kan ikke.
 
-Ikkje trykk «Grant admin consent» — heile poenget er at sluttbrukaren samtykker
-sjølv i dialogen, utan å gå vegen om IT.
+Ikke trykk «Grant admin consent» — hele poenget er at sluttbrukeren samtykker
+selv i dialogen, uten å gå veien om IT.
 
-## 4. Miljøvariablar
+## 4. Miljøvariabler
 
-Frå **Overview**-sida:
+Fra **Overview**-siden:
 
 ```
 MS_CLIENT_ID=<Application (client) ID>
-MS_CLIENT_SECRET=<secret value frå steg 2>
+MS_CLIENT_SECRET=<secret value fra steg 2>
 MS_TENANT=common
 MS_REDIRECT_URI=http://localhost:3000/api/auth/microsoft/callback
 ```
 
-`MS_TENANT=common` sender brukaren til den generelle innloggingssida, slik at
-både jobbkontoar og personlege Microsoft-kontoar kan brukast.
+`MS_TENANT=common` sender brukeren til den generelle innloggingssiden, slik at
+både jobbkontoer og personlige Microsoft-kontoer kan brukes.
 
 ## 5. Test
 
-Start appen, gå til **Tilbud → Innstillingar** og trykk **Kople til Microsoft
-365**. Etter samtykke skal postkassa dukke opp med status «Aktiv», og **Hent
+Start appen, gå til **Tilbud → Innstillinger** og trykk **Koble til Microsoft
+365**. Etter samtykke skal postkassen dukke opp med status «Aktiv», og **Hent
 leads** skal lese innboksen.
 
-### Vanlege feil
+### Vanlige feil
 
 | Melding | Årsak |
 | --- | --- |
-| `AADSTS50011: redirect URI mismatch` | URI-en i appregistreringa må matche `MS_REDIRECT_URI` teikn for teikn, inkludert protokoll og port. |
-| `AADSTS65001: user or administrator has not consented` | Ein av scopene manglar i **API permissions**. |
-| `AADSTS7000215: invalid client secret` | Secret-*ID* er kopiert i staden for secret-*Value*, eller secreten har gått ut. |
+| `AADSTS50011: redirect URI mismatch` | URI-en i appregistreringen må matche `MS_REDIRECT_URI` tegn for tegn, inkludert protokoll og port. |
+| `AADSTS65001: user or administrator has not consented` | Et av scopene mangler i **API permissions**. |
+| `AADSTS7000215: invalid client secret` | Secret-*ID* er kopiert i stedet for secret-*Value*, eller secreten har gått ut. |

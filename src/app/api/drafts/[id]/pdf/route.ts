@@ -7,7 +7,7 @@ import { hasDocument, type QuoteDocument, type QuoteType } from "@/lib/types";
 
 export const maxDuration = 120;
 
-/** Forhandsvisning av PDF-en. Same mal som bekreft-flyten brukar. */
+/** Forhåndsvisning av PDF-en. Samme mal som bekreft-flyten bruker. */
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -18,7 +18,7 @@ export async function GET(
   const { id } = await params;
   const admin = supabaseAdmin();
 
-  // Utkastet arvar company via leadet, så vi må slå det opp for å sjekke tilgang.
+  // Utkastet arver company via leadet, så vi må slå det opp for å sjekke tilgang.
   const { data: draft } = await admin
     .from("drafts")
     .select("id, quote_type, document, lead_id, leads!inner(company_id)")
@@ -27,13 +27,13 @@ export async function GET(
     .maybeSingle();
 
   if (!draft) {
-    return NextResponse.json({ error: "Fann ikkje utkastet" }, { status: 404 });
+    return NextResponse.json({ error: "Fant ikke utkastet" }, { status: 404 });
   }
 
   const quoteType = draft.quote_type as QuoteType;
   if (!hasDocument(quoteType) || !draft.document) {
     return NextResponse.json(
-      { error: "Denne tilbudstypen har ikkje noko dokument." },
+      { error: "Denne tilbudstypen har ikke noe dokument." },
       { status: 400 },
     );
   }
@@ -59,7 +59,7 @@ export async function GET(
   return new NextResponse(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": 'inline; filename="tilbod.pdf"',
+      "Content-Disposition": 'inline; filename="tilbud.pdf"',
       "Cache-Control": "no-store",
     },
   });

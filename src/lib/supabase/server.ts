@@ -3,8 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
 /**
- * Supabase-klient for server components og route handlers, med brukaren sin
- * sesjon. RLS gjeld — alt er scoped til brukaren sitt company.
+ * Supabase-klient for server components og route handlers, med brukerens
+ * sesjon. RLS gjelder — alt er avgrenset til brukerens company.
  */
 export async function supabaseServer() {
   const cookieStore = await cookies();
@@ -21,8 +21,8 @@ export async function supabaseServer() {
               cookieStore.set(name, value, options);
             }
           } catch {
-            // Kall frå ein server component — Next tillèt ikkje cookie-skriving der.
-            // Middleware fornyar sesjonen, så dette er trygt å ignorere.
+            // Kall fra en server component — Next tillater ikke cookie-skriving der.
+            // Middleware fornyer sesjonen, så dette er trygt å ignorere.
           }
         },
       },
@@ -31,8 +31,9 @@ export async function supabaseServer() {
 }
 
 /**
- * Service role-klient. Omgår RLS — brukast berre der vi må røre tokens eller
- * skrive på vegner av agenten. Kvar bruk må sjølv sjekke company-tilhøyre.
+ * Service role-klient. Omgår RLS — brukes bare der vi må røre tokens eller
+ * skrive på vegne av agenten. Hvert bruk må selv sjekke hvilket company raden
+ * hører til.
  */
 export function supabaseAdmin() {
   return createClient(
@@ -46,7 +47,7 @@ export function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
     throw new Error(
-      `Manglar miljøvariabel ${name}. Sjå .env.example og README for oppsett.`,
+      `Mangler miljøvariabel ${name}. Se .env.example og README for oppsett.`,
     );
   }
   return value;
@@ -58,7 +59,7 @@ export interface SessionContext {
   email: string;
 }
 
-/** Innlogga brukar + kva selskap dei høyrer til. Null om ikkje innlogga. */
+/** Innlogget bruker + hvilket selskap de hører til. Null om ikke innlogget. */
 export async function currentSession(): Promise<SessionContext | null> {
   const supabase = await supabaseServer();
   const {
@@ -81,7 +82,7 @@ export async function currentSession(): Promise<SessionContext | null> {
   };
 }
 
-/** Som currentSession, men kastar i staden for å returnere null. For API-ruter. */
+/** Som currentSession, men kaster i stedet for å returnere null. For API-ruter. */
 export async function requireSession(): Promise<SessionContext> {
   const session = await currentSession();
   if (!session) throw new UnauthorizedError();
@@ -90,7 +91,7 @@ export async function requireSession(): Promise<SessionContext> {
 
 export class UnauthorizedError extends Error {
   constructor() {
-    super("Ikkje innlogga");
+    super("Ikke innlogget");
     this.name = "UnauthorizedError";
   }
 }

@@ -4,17 +4,17 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { formatNok, type PriceListItem } from "@/lib/types";
 
 /**
- * Søkbar veljar for prisrader.
+ * Søkbar velger for prisrader.
  *
- * Ein vanleg nedtrekk held så lenge prisfila er kort, men Star Elektro sin
- * ekte prisfil vil ha hundrevis av rader — då må ein kunne skrive seg fram.
- * Søket matchar på namn, kode og skildring, og krev at alle orda i søket
- * finst: «stikk dobbel» treffer «Montering stikkontakt, dobbel».
+ * En vanlig nedtrekksliste holder så lenge prisfilen er kort, men Star Elektros
+ * ekte prisfil vil ha hundrevis av rader — da må man kunne skrive seg fram.
+ * Søket matcher på navn, kode og beskrivelse, og krever at alle ordene i søket
+ * finnes: «stikk dobbel» treffer «Montering stikkontakt, dobbel».
  */
 export function PriceItemPicker({
   items,
   onSelect,
-  placeholder = "Legg til post frå prisfila…",
+  placeholder = "Legg til post fra prisfilen…",
 }: {
   items: PriceListItem[];
   onSelect: (item: PriceListItem) => void;
@@ -29,7 +29,7 @@ export function PriceItemPicker({
   const matches = useMemo(() => filterItems(items, query), [items, query]);
   const visible = matches.slice(0, MAX_VISIBLE);
 
-  // Hald markeringa innanfor lista når søket endrar seg.
+  // Hold markeringen innenfor listen når søket endrer seg.
   useEffect(() => {
     setHighlight(0);
   }, [query]);
@@ -45,7 +45,7 @@ export function PriceItemPicker({
     onSelect(item);
     setQuery("");
     setOpen(false);
-    // Behald fokus, så ein kan leggje til fleire postar etter kvarandre.
+    // Behold fokus, så man kan legge til flere poster etter hverandre.
     inputRef.current?.focus();
   }
 
@@ -81,7 +81,7 @@ export function PriceItemPicker({
     <div
       className="picker"
       onBlur={(event) => {
-        // Lukk berre når fokus faktisk forlèt heile veljaren.
+        // Lukk bare når fokus faktisk forlater hele velgeren.
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
           setOpen(false);
         }
@@ -110,7 +110,7 @@ export function PriceItemPicker({
         <div className="picker-panel" id={listId} role="listbox">
           {visible.length === 0 ? (
             <div className="picker-empty">
-              Ingen prisrader matchar «{query}».
+              Ingen prisrader matcher «{query}».
             </div>
           ) : (
             <>
@@ -122,8 +122,8 @@ export function PriceItemPicker({
                   role="option"
                   aria-selected={index === highlight}
                   className={`picker-option${index === highlight ? " active" : ""}`}
-                  // mousedown i staden for click: click kjem etter blur, og
-                  // då er panelet allereie lukka.
+                  // mousedown i stedet for click: click kommer etter blur, og
+                  // da er panelet allerede lukket.
                   onMouseDown={(event) => {
                     event.preventDefault();
                     choose(item);
@@ -146,7 +146,7 @@ export function PriceItemPicker({
 
               {matches.length > visible.length && (
                 <div className="picker-empty">
-                  Viser {visible.length} av {matches.length}. Skriv meir for å snevre inn.
+                  Viser {visible.length} av {matches.length}. Skriv mer for å snevre inn.
                 </div>
               )}
             </>

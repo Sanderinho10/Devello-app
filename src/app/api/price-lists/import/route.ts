@@ -7,7 +7,7 @@ import type { PriceItemKind } from "@/lib/types";
 
 export const maxDuration = 120;
 
-/** Importerer rader inn i ei liste som alt finst. */
+/** Importerer rader inn i en liste som allerede finnes. */
 export async function POST(request: NextRequest) {
   const session = await sessionOr401();
   if (session instanceof NextResponse) return session;
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
 
     if (!listId || !(file instanceof File) || file.size === 0) {
       return NextResponse.json(
-        { error: "Både liste og fil er påkravd" },
+        { error: "Både liste og fil er påkrevd" },
         { status: 400 },
       );
     }
@@ -34,19 +34,19 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (!list) {
-      return NextResponse.json({ error: "Fann ikkje prislista" }, { status: 404 });
+      return NextResponse.json({ error: "Fant ikke prislisten" }, { status: 404 });
     }
 
     const parsed = await parseWorkbook(Buffer.from(await file.arrayBuffer()));
     if (parsed.errors.length > 0) {
       return NextResponse.json(
-        { error: "Fila kunne ikkje lesast", details: parsed.errors },
+        { error: "Filen kunne ikke leses", details: parsed.errors },
         { status: 400 },
       );
     }
 
-    // Erstatt slettar fyrst, men berre etter at fila er validert — elles kunne ei
-    // ugyldig fil tømt lista utan å fylle den igjen.
+    // Erstatt sletter først, men bare etter at filen er validert — ellers kunne en
+    // ugyldig fil tømt listen uten å fylle den igjen.
     if (replace) {
       const { error } = await admin
         .from("price_list_items")

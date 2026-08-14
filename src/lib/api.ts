@@ -6,7 +6,7 @@ import {
 } from "@/lib/supabase/server";
 
 /**
- * Hentar sesjonen, eller eit ferdig 401-svar. Kall som:
+ * Henter sesjonen, eller et ferdig 401-svar. Kall slik:
  *
  *   const session = await sessionOr401();
  *   if (session instanceof NextResponse) return session;
@@ -16,7 +16,7 @@ export async function sessionOr401(): Promise<SessionContext | NextResponse> {
     return await requireSession();
   } catch (err) {
     if (err instanceof UnauthorizedError) {
-      return NextResponse.json({ error: "Ikkje innlogga" }, { status: 401 });
+      return NextResponse.json({ error: "Ikke innlogget" }, { status: 401 });
     }
     throw err;
   }

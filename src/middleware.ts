@@ -2,8 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
- * Fornyar Supabase-sesjonen på kvar navigasjon. Utan dette blir server
- * components ståande med eit utgått token.
+ * Fornyer Supabase-sesjonen ved hver navigasjon. Uten dette blir server
+ * components stående med et utgått token.
  */
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });

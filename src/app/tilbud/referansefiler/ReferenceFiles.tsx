@@ -34,7 +34,7 @@ export function ReferenceFiles({ items }: { items: ReferenceQuote[] }) {
 
       const res = await fetch("/api/reference-quotes", { method: "POST", body: data });
       const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error ?? "Kunne ikkje lagre");
+      if (!res.ok) throw new Error(payload.error ?? "Kunne ikke lagre");
 
       setTitle("");
       setJobDescription("");
@@ -56,7 +56,7 @@ export function ReferenceFiles({ items }: { items: ReferenceQuote[] }) {
     <div className="stack">
       <div className="card">
         <div className="card-header">
-          <strong>Last opp referansetilbod</strong>
+          <strong>Last opp referansetilbud</strong>
         </div>
         <form className="card-pad" onSubmit={submit}>
           {error && <div className="banner error">{error}</div>}
@@ -68,7 +68,7 @@ export function ReferenceFiles({ items }: { items: ReferenceQuote[] }) {
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Tilbod — stikkontaktar rekkjehus Bjørkevegen"
+              placeholder="Tilbud — stikkontakter rekkehus Bjørkeveien"
             />
           </label>
 
@@ -90,23 +90,23 @@ export function ReferenceFiles({ items }: { items: ReferenceQuote[] }) {
           </label>
 
           <label className="field">
-            <span className="label">Kva slags jobb gjaldt tilbodet?</span>
+            <span className="label">Hva slags jobb gjaldt tilbudet?</span>
             <textarea
               className="textarea"
               style={{ minHeight: 80 }}
               required
               value={jobDescription}
               onChange={(e) => setJobDescription(e.target.value)}
-              placeholder="Montering av stikkontaktar og takpunkt i nybygg. Standardiserte einingar, kjent omfang."
+              placeholder="Montering av stikkontakter og takpunkt i nybygg. Standardiserte enheter, kjent omfang."
             />
             <span className="hint">
-              Dette er teksten klassifiseringa matchar nye førespurnader mot. Skriv
-              den så den skildrar jobbtypen, ikkje berre kunden.
+              Dette er teksten klassifiseringen matcher nye forespørsler mot. Skriv
+              den så den beskriver jobbtypen, ikke bare kunden.
             </span>
           </label>
 
           <label className="field">
-            <span className="label">Fil (valfritt)</span>
+            <span className="label">Fil (valgfritt)</span>
             <input
               className="input"
               type="file"
@@ -116,7 +116,7 @@ export function ReferenceFiles({ items }: { items: ReferenceQuote[] }) {
           </label>
 
           <button className="button" type="submit" disabled={busy}>
-            {busy ? "Lagrar…" : "Legg til"}
+            {busy ? "Lagrer…" : "Legg til"}
           </button>
         </form>
       </div>
@@ -127,9 +127,9 @@ export function ReferenceFiles({ items }: { items: ReferenceQuote[] }) {
         </div>
         {items.length === 0 ? (
           <div className="empty">
-            <div className="empty-title">Ingen referansefiler enno</div>
+            <div className="empty-title">Ingen referansefiler ennå</div>
             <div>
-              Utan referansar må agenten gjette tilbudstype ut frå omfanget åleine.
+              Uten referanser må agenten gjette tilbudstype ut fra omfanget alene.
             </div>
           </div>
         ) : (

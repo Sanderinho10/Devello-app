@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Devello",
-  description: "Tilbudsagent for handverksbedrifter",
+  description: "Tilbudsagent for håndverksbedrifter",
 };
 
 export default function RootLayout({
@@ -12,7 +12,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="nn">
+    <html lang="nb">
       <body>{children}</body>
     </html>
   );

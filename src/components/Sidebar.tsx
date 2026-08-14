@@ -4,11 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 /**
- * Navigasjon per agent, ikkje per funksjon.
+ * Navigasjon per agent, ikke per funksjon.
  *
- * Kvar agent er éin toppnivå-knapp, og agentens funksjonar ligg som faner inni
- * den. Når SoMe- og Annonser-agentane kjem, blir dei eigne oppføringar i AGENTS
- * med sine eigne faner — ingen endring i mønsteret, ingen nye meny-radar på
+ * Hver agent er én toppnivåknapp, og agentens funksjoner ligger som faner inni
+ * den. Når SoMe- og Annonser-agentene kommer, blir de egne oppføringer i AGENTS
+ * med sine egne faner — ingen endring i mønsteret, ingen nye menyrader på
  * toppnivå.
  */
 
@@ -36,7 +36,7 @@ const AGENTS: Agent[] = [
       { label: "Leads", href: "/tilbud/leads" },
       { label: "Prisfil", href: "/tilbud/prisfil" },
       { label: "Referansefiler", href: "/tilbud/referansefiler" },
-      { label: "Innstillingar", href: "/tilbud/innstillingar" },
+      { label: "Innstillinger", href: "/tilbud/innstillinger" },
     ],
   },
   { key: "some", label: "SoMe", icon: "◇", basePath: "/some", tabs: [], comingSoon: true },

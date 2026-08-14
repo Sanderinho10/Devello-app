@@ -5,7 +5,7 @@ import { currentSession, supabaseAdmin } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? request.nextUrl.origin;
-  const settings = new URL("/tilbud/innstillingar", appUrl);
+  const settings = new URL("/tilbud/innstillinger", appUrl);
 
   const session = await currentSession();
   if (!session) return NextResponse.redirect(new URL("/login", appUrl));
@@ -22,14 +22,14 @@ export async function GET(request: NextRequest) {
   const expectedState = request.cookies.get("ms_oauth_state")?.value;
 
   if (!code || !state || state !== expectedState) {
-    settings.searchParams.set("feil", "Ugyldig svar frå Microsoft. Prøv på nytt.");
+    settings.searchParams.set("feil", "Ugyldig svar fra Microsoft. Prøv på nytt.");
     return NextResponse.redirect(settings);
   }
 
-  // State ber companyId — sjekk at den framleis matchar den innlogga brukaren.
+  // State bærer companyId — sjekk at den fortsatt matcher den innloggede brukeren.
   const [stateCompanyId] = state.split(":");
   if (stateCompanyId !== session.companyId) {
-    settings.searchParams.set("feil", "Innlogginga høyrer til eit anna selskap.");
+    settings.searchParams.set("feil", "Innloggingen hører til et annet selskap.");
     return NextResponse.redirect(settings);
   }
 
@@ -56,11 +56,11 @@ export async function GET(request: NextRequest) {
     );
     if (dbError) throw new Error(dbError.message);
 
-    settings.searchParams.set("kopla", email);
+    settings.searchParams.set("koblet", email);
   } catch (err) {
     settings.searchParams.set(
       "feil",
-      err instanceof Error ? err.message : "Ukjend feil ved tilkopling",
+      err instanceof Error ? err.message : "Ukjent feil ved tilkobling",
     );
   }
 

@@ -4,8 +4,8 @@ import path from "node:path";
 let cached: string | null = null;
 
 /**
- * SOP-en er kjelda for kva som faktisk skal stå i e-postteksten. Den ligg som
- * markdown i repoet slik at den kan endrast utan kodeendring.
+ * SOP-en er kilden til hva som faktisk skal stå i e-postteksten. Den ligger som
+ * markdown i repoet slik at den kan endres uten kodeendring.
  */
 export async function loadSop(): Promise<string> {
   if (cached) return cached;

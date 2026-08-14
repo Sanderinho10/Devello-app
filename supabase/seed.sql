@@ -1,14 +1,14 @@
--- Utviklingsdata. Køyr etter migrasjonane, og berre i eit dev-prosjekt.
+-- Utviklingsdata. Kjør etter migrasjonene, og bare i et dev-prosjekt.
 --
--- Prisane under er plasshaldarar for å få flyten i gang — dei må erstattast med
--- Star Elektro sine faktiske satsar før pilot.
+-- Prisene under er plassholdere for å få flyten i gang — de må erstattes med
+-- Star Elektros faktiske satser før pilot.
 
 insert into companies (id, name, org_nr, tone_settings)
 values (
   '00000000-0000-0000-0000-000000000001',
   'Star Elektro AS',
   '912345678',
-  '{"formalitet": "du", "signatur": "Med venleg helsing\nStar Elektro AS"}'::jsonb
+  '{"formalitet": "du", "signatur": "Med vennlig hilsen\nStar Elektro AS"}'::jsonb
 )
 on conflict (id) do nothing;
 
@@ -25,11 +25,11 @@ values (
   '6800',
   'Førde',
   'starelektro.no',
-  'Org.nr 912 345 678 MVA · Alle prisar er oppgitt eks. mva.'
+  'Org.nr 912 345 678 MVA · Alle priser er oppgitt eks. mva.'
 )
 on conflict (company_id) do nothing;
 
--- Ei prisliste per type. Ein kunde kan ha fleire av kvar; her held éi.
+-- En prisliste per type. En kunde kan ha flere av hver; her holder én.
 insert into price_lists (id, company_id, kind, name)
 values
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-000000000001', 'punktpris', 'Punktprisliste'),
@@ -37,51 +37,51 @@ values
   ('00000000-0000-0000-0000-0000000000a3', '00000000-0000-0000-0000-000000000001', 'time',      'Timeprisliste')
 on conflict (id) do nothing;
 
--- Punktpris: bunta pris, arbeid og materiell samla.
+-- Punktpris: buntet pris, arbeid og materiell samlet.
 insert into price_list_items (company_id, price_list_id, kind, name, description, unit, unit_price, includes_labour, includes_material)
 values
-  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a1', 'punktpris', 'Montering stikkontakt, dobbel', 'Standard dobbel stikkontakt i eksisterande vegg', 'stk', 890, true, true),
-  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a1', 'punktpris', 'Kursopplegg frå sikringsskap', 'Ny kurs, inkl. kabel og automat', 'stk', 2450, true, true),
-  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a1', 'punktpris', 'Montering takpunkt med brytar', null, 'stk', 1340, true, true),
-  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a1', 'punktpris', 'Montering varmekabel', 'Per kvadratmeter, inkl. kabel og termostat-tilkopling', 'm²', 1150, true, true);
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a1', 'punktpris', 'Montering stikkontakt, dobbel', 'Standard dobbel stikkontakt i eksisterende vegg', 'stk', 890, true, true),
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a1', 'punktpris', 'Kursopplegg fra sikringsskap', 'Ny kurs, inkl. kabel og automat', 'stk', 2450, true, true),
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a1', 'punktpris', 'Montering takpunkt med bryter', null, 'stk', 1340, true, true),
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a1', 'punktpris', 'Montering varmekabel', 'Per kvadratmeter, inkl. kabel og termostat-tilkobling', 'm²', 1150, true, true);
 
 -- Materiell: brukt i fastpris-spesifikasjon.
 insert into price_list_items (company_id, price_list_id, kind, name, unit, unit_price, includes_labour, includes_material)
 values
-  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a2', 'materiell', 'Sikringsskap 24 modular', 'stk', 4200, false, true),
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a2', 'materiell', 'Sikringsskap 24 moduler', 'stk', 4200, false, true),
   ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a2', 'materiell', 'Jordfeilautomat 16 A', 'stk', 640, false, true),
   ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a2', 'materiell', 'Kabel PFSP 3G2,5', 'm', 38, false, true);
 
 -- Timepris: brukt i fastpris og i tid og materiell.
 insert into price_list_items (company_id, price_list_id, kind, name, description, unit, unit_price, includes_labour, includes_material)
 values
-  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a3', 'time', 'Timepris elektrikar', 'Ordinær arbeidstid', 'time', 1190, true, false),
-  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a3', 'time', 'Køyring', 'Per oppdrag innanfor Førde kommune', 'stk', 450, true, false);
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a3', 'time', 'Timepris elektriker', 'Ordinær arbeidstid', 'time', 1190, true, false),
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a3', 'time', 'Kjøring', 'Per oppdrag innenfor Førde kommune', 'stk', 450, true, false);
 
--- Referansetilbod: fasiten agenten matchar tilbudstype mot.
+-- Referansetilbud: fasiten agenten matcher tilbudstype mot.
 insert into reference_quotes (company_id, title, type, job_description)
 values
   (
     '00000000-0000-0000-0000-000000000001',
-    'Tilbod — stikkontaktar og takpunkt, rekkjehus Bjørkevegen',
+    'Tilbud — stikkontakter og takpunkt, rekkehus Bjørkeveien',
     'punktpris',
-    'Montering av stikkontaktar og takpunkt i nybygg. Standardiserte einingar, kjent tal, kjent omfang.'
+    'Montering av stikkontakter og takpunkt i nybygg. Standardiserte enheter, kjent antall, kjent omfang.'
   ),
   (
     '00000000-0000-0000-0000-000000000001',
-    'Tilbod — oppgradering sikringsskap Nordvikbygg',
+    'Tilbud — oppgradering sikringsskap Nordvikbygg',
     'fastpris',
-    'Utskifting av sikringsskap i eldre einebustad. Avgrensa jobb som lèt seg spesifisere med materiell og timar, men ikkje standardiserte einingar.'
+    'Utskifting av sikringsskap i eldre enebolig. Avgrenset jobb som lar seg spesifisere med materiell og timer, men ikke standardiserte enheter.'
   ),
   (
     '00000000-0000-0000-0000-000000000001',
-    'Tilbod — feilsøking flimrande lys Hafstadvegen',
+    'Tilbud — feilsøking flimrende lys Hafstadvegen',
     'tid_og_materiell',
-    'Kunden melder om eit symptom utan kjend årsak. Omfanget kan ikkje fastsetjast før feilsøkinga er i gang.'
+    'Kunden melder om et symptom uten kjent årsak. Omfanget kan ikke fastsettes før feilsøkingen er i gang.'
   );
 
--- Knyt ein innlogga brukar til selskapet. Byt ut e-posten før du køyrer.
--- Brukaren må ha logga inn éin gong slik at rada finst i auth.users.
+-- Knytt en innlogget bruker til selskapet. Bytt ut e-posten før du kjører.
+-- Brukeren må ha logget inn én gang slik at raden finnes i auth.users.
 --
 -- insert into users (id, company_id, email)
 -- select id, '00000000-0000-0000-0000-000000000001', email

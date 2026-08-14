@@ -7,11 +7,11 @@ import {
 } from "@/lib/types";
 
 /**
- * Devello sin faste PDF-mal.
+ * Devellos faste PDF-mal.
  *
- * Dette er ein Devello-mal med kundens logo, farge og kontaktinfo injisert —
- * ikkje ei etterlikning av kundens gamle Word/PDF-layout. Same mal for alle
- * kundar; berre merkevara varierer.
+ * Dette er en Devello-mal med kundens logo, farge og kontaktinfo injisert —
+ * ikke en etterligning av kundens gamle Word/PDF-layout. Samme mal for alle
+ * kunder; bare merkevaren varierer.
  */
 export function renderQuoteHtml(input: {
   document: QuoteDocument;
@@ -45,8 +45,8 @@ export function renderQuoteHtml(input: {
             <thead>
               <tr>
                 <th>Post</th>
-                <th class="num">Antal</th>
-                <th class="num">Einingspris</th>
+                <th class="num">Antall</th>
+                <th class="num">Enhetspris</th>
                 <th class="num">Sum</th>
               </tr>
             </thead>
@@ -58,7 +58,7 @@ export function renderQuoteHtml(input: {
 
   const assumptions = doc.assumptions.length
     ? `<section class="assumptions">
-         <h3>Føresetnader</h3>
+         <h3>Forutsetninger</h3>
          <ul>${doc.assumptions.map((a) => `<li>${escapeHtml(a)}</li>`).join("")}</ul>
        </section>`
     : "";
@@ -82,7 +82,7 @@ export function renderQuoteHtml(input: {
     .join("");
 
   return `<!doctype html>
-<html lang="nn">
+<html lang="nb">
 <head>
 <meta charset="utf-8">
 <title>${escapeHtml(doc.title)}</title>
@@ -232,8 +232,8 @@ export function renderQuoteHtml(input: {
 
 function quoteTypeLabel(type: QuoteType): string {
   return type === "punktpris"
-    ? "Tilbod — punktpris. Kvar post inkluderer arbeid og materiell."
-    : "Tilbod — fastpris. Materiell og arbeid spesifisert kvar for seg.";
+    ? "Tilbud — punktpris. Hver post inkluderer arbeid og materiell."
+    : "Tilbud — fastpris. Materiell og arbeid spesifisert hver for seg.";
 }
 
 function formatQuantity(n: number): string {

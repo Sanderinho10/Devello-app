@@ -50,7 +50,7 @@ export default async function PriceListPage({
 
       {!list.active && (
         <div className="banner warning">
-          Lista er inaktiv. Agenten hentar ikkje postar herifrå før den blir
+          Listen er inaktiv. Agenten henter ikke poster herfra før den blir
           aktivert igjen.
         </div>
       )}

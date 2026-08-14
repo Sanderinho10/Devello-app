@@ -16,9 +16,9 @@ const KINDS: PriceItemKind[] = ["punktpris", "materiell", "time"];
 /**
  * Oversikt over prislister, gruppert etter type.
  *
- * Ein type kan ha fleire lister. Agenten hentar frå dei aktive listene av den
- * typen tilbodet krev — kva liste innanfor typen den vel, blir styrt frå
- * agent-innstillingane.
+ * En type kan ha flere lister. Agenten henter fra de aktive listene av den
+ * typen tilbudet krever — hvilken liste innenfor typen den velger, blir styrt
+ * fra agent-innstillingene.
  */
 export function PriceLists({
   punktpris,
@@ -76,7 +76,7 @@ function KindSection({
       const payload = await res.json();
       if (!res.ok) {
         setDetails(payload.details ?? []);
-        throw new Error(payload.error ?? "Kunne ikkje opprette lista");
+        throw new Error(payload.error ?? "Kunne ikke opprette listen");
       }
       setName("");
       setDescription("");
@@ -103,7 +103,7 @@ function KindSection({
   async function remove(list: PriceListWithCount) {
     const message =
       list.item_count > 0
-        ? `Slett «${list.name}» og dei ${list.item_count} prisradene i lista?`
+        ? `Slett «${list.name}» og de ${list.item_count} prisradene i listen?`
         : `Slett «${list.name}»?`;
     if (!window.confirm(message)) return;
     await fetch(`/api/price-lists?id=${list.id}`, { method: "DELETE" });
@@ -142,7 +142,7 @@ function KindSection({
           )}
           <div className="grid-2">
             <label className="field">
-              <span className="label">Namn</span>
+              <span className="label">Navn</span>
               <input
                 className="input"
                 required
@@ -153,17 +153,17 @@ function KindSection({
               />
             </label>
             <label className="field">
-              <span className="label">Skildring (valfritt)</span>
+              <span className="label">Beskrivelse (valgfritt)</span>
               <input
                 className="input"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="T.d. «Næringskundar» eller «Gjeld frå 1. januar»"
+                placeholder="F.eks. «Næringskunder» eller «Gjelder fra 1. januar»"
               />
             </label>
           </div>
           <div className="field">
-            <span className="label">Prisrader frå Excel (valfritt)</span>
+            <span className="label">Prisrader fra Excel (valgfritt)</span>
             <ExcelDrop
               file={file}
               onFile={setFile}
@@ -174,8 +174,8 @@ function KindSection({
           <button className="button" type="submit" disabled={busy}>
             {busy
               ? file
-                ? "Les inn fila…"
-                : "Opprettar…"
+                ? "Leser inn filen…"
+                : "Oppretter…"
               : file
                 ? "Opprett og importer"
                 : "Opprett tom liste"}
@@ -187,8 +187,8 @@ function KindSection({
         <div className="empty">
           <div className="empty-title">Ingen {PRICE_KIND_LABELS[kind].toLowerCase()}</div>
           <div>
-            Utan ei aktiv liste av denne typen kan ikkje agenten lage tilbod som
-            treng den.
+            Uten en aktiv liste av denne typen kan ikke agenten lage tilbud som
+            trenger den.
           </div>
         </div>
       ) : (

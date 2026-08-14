@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-/** Claude Opus 5. Modellvalet er sentralisert her. */
+/** Claude Opus 5. Modellvalget er sentralisert her. */
 export const MODEL = "claude-opus-5";
 
 let cached: Anthropic | null = null;
@@ -8,7 +8,7 @@ let cached: Anthropic | null = null;
 export function anthropic(): Anthropic {
   if (!cached) {
     if (!process.env.ANTHROPIC_API_KEY) {
-      throw new Error("Manglar ANTHROPIC_API_KEY. Sjå .env.example.");
+      throw new Error("Mangler ANTHROPIC_API_KEY. Se .env.example.");
     }
     cached = new Anthropic();
   }
@@ -16,8 +16,8 @@ export function anthropic(): Anthropic {
 }
 
 /**
- * Køyrer eit kall med strukturert output og returnerer det parsa objektet.
- * Vi brukar output_config.format slik at svaret alltid validerer mot skjemaet —
+ * Kjører et kall med strukturert output og returnerer det parsede objektet.
+ * Vi bruker output_config.format slik at svaret alltid validerer mot skjemaet —
  * ingen regex-uthenting, ingen retry-loop rundt JSON.parse.
  */
 export async function structured<T>(options: {
@@ -46,41 +46,41 @@ export async function structured<T>(options: {
 
   if (response.stop_reason === "refusal") {
     throw new Error(
-      "Modellen avslo førespurnaden. Sjekk innhaldet i leadet og prøv igjen.",
+      "Modellen avslo forespørselen. Sjekk innholdet i leadet og prøv igjen.",
     );
   }
 
   const text = response.content.find((block) => block.type === "text");
   if (!text || text.type !== "text") {
-    throw new Error("Fekk ikkje tekst tilbake frå modellen.");
+    throw new Error("Fikk ikke tekst tilbake fra modellen.");
   }
   return JSON.parse(text.text) as T;
 }
 
 /**
- * Rå SDK-feil er JSON-blobbar som ikkje seier brukaren noko. Dei tre tilstandane
- * folk faktisk hamnar i — feil nøkkel, tom konto, for mange kall — fortener eit
- * svar som seier kva ein skal gjere.
+ * Rå SDK-feil er JSON-blobber som ikke sier brukeren noe. De tre tilstandene
+ * folk faktisk havner i — feil nøkkel, tom konto, for mange kall — fortjener et
+ * svar som sier hva man skal gjøre.
  */
 function translateApiError(err: unknown): Error {
   if (err instanceof Anthropic.AuthenticationError) {
     return new Error(
       "Anthropic avviste nøkkelen. Sjekk at ANTHROPIC_API_KEY i .env.local er " +
-        "komplett og utan hermeteikn, og at serveren er starta på nytt etterpå.",
+        "komplett og uten hermetegn, og at serveren er startet på nytt etterpå.",
     );
   }
   if (err instanceof Anthropic.RateLimitError) {
-    return new Error("For mange kall mot Anthropic akkurat no. Prøv igjen om litt.");
+    return new Error("For mange kall mot Anthropic akkurat nå. Prøv igjen om litt.");
   }
   if (err instanceof Anthropic.APIConnectionError) {
-    return new Error("Fekk ikkje kontakt med Anthropic. Sjekk nettverkstilkoplinga.");
+    return new Error("Fikk ikke kontakt med Anthropic. Sjekk nettverkstilkoblingen.");
   }
-  // APIError er basen for alle HTTP-feil, så den må stå etter dei spesifikke.
+  // APIError er basen for alle HTTP-feil, så den må stå etter de spesifikke.
   if (err instanceof Anthropic.APIError) {
-    // Tom konto kjem som 400 med ei melding om credit balance.
+    // Tom konto kommer som 400 med en melding om credit balance.
     if (err.message.toLowerCase().includes("credit balance")) {
       return new Error(
-        "Anthropic-kontoen har ikkje kreditt. Legg til betaling under Billing i konsollen.",
+        "Anthropic-kontoen har ikke kreditt. Legg til betaling under Billing i konsollen.",
       );
     }
     return new Error(`Anthropic svarte ${err.status}: ${err.message}`);

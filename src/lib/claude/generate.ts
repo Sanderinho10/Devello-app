@@ -15,23 +15,23 @@ export interface GeneratedDraft {
 }
 
 /**
- * Modellen vel *kva* postar som skal med og *kor mange*. Den slår aldri opp
- * prisen sjølv — den peikar på ein price_item_id, og vi fyller inn einingspris
- * og eining frå prisfila etterpå. Difor er unit_price ikkje med i skjemaet.
+ * Modellen velger *hvilke* poster som skal med og *hvor mange*. Den slår aldri
+ * opp prisen selv — den peker på en price_item_id, og vi fyller inn enhetspris
+ * og enhet fra prisfilen etterpå. Derfor er unit_price ikke med i skjemaet.
  */
 const LINE_SCHEMA = {
   type: "object",
   properties: {
     price_item_id: {
       type: "string",
-      description: "id frå prisfila. Må vere ein av dei oppgitte id-ane.",
+      description: "id fra prisfilen. Må være en av de oppgitte id-ene.",
     },
     description: {
       type: "string",
       description:
-        "Postteksten slik den skal stå i tilbodet. Ta utgangspunkt i namnet frå prisfila, men gjer den konkret for denne jobben.",
+        "Postteksten slik den skal stå i tilbudet. Ta utgangspunkt i navnet fra prisfilen, men gjør den konkret for denne jobben.",
     },
-    quantity: { type: "number", description: "Antal einingar." },
+    quantity: { type: "number", description: "Antall enheter." },
   },
   required: ["price_item_id", "description", "quantity"],
   additionalProperties: false,
@@ -75,7 +75,7 @@ const DOCUMENT_SCHEMA = {
           type: "array",
           items: { type: "string" },
           description:
-            "Kva prisen byggjer på, og kva som kjem i tillegg dersom jobben krev meir materiell eller tid enn spesifisert.",
+            "Hva prisen bygger på, og hva som kommer i tillegg hvis jobben krever mer materiell eller tid enn spesifisert.",
         },
       },
       required: ["customer", "title", "intro", "sections", "assumptions"],
@@ -123,7 +123,7 @@ async function generateWithDocument(
   const relevant = relevantPriceItems(input.quoteType, input.priceItems);
   if (relevant.length === 0) {
     throw new Error(
-      `Prisfila har ingen rader som passar tilbudstypen «${input.quoteType}». Legg inn prisrader under Prisfil før du genererer.`,
+      `Prisfilen har ingen rader som passer tilbudstypen «${input.quoteType}». Legg inn prisrader under Prisfil før du genererer.`,
     );
   }
 
@@ -150,17 +150,17 @@ async function generateWithDocument(
       companyBlock(input.company),
       leadBlock(input.lead),
       "---",
-      `Lag eit ${input.quoteType}-tilbod for denne førespurnaden.`,
+      `Lag et ${input.quoteType}-tilbud for denne forespørselen.`,
     ].join("\n\n"),
   });
 
-  // Prisane kjem herifrå, ikkje frå modellen.
+  // Prisene kommer herfra, ikke fra modellen.
   const byId = new Map(relevant.map((item) => [item.id, item]));
   const sections = raw.document.sections.map((section) => ({
     title: section.title,
     lines: section.lines.flatMap((line) => {
       const item = byId.get(line.price_item_id);
-      // Fann modellen på ein id, droppar vi raden heller enn å gjette ein pris.
+      // Fant modellen på en id, dropper vi raden heller enn å gjette en pris.
       if (!item) return [];
       return [
         {
@@ -192,7 +192,7 @@ async function generateWithDocument(
 }
 
 // ---------------------------------------------------------------------------
-// Tid og materiell: berre tekst, ingen dokument
+// Tid og materiell: bare tekst, ingen dokument
 // ---------------------------------------------------------------------------
 
 async function generateTextOnly(
@@ -202,15 +202,16 @@ async function generateTextOnly(
   const rates = input.priceItems.filter((item) => item.kind === "time" && item.active);
 
   const raw = await structured<{ email_subject: string; email_body: string }>({
-    system: `Du skriv tilbods-e-postar for eit norsk handverksfirma.
+    system: `Du skriver tilbuds-e-poster for et norsk håndverksfirma.
 
-Dette er eit tilbod på tid og materiell — løpande regning. Det skal IKKJE lagast
-noko dokument eller vedlegg. Heile tilbodet ligg i e-postteksten.
+Dette er et tilbud på tid og materiell — løpende regning. Det skal IKKE lages
+noe dokument eller vedlegg. Hele tilbudet ligger i e-postteksten.
 
-Timeprisar og eventuelle faste tillegg står i prisfila under. Bruk tala derifrå
-ordrett. Rekn aldri ut noko sjølv, og finn aldri på ein pris som ikkje står der.
+Timepriser og eventuelle faste tillegg står i prisfilen under. Bruk tallene
+derfra ordrett. Regn aldri ut noe selv, og finn aldri på en pris som ikke står
+der.
 
-Følg SOP-en under for kva teksten skal innehalde.
+Følg SOP-en under for hva teksten skal inneholde.
 
 # SOP
 
@@ -220,11 +221,11 @@ ${sop}`,
     prompt: [
       rates.length
         ? priceListBlock(rates)
-        : "# Prisfil\n\n(ingen timeprisar lagt inn — skriv teksten utan konkrete satsar og be kunden om ein prat)",
+        : "# Prisfil\n\n(ingen timepriser lagt inn — skriv teksten uten konkrete satser og be kunden om en prat)",
       companyBlock(input.company),
       leadBlock(input.lead),
       "---",
-      "Skriv e-postteksten for eit tilbod på tid og materiell.",
+      "Skriv e-postteksten for et tilbud på tid og materiell.",
     ].join("\n\n"),
   });
 
@@ -232,40 +233,40 @@ ${sop}`,
 }
 
 // ---------------------------------------------------------------------------
-// Prompt-byggjarar
+// Prompt-byggere
 // ---------------------------------------------------------------------------
 
 function documentSystem(quoteType: QuoteType, sop: string): string {
   const typeRules =
     quoteType === "punktpris"
-      ? `Dette er eit PUNKTPRIS-tilbod. Kvar post har éin bunta pris som dekker både
-arbeid og materiell. Bruk berre prisrader av typen «punktpris». Legg alle postane
-i éin seksjon.`
-      : `Dette er eit FASTPRIS-tilbod. Materiell og timar skal listast kvar for seg og
-summerast til éin total. Lag to seksjonar: «Materiell» (prisrader av typen
+      ? `Dette er et PUNKTPRIS-tilbud. Hver post har én buntet pris som dekker både
+arbeid og materiell. Bruk bare prisrader av typen «punktpris». Legg alle postene
+i én seksjon.`
+      : `Dette er et FASTPRIS-tilbud. Materiell og timer skal listes hver for seg og
+summeres til én total. Lag to seksjoner: «Materiell» (prisrader av typen
 materiell) og «Arbeid» (prisrader av typen time).
 
-Poenget med å spesifisere er å vise kva som ville kome i tillegg dersom jobben
-krev meir materiell eller tid enn spesifisert. Skriv difor føresetnadene
-(assumptions) konkret: kva mengder og timetal prisen byggjer på, og kva som
-utløyser tillegg.`;
+Poenget med å spesifisere er å vise hva som ville komme i tillegg hvis jobben
+krever mer materiell eller tid enn spesifisert. Skriv derfor forutsetningene
+(assumptions) konkret: hvilke mengder og hvilket timetall prisen bygger på, og
+hva som utløser tillegg.`;
 
-  return `Du lagar tilbod for eit norsk handverksfirma.
+  return `Du lager tilbud for et norsk håndverksfirma. Skriv på bokmål.
 
 ${typeRules}
 
-Absolutte reglar:
-- Bruk berre postar frå prisfila under. Kvar linje må peike på ein price_item_id
-  som faktisk står i lista.
-- Du skal ALDRI rekne ut prisar, summar eller totalar. Du oppgir berre kva post
-  og kor mange einingar. Systemet slår opp einingsprisen og reknar summane.
-- Finn du ingen passande post for noko kunden har spurt om, lat det stå ute av
-  tilbodet og nemn det i føresetnadene i staden.
-- Mengder skal grunngivast av det kunden faktisk har skrive. Ikkje gjett vilt —
-  er mengda uklar, bruk eit forsiktig anslag og skriv det i føresetnadene.
+Absolutte regler:
+- Bruk bare poster fra prisfilen under. Hver linje må peke på en price_item_id
+  som faktisk står i listen.
+- Du skal ALDRI regne ut priser, summer eller totaler. Du oppgir bare hvilken
+  post og hvor mange enheter. Systemet slår opp enhetsprisen og regner summene.
+- Finner du ingen passende post for noe kunden har spurt om, la det stå utenfor
+  tilbudet og nevn det i forutsetningene i stedet.
+- Mengder skal begrunnes ut fra det kunden faktisk har skrevet. Ikke gjett vilt —
+  er mengden uklar, bruk et forsiktig anslag og skriv det i forutsetningene.
 
-E-postteksten skal vere kort. Den følgjer med som melding når PDF-en blir lagt
-ved, så sjølve tilbodet skal ikkje gjentakast i teksten.
+E-postteksten skal være kort. Den følger med som melding når PDF-en blir lagt
+ved, så selve tilbudet skal ikke gjentas i teksten.
 
 # SOP for e-postteksten
 
@@ -277,13 +278,13 @@ function priceListBlock(items: PriceListItem[]): string {
     .map((item) => {
       const parts = [
         `- id: ${item.id}`,
-        `  namn: ${item.name}`,
+        `  navn: ${item.name}`,
         `  type: ${item.kind}`,
-        `  eining: ${item.unit}`,
-        `  einingspris: ${item.unit_price} kr`,
+        `  enhet: ${item.unit}`,
+        `  enhetspris: ${item.unit_price} kr`,
       ];
       if (item.code) parts.push(`  kode: ${item.code}`);
-      if (item.description) parts.push(`  skildring: ${item.description}`);
+      if (item.description) parts.push(`  beskrivelse: ${item.description}`);
       return parts.join("\n");
     })
     .join("\n");
@@ -296,14 +297,14 @@ function companyBlock(company: GenerateInput["company"]): string {
   if (tone.formalitet) lines.push(`Tiltaleform: ${tone.formalitet}`);
   if (tone.signatur) lines.push(`Signatur:\n${tone.signatur}`);
   if (tone.tillegg) lines.push(`Tilleggsinstruks: ${tone.tillegg}`);
-  return `# Avsendar\n\n${lines.join("\n")}`;
+  return `# Avsender\n\n${lines.join("\n")}`;
 }
 
 function leadBlock(lead: GenerateInput["lead"]): string {
-  return `# Førespurnaden
+  return `# Forespørselen
 
-Frå: ${lead.from_name ?? "(ukjent)"} <${lead.from_email ?? "ukjent"}>
-Emne: ${lead.subject ?? "(utan emne)"}
+Fra: ${lead.from_name ?? "(ukjent)"} <${lead.from_email ?? "ukjent"}>
+Emne: ${lead.subject ?? "(uten emne)"}
 
 ${lead.body_text ?? ""}`;
 }

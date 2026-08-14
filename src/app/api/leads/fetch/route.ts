@@ -5,10 +5,10 @@ import { sessionOr401 } from "@/lib/api";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
 /**
- * «Hent leads» — manuell knapp i v1. Fase 2 legg til automatisk polling, men
- * sjølve logikken her blir den same.
+ * «Hent leads» — manuell knapp i v1. Fase 2 legger til automatisk polling, men
+ * selve logikken her blir den samme.
  *
- * Dedupe skjer på Graph si message-id via unique (company_id, external_message_id).
+ * Dedupe skjer på Graphs message-id via unique (company_id, external_message_id).
  */
 export async function POST() {
   const session = await sessionOr401();
@@ -25,7 +25,7 @@ export async function POST() {
 
   if (!mailbox) {
     return NextResponse.json(
-      { error: "Ingen aktiv postkasse. Kople til under Innstillingar." },
+      { error: "Ingen aktiv postkasse. Koble til under Innstillinger." },
       { status: 400 },
     );
   }
@@ -63,7 +63,7 @@ export async function POST() {
 
     let inserted = 0;
     if (rows.length > 0) {
-      // ignoreDuplicates lèt alt som alt er henta liggje i fred.
+      // ignoreDuplicates lar alt som allerede er hentet ligge i fred.
       const { data, error } = await admin
         .from("leads")
         .upsert(rows, {

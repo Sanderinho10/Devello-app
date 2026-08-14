@@ -5,14 +5,14 @@ import type { PriceItemKind } from "@/lib/types";
 
 const KINDS: PriceItemKind[] = ["punktpris", "materiell", "time"];
 
-/** Lastar ned Excel-malen for ein listetype. */
+/** Laster ned Excel-malen for en listetype. */
 export async function GET(request: NextRequest) {
   const session = await sessionOr401();
   if (session instanceof NextResponse) return session;
 
   const kind = request.nextUrl.searchParams.get("kind") as PriceItemKind | null;
   if (!kind || !KINDS.includes(kind)) {
-    return NextResponse.json({ error: "Ukjend listetype" }, { status: 400 });
+    return NextResponse.json({ error: "Ukjent listetype" }, { status: 400 });
   }
 
   const workbook = await buildTemplate(kind);

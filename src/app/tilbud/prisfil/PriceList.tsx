@@ -11,7 +11,7 @@ const KIND_LABEL: Record<PriceItemKind, string> = {
 };
 
 const KIND_HELP: Record<PriceItemKind, string> = {
-  punktpris: "Bunta pris — arbeid og materiell samla. Brukt i punktpris-tilbod.",
+  punktpris: "Buntet pris — arbeid og materiell samlet. Brukt i punktpris-tilbud.",
   materiell: "Materiellpost. Brukt i fastpris-spesifikasjon.",
   time: "Timepris. Brukt i fastpris og i tid og materiell.",
 };
@@ -42,13 +42,13 @@ export function PriceList({ items }: { items: PriceListItem[] }) {
         body: JSON.stringify({
           ...form,
           unit_price: Number(form.unit_price),
-          // Punktpris er bunta; dei andre dekker éin ting kvar.
+          // Punktpris er buntet; de andre dekker én ting hver.
           includes_labour: form.kind !== "materiell",
           includes_material: form.kind !== "time",
         }),
       });
       const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error ?? "Kunne ikkje lagre");
+      if (!res.ok) throw new Error(payload.error ?? "Kunne ikke lagre");
       setForm(EMPTY);
       router.refresh();
     } catch (err) {
@@ -96,7 +96,7 @@ export function PriceList({ items }: { items: PriceListItem[] }) {
             </label>
 
             <label className="field">
-              <span className="label">Kode (valfritt)</span>
+              <span className="label">Kode (valgfritt)</span>
               <input
                 className="input"
                 value={form.code}
@@ -106,7 +106,7 @@ export function PriceList({ items }: { items: PriceListItem[] }) {
           </div>
 
           <label className="field">
-            <span className="label">Namn</span>
+            <span className="label">Navn</span>
             <input
               className="input"
               required
@@ -117,18 +117,18 @@ export function PriceList({ items }: { items: PriceListItem[] }) {
           </label>
 
           <label className="field">
-            <span className="label">Skildring (valfritt)</span>
+            <span className="label">Beskrivelse (valgfritt)</span>
             <input
               className="input"
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder="Hjelper agenten å velje rett post"
+              placeholder="Hjelper agenten å velge rett post"
             />
           </label>
 
           <div className="grid-2">
             <label className="field">
-              <span className="label">Eining</span>
+              <span className="label">Enhet</span>
               <input
                 className="input"
                 required
@@ -138,7 +138,7 @@ export function PriceList({ items }: { items: PriceListItem[] }) {
               />
             </label>
             <label className="field">
-              <span className="label">Einingspris eks. mva</span>
+              <span className="label">Enhetspris eks. mva</span>
               <input
                 className="input"
                 type="number"
@@ -152,7 +152,7 @@ export function PriceList({ items }: { items: PriceListItem[] }) {
           </div>
 
           <button className="button" type="submit" disabled={busy}>
-            {busy ? "Lagrar…" : "Legg til"}
+            {busy ? "Lagrer…" : "Legg til"}
           </button>
         </form>
       </div>
@@ -168,14 +168,14 @@ export function PriceList({ items }: { items: PriceListItem[] }) {
           </div>
 
           {rows.length === 0 ? (
-            <div className="empty">Ingen rader av denne typen enno.</div>
+            <div className="empty">Ingen rader av denne typen ennå.</div>
           ) : (
             <table className="table">
               <thead>
                 <tr>
-                  <th>Namn</th>
-                  <th>Eining</th>
-                  <th className="num">Einingspris</th>
+                  <th>Navn</th>
+                  <th>Enhet</th>
+                  <th className="num">Enhetspris</th>
                   <th style={{ width: 60 }} />
                 </tr>
               </thead>

@@ -14,14 +14,14 @@ export const maxDuration = 300;
  * Bekreft-flyten.
  *
  * Punktpris/fastpris: dokumentet blir konvertert til PDF samtidig som kladden
- * opprettast i Outlook, med PDF-en vedlagt.
+ * opprettes i Outlook, med PDF-en vedlagt.
  * Tid og materiell: teksten går rett inn i kladden, ingen PDF.
  *
- * I begge tilfelle blir den endelege versjonen logga i draft_versions — uansett
- * om noko blei endra.
+ * I begge tilfeller blir den endelige versjonen logget i draft_versions — uansett
+ * om noe ble endret.
  *
- * Merk at vi aldri sender. Appen har ikkje Mail.Send, og mennesket trykker send
- * sjølv frå Outlook.
+ * Merk at vi aldri sender. Appen har ikke Mail.Send, og mennesket trykker send
+ * selv fra Outlook.
  */
 export async function POST(
   request: NextRequest,
@@ -46,12 +46,12 @@ export async function POST(
       "*, leads!inner(id, company_id, from_email, from_name, external_message_id, mailbox_connection_id)",
     )
     .eq("id", id)
-    // Tilgangssjekken ligg i spørjinga, ikkje i ein etterkontroll.
+    // Tilgangssjekken ligger i spørringen, ikke i en etterkontroll.
     .eq("leads.company_id", session.companyId)
     .maybeSingle();
 
   if (!draft) {
-    return NextResponse.json({ error: "Fann ikkje utkastet" }, { status: 404 });
+    return NextResponse.json({ error: "Fant ikke utkastet" }, { status: 404 });
   }
 
   const lead = draft.leads as unknown as {
@@ -65,7 +65,7 @@ export async function POST(
 
   if (wantsDocument && !payload.document) {
     return NextResponse.json(
-      { error: "Tilbudstypen krev eit dokument, men ingen blei sendt inn." },
+      { error: "Tilbudstypen krever et dokument, men ingen ble sendt inn." },
       { status: 400 },
     );
   }
@@ -80,7 +80,7 @@ export async function POST(
         .maybeSingle(),
     ]);
 
-    // 1. PDF — berre for punktpris og fastpris.
+    // 1. PDF — bare for punktpris og fastpris.
     let pdf: Buffer | null = null;
     let pdfPath: string | null = null;
 
@@ -97,12 +97,12 @@ export async function POST(
       const { error: uploadError } = await admin.storage
         .from("quote-pdfs")
         .upload(pdfPath, pdf, { contentType: "application/pdf", upsert: true });
-      if (uploadError) throw new Error(`Kunne ikkje lagre PDF: ${uploadError.message}`);
+      if (uploadError) throw new Error(`Kunne ikke lagre PDF: ${uploadError.message}`);
     }
 
     // 2. Outlook-kladd.
     if (!lead.mailbox_connection_id) {
-      throw new Error("Leadet er ikkje kopla til ei postkasse.");
+      throw new Error("Leadet er ikke koblet til en postkasse.");
     }
     const token = await accessTokenFor(lead.mailbox_connection_id);
 
@@ -118,7 +118,7 @@ export async function POST(
       await attachPdf(token, outlook.id, pdfFileName(payload.document!), pdf);
     }
 
-    // 3. Lagre og logg den endelege versjonen.
+    // 3. Lagre og logg den endelige versjonen.
     const previous = {
       quote_type: draft.quote_type as QuoteType,
       email_subject: draft.email_subject,
@@ -145,7 +145,7 @@ export async function POST(
 
     await logDraftVersion(admin, {
       draftId: draft.id,
-      source: "endeleg",
+      source: "endelig",
       snapshot: final,
       previous,
       userId: session.userId,
@@ -171,5 +171,5 @@ function pdfFileName(document: QuoteDocument): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 50);
-  return `tilbod-${slug || "dokument"}.pdf`;
+  return `tilbud-${slug || "dokument"}.pdf`;
 }

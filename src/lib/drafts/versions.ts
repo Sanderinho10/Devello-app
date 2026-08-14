@@ -9,17 +9,17 @@ export interface DraftSnapshot {
 }
 
 /**
- * Loggar ein versjon av utkastet.
+ * Logger en versjon av utkastet.
  *
- * Vi loggar alltid — original AI-tekst, kvar redigering og den endelege
- * versjonen — uansett om noko faktisk blei endra. Dette er læringsdata, og eit
- * tomt diff er like informativt som eit stort: det fortel at agenten trefte.
+ * Vi logger alltid — original AI-tekst, hver redigering og den endelige
+ * versjonen — uansett om noe faktisk ble endret. Dette er læringsdata, og et
+ * tomt diff er like informativt som et stort: det forteller at agenten traff.
  */
 export async function logDraftVersion(
   supabase: SupabaseClient,
   input: {
     draftId: string;
-    source: "ai" | "redigering" | "endeleg";
+    source: "ai" | "redigering" | "endelig";
     snapshot: DraftSnapshot;
     previous?: DraftSnapshot | null;
     userId?: string | null;

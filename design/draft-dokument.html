@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Devello — Utkast (punktpris)</title>
 <!--
-  Utkast for punktpris og fastpris: dokument-forhandsvisning.
+  Utkast for punktpris og fastpris: dokument-forhåndsvisning.
 
   Brukaren redigerer felt direkte i dokumentet, pluss den korte e-postteksten
-  som følgjer med som melding når PDF-en blir lagt ved. Type-bryteren øvst viser
-  agentens forslag — brukaren kan endre den før dei bekreftar.
+  som følger med som melding når PDF-en blir lagt ved. Type-bryteren øverst viser
+  agentens forslag — brukeren kan endre den før de bekrefter.
 
-  Ved bekreft: dokumentet blir konvertert til PDF samtidig som kladden opprettast
-  i Outlook, med PDF-en vedlagt. Mennesket trykker send sjølv.
+  Ved bekreft: dokumentet blir konvertert til PDF samtidig som kladden opprettes
+  i Outlook, med PDF-en vedlagt. Mennesket trykker send selv.
 -->
 <link rel="stylesheet" href="../src/app/globals.css">
 </head>
@@ -27,7 +27,7 @@
         <a class="nav-tab active" href="dashboard.html">Leads</a>
         <a class="nav-tab" href="#">Prisfil</a>
         <a class="nav-tab" href="#">Referansefiler</a>
-        <a class="nav-tab" href="#">Innstillingar</a>
+        <a class="nav-tab" href="#">Innstillinger</a>
       </nav>
     </div>
     <div class="nav-agent">
@@ -43,7 +43,7 @@
     <div class="page-header">
       <div>
         <a class="button ghost" href="dashboard.html" style="margin-left:-10px">← Leads</a>
-        <h1 style="margin-top:6px">Pristilbod — 8 stikkontaktar i ny kjellarstove</h1>
+        <h1 style="margin-top:6px">Pristilbud — 8 stikkontakter i ny kjellerstue</h1>
         <p class="page-subtitle">Marit Aasen · marit.aasen@gmail.com · 14. aug. 08:31</p>
       </div>
     </div>
@@ -62,13 +62,13 @@
           <span>◆</span>
           <span>
             Agenten foreslo <strong>punktpris</strong>: jobben består av standardiserte
-            einingar (stikkontaktar), og kunden har to referansetilbod av same type
-            for liknande arbeid.
+            enheter (stikkontakter), og kunden har to referansetilbud av samme type
+            for liknende arbeid.
           </span>
         </div>
       </div>
 
-      <!-- Dokument-forhandsvisning -->
+      <!-- Dokument-forhåndsvisning -->
       <div class="doc-preview">
         <div class="doc-head">
           <div>
@@ -83,7 +83,7 @@
 
         <label class="field">
           <span class="label">Tittel</span>
-          <input class="input" value="Elektrisk arbeid — kjellarstove">
+          <input class="input" value="Elektrisk arbeid — kjellerstue">
         </label>
 
         <div class="grid-2">
@@ -98,17 +98,17 @@
         </div>
 
         <label class="field">
-          <span class="label">Innleiing</span>
-          <textarea class="textarea" style="min-height:80px">Takk for førespurnaden om elektrisk arbeid i den nye kjellarstova. Under finn du eit tilbod der kvar post er ein samla pris som dekker både arbeid og materiell.</textarea>
+          <span class="label">Innledning</span>
+          <textarea class="textarea" style="min-height:80px">Takk for forespørselen om elektrisk arbeid i den nye kjellerstua. Under finner du et tilbud der hver post er en samlet pris som dekker både arbeid og materiell.</textarea>
         </label>
 
-        <span class="label">Postar</span>
+        <span class="label">Poster</span>
         <table class="doc-table">
           <thead>
             <tr>
               <th>Post</th>
-              <th class="num" style="width:110px">Antal</th>
-              <th class="num" style="width:130px">Einingspris</th>
+              <th class="num" style="width:110px">Antall</th>
+              <th class="num" style="width:130px">Enhetspris</th>
               <th class="num" style="width:120px">Sum</th>
             </tr>
           </thead>
@@ -120,13 +120,13 @@
               <td class="num"><strong>7 120 kr</strong></td>
             </tr>
             <tr>
-              <td><input class="cell-input" value="Kursopplegg frå sikringsskap"></td>
+              <td><input class="cell-input" value="Kursopplegg fra sikringsskap"></td>
               <td class="num"><input class="cell-input num" value="2"></td>
               <td class="num"><input class="cell-input num" value="2 450"></td>
               <td class="num"><strong>4 900 kr</strong></td>
             </tr>
             <tr>
-              <td><input class="cell-input" value="Montering takpunkt med brytar"></td>
+              <td><input class="cell-input" value="Montering takpunkt med bryter"></td>
               <td class="num"><input class="cell-input num" value="3"></td>
               <td class="num"><input class="cell-input num" value="1 340"></td>
               <td class="num"><strong>4 020 kr</strong></td>
@@ -141,37 +141,37 @@
         </div>
 
         <label class="field" style="margin-top:26px">
-          <span class="label">Føresetnader</span>
-          <textarea class="textarea" style="min-height:90px">Prisen føreset framkome til sikringsskap og at veggar er opne ved montering.
-Uføresett arbeid utover dette blir avtalt før det blir utført.
-Tilbodet gjeld i 30 dagar frå dato.</textarea>
+          <span class="label">Forutsetninger</span>
+          <textarea class="textarea" style="min-height:90px">Prisen forutsetter framkomst til sikringsskap og at vegger er åpne ved montering.
+Uforutsett arbeid utover dette blir avtalt før det blir utført.
+Tilbudet gjelder i 30 dager fra dato.</textarea>
         </label>
       </div>
 
-      <!-- Kort e-posttekst som følgjer med PDF-en -->
+      <!-- Kort e-posttekst som følger med PDF-en -->
       <div class="card card-pad">
         <label class="field">
           <span class="label">Emne</span>
-          <input class="input" value="Sv: Pristilbod — 8 stikkontaktar i ny kjellarstove">
+          <input class="input" value="Sv: Pristilbud — 8 stikkontakter i ny kjellerstue">
         </label>
         <label class="field" style="margin-bottom:0">
           <span class="label">E-posttekst</span>
           <textarea class="textarea">Hei Marit,
 
-Takk for førespurnaden om elektrisk arbeid i den nye kjellarstova. Vedlagt finn du eit tilbod der kvar post er ein samla pris som dekker både arbeid og materiell.
+Takk for forespørselen om elektrisk arbeid i den nye kjellerstua. Vedlagt finner du et tilbud der hver post er en samlet pris som dekker både arbeid og materiell.
 
-Tilbodet gjeld i 30 dagar. Ta gjerne kontakt om noko er uklart.
+Tilbudet gjelder i 30 dager. Ta gjerne kontakt om noe er uklart.
 
-Med venleg helsing
+Med vennlig hilsen
 Star Elektro AS</textarea>
-          <span class="hint">Teksten følgjer med som melding når PDF-en blir lagt ved.</span>
+          <span class="hint">Teksten følger med som melding når PDF-en blir lagt ved.</span>
         </label>
       </div>
 
       <div class="action-bar">
-        <button class="button secondary">Forhandsvis PDF</button>
+        <button class="button secondary">Forhåndsvis PDF</button>
         <span class="spacer"></span>
-        <span class="muted tiny">Bekreft lagar kladd i Outlook med PDF-en vedlagt. Du sender sjølv.</span>
+        <span class="muted tiny">Bekreft lager kladd i Outlook med PDF-en vedlagt. Du sender selv.</span>
         <button class="button">Bekreft og lag kladd</button>
       </div>
 

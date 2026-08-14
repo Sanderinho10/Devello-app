@@ -1,9 +1,9 @@
--- Prisrader høyrer no til ei namngjeven liste, og kvar type kan ha fleire.
+-- Prisrader hører nå til en navngitt liste, og hver type kan ha flere.
 --
--- Star Elektro har ikkje éi prisfil — dei har ei punktprisliste, ei
--- materielliste og ein timeprisliste, og kan ha fleire av kvar (t.d. ei liste
--- per leverandør, eller ei eiga for næringskundar). Agenten vel liste ut frå
--- tilbudstypen; kva liste innanfor typen blir spesifisert seinare.
+-- Star Elektro har ikke én prisfil — de har en punktprisliste, en
+-- materielliste og en timeprisliste, og kan ha flere av hver (f.eks. en liste
+-- per leverandør, eller en egen for næringskunder). Agenten velger liste ut fra
+-- tilbudstypen; hvilken liste innenfor typen blir spesifisert senere.
 
 create table price_lists (
   id          uuid primary key default gen_random_uuid(),
@@ -11,7 +11,7 @@ create table price_lists (
   kind        price_item_kind not null,
   name        text not null,
   description text,
-  -- Inaktive lister blir liggjande, men agenten hentar ikkje frå dei.
+  -- Inaktive lister blir liggende, men agenten henter ikke fra dem.
   active      boolean not null default true,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
@@ -19,14 +19,14 @@ create table price_lists (
 
 create index price_lists_company_idx on price_lists (company_id, kind, active);
 
--- Gjer det mogleg å binde ein prisrad til både liste og type i éin nøkkel.
+-- Gjør det mulig å binde en prisrad til både liste og type i én nøkkel.
 alter table price_lists add constraint price_lists_id_kind_key unique (id, kind);
 
 create trigger price_lists_updated_at before update on price_lists
   for each row execute function set_updated_at();
 
 -- ---------------------------------------------------------------------------
--- Knyt eksisterande rader til ei liste
+-- Knytt eksisterende rader til en liste
 -- ---------------------------------------------------------------------------
 
 alter table price_list_items add column price_list_id uuid;
@@ -50,8 +50,8 @@ where list.company_id = item.company_id
 
 alter table price_list_items alter column price_list_id set not null;
 
--- Samansett framandnøkkel: ein prisrad sin type MÅ vere lik lista sin type.
--- Databasen held dette sant, så det finst ingen veg til at dei kjem i utakt.
+-- Sammensatt fremmednøkkel: en prisrads type MÅ være lik listens type.
+-- Databasen holder dette sant, så det finnes ingen vei til at de kommer i utakt.
 alter table price_list_items
   add constraint price_list_items_list_kind_fk
   foreign key (price_list_id, kind)

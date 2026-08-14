@@ -5,8 +5,8 @@ import { useRef, useState } from "react";
 const ACCEPT = ".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 /**
- * Filveljar med dra-og-slepp. Begge vegar inn til same tilstand — folk gjer
- * det ulikt, og ei fil som ligg i ei mappe blir like ofte dradd som opna.
+ * Filvelger med dra-og-slipp. Begge veier inn til samme tilstand — folk gjør
+ * det ulikt, og en fil som ligger i en mappe blir like ofte dradd som åpnet.
  */
 export function ExcelDrop({
   file,
@@ -26,7 +26,7 @@ export function ExcelDrop({
     if (!candidate) return;
     if (!/\.(xlsx|xlsm)$/i.test(candidate.name)) {
       setRejected(
-        `«${candidate.name}» er ikkje ei .xlsx-fil. Er det ei gammal .xls eller ein CSV, opne den i Excel og lagre som .xlsx.`,
+        `«${candidate.name}» er ikke en .xlsx-fil. Er det en gammel .xls eller en CSV, åpne den i Excel og lagre som .xlsx.`,
       );
       return;
     }
@@ -56,7 +56,7 @@ export function ExcelDrop({
         }}
         role="button"
         tabIndex={0}
-        aria-label="Vel eller dra inn ei Excel-fil"
+        aria-label="Velg eller dra inn en Excel-fil"
       >
         <input
           ref={inputRef}
@@ -90,7 +90,7 @@ export function ExcelDrop({
           <>
             <span className="drop-icon">▦</span>
             <span>
-              Dra inn Excel-fila, eller <span className="drop-link">vel ei fil</span>
+              Dra inn Excel-filen, eller <span className="drop-link">velg en fil</span>
             </span>
           </>
         )}
@@ -103,12 +103,12 @@ export function ExcelDrop({
       )}
 
       <p className="hint">
-        Kolonnane må heite <strong>Namn</strong>, <strong>Eining</strong> og{" "}
-        <strong>Pris eks. mva</strong>. Kode og skildring er valfrie.{" "}
+        Kolonnene må hete <strong>Navn</strong>, <strong>Enhet</strong> og{" "}
+        <strong>Pris eks. mva</strong>. Kode og beskrivelse er valgfrie.{" "}
         <a href={templateHref} className="drop-link">
           Last ned malen
         </a>{" "}
-        om du vil starte frå eit ferdig oppsett.
+        om du vil starte fra et ferdig oppsett.
       </p>
     </div>
   );

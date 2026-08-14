@@ -4,8 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 /**
- * «Hent leads» og «Generer utkast». Begge er manuelle knappar i v1 —
- * automatisk polling kjem i fase 2.
+ * «Hent leads» og «Generer utkast». Begge er manuelle knapper i v1 —
+ * automatisk polling kommer i fase 2.
  */
 export function LeadActions({
   kind,
@@ -31,7 +31,7 @@ export function LeadActions({
         },
       );
       const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error ?? "Noko gjekk gale");
+      if (!res.ok) throw new Error(payload.error ?? "Noe gikk galt");
 
       if (kind === "generer" && payload.lead_id) {
         router.push(`/tilbud/leads/${payload.lead_id}`);
@@ -60,8 +60,8 @@ export function LeadActions({
             ? "Hent leads"
             : "Generer utkast"}
       </button>
-      {/* Bryt til eiga linje under rada — elles pressar den emnet og
-          avsendaren ut av flex-rada. */}
+      {/* Bryt til egen linje under raden — ellers presser den emnet og
+          avsenderen ut av flex-raden. */}
       {error && <div className="banner error row-break">{error}</div>}
     </>
   );

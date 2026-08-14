@@ -3,7 +3,7 @@ import type { QuoteType, ReferenceQuote } from "@/lib/types";
 
 export interface Classification {
   quote_type: QuoteType;
-  /** Kort grunngiving, vist til brukaren over type-bryteren. */
+  /** Kort begrunnelse, vist til brukeren over type-bryteren. */
   note: string;
   confidence: "hoeg" | "middels" | "laag";
 }
@@ -18,7 +18,7 @@ const SCHEMA = {
     note: {
       type: "string",
       description:
-        "Éi til to setningar på norsk om kvifor denne typen passar, med referanse til liknande referansefiler når det finst.",
+        "Én til to setninger på bokmål om hvorfor denne typen passer, med referanse til liknende referansefiler når det finnes.",
     },
     confidence: { type: "string", enum: ["hoeg", "middels", "laag"] },
   },
@@ -26,24 +26,24 @@ const SCHEMA = {
   additionalProperties: false,
 };
 
-const SYSTEM = `Du klassifiserer innkommande jobbførespurnader for eit norsk handverksfirma.
+const SYSTEM = `Du klassifiserer innkommende jobbforespørsler for et norsk håndverksfirma.
 
-Dei tre tilbudstypane:
+De tre tilbudstypene:
 
-- punktpris: Kvar post har éin bunta pris som dekker både arbeid og materiell
-  (t.d. "montering stikkontakt — 890 kr/stk"). Passar når jobben består av
-  standardiserte einingar som kan teljast.
-- fastpris: Materiell og timar listast opp kvar for seg og summerast til éin
-  total. Passar når jobben er avgrensa og lèt seg spesifisere, men ikkje består
-  av standardiserte einingar.
-- tid_og_materiell: Ingen fast pris. Løpande regning. Passar når omfanget er
-  uklart — kunden skildrar eit problem heller enn ein definert jobb, eller det
-  trengst befaring for å vite kva arbeidet faktisk inneber.
+- punktpris: Hver post har én buntet pris som dekker både arbeid og materiell
+  (f.eks. "montering stikkontakt — 890 kr/stk"). Passer når jobben består av
+  standardiserte enheter som kan telles.
+- fastpris: Materiell og timer listes opp hver for seg og summeres til én
+  total. Passer når jobben er avgrenset og lar seg spesifisere, men ikke består
+  av standardiserte enheter.
+- tid_og_materiell: Ingen fast pris. Løpende regning. Passer når omfanget er
+  uklart — kunden beskriver et problem heller enn en definert jobb, eller det
+  trengs befaring for å vite hva arbeidet faktisk innebærer.
 
-Fasiten er kva typar referansetilbod kunden har lagt inn for liknande jobbar.
-Matchar jobbskildringa ein referanse, vel du same type som referansen. Finst det
-ingen relevant referanse, vel du ut frå kor godt definert omfanget er, og set
-confidence til laag.`;
+Fasiten er hvilke typer referansetilbud kunden har lagt inn for liknende jobber.
+Matcher jobbeskrivelsen en referanse, velger du samme type som referansen. Finnes
+det ingen relevant referanse, velger du ut fra hvor godt definert omfanget er, og
+setter confidence til laag.`;
 
 export async function classifyQuoteType(input: {
   subject: string | null;
@@ -54,28 +54,28 @@ export async function classifyQuoteType(input: {
     ? input.references
         .map(
           (ref) =>
-            `- [${ref.type}] ${ref.title}\n  Jobb: ${ref.job_description ?? "(ikkje skildra)"}`,
+            `- [${ref.type}] ${ref.title}\n  Jobb: ${ref.job_description ?? "(ikke beskrevet)"}`,
         )
         .join("\n")
-    : "(ingen referansefiler lagt inn enno)";
+    : "(ingen referansefiler lagt inn ennå)";
 
   return structured<Classification>({
     system: SYSTEM,
     schema: SCHEMA,
     effort: "medium",
     maxTokens: 4000,
-    prompt: `# Referansetilbod kunden har lagt inn
+    prompt: `# Referansetilbud kunden har lagt inn
 
 ${referenceBlock}
 
-# Innkommande førespurnad
+# Innkommende forespørsel
 
-Emne: ${input.subject ?? "(utan emne)"}
+Emne: ${input.subject ?? "(uten emne)"}
 
 ${input.body}
 
 ---
 
-Vel tilbudstype for denne førespurnaden.`,
+Velg tilbudstype for denne forespørselen.`,
   });
 }

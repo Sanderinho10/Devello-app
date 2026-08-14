@@ -17,7 +17,7 @@ export default async function ReferansefilerPage() {
         <div>
           <h1>Referansefiler</h1>
           <p className="page-subtitle">
-            Tidlegare tilbod, merka med type. Dette er fasiten agenten matchar mot
+            Tidligere tilbud, merket med type. Dette er fasiten agenten matcher mot
             når den foreslår tilbudstype.
           </p>
         </div>

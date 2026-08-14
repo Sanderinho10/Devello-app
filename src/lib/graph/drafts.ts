@@ -1,10 +1,10 @@
 import { graphFetch } from "./client";
 
 /**
- * Opprettar ein kladd i Outlook. Aldri send.
+ * Oppretter en kladd i Outlook. Aldri send.
  *
- * Merk: filvedlegg på kladdar fungerer fint her fordi vi kallar Graph direkte frå
- * vår eigen backend. Det er ikkje same avgrensing som i Claude sin M365-connector.
+ * Merk: filvedlegg på kladder fungerer fint her fordi vi kaller Graph direkte fra
+ * vår egen backend. Det er ikke samme begrensningen som i Claudes M365-connector.
  */
 
 interface CreateDraftInput {
@@ -12,7 +12,7 @@ interface CreateDraftInput {
   body: string;
   toEmail: string | null;
   toName?: string | null;
-  /** Svarar vi på ein tråd, held vi kladden i same samtale. */
+  /** Svarer vi på en tråd, holder vi kladden i samme samtale. */
   replyToMessageId?: string | null;
 }
 
@@ -55,8 +55,8 @@ export async function createDraft(
 }
 
 /**
- * createReply gir oss ein kladd som ligg i den opphavlege tråden, med
- * mottakar og emne allereie sett. Så oppdaterer vi kroppen til vår tekst.
+ * createReply gir oss en kladd som ligger i den opprinnelige tråden, med
+ * mottaker og emne allerede satt. Så oppdaterer vi kroppen til vår tekst.
  */
 async function createReplyDraft(
   accessToken: string,
@@ -80,15 +80,15 @@ async function createReplyDraft(
   return { id: draft.id, webLink: draft.webLink };
 }
 
-/** Legg ein PDF ved kladden. */
+/** Legg en PDF ved kladden. */
 export async function attachPdf(
   accessToken: string,
   draftId: string,
   fileName: string,
   pdf: Buffer,
 ): Promise<void> {
-  // Graph tek imot inline-vedlegg opp til ~3 MB. Over det må ein bruke
-  // upload-session; ein tilbods-PDF er langt under grensa.
+  // Graph tar imot inline-vedlegg opp til ~3 MB. Over det må man bruke
+  // upload-session; en tilbuds-PDF er langt under grensen.
   const MAX_INLINE_BYTES = 3 * 1024 * 1024;
   if (pdf.byteLength > MAX_INLINE_BYTES) {
     throw new Error(

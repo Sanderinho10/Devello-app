@@ -12,14 +12,14 @@ export const QUOTE_TYPE_LABELS: Record<QuoteType, string> = {
 
 export const QUOTE_TYPE_HELP: Record<QuoteType, string> = {
   punktpris:
-    "Kvar post har éin bunta pris som inkluderer arbeid og materiell. Gir PDF.",
+    "Hver post har én buntet pris som inkluderer arbeid og materiell. Gir PDF.",
   fastpris:
-    "Materiell og timar listast kvar for seg, summert til éin total. Gir PDF.",
+    "Materiell og timer listes hver for seg, summert til én total. Gir PDF.",
   tid_og_materiell:
-    "Løpande regning — timepris + materiell etter forbruk. Berre tekst, ingen PDF.",
+    "Løpende regning — timepris + materiell etter forbruk. Bare tekst, ingen PDF.",
 };
 
-/** Tilbudstypar som produserer eit dokument (og dermed PDF). */
+/** Tilbudstyper som produserer et dokument (og dermed PDF). */
 export function hasDocument(type: QuoteType): boolean {
   return type === "punktpris" || type === "fastpris";
 }
@@ -54,8 +54,8 @@ export interface CompanyBrand {
 }
 
 /**
- * Ei namngjeven prisliste av éin type. Ein kunde kan ha fleire lister per type
- * — t.d. ei punktprisliste for privatkundar og ei for næring.
+ * En navngitt prisliste av én type. En kunde kan ha flere lister per type —
+ * for eksempel én punktprisliste for privatkunder og én for næring.
  */
 export interface PriceList {
   id: string;
@@ -70,7 +70,7 @@ export interface PriceList {
 export interface PriceListItem {
   id: string;
   company_id: string;
-  /** Lista raden høyrer til. Raden sin type må vere lik lista sin. */
+  /** Listen raden hører til. Radens type må være lik listens. */
   price_list_id: string;
   kind: PriceItemKind;
   code: string | null;
@@ -91,13 +91,13 @@ export const PRICE_KIND_LABELS: Record<PriceItemKind, string> = {
 
 export const PRICE_KIND_HELP: Record<PriceItemKind, string> = {
   punktpris:
-    "Bunta prisar der arbeid og materiell er samla i éin post. Brukt i punktpristilbod.",
+    "Buntede priser der arbeid og materiell er samlet i én post. Brukes i punktpristilbud.",
   materiell:
-    "Materiellpostar med einingspris. Brukt i materielldelen av eit fastpristilbod.",
-  time: "Timeprisar og faste tillegg. Brukt i arbeidsdelen av fastpris, og i tid og materiell.",
+    "Materiellposter med enhetspris. Brukes i materielldelen av et fastpristilbud.",
+  time: "Timepriser og faste tillegg. Brukes i arbeidsdelen av fastpris, og i tid og materiell.",
 };
 
-/** Kva listetypar ein tilbudstype hentar frå. */
+/** Hvilke listetyper en tilbudstype henter fra. */
 export function kindsForQuoteType(type: QuoteType): PriceItemKind[] {
   if (type === "punktpris") return ["punktpris"];
   if (type === "fastpris") return ["materiell", "time"];
@@ -133,11 +133,11 @@ export interface Lead {
 }
 
 /**
- * Strukturert dokumentinnhald for punktpris og fastpris.
- * Dette er kjelda for PDF-genereringa — Devello sin faste mal les denne forma.
+ * Strukturert dokumentinnhold for punktpris og fastpris.
+ * Dette er kilden for PDF-genereringen — Devellos faste mal leser denne formen.
  */
 export interface QuoteDocument {
-  /** Kundeinfo, henta frå leadet og redigerbart i forhandsvisninga. */
+  /** Kundeinfo, hentet fra leadet og redigerbart i forhåndsvisningen. */
   customer: {
     name: string;
     contact: string | null;
@@ -145,14 +145,14 @@ export interface QuoteDocument {
     phone: string | null;
     address: string | null;
   };
-  /** Kort tittel på jobben, t.d. "Elektrisk arbeid — kjellarstove". */
+  /** Kort tittel på jobben, for eksempel «Elektrisk arbeid — kjellerstue». */
   title: string;
-  /** Innleiande avsnitt i dokumentet. */
+  /** Innledende avsnitt i dokumentet. */
   intro: string;
   sections: QuoteSection[];
   /**
-   * Kva som kjem i tillegg dersom jobben krev meir materiell eller tid enn
-   * spesifisert. Dette er heile poenget med å spesifisere på fastpris.
+   * Hva som kommer i tillegg hvis jobben krever mer materiell eller tid enn
+   * spesifisert. Dette er hele poenget med å spesifisere på fastpris.
    */
   assumptions: string[];
   /** Gyldig til-dato, ISO. */
@@ -162,13 +162,13 @@ export interface QuoteDocument {
 }
 
 export interface QuoteSection {
-  /** For punktpris er det typisk éin seksjon. For fastpris: "Materiell" og "Arbeid". */
+  /** For punktpris er det typisk én seksjon. For fastpris: «Materiell» og «Arbeid». */
   title: string;
   lines: QuoteLine[];
 }
 
 export interface QuoteLine {
-  /** Peikar tilbake til price_list_items når raden kom derifrå. */
+  /** Peker tilbake til price_list_items når raden kom derfra. */
   price_item_id: string | null;
   description: string;
   quantity: number;
@@ -198,8 +198,8 @@ export interface QuoteTotals {
 }
 
 /**
- * Summering skjer her, ikkje i modellen. Agenten slår opp prisar — den reknar aldri
- * sjølv, så alle summar i UI og PDF kjem frå denne funksjonen.
+ * Summeringen skjer her, ikke i modellen. Agenten slår opp priser — den regner
+ * aldri selv, så alle summer i UI og PDF kommer fra denne funksjonen.
  */
 export function computeTotals(doc: QuoteDocument): QuoteTotals {
   let subtotal = 0;

@@ -1,5 +1,5 @@
 -- Devello — grunnskjema for tilbudsagenten.
--- Fase 0: fundament. Sjå produktbyggspec §1.
+-- Fase 0: fundament. Se produktbyggspec §1.
 
 create extension if not exists "pgcrypto";
 
@@ -7,11 +7,11 @@ create extension if not exists "pgcrypto";
 -- Enums
 -- ---------------------------------------------------------------------------
 
--- Dei tre tilbudstypane. Kjernelogikken i §2.
+-- De tre tilbudstypene. Kjernelogikken i §2.
 create type quote_type as enum ('punktpris', 'fastpris', 'tid_og_materiell');
 
--- Prisrader er strukturerte, aldri fritekst. Agenten slår opp — reknar aldri sjølv.
---   punktpris : éin bunta pris (arbeid + materiell samla), t.d. "montering stikkontakt"
+-- Prisrader er strukturerte, aldri fritekst. Agenten slår opp — regner aldri selv.
+--   punktpris : én buntet pris (arbeid + materiell samlet), f.eks. "montering stikkontakt"
 --   materiell : materiellpost brukt i fastpris-spesifikasjon
 --   time      : timepris (fastpris + tid og materiell)
 create type price_item_kind as enum ('punktpris', 'materiell', 'time');
@@ -21,20 +21,20 @@ create type lead_status as enum ('ny', 'utkast_klar', 'bekrefta');
 create type mailbox_provider as enum ('microsoft');
 create type mailbox_status as enum ('aktiv', 'token_utlopt', 'kopla_fra', 'feil');
 
--- Kvar versjon i draft_versions er merka med kvar teksten kom frå.
-create type draft_version_source as enum ('ai', 'redigering', 'endeleg');
+-- Hver versjon i draft_versions er merket med hvor teksten kom fra.
+create type draft_version_source as enum ('ai', 'redigering', 'endelig');
 
 create type agent_run_kind as enum ('hent_leads', 'generer_utkast');
 create type agent_run_status as enum ('koeyrer', 'ok', 'feil');
 
 -- ---------------------------------------------------------------------------
--- companies — Devello-kundane
+-- companies — Devello-kundene
 -- ---------------------------------------------------------------------------
 create table companies (
   id            uuid primary key default gen_random_uuid(),
   name          text not null,
   org_nr        text,
-  -- Tone-innstillingar styrer korleis Claude formulerer e-postteksten.
+  -- Tone-innstillinger styrer hvordan Claude formulerer e-postteksten.
   -- { "formalitet": "de|du", "signatur": "...", "tillegg": "..." }
   tone_settings jsonb not null default '{}'::jsonb,
   created_at    timestamptz not null default now(),
@@ -42,9 +42,9 @@ create table companies (
 );
 
 -- ---------------------------------------------------------------------------
--- company_brand — merkevare henta frå referansefiler
--- Brukt i PDF-genereringa: Devello sin faste mal, med kundens logo/farge/kontaktinfo
--- injisert. Dette er IKKJE ei etterlikning av kundens gamle Word/PDF-layout.
+-- company_brand — merkevare hentet fra referansefiler
+-- Brukt i PDF-genereringen: Devellos faste mal, med kundens logo/farge/kontaktinfo
+-- injisert. Dette er IKKE en etterlikning av kundens gamle Word/PDF-layout.
 -- ---------------------------------------------------------------------------
 create table company_brand (
   company_id      uuid primary key references companies(id) on delete cascade,
@@ -58,14 +58,14 @@ create table company_brand (
   postal_code     text,
   city            text,
   website         text,
-  -- Fritekst som blir lagt nedst i PDF-en (org.nr, bankkonto, vilkår).
+  -- Fritekst som blir lagt nederst i PDF-en (org.nr, bankkonto, vilkår).
   footer_note     text,
   updated_at      timestamptz not null default now()
 );
 
 -- ---------------------------------------------------------------------------
--- users — innlogga brukarar per company
--- id peikar på auth.users. Supabase Auth eig sjølve innlogginga.
+-- users — innloggede brukere per company
+-- id peker på auth.users. Supabase Auth eier selve innloggingen.
 -- ---------------------------------------------------------------------------
 create table users (
   id         uuid primary key references auth.users(id) on delete cascade,
@@ -79,8 +79,8 @@ create table users (
 create index users_company_id_idx on users (company_id);
 
 -- ---------------------------------------------------------------------------
--- mailbox_connections — OAuth-tokens per tilkopla postkasse
--- Scope: Mail.Read + Mail.ReadWrite. Aldri Mail.Send — mennesket trykker send sjølv.
+-- mailbox_connections — OAuth-tokens per tilkoblet postkasse
+-- Scope: Mail.Read + Mail.ReadWrite. Aldri Mail.Send — mennesket trykker send selv.
 -- ---------------------------------------------------------------------------
 create table mailbox_connections (
   id             uuid primary key default gen_random_uuid(),
@@ -95,7 +95,7 @@ create table mailbox_connections (
   expires_at     timestamptz,
   scope          text,
   status         mailbox_status not null default 'aktiv',
-  -- Vi hentar berre e-post som kom inn etter dette tidspunktet.
+  -- Vi henter bare e-post som kom inn etter dette tidspunktet.
   last_synced_at timestamptz,
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now(),
@@ -116,7 +116,7 @@ create table price_list_items (
   description text,
   unit        text not null default 'stk',
   unit_price  numeric(12, 2) not null,
-  -- For punktpris er begge true (bunta pris). For materiell/time er berre éin true.
+  -- For punktpris er begge true (buntet pris). For materiell/time er bare én true.
   includes_labour   boolean not null default false,
   includes_material boolean not null default false,
   active      boolean not null default true,
@@ -128,15 +128,15 @@ create index price_list_items_company_id_idx on price_list_items (company_id);
 create index price_list_items_lookup_idx on price_list_items (company_id, kind, active);
 
 -- ---------------------------------------------------------------------------
--- reference_quotes — opplasta referansetilbod
--- Dette er fasiten agenten matchar mot når han skal foreslå tilbudstype.
+-- reference_quotes — opplastede referansetilbud
+-- Dette er fasiten agenten matcher mot når han skal foreslå tilbudstype.
 -- ---------------------------------------------------------------------------
 create table reference_quotes (
   id              uuid primary key default gen_random_uuid(),
   company_id      uuid not null references companies(id) on delete cascade,
   title           text not null,
   type            quote_type not null,
-  -- Kva slags jobb tilbodet gjaldt. Dette er teksten klassifiseringa matchar mot.
+  -- Hva slags jobb tilbudet gjaldt. Dette er teksten klassifiseringen matcher mot.
   job_description text,
   file_name       text,
   storage_path    text,
@@ -149,7 +149,7 @@ create index reference_quotes_company_id_idx on reference_quotes (company_id);
 create index reference_quotes_type_idx on reference_quotes (company_id, type);
 
 -- ---------------------------------------------------------------------------
--- leads — éin rad per innkommande e-post
+-- leads — én rad per innkommende e-post
 -- ---------------------------------------------------------------------------
 create table leads (
   id                    uuid primary key default gen_random_uuid(),
@@ -174,21 +174,21 @@ create index leads_company_status_idx on leads (company_id, status, received_at 
 
 -- ---------------------------------------------------------------------------
 -- drafts — AI-generert utkast
--- document er null for tid og materiell (berre tekst, ingen PDF).
+-- document er null for tid og materiell (bare tekst, ingen PDF).
 -- ---------------------------------------------------------------------------
 create table drafts (
   id                  uuid primary key default gen_random_uuid(),
   lead_id             uuid not null unique references leads(id) on delete cascade,
   quote_type          quote_type not null,
-  -- Kvifor agenten foreslo denne typen. Vist til brukaren over type-bryteren.
+  -- Hvorfor agenten foreslo denne typen. Vist til brukeren over type-bryteren.
   classification_note text,
   email_subject       text not null default '',
   email_body          text not null default '',
-  -- Strukturert dokumentinnhald for punktpris/fastpris. Sjå src/lib/types.ts
-  -- (QuoteDocument) for forma. Null for tid og materiell.
+  -- Strukturert dokumentinnhold for punktpris/fastpris. Se src/lib/types.ts
+  -- (QuoteDocument) for formen. Null for tid og materiell.
   document            jsonb,
   pdf_path            text,
-  -- Outlook-kladden som blei oppretta ved bekreft.
+  -- Outlook-kladden som ble opprettet ved bekreft.
   outlook_draft_id    text,
   outlook_web_link    text,
   confirmed_at        timestamptz,
@@ -197,8 +197,8 @@ create table drafts (
 );
 
 -- ---------------------------------------------------------------------------
--- draft_versions — logg av kvar versjon. Læringsdata: logg alltid.
--- Original AI-tekst + kvar redigering + endeleg, uansett om noko blei endra.
+-- draft_versions — logg av hver versjon. Læringsdata: logg alltid.
+-- Original AI-tekst + hver redigering + endelig, uansett om noe ble endret.
 -- ---------------------------------------------------------------------------
 create table draft_versions (
   id          uuid primary key default gen_random_uuid(),
@@ -209,7 +209,7 @@ create table draft_versions (
   email_subject text,
   email_body  text,
   document    jsonb,
-  -- Endringar mot førre versjon: { "felt": { "for": ..., "etter": ... } }
+  -- Endringer mot forrige versjon: { "felt": { "for": ..., "etter": ... } }
   diff        jsonb,
   created_by  uuid references users(id) on delete set null,
   created_at  timestamptz not null default now(),
@@ -219,7 +219,7 @@ create table draft_versions (
 create index draft_versions_draft_id_idx on draft_versions (draft_id, version);
 
 -- ---------------------------------------------------------------------------
--- agent_runs — køyrelogg
+-- agent_runs — kjørelogg
 -- ---------------------------------------------------------------------------
 create table agent_runs (
   id                    uuid primary key default gen_random_uuid(),

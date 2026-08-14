@@ -4,10 +4,10 @@ import { formatDate } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function InnstillingarPage({
+export default async function InnstillingerPage({
   searchParams,
 }: {
-  searchParams: Promise<{ kopla?: string; feil?: string }>;
+  searchParams: Promise<{ koblet?: string; feil?: string }>;
 }) {
   const params = await searchParams;
   const session = await currentSession();
@@ -35,15 +35,15 @@ export default async function InnstillingarPage({
     <>
       <div className="page-header">
         <div>
-          <h1>Innstillingar</h1>
+          <h1>Innstillinger</h1>
           <p className="page-subtitle">
             Postkasse, merkevare og tone for tilbudsagenten.
           </p>
         </div>
       </div>
 
-      {params.kopla && (
-        <div className="banner success">Kopla til {params.kopla}.</div>
+      {params.koblet && (
+        <div className="banner success">Koblet til {params.koblet}.</div>
       )}
       {params.feil && <div className="banner error">{params.feil}</div>}
 
@@ -56,7 +56,7 @@ export default async function InnstillingarPage({
               <div className="tiny muted">Microsoft 365 / Outlook</div>
             </div>
             <a className="button" href="/api/auth/microsoft/start">
-              {mailbox ? "Kople til på nytt" : "Kople til Microsoft 365"}
+              {mailbox ? "Koble til på nytt" : "Koble til Microsoft 365"}
             </a>
           </div>
           <div className="card-pad">
@@ -67,7 +67,7 @@ export default async function InnstillingarPage({
                   <span
                     className={`pill ${mailbox.status === "aktiv" ? "bekrefta" : "utkast_klar"}`}
                   >
-                    {mailbox.status === "aktiv" ? "Aktiv" : "Treng ny tilkopling"}
+                    {mailbox.status === "aktiv" ? "Aktiv" : "Trenger ny tilkobling"}
                   </span>
                 </div>
                 <div className="tiny muted">
@@ -76,13 +76,13 @@ export default async function InnstillingarPage({
               </div>
             ) : (
               <p className="muted">
-                Ingen postkasse tilkopla. Du samtykker sjølv ved tilkopling — det
-                trengst ingen godkjenning frå IT-avdelinga.
+                Ingen postkasse tilkoblet. Du samtykker selv ved tilkobling — det
+                trengs ingen godkjenning fra IT-avdelingen.
               </p>
             )}
             <div className="tiny muted" style={{ marginTop: 14 }}>
               Appen ber om Mail.Read og Mail.ReadWrite. Den ber aldri om Mail.Send:
-              vi lagar kladdar, du trykker send sjølv.
+              vi lager kladder, du trykker send selv.
             </div>
           </div>
         </div>

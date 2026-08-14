@@ -1,4 +1,4 @@
-// Løyser "@/..."-importar når vi køyrer TypeScript direkte i Node (utan Next).
+// Løser "@/..."-importer når vi kjører TypeScript direkte i Node (uten Next).
 // Brukt av scripts/preview-pdf.ts.
 import { register } from "node:module";
 import { pathToFileURL } from "node:url";

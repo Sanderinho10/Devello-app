@@ -16,8 +16,8 @@ export default async function PrisfilPage() {
     supabase.from("price_list_items").select("price_list_id, active"),
   ]);
 
-  // Teljinga gjer vi her framfor med ein aggregat-spørjing — talet på lister er
-  // lite, og då slepp vi ein vy berre for dette.
+  // Tellingen gjør vi her framfor med en aggregat-spørring — antallet lister er
+  // lite, og da slipper vi en egen vy bare for dette.
   const counts = new Map<string, number>();
   for (const item of items ?? []) {
     if (!item.active) continue;
@@ -38,8 +38,8 @@ export default async function PrisfilPage() {
         <div>
           <h1>Prisfil</h1>
           <p className="page-subtitle">
-            Strukturerte prisrader, organiserte i lister. Agenten slår opp herifrå
-            og reknar aldri sjølv.
+            Strukturerte prisrader, organiserte i lister. Agenten slår opp herfra
+            og regner aldri selv.
           </p>
         </div>
       </div>
