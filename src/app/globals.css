@@ -1,0 +1,733 @@
+/*
+ * Devello — designsystem.
+ *
+ * Reint, Apple-inspirert: systemfont, lite fargebruk, mjuke skuggar, romsleg.
+ * Mockupane i design/ lenkjer til denne same fila, slik at mockup og app aldri
+ * driv frå kvarandre.
+ */
+
+:root {
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --surface-sunken: #fafafc;
+  --border: #e8e8ed;
+  --border-strong: #d2d2d7;
+
+  --text: #1d1d1f;
+  --text-secondary: #6e6e73;
+  --text-tertiary: #86868b;
+
+  --accent: #0071e3;
+  --accent-soft: #e8f2fd;
+  --positive: #1d8a4e;
+  --positive-soft: #e6f4ec;
+  --warning: #b25000;
+  --warning-soft: #fdf0e5;
+
+  --radius: 12px;
+  --radius-lg: 18px;
+  --radius-sm: 8px;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.03);
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.06), 0 16px 48px rgba(0, 0, 0, 0.07);
+
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+    Helvetica, Arial, sans-serif;
+
+  --sidebar-width: 244px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+h1 {
+  font-size: 26px;
+}
+h2 {
+  font-size: 19px;
+}
+h3 {
+  font-size: 15px;
+}
+
+p {
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------- layout -- */
+
+.shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: var(--sidebar-width);
+  flex-shrink: 0;
+  padding: 22px 14px;
+  border-right: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: saturate(180%) blur(20px);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 10px 22px;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.brand-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: linear-gradient(145deg, #1d1d1f, #48484a);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/*
+ * Navigasjonen er organisert per agent, ikkje per funksjon: éin knapp per agent,
+ * med agentens faner inni. Mønsteret blir gjenbrukt for kvar ny agent.
+ */
+.nav-agent {
+  margin-bottom: 4px;
+}
+
+.nav-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.nav-button:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.nav-button.active {
+  background: rgba(0, 0, 0, 0.06);
+  font-weight: 600;
+}
+
+.nav-button.disabled {
+  color: var(--text-tertiary);
+  cursor: default;
+}
+
+.nav-button.disabled:hover {
+  background: transparent;
+}
+
+.nav-icon {
+  width: 18px;
+  text-align: center;
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.nav-badge {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 20px;
+  padding: 1px 7px;
+}
+
+/* Agent-faner: leads / prisfil / referansefiler / innstillingar */
+.nav-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 2px 0 10px 20px;
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+}
+
+.nav-tab {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.nav-tab:hover {
+  background: rgba(0, 0, 0, 0.035);
+  color: var(--text);
+}
+
+.nav-tab.active {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 550;
+  box-shadow: var(--shadow-sm);
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 16px 10px 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  padding: 34px 40px 64px;
+  max-width: 1120px;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 26px;
+}
+
+.page-subtitle {
+  color: var(--text-secondary);
+  margin-top: 5px;
+  font-size: 14px;
+}
+
+/* ----------------------------------------------------------- components -- */
+
+.card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.card-pad {
+  padding: 22px 24px;
+}
+
+.card-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border-radius: 980px;
+  border: 1px solid transparent;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 500;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background 0.15s ease;
+  white-space: nowrap;
+}
+
+.button:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.button.secondary {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.button.secondary:hover:not(:disabled) {
+  background: var(--surface-sunken);
+  opacity: 1;
+}
+
+.button.ghost {
+  background: transparent;
+  color: var(--accent);
+  padding: 6px 10px;
+}
+
+.button.ghost:hover:not(:disabled) {
+  background: var(--accent-soft);
+  opacity: 1;
+}
+
+.button.danger {
+  background: transparent;
+  color: #c0392b;
+  border-color: transparent;
+  padding: 6px 10px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 980px;
+  font-size: 12px;
+  font-weight: 500;
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.pill.ny {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.pill.utkast_klar {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+.pill.bekrefta {
+  background: var(--positive-soft);
+  color: var(--positive);
+}
+
+/* Liste over leads */
+.lead-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.lead-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 15px 24px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.12s ease;
+}
+
+.lead-row:last-child {
+  border-bottom: none;
+}
+
+.lead-row:hover {
+  background: var(--surface-sunken);
+}
+
+.lead-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.lead-subject {
+  font-weight: 550;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lead-meta {
+  color: var(--text-secondary);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.lead-time {
+  color: var(--text-tertiary);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+/* Type-bryter — brukaren kan endre agentens forslag før dei bekreftar */
+.type-switch {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 11px;
+  max-width: 520px;
+}
+
+.type-option {
+  flex: 1;
+  padding: 7px 14px;
+  border: none;
+  background: transparent;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+}
+
+.type-option.active {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
+.suggestion-note {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 11px 14px;
+  background: var(--surface-sunken);
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* Skjemafelt */
+.field {
+  display: block;
+  margin-bottom: 16px;
+}
+
+.label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
+}
+
+.input,
+.textarea,
+.select {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font: inherit;
+  color: var(--text);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input:focus,
+.textarea:focus,
+.select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 120px;
+  line-height: 1.65;
+}
+
+.textarea.tall {
+  min-height: 340px;
+}
+
+.hint {
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+  margin-top: 6px;
+}
+
+/* Dokument-forhandsvisning */
+.doc-preview {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 34px 38px;
+}
+
+.doc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--text);
+  margin-bottom: 22px;
+}
+
+.doc-sender {
+  text-align: right;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.doc-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 6px;
+}
+
+.doc-table th {
+  text-align: left;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  padding: 8px 8px 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.doc-table td {
+  padding: 8px 8px 8px 0;
+  border-bottom: 1px solid var(--surface-sunken);
+  vertical-align: middle;
+}
+
+.doc-table .num,
+.doc-table th.num {
+  text-align: right;
+}
+
+.doc-table .cell-input {
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 5px 7px;
+  font: inherit;
+  background: transparent;
+  color: var(--text);
+}
+
+.doc-table .cell-input:hover {
+  border-color: var(--border);
+}
+
+.doc-table .cell-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.doc-table .cell-input.num {
+  text-align: right;
+}
+
+.doc-totals {
+  margin: 22px 0 0 auto;
+  width: 300px;
+}
+
+.doc-total-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 0;
+  color: var(--text-secondary);
+}
+
+.doc-total-row.grand {
+  border-top: 2px solid var(--text);
+  margin-top: 6px;
+  padding-top: 11px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+/* Tabellar (prisfil, referansefiler) */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  text-align: left;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-sunken);
+}
+
+.table td {
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.table .num,
+.table th.num {
+  text-align: right;
+}
+
+/* Tilstandar */
+.empty {
+  padding: 56px 24px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.empty-title {
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.banner {
+  padding: 13px 16px;
+  border-radius: var(--radius);
+  font-size: 13.5px;
+  margin-bottom: 20px;
+}
+
+.banner.info {
+  background: var(--accent-soft);
+  color: #0a4b8f;
+}
+
+.banner.warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.banner.error {
+  background: #fdecea;
+  color: #a4271b;
+}
+
+.banner.success {
+  background: var(--positive-soft);
+  color: var(--positive);
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.row-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.muted {
+  color: var(--text-secondary);
+}
+
+.tiny {
+  font-size: 12.5px;
+}
+
+/* Handlingsfelt nedst i utkastet */
+.action-bar {
+  position: sticky;
+  bottom: 0;
+  margin-top: 26px;
+  padding: 16px 24px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+@media (max-width: 860px) {
+  .shell {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: static;
+  }
+  .main {
+    padding: 24px 20px 48px;
+  }
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+}

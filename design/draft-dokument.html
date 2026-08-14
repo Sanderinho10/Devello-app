@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="nn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Devello — Utkast (punktpris)</title>
+<!--
+  Utkast for punktpris og fastpris: dokument-forhandsvisning.
+
+  Brukaren redigerer felt direkte i dokumentet, pluss den korte e-postteksten
+  som følgjer med som melding når PDF-en blir lagt ved. Type-bryteren øvst viser
+  agentens forslag — brukaren kan endre den før dei bekreftar.
+
+  Ved bekreft: dokumentet blir konvertert til PDF samtidig som kladden opprettast
+  i Outlook, med PDF-en vedlagt. Mennesket trykker send sjølv.
+-->
+<link rel="stylesheet" href="../src/app/globals.css">
+</head>
+<body>
+<div class="shell">
+
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-mark">D</span> Devello</div>
+    <div class="nav-agent">
+      <button class="nav-button active"><span class="nav-icon">◆</span> Tilbud</button>
+      <nav class="nav-tabs">
+        <a class="nav-tab active" href="dashboard.html">Leads</a>
+        <a class="nav-tab" href="#">Prisfil</a>
+        <a class="nav-tab" href="#">Referansefiler</a>
+        <a class="nav-tab" href="#">Innstillingar</a>
+      </nav>
+    </div>
+    <div class="nav-agent">
+      <button class="nav-button disabled"><span class="nav-icon">◇</span> SoMe <span class="nav-badge">snart</span></button>
+    </div>
+    <div class="nav-agent">
+      <button class="nav-button disabled"><span class="nav-icon">◇</span> Annonser <span class="nav-badge">snart</span></button>
+    </div>
+    <div class="sidebar-footer">Star Elektro AS</div>
+  </aside>
+
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <a class="button ghost" href="dashboard.html" style="margin-left:-10px">← Leads</a>
+        <h1 style="margin-top:6px">Pristilbod — 8 stikkontaktar i ny kjellarstove</h1>
+        <p class="page-subtitle">Marit Aasen · marit.aasen@gmail.com · 14. aug. 08:31</p>
+      </div>
+    </div>
+
+    <div class="stack">
+
+      <!-- Type-bryter: agentens forslag, redigerbart -->
+      <div class="card card-pad">
+        <span class="label">Tilbudstype</span>
+        <div class="type-switch">
+          <button class="type-option active">Punktpris</button>
+          <button class="type-option">Fastpris</button>
+          <button class="type-option">Tid og materiell</button>
+        </div>
+        <div class="suggestion-note">
+          <span>◆</span>
+          <span>
+            Agenten foreslo <strong>punktpris</strong>: jobben består av standardiserte
+            einingar (stikkontaktar), og kunden har to referansetilbod av same type
+            for liknande arbeid.
+          </span>
+        </div>
+      </div>
+
+      <!-- Dokument-forhandsvisning -->
+      <div class="doc-preview">
+        <div class="doc-head">
+          <div>
+            <div style="font-size:17px;font-weight:600">Star Elektro AS</div>
+          </div>
+          <div class="doc-sender">
+            <div>Storgata 14, 6800 Førde</div>
+            <div>post@starelektro.no</div>
+            <div>57 82 10 40</div>
+          </div>
+        </div>
+
+        <label class="field">
+          <span class="label">Tittel</span>
+          <input class="input" value="Elektrisk arbeid — kjellarstove">
+        </label>
+
+        <div class="grid-2">
+          <label class="field">
+            <span class="label">Kunde</span>
+            <input class="input" value="Marit Aasen">
+          </label>
+          <label class="field">
+            <span class="label">Adresse</span>
+            <input class="input" value="Bjørkevegen 22, 6800 Førde">
+          </label>
+        </div>
+
+        <label class="field">
+          <span class="label">Innleiing</span>
+          <textarea class="textarea" style="min-height:80px">Takk for førespurnaden om elektrisk arbeid i den nye kjellarstova. Under finn du eit tilbod der kvar post er ein samla pris som dekker både arbeid og materiell.</textarea>
+        </label>
+
+        <span class="label">Postar</span>
+        <table class="doc-table">
+          <thead>
+            <tr>
+              <th>Post</th>
+              <th class="num" style="width:110px">Antal</th>
+              <th class="num" style="width:130px">Einingspris</th>
+              <th class="num" style="width:120px">Sum</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><input class="cell-input" value="Montering stikkontakt, dobbel"></td>
+              <td class="num"><input class="cell-input num" value="8"></td>
+              <td class="num"><input class="cell-input num" value="890"></td>
+              <td class="num"><strong>7 120 kr</strong></td>
+            </tr>
+            <tr>
+              <td><input class="cell-input" value="Kursopplegg frå sikringsskap"></td>
+              <td class="num"><input class="cell-input num" value="2"></td>
+              <td class="num"><input class="cell-input num" value="2 450"></td>
+              <td class="num"><strong>4 900 kr</strong></td>
+            </tr>
+            <tr>
+              <td><input class="cell-input" value="Montering takpunkt med brytar"></td>
+              <td class="num"><input class="cell-input num" value="3"></td>
+              <td class="num"><input class="cell-input num" value="1 340"></td>
+              <td class="num"><strong>4 020 kr</strong></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="doc-totals">
+          <div class="doc-total-row"><span>Sum eks. mva</span><span>16 040 kr</span></div>
+          <div class="doc-total-row"><span>Mva 25 %</span><span>4 010 kr</span></div>
+          <div class="doc-total-row grand"><span>Total</span><span>20 050 kr</span></div>
+        </div>
+
+        <label class="field" style="margin-top:26px">
+          <span class="label">Føresetnader</span>
+          <textarea class="textarea" style="min-height:90px">Prisen føreset framkome til sikringsskap og at veggar er opne ved montering.
+Uføresett arbeid utover dette blir avtalt før det blir utført.
+Tilbodet gjeld i 30 dagar frå dato.</textarea>
+        </label>
+      </div>
+
+      <!-- Kort e-posttekst som følgjer med PDF-en -->
+      <div class="card card-pad">
+        <label class="field">
+          <span class="label">Emne</span>
+          <input class="input" value="Sv: Pristilbod — 8 stikkontaktar i ny kjellarstove">
+        </label>
+        <label class="field" style="margin-bottom:0">
+          <span class="label">E-posttekst</span>
+          <textarea class="textarea">Hei Marit,
+
+Takk for førespurnaden om elektrisk arbeid i den nye kjellarstova. Vedlagt finn du eit tilbod der kvar post er ein samla pris som dekker både arbeid og materiell.
+
+Tilbodet gjeld i 30 dagar. Ta gjerne kontakt om noko er uklart.
+
+Med venleg helsing
+Star Elektro AS</textarea>
+          <span class="hint">Teksten følgjer med som melding når PDF-en blir lagt ved.</span>
+        </label>
+      </div>
+
+      <div class="action-bar">
+        <button class="button secondary">Forhandsvis PDF</button>
+        <span class="spacer"></span>
+        <span class="muted tiny">Bekreft lagar kladd i Outlook med PDF-en vedlagt. Du sender sjølv.</span>
+        <button class="button">Bekreft og lag kladd</button>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+</body>
+</html>

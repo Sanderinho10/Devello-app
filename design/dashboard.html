@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="nn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Devello — Tilbud / Leads</title>
+<!--
+  Mockup for hovudvisninga. Lenkjer til den same CSS-fila som appen brukar, slik
+  at mockup og implementasjon ikkje driv frå kvarandre.
+
+  Poenget med denne mockupen er navigasjonsmønsteret: sidebar er organisert per
+  agent, ikkje per funksjon. Alt som høyrer til tilbudsagenten ligg som faner
+  inni éin «Tilbud»-knapp. Framtidige agentar blir eigne toppnivå-knappar med
+  sine eigne faner inni seg.
+-->
+<link rel="stylesheet" href="../src/app/globals.css">
+</head>
+<body>
+<div class="shell">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">D</span>
+      Devello
+    </div>
+
+    <!-- Aktiv agent: éin knapp, med agentens faner under -->
+    <div class="nav-agent">
+      <button class="nav-button active">
+        <span class="nav-icon">◆</span>
+        Tilbud
+      </button>
+      <nav class="nav-tabs">
+        <a class="nav-tab active" href="dashboard.html">Leads</a>
+        <a class="nav-tab" href="#">Prisfil</a>
+        <a class="nav-tab" href="#">Referansefiler</a>
+        <a class="nav-tab" href="#">Innstillingar</a>
+      </nav>
+    </div>
+
+    <!-- Framtidige agentar: same mønster, éin knapp kvar -->
+    <div class="nav-agent">
+      <button class="nav-button disabled">
+        <span class="nav-icon">◇</span>
+        SoMe
+        <span class="nav-badge">snart</span>
+      </button>
+    </div>
+    <div class="nav-agent">
+      <button class="nav-button disabled">
+        <span class="nav-icon">◇</span>
+        Annonser
+        <span class="nav-badge">snart</span>
+      </button>
+    </div>
+
+    <div class="sidebar-footer">
+      Star Elektro AS<br>
+      post@starelektro.no
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <h1>Leads</h1>
+        <p class="page-subtitle">Innkommande førespurnader frå post@starelektro.no</p>
+      </div>
+      <button class="button">Hent leads</button>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="row" style="gap:14px">
+          <strong>4 førespurnader</strong>
+          <span class="muted tiny">Sist henta 14. aug. 09:42</span>
+        </div>
+      </div>
+
+      <div class="lead-list">
+
+        <div class="lead-row">
+          <div class="lead-main">
+            <div class="lead-subject">Pristilbod — 8 stikkontaktar i ny kjellarstove</div>
+            <div class="lead-meta">Marit Aasen · marit.aasen@gmail.com</div>
+          </div>
+          <span class="pill utkast_klar">Utkast klart</span>
+          <span class="lead-time">14. aug. 08:31</span>
+          <a class="button secondary" href="draft-dokument.html">Opne</a>
+        </div>
+
+        <div class="lead-row">
+          <div class="lead-main">
+            <div class="lead-subject">Førespurnad: oppgradering av sikringsskap</div>
+            <div class="lead-meta">Ole Nordvik · ole@nordvikbygg.no</div>
+          </div>
+          <span class="pill ny">Ny</span>
+          <span class="lead-time">14. aug. 07:58</span>
+          <button class="button secondary">Generer utkast</button>
+        </div>
+
+        <div class="lead-row">
+          <div class="lead-main">
+            <div class="lead-subject">Lys blinkar i heile 2. etasje — kva kostar det å sjå på?</div>
+            <div class="lead-meta">Hanne Lie · hanne.lie@outlook.com</div>
+          </div>
+          <span class="pill utkast_klar">Utkast klart</span>
+          <span class="lead-time">13. aug. 16:12</span>
+          <a class="button secondary" href="draft-tekst.html">Opne</a>
+        </div>
+
+        <div class="lead-row">
+          <div class="lead-main">
+            <div class="lead-subject">Tilbod på varmekablar bad — 6 m²</div>
+            <div class="lead-meta">Jonas Riise · jonas@riise.no</div>
+          </div>
+          <span class="pill bekrefta">Bekrefta</span>
+          <span class="lead-time">12. aug. 11:04</span>
+          <button class="button secondary">Opne</button>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+</div>
+</body>
+</html>
