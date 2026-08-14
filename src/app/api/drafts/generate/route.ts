@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { classifyQuoteType } from "@/lib/claude/classify";
 import { generateDraft } from "@/lib/claude/generate";
 import { logDraftVersion } from "@/lib/drafts/versions";
@@ -23,6 +24,8 @@ export async function POST(request: NextRequest) {
   const body = (await request.json()) as {
     lead_id?: string;
     quote_type?: QuoteType;
+    /** Tvingar eit nytt modellkall sjølv om vi har eit lagra utkast frå før. */
+    force?: boolean;
   };
   if (!body.lead_id) {
     return NextResponse.json({ error: "Manglar lead_id" }, { status: 400 });
@@ -39,6 +42,20 @@ export async function POST(request: NextRequest) {
 
   if (!lead) {
     return NextResponse.json({ error: "Fann ikkje leadet" }, { status: 404 });
+  }
+
+  // Har vi generert denne typen for dette leadet før, brukar vi den lagra
+  // versjonen. Å bytte fram og tilbake på type-bryteren skal ikkje koste eit
+  // modellkall per klikk.
+  if (body.quote_type && !body.force) {
+    const stored = await reuseStoredVersion(admin, lead.id, body.quote_type);
+    if (stored) {
+      await admin
+        .from("leads")
+        .update({ status: lead.status === "bekrefta" ? "bekrefta" : "utkast_klar" })
+        .eq("id", lead.id);
+      return NextResponse.json({ lead_id: lead.id, draft: stored, reused: true });
+    }
   }
 
   try {
@@ -133,4 +150,50 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     return errorResponse(err);
   }
+}
+
+/**
+ * Hentar den siste lagra versjonen for ein tilbudstype, om den finst.
+ *
+ * draft_versions er alt ein full logg over kvar versjon med sin type, så vi
+ * treng ingen eigen cache — og fordi vi hentar den *siste* versjonen, får
+ * brukaren tilbake sine eigne redigeringar, ikkje den opphavlege AI-teksten.
+ */
+async function reuseStoredVersion(
+  admin: SupabaseClient,
+  leadId: string,
+  quoteType: QuoteType,
+) {
+  const { data: draft } = await admin
+    .from("drafts")
+    .select("id")
+    .eq("lead_id", leadId)
+    .maybeSingle();
+  if (!draft) return null;
+
+  const { data: version } = await admin
+    .from("draft_versions")
+    .select("email_subject, email_body, document")
+    .eq("draft_id", draft.id)
+    .eq("quote_type", quoteType)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!version) return null;
+
+  const { data: updated } = await admin
+    .from("drafts")
+    .update({
+      quote_type: quoteType,
+      email_subject: version.email_subject ?? "",
+      email_body: version.email_body ?? "",
+      document: version.document,
+      // PDF-en høyrer til den førre typen og er ikkje gyldig lenger.
+      pdf_path: null,
+    })
+    .eq("id", draft.id)
+    .select("*")
+    .single();
+
+  return updated;
 }

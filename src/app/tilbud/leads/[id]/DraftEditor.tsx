@@ -27,6 +27,12 @@ interface DragRef {
   line: number;
 }
 
+interface Snapshot {
+  email_subject: string;
+  email_body: string;
+  document: QuoteDocument | null;
+}
+
 export function DraftEditor({
   lead,
   draft,
@@ -45,13 +51,32 @@ export function DraftEditor({
   const [body, setBody] = useState(draft.email_body);
   const [document, setDocument] = useState<QuoteDocument | null>(draft.document);
 
-  const [busy, setBusy] = useState<null | "bekreftar" | "regenererer">(null);
+  const [busy, setBusy] = useState<null | "bekreftar" | "regenererer" | "lagrar">(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(draft.confirmed_at !== null);
   const [webLink, setWebLink] = useState(draft.outlook_web_link);
 
   const [dragging, setDragging] = useState<DragRef | null>(null);
   const [dragOver, setDragOver] = useState<DragRef | null>(null);
+
+  /**
+   * Utkast vi alt har sett i denne økta, per type.
+   *
+   * Utan denne kostar kvart klikk på type-bryteren eit modellkall — også når
+   * ein berre skal sjå tilbake på noko ein alt har generert. Cachen held òg på
+   * redigeringar som ikkje er lagra enno, så eit bytte fram og tilbake ikkje
+   * kastar arbeid.
+   */
+  const [seen, setSeen] = useState<Partial<Record<QuoteType, Snapshot>>>({
+    [draft.quote_type]: {
+      email_subject: draft.email_subject,
+      email_body: draft.email_body,
+      document: draft.document,
+    },
+  });
+  const [reused, setReused] = useState(false);
 
   const wantsDocument = hasDocument(quoteType);
   const totals = useMemo(
@@ -63,25 +88,92 @@ export function DraftEditor({
    * Byter brukaren type, må innhaldet genererast på nytt — eit punktpris-dokument
    * kan ikkje gjenbrukast som ein tid-og-materiell-tekst.
    */
+  function currentSnapshot(): Snapshot {
+    return { email_subject: subject, email_body: body, document };
+  }
+
+  function apply(snapshot: Snapshot) {
+    setSubject(snapshot.email_subject);
+    setBody(snapshot.email_body);
+    setDocument(snapshot.document);
+  }
+
   async function changeType(next: QuoteType) {
     if (next === quoteType) return;
-    setQuoteType(next);
+
+    // Ta vare på det vi står med, så redigeringar overlever eit bytte.
+    const keep = currentSnapshot();
+    setSeen((current) => ({ ...current, [quoteType]: keep }));
+
+    const cached = seen[next];
+    if (cached) {
+      setQuoteType(next);
+      apply(cached);
+      setReused(true);
+      // Databasen må følgje med, elles viser PDF-en og bekreft feil type.
+      void save(next, cached);
+      return;
+    }
+
+    await generate(next, false);
+  }
+
+  /** Lagrar utan modellkall. Held databasen i takt med det som står på skjermen. */
+  async function save(type: QuoteType, snapshot: Snapshot) {
+    try {
+      await fetch(`/api/drafts/${draft.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          quote_type: type,
+          email_subject: snapshot.email_subject,
+          email_body: snapshot.email_body,
+          document: hasDocument(type) ? snapshot.document : null,
+        }),
+      });
+    } catch {
+      // Lagring i bakgrunnen. Feilar den, får brukaren beskjed ved bekreft,
+      // som er den handlinga som faktisk må vere korrekt.
+    }
+  }
+
+  /** PDF-ruta les frå databasen, så vi lagrar før vi opnar den. */
+  async function previewPdf() {
+    setBusy("lagrar");
+    await save(quoteType, currentSnapshot());
+    setBusy(null);
+    window.open(`/api/drafts/${draft.id}/pdf`, "_blank", "noopener");
+  }
+
+  /**
+   * force = true tvingar eit nytt modellkall. Utan det får vi eit lagra utkast
+   * tilbake dersom typen er generert for dette leadet før.
+   */
+  async function generate(type: QuoteType, force: boolean) {
+    const previousType = quoteType;
+    setQuoteType(type);
     setBusy("regenererer");
     setError(null);
     try {
       const res = await fetch("/api/drafts/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lead_id: lead.id, quote_type: next }),
+        body: JSON.stringify({ lead_id: lead.id, quote_type: type, force }),
       });
       const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error ?? "Kunne ikkje generere på nytt");
-      setSubject(payload.draft.email_subject);
-      setBody(payload.draft.email_body);
-      setDocument(payload.draft.document);
+      if (!res.ok) throw new Error(payload.error ?? "Kunne ikkje generere");
+
+      const snapshot: Snapshot = {
+        email_subject: payload.draft.email_subject,
+        email_body: payload.draft.email_body,
+        document: payload.draft.document,
+      };
+      apply(snapshot);
+      setSeen((current) => ({ ...current, [type]: snapshot }));
+      setReused(Boolean(payload.reused));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
-      setQuoteType(draft.quote_type);
+      setQuoteType(previousType);
     } finally {
       setBusy(null);
     }
@@ -212,6 +304,23 @@ export function DraftEditor({
               QUOTE_TYPE_HELP[quoteType]
             )}
           </span>
+        </div>
+
+        <div className="row-between" style={{ marginTop: 14 }}>
+          <span className="tiny muted">
+            {reused
+              ? "Henta frå eit utkast du alt har generert. Ingen ny modellkøyring."
+              : "Utkastet er generert for denne typen."}
+          </span>
+          <button
+            type="button"
+            className="button secondary"
+            onClick={() => generate(quoteType, true)}
+            disabled={locked}
+            title="Køyrer modellen på nytt og kostar eit nytt kall"
+          >
+            Generer på nytt
+          </button>
         </div>
       </div>
 
@@ -533,14 +642,14 @@ export function DraftEditor({
 
       <div className="action-bar">
         {wantsDocument && (
-          <a
+          <button
+            type="button"
             className="button secondary"
-            href={`/api/drafts/${draft.id}/pdf`}
-            target="_blank"
-            rel="noreferrer"
+            onClick={previewPdf}
+            disabled={busy !== null}
           >
-            Forhandsvis PDF
-          </a>
+            {busy === "lagrar" ? "Lagar PDF…" : "Forhandsvis PDF"}
+          </button>
         )}
         <span className="spacer" />
         <span className="muted tiny">
