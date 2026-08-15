@@ -13,11 +13,14 @@ export function Modal({
   open,
   onClose,
   title,
+  size = "normal",
   children,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
+  /** «wide» for innhold som skal leses, som en e-posttekst. */
+  size?: "normal" | "wide";
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -32,7 +35,7 @@ export function Modal({
   return (
     <dialog
       ref={ref}
-      className="modal"
+      className={`modal${size === "wide" ? " wide" : ""}`}
       // Esc lukker <dialog> selv; cancel holder React-tilstanden i takt.
       onCancel={(event) => {
         event.preventDefault();

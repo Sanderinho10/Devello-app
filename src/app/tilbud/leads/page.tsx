@@ -1,13 +1,8 @@
 import Link from "next/link";
 import { LeadActions } from "./LeadActions";
+import { LeadRow } from "./LeadRow";
 import { currentSession, supabaseServer } from "@/lib/supabase/server";
-import { formatDate, type Lead, type LeadStatus } from "@/lib/types";
-
-const STATUS_LABEL: Record<LeadStatus, string> = {
-  ny: "Ny",
-  utkast_klar: "Utkast klart",
-  bekrefta: "Bekreftet",
-};
+import { formatDate, type Lead } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -90,23 +85,7 @@ export default async function LeadsPage() {
         ) : (
           <div className="lead-list">
             {rows.map((lead) => (
-              <div className="lead-row" key={lead.id}>
-                <div className="lead-main">
-                  <div className="lead-subject">{lead.subject || "(uten emne)"}</div>
-                  <div className="lead-meta">
-                    {[lead.from_name, lead.from_email].filter(Boolean).join(" · ")}
-                  </div>
-                </div>
-                <span className={`pill ${lead.status}`}>{STATUS_LABEL[lead.status]}</span>
-                <span className="lead-time">{formatDate(lead.received_at)}</span>
-                {lead.status === "ny" ? (
-                  <LeadActions kind="generer" leadId={lead.id} />
-                ) : (
-                  <Link className="button secondary" href={`/tilbud/leads/${lead.id}`}>
-                    Åpne
-                  </Link>
-                )}
-              </div>
+              <LeadRow key={lead.id} lead={lead} />
             ))}
           </div>
         )}

@@ -384,11 +384,29 @@ p {
   flex: 1;
 }
 
+/* Emnet er en knapp: den bærer fokus og tastaturtilgangen for hele raden. */
 .lead-subject {
+  display: block;
+  max-width: 100%;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
   font-weight: 550;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.lead-subject:hover {
+  text-decoration: underline;
+}
+
+.lead-row.clickable {
+  cursor: pointer;
 }
 
 .lead-meta {
@@ -701,6 +719,34 @@ p {
   line-height: 1;
   padding: 2px 9px;
   color: var(--text-tertiary);
+}
+
+.modal.wide {
+  width: min(760px, calc(100vw - 32px));
+}
+
+/* Avsender og tidspunkt over selve e-posten */
+.lead-detail-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/*
+ * E-posten som den kom inn. pre-wrap beholder avsnittene til kunden, og
+ * overflow-wrap hindrer at en lang URL sprenger popupen.
+ */
+.lead-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 52vh;
+  overflow-y: auto;
+  line-height: 1.6;
 }
 
 .modal-actions {
