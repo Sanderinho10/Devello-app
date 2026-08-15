@@ -17,8 +17,17 @@ export const GRAPH_SCOPES = [
   "Mail.ReadWrite",
 ];
 
+/**
+ * «organizations», ikke «common».
+ *
+ * Appregistreringen er multitenant for jobb- og skolekontoer (signInAudience
+ * AzureADMultipleOrgs). «common» ville også tilby personlige Microsoft-kontoer
+ * i innloggingsdialogen, og de blir avvist først etter at brukeren har skrevet
+ * inn passordet — med en feilmelding som ikke sier hvorfor. «organizations»
+ * lar dem aldri komme så langt.
+ */
 function tenant(): string {
-  return process.env.MS_TENANT || "common";
+  return process.env.MS_TENANT || "organizations";
 }
 
 function authorityBase(): string {

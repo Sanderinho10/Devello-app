@@ -87,12 +87,17 @@ Fra **Overview**-siden:
 ```
 MS_CLIENT_ID=<Application (client) ID>
 MS_CLIENT_SECRET=<secret value fra steg 2>
-MS_TENANT=common
+MS_TENANT=organizations
 MS_REDIRECT_URI=http://localhost:3000/api/auth/microsoft/callback
 ```
 
-`MS_TENANT=common` sender brukeren til den generelle innloggingssiden, slik at
-både jobbkontoer og personlige Microsoft-kontoer kan brukes.
+`MS_TENANT` må matche kontotypen fra steg 1. Med **Multiple Entra ID tenants**
+er verdien `organizations` — jobb- og skolekontoer fra alle tenanter.
+
+Bruk `common` bare hvis appregistreringen også tillater personlige
+Microsoft-kontoer. Setter du `common` på en jobbkonto-registrering, blir
+personlige kontoer tilbudt i innloggingsdialogen og først avvist etter at
+passordet er skrevet inn, med en feilmelding som ikke forklarer hvorfor.
 
 ## 5. Test
 
