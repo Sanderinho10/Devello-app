@@ -229,7 +229,7 @@ p {
   flex: 1;
   min-width: 0;
   padding: 34px 40px 64px;
-  max-width: 1120px;
+  max-width: 1320px;
 }
 
 .page-header {
@@ -422,6 +422,63 @@ p {
   color: var(--text-tertiary);
   font-size: 12.5px;
   white-space: nowrap;
+}
+
+/*
+ * Utkast + henvendelsen ved siden av.
+ *
+ * Sidepanelet er sticky: utkastet er langt, og henvendelsen er det man leser
+ * mot hele veien ned. Under 1100px stables de, for da er det ikke plass til
+ * to lesbare kolonner.
+ */
+.detail-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .detail-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.inquiry {
+  position: sticky;
+  top: 24px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 18px 20px;
+}
+
+.inquiry-head {
+  font-size: 9pt;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.inquiry-meta {
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+
+/* E-posten som den kom inn — kundens avsnitt beholdes. */
+.inquiry-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 13.5px;
+  line-height: 1.6;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
 }
 
 /* Type-bryter — brukeren kan endre agentens forslag før de bekrefter */

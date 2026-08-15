@@ -77,12 +77,34 @@ export default async function LeadPage({
       </div>
 
       {draft ? (
-        <DraftEditor
-          lead={lead as Lead}
-          draft={draft as Draft}
-          brand={brand ?? null}
-          priceItems={(priceItems ?? []) as PriceListItem[]}
-        />
+        <div className="detail-layout">
+          <DraftEditor
+            lead={lead as Lead}
+            draft={draft as Draft}
+            brand={brand ?? null}
+            priceItems={(priceItems ?? []) as PriceListItem[]}
+          />
+
+          {/*
+            Henvendelsen står ved siden av utkastet, ikke bak et klikk. Det er
+            den man leser mot mens man retter — «ba kunden faktisk om fire
+            stikkontakter?» er spørsmålet man stiller hele veien.
+          */}
+          <aside className="inquiry">
+            <div className="inquiry-head">Henvendelsen</div>
+            <div className="inquiry-meta">
+              <div>{[lead.from_name, lead.from_email].filter(Boolean).join(" · ")}</div>
+              <div>{formatDate(lead.received_at)}</div>
+            </div>
+            {lead.body_text || lead.body_preview ? (
+              <div className="inquiry-body">
+                {lead.body_text || lead.body_preview}
+              </div>
+            ) : (
+              <p className="muted tiny">Denne e-posten har ingen tekst.</p>
+            )}
+          </aside>
+        </div>
       ) : (
         <div className="card empty">
           <div className="empty-title">Ingen utkast ennå</div>
