@@ -152,12 +152,44 @@ export function DraftEditor({
     }
   }
 
-  /** PDF-ruten leser fra databasen, så vi lagrer før vi åpner den. */
+  /**
+   * PDF-ruten leser fra databasen, så vi lagrer før vi henter.
+   *
+   * Fanen åpnes med én gang, mens klikket fortsatt gjelder — venter vi til
+   * PDF-en er ferdig, blir den blokkert som en popup. Og vi henter den med
+   * fetch i stedet for å peke fanen rett på ruta, slik at en feil havner som
+   * en melding i appen og ikke som en tom fane brukeren må tolke selv.
+   */
   async function previewPdf() {
+    const tab = window.open("", "_blank");
     setBusy("lagrer");
-    await save(quoteType, currentSnapshot());
-    setBusy(null);
-    window.open(`/api/drafts/${draft.id}/pdf`, "_blank", "noopener");
+    setError(null);
+    try {
+      await save(quoteType, currentSnapshot());
+
+      const res = await fetch(`/api/drafts/${draft.id}/pdf`);
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        throw new Error(payload.error ?? `Kunne ikke lage PDF (${res.status})`);
+      }
+
+      const url = URL.createObjectURL(await res.blob());
+      if (tab) {
+        tab.location.href = url;
+      } else {
+        // Nettleseren stoppet fanen. Last ned i stedet for å gi opp.
+        const link = window.document.createElement("a");
+        link.href = url;
+        link.download = "tilbud.pdf";
+        link.click();
+      }
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      tab?.close();
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(null);
+    }
   }
 
   /**

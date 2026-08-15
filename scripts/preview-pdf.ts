@@ -138,5 +138,5 @@ await writeFile("tmp/eksempel-tilbud.pdf", pdf);
 await closePdfRenderer();
 
 console.log(
-  `Skreiv tmp/eksempel-tilbud.pdf (${quoteType}, ${Math.round(pdf.byteLength / 1024)} kB)`,
+  `Skrev tmp/eksempel-tilbud.pdf (${quoteType}, ${Math.round(pdf.byteLength / 1024)} kB)`,
 );

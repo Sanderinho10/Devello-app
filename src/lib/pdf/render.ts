@@ -23,10 +23,27 @@ async function getBrowser(): Promise<Browser> {
       .catch((err) => {
         // Ikke cache et mislykket oppstartsforsøk.
         browserPromise = null;
-        throw err;
+        throw describeLaunchFailure(err);
       });
   }
   return browserPromise;
+}
+
+/**
+ * playwright-core følger ikke med noen nettleser. Mangler den, kommer feilen
+ * som «Executable doesn't exist at …» med en stakk — teknisk korrekt og til
+ * ingen nytte for den som bare lurer på hvorfor PDF-en ikke kom.
+ */
+function describeLaunchFailure(err: unknown): Error {
+  const message = err instanceof Error ? err.message : String(err);
+  if (/Executable doesn't exist|ENOENT|spawn .* ENOENT/i.test(message)) {
+    return new Error(
+      "Fant ingen Chromium å lage PDF med. Kjør «npm run install:chromium» i " +
+        "prosjektmappa, eller sett PLAYWRIGHT_CHROMIUM_EXECUTABLE til en " +
+        "chrome-installasjon du har fra før. Se README.",
+    );
+  }
+  return err instanceof Error ? err : new Error(message);
 }
 
 export async function htmlToPdf(html: string): Promise<Buffer> {

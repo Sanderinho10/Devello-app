@@ -38,12 +38,17 @@ utkastet og kan endre det før de bekrefter.
 npm install
 ```
 
-PDF-genereringen bruker Chromium via `playwright-core`. Har du ikke en
-installasjon fra før:
+PDF-genereringen bruker Chromium via `playwright-core`, som ikke følger med
+noen nettleser. Hent den:
 
 ```sh
-npx playwright install chromium
+npm run install:chromium
 ```
+
+Bruk dette scriptet framfor `npx playwright install chromium`: det siste henter
+siste versjon av `playwright`, som kan peke på en annen Chromium-build enn den
+`playwright-core` i prosjektet forventer. Da feiler PDF-en med «Executable
+doesn't exist» selv om en nettleser er installert.
 
 Ligger Chromium et annet sted, pek på binærfilen med
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE`.

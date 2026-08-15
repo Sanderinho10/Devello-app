@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { htmlToPdf } from "@/lib/pdf/render";
 import { renderQuoteHtml } from "@/lib/pdf/template";
-import { sessionOr401 } from "@/lib/api";
+import { errorResponse, sessionOr401 } from "@/lib/api";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { hasDocument, type QuoteDocument, type QuoteType } from "@/lib/types";
 
@@ -47,20 +47,26 @@ export async function GET(
       .maybeSingle(),
   ]);
 
-  const pdf = await htmlToPdf(
-    renderQuoteHtml({
-      document: draft.document as QuoteDocument,
-      quoteType,
-      brand: brand ?? {},
-      companyName: company!.name,
-    }),
-  );
+  // Uten dette blir en feil i PDF-motoren til en Next-feilside i en ny fane,
+  // og brukeren sitter igjen med en tom rute uten forklaring.
+  try {
+    const pdf = await htmlToPdf(
+      renderQuoteHtml({
+        document: draft.document as QuoteDocument,
+        quoteType,
+        brand: brand ?? {},
+        companyName: company!.name,
+      }),
+    );
 
-  return new NextResponse(new Uint8Array(pdf), {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": 'inline; filename="tilbud.pdf"',
-      "Cache-Control": "no-store",
-    },
-  });
+    return new NextResponse(new Uint8Array(pdf), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": 'inline; filename="tilbud.pdf"',
+        "Cache-Control": "no-store",
+      },
+    });
+  } catch (err) {
+    return errorResponse(err);
+  }
 }

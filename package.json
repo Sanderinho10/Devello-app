@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "install:chromium": "playwright-core install chromium",
     "preview:pdf": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/preview-pdf.ts"
   },
   "dependencies": {
