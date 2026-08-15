@@ -7,7 +7,7 @@ insert into companies (id, name, org_nr, tone_settings)
 values (
   '00000000-0000-0000-0000-000000000001',
   'Star Elektro AS',
-  '912345678',
+  '812345672',
   '{"formalitet": "du", "signatur": "Med vennlig hilsen\nStar Elektro AS"}'::jsonb
 )
 on conflict (id) do nothing;

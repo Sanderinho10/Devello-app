@@ -70,13 +70,14 @@ Eller lim inn migrasjonene i SQL-editoren i rekkefølge, så `seed.sql`.
 | --- | --- |
 | `0001_init.sql` | Tabeller, enums, indekser, triggere |
 | `0002_rls.sql` | RLS-policyer og storage-bøtter |
-| `0003_dev_auto_join.sql` | **Dev/pilot:** knytter nye brukere til Star Elektro automatisk. Må fjernes i fase 3. |
+| `0003_dev_auto_join.sql` | **Dev/pilot:** knyttet nye brukere til Star Elektro. Fjernet av `0010`. |
 | `0004_hardening.sql` | Oppfølging av security advisor |
 | `0005_price_lists.sql` | Prisrader hører til navngitte lister; flere lister per type |
 | `0006_one_mailbox_per_company.sql` | Én postkasse per selskap — «koble til på nytt» erstatter i stedet for å duplisere |
 | `0007_mailbox_status_readable.sql` | Brukeren kan lese postkassens status, men ikke tokenene (kolonnerettigheter + policy) |
 | `0008_manual_leads.sql` | `source`-kolonne: leads kan komme manuelt (telefon), ikke bare på e-post |
 | `0009_draft_confidence.sql` | Sikkerhetsnivå per utkast, avledet av referansetilbud og treff i prisfilen |
+| `0010_onboarding.sql` | **Fjerner dev auto-join.** Roller, fakturaadresse, prøveperiode, invitasjoner og partnere |
 
 ### 3. Azure
 
@@ -103,9 +104,12 @@ Fyll inn Supabase-nøklene, `ANTHROPIC_API_KEY` og Microsoft-verdiene.
 npm run dev
 ```
 
-Logg inn på `/login` (e-postlenke via Supabase Auth). Så lenge
-`0003_dev_auto_join.sql` er kjørt, blir brukeren knyttet til Star Elektro
-automatisk ved første innlogging.
+Opprett konto på `/registrer`. Veiviseren tar deg gjennom selskap,
+administratorbruker og prøveperiode, og oppretter alt i ett kall til slutt.
+
+Regnskapsførere henter partnerkoden sin på `/partner` — de trenger ingen konto.
+
+Har du konto fra før, logg inn på `/login`.
 
 ## Flyten
 
@@ -146,6 +150,28 @@ design/                         Mockuper, samme CSS som appen
 supabase/migrations/            Skjema og RLS
 ```
 
+### Onboarding
+
+`/registrer` er en veiviser i tre steg som samler alt opp og sender ett kall til
+`/api/onboarding/register`. Selskapet opprettes ikke før på slutten — ellers
+ville halve kontoer blitt liggende igjen hver gang noen ombestemte seg.
+
+Organisasjonsnummeret valideres med MOD11 og sjekkes mot allerede registrerte
+selskaper allerede på steg 1, så feilen kommer der den hører hjemme. Nummeret
+lagres normalisert (bare sifre), og en unik indeks sammenligner på sifrene, slik
+at «912 345 678» og «912345678» er samme selskap.
+
+Selskapstilhørighet kommer nå fra invitasjoner. Databasetriggeren
+`handle_new_user` slår opp en åpen invitasjon på e-postadressen når en ny bruker
+logger inn første gang. Finnes ingen, skjer ingenting — en ukjent bruker skal
+ikke havne i et tilfeldig selskap.
+
+> **Merk:** registrerte brukere blir opprettet ferdig bekreftet
+> (`email_confirm: true`), fordi Supabase-prosjektet ennå ikke har egen SMTP og
+> den innebygde e-posten er kraftig ratebegrenset. Slå på e-postbekreftelse i
+> Supabase når SMTP er satt opp, og sett flagget til `false` i
+> `src/app/api/onboarding/register/route.ts`.
+
 ### Navigasjonsmønsteret
 
 Sidebar er organisert **per agent**, ikke per funksjon. Alt som hører til
@@ -171,7 +197,11 @@ npm run preview:pdf -- fastpris
   Star Elektro-referanser og faktiske priser.
 - **Fase 2 — drift:** automatisk polling og varsling. Ikke startet. Logikken i
   `/api/leads/fetch` er skrevet så den kan kalles fra en cron uten endring.
-- **Fase 3–4:** selvbetjent onboarding, prising, flere agenter. Ikke startet.
+- **Fase 3 — selvbetjent onboarding:** registrering med organisasjonsnummer-
+  sjekk, admin/standard-roller, invitasjoner og partnerkoder for
+  regnskapsførere. Klart. Pakkevalg og betaling gjenstår — prøveperioden
+  utløper i dag uten at noe skjer.
+- **Fase 4:** prising, flere agenter. Ikke startet.
 
 ### Kjent begrensning
 

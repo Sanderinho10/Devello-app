@@ -836,6 +836,102 @@ p {
   margin-left: auto;
 }
 
+/* Innlogging, registrering og partnerskjema — sider uten sidebar */
+.auth-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 40px 24px;
+}
+
+.auth-card {
+  width: min(520px, 100%);
+}
+
+.auth-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 20px 0 16px;
+}
+
+/* Stegviser i registreringen */
+.wizard-steps {
+  display: flex;
+  gap: 8px;
+  list-style: none;
+  margin: 0 0 22px;
+  padding: 0;
+  font-size: 12.5px;
+}
+
+.wizard-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.wizard-step + .wizard-step::before {
+  content: "";
+  width: 14px;
+  height: 1px;
+  background: var(--border-strong);
+  margin-right: 2px;
+}
+
+.wizard-step-number {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.06);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.wizard-step.active {
+  color: var(--text);
+  font-weight: 550;
+}
+
+.wizard-step.active .wizard-step-number {
+  background: var(--accent);
+  color: #fff;
+}
+
+.wizard-step.done .wizard-step-number {
+  background: var(--positive-soft);
+  color: var(--positive);
+}
+
+.wizard-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.wizard-submit {
+  width: 100%;
+  justify-content: center;
+  margin-top: 22px;
+}
+
+/* Partnerkoden skal kunne leses opp på telefon uten å bomme */
+.partner-code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-align: center;
+  padding: 18px;
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+}
+
 /* Popup — bygget på <dialog>, så Esc og bakgrunnsklikk lukker */
 .modal {
   border: none;

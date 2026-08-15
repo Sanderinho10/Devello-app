@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -133,6 +134,19 @@ export default function LoginPage() {
             : "Bruk passord i stedet"}
         </button>
       </form>
+
+      <div className="auth-divider" />
+
+      <p className="muted tiny" style={{ textAlign: "center" }}>
+        Ny hos Devello?{" "}
+        <Link href="/registrer" style={{ textDecoration: "underline" }}>
+          Opprett konto
+        </Link>
+        {" · "}
+        <Link href="/partner" style={{ textDecoration: "underline" }}>
+          Bli partner
+        </Link>
+      </p>
     </Shell>
   );
 }

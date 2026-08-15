@@ -36,11 +36,43 @@ export function hasDocument(type: QuoteType): boolean {
   return type === "punktpris" || type === "fastpris";
 }
 
+/** Vi starter med to: admin styrer selskapet, standard bruker agentene. */
+export type UserRole = "admin" | "standard";
+
+export const USER_ROLE_LABELS: Record<UserRole, string> = {
+  admin: "Administrator",
+  standard: "Standard",
+};
+
 export interface Company {
   id: string;
   name: string;
   org_nr: string | null;
   tone_settings: ToneSettings;
+  billing_address_line: string | null;
+  billing_postal_code: string | null;
+  billing_city: string | null;
+  /** Én måned gratis fra registrering. */
+  trial_ends_at: string | null;
+  plan: string | null;
+  /** Partnerkoden som vervet kunden, om noen gjorde det. */
+  partner_code: string | null;
+}
+
+export interface Member {
+  id: string;
+  email: string;
+  full_name: string | null;
+  role: UserRole;
+}
+
+export interface Invitation {
+  id: string;
+  email: string;
+  role: UserRole;
+  accepted_at: string | null;
+  expires_at: string;
+  created_at: string;
 }
 
 export interface ToneSettings {
