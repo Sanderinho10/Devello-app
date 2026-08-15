@@ -4,6 +4,26 @@ Dette er steg 1 i §8 «Neste konkrete steg». Det må gjøres én gang, i Devel
 egen Azure-tenant. Kundene trenger ikke gjøre noe — sluttbrukeren samtykker
 selv i OAuth-dialogen.
 
+## 0. «Jeg har ikke Azure»
+
+Det trenger du sannsynligvis ikke å skaffe.
+
+- **Azure-abonnement** (betaling, kredittkort) er *ikke* nødvendig.
+  Appregistreringer ligger i Entra ID og er gratis.
+- **Azure-portalen** er bare `portal.azure.com`. Logg inn med en Microsoft-konto,
+  søk opp **Microsoft Entra ID**, og se etter **App registrations** i menyen.
+- Har dere Microsoft 365, finnes Entra ID-katalogen allerede. Har du bare en
+  personlig Microsoft-konto, opprettes en gratis standardkatalog ved første
+  innlogging, og appregistrering virker der også.
+
+**Velg konto med omhu.** Registreringen skal ligge hos Devello, ikke hos kunden.
+Appen er multitenant nettopp for at hver kunde skal samtykke til *vår* app fra
+sin egen Outlook. Legges den i kundens tenant, eier kunden nøkkelen til
+produktet, og neste kunde krever en ny registrering.
+
+En appregistrering kan ikke flyttes mellom tenanter. Havner den feil sted, må
+den opprettes på nytt, og alle tilkoblede postkasser må koble til igjen.
+
 ## 1. Opprett appregistreringen
 
 Azure-portalen → **Microsoft Entra ID** → **App registrations** → **New registration**.
