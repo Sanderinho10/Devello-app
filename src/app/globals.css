@@ -220,6 +220,58 @@ p {
   box-shadow: var(--shadow-sm);
 }
 
+/* Skiller agentene fra selskapsdelen i menyen */
+.nav-separator {
+  height: 1px;
+  background: var(--border);
+  margin: 14px 10px;
+}
+
+/* Abonnementspakker */
+.plan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.plan {
+  display: flex;
+  flex-direction: column;
+}
+
+.plan.chosen {
+  outline: 2px solid var(--positive);
+}
+
+.plan.recommended {
+  outline: 1px solid var(--accent);
+}
+
+.plan-price {
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-top: 16px;
+}
+
+.plan-period {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.plan-features {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  flex: 1;
+}
+
+.plan-features li {
+  margin-bottom: 5px;
+}
+
 .sidebar-footer {
   margin-top: auto;
   padding: 16px 10px 0;

@@ -4,17 +4,21 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { CompanyBrand, ToneSettings } from "@/lib/types";
 
+/**
+ * Innstillinger som hører til tilbudsagenten: merkevaren på PDF-en og tonen i
+ * e-posten. Selskapsnavn og organisasjonsnummer ligger under Selskap —
+ * de hører ikke til én agent, og to skjemaer som eier samme felt vil før eller
+ * siden overskrive hverandre.
+ */
 export function SettingsForm({
   company,
   brand,
 }: {
-  company: { name: string; org_nr: string; tone_settings: ToneSettings };
+  company: { tone_settings: ToneSettings };
   brand: Partial<CompanyBrand> | null;
 }) {
   const router = useRouter();
   const [form, setForm] = useState({
-    name: company.name,
-    org_nr: company.org_nr ?? "",
     formalitet: company.tone_settings.formalitet ?? "du",
     signatur: company.tone_settings.signatur ?? "",
     tillegg: company.tone_settings.tillegg ?? "",
@@ -63,32 +67,6 @@ export function SettingsForm({
     <form onSubmit={save} className="stack">
       {error && <div className="banner error">{error}</div>}
       {saved && <div className="banner success">Lagret.</div>}
-
-      <div className="card">
-        <div className="card-header">
-          <strong>Firma</strong>
-        </div>
-        <div className="card-pad">
-          <div className="grid-2">
-            <label className="field">
-              <span className="label">Navn</span>
-              <input
-                className="input"
-                value={form.name}
-                onChange={(e) => set("name", e.target.value)}
-              />
-            </label>
-            <label className="field">
-              <span className="label">Org.nr</span>
-              <input
-                className="input"
-                value={form.org_nr}
-                onChange={(e) => set("org_nr", e.target.value)}
-              />
-            </label>
-          </div>
-        </div>
-      </div>
 
       {/* Merkevare — dette blir injisert i Devellos PDF-mal */}
       <div className="card">

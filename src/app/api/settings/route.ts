@@ -10,11 +10,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const admin = supabaseAdmin();
 
+    // Navn og organisasjonsnummer eies av /api/company. Skrev vi dem her også,
+    // ville et lagre på agentsiden trukket tilbake en endring gjort under
+    // Selskap.
     const { error: companyError } = await admin
       .from("companies")
       .update({
-        name: body.name,
-        org_nr: body.org_nr || null,
         tone_settings: {
           formalitet: body.formalitet,
           signatur: body.signatur || undefined,

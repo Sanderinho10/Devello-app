@@ -1,5 +1,5 @@
 import { AppShell } from "@/components/AppShell";
 
-export default function TilbudLayout({ children }: { children: React.ReactNode }) {
+export default function SelskapLayout({ children }: { children: React.ReactNode }) {
   return <AppShell>{children}</AppShell>;
 }

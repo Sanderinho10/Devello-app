@@ -10,23 +10,27 @@ import { usePathname } from "next/navigation";
  * den. Når SoMe- og Annonser-agentene kommer, blir de egne oppføringer i AGENTS
  * med sine egne faner — ingen endring i mønsteret, ingen nye menyrader på
  * toppnivå.
+ *
+ * Under agentene ligger Selskap: det som gjelder kontoen og ikke en enkelt
+ * agent — abonnement, medlemmer, firmaopplysninger. Innstillinger som hører
+ * til én agent, som postkasse og tone, blir værende hos agenten.
  */
 
-interface AgentTab {
+interface NavTab {
   label: string;
   href: string;
 }
 
-interface Agent {
+interface NavSection {
   key: string;
   label: string;
   icon: string;
   basePath: string;
-  tabs: AgentTab[];
+  tabs: NavTab[];
   comingSoon?: boolean;
 }
 
-const AGENTS: Agent[] = [
+const AGENTS: NavSection[] = [
   {
     key: "tilbud",
     label: "Tilbud",
@@ -50,6 +54,18 @@ const AGENTS: Agent[] = [
   },
 ];
 
+const COMPANY: NavSection = {
+  key: "selskap",
+  label: "Selskap",
+  icon: "◉",
+  basePath: "/selskap",
+  tabs: [
+    { label: "Abonnement", href: "/selskap/abonnement" },
+    { label: "Medlemmer", href: "/selskap/medlemmer" },
+    { label: "Detaljer", href: "/selskap/detaljer" },
+  ],
+};
+
 export function Sidebar({
   companyName,
   userEmail,
@@ -59,6 +75,43 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
 
+  function renderSection(section: NavSection) {
+    const active = pathname.startsWith(section.basePath);
+    return (
+      <div className="nav-agent" key={section.key}>
+        {section.comingSoon ? (
+          <button className="nav-button disabled" type="button" disabled>
+            <span className="nav-icon">{section.icon}</span>
+            {section.label}
+            <span className="nav-badge">snart</span>
+          </button>
+        ) : (
+          <Link
+            className={`nav-button${active ? " active" : ""}`}
+            href={section.tabs[0]?.href ?? section.basePath}
+          >
+            <span className="nav-icon">{section.icon}</span>
+            {section.label}
+          </Link>
+        )}
+
+        {active && section.tabs.length > 0 && (
+          <nav className="nav-tabs">
+            {section.tabs.map((tab) => (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                className={`nav-tab${pathname.startsWith(tab.href) ? " active" : ""}`}
+              >
+                {tab.label}
+              </Link>
+            ))}
+          </nav>
+        )}
+      </div>
+    );
+  }
+
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -66,42 +119,10 @@ export function Sidebar({
         Devello
       </div>
 
-      {AGENTS.map((agent) => {
-        const active = pathname.startsWith(agent.basePath);
-        return (
-          <div className="nav-agent" key={agent.key}>
-            {agent.comingSoon ? (
-              <button className="nav-button disabled" type="button" disabled>
-                <span className="nav-icon">{agent.icon}</span>
-                {agent.label}
-                <span className="nav-badge">snart</span>
-              </button>
-            ) : (
-              <Link
-                className={`nav-button${active ? " active" : ""}`}
-                href={agent.tabs[0]?.href ?? agent.basePath}
-              >
-                <span className="nav-icon">{agent.icon}</span>
-                {agent.label}
-              </Link>
-            )}
+      {AGENTS.map(renderSection)}
 
-            {active && agent.tabs.length > 0 && (
-              <nav className="nav-tabs">
-                {agent.tabs.map((tab) => (
-                  <Link
-                    key={tab.href}
-                    href={tab.href}
-                    className={`nav-tab${pathname.startsWith(tab.href) ? " active" : ""}`}
-                  >
-                    {tab.label}
-                  </Link>
-                ))}
-              </nav>
-            )}
-          </div>
-        );
-      })}
+      <div className="nav-separator" />
+      {renderSection(COMPANY)}
 
       <div className="sidebar-footer">
         {companyName}

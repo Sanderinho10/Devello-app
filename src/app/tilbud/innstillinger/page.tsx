@@ -1,7 +1,6 @@
 import { SettingsForm } from "./SettingsForm";
-import { Members } from "./Members";
 import { currentSession, supabaseServer } from "@/lib/supabase/server";
-import { formatDate, type Invitation, type Member } from "@/lib/types";
+import { formatDate } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -14,11 +13,10 @@ export default async function InnstillingerPage({
   const session = await currentSession();
   const supabase = await supabaseServer();
 
-  const [{ data: company }, { data: brand }, { data: mailbox }, { data: members }, { data: invitations }] =
-    await Promise.all([
+  const [{ data: company }, { data: brand }, { data: mailbox }] = await Promise.all([
     supabase
       .from("companies")
-      .select("name, org_nr, tone_settings, trial_ends_at, plan")
+      .select("tone_settings")
       .eq("id", session!.companyId)
       .single(),
     supabase
@@ -31,21 +29,7 @@ export default async function InnstillingerPage({
       .select("email_address, status, last_synced_at")
       .eq("company_id", session!.companyId)
       .maybeSingle(),
-    supabase
-      .from("users")
-      .select("id, email, full_name, role")
-      .eq("company_id", session!.companyId)
-      .order("role")
-      .order("email"),
-    supabase
-      .from("invitations")
-      .select("id, email, role, accepted_at, expires_at, created_at")
-      .is("accepted_at", null)
-      .order("created_at", { ascending: false }),
   ]);
-
-  const me = (members ?? []).find((member) => member.id === session!.userId);
-  const isAdmin = me?.role === "admin";
 
   return (
     <>
@@ -53,7 +37,8 @@ export default async function InnstillingerPage({
         <div>
           <h1>Innstillinger</h1>
           <p className="page-subtitle">
-            Postkasse, merkevare og tone for tilbudsagenten.
+            Postkasse, merkevare og tone for tilbudsagenten. Selskap og
+            medlemmer ligger under Selskap.
           </p>
         </div>
       </div>
@@ -63,12 +48,6 @@ export default async function InnstillingerPage({
       )}
       {params.feil && <div className="banner error">{params.feil}</div>}
 
-      {company?.trial_ends_at && !company.plan && (
-        <div className="banner info">
-          Prøveperioden varer til {formatDate(company.trial_ends_at)}. Du velger
-          pakke før eller etter at den er ute — ingenting blir trukket automatisk.
-        </div>
-      )}
 
       <div className="stack">
         {/* Postkasse */}
@@ -110,18 +89,8 @@ export default async function InnstillingerPage({
           </div>
         </div>
 
-        <Members
-          members={(members ?? []) as Member[]}
-          invitations={(invitations ?? []) as Invitation[]}
-          isAdmin={isAdmin}
-        />
-
         <SettingsForm
-          company={{
-            name: company?.name ?? "",
-            org_nr: company?.org_nr ?? "",
-            tone_settings: company?.tone_settings ?? {},
-          }}
+          company={{ tone_settings: company?.tone_settings ?? {} }}
           brand={brand ?? null}
         />
       </div>

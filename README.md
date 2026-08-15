@@ -179,6 +179,15 @@ tilbudsagenten ligger som faner inni én «Tilbud»-knapp. Nye agenter blir egne
 oppføringer i `AGENTS`-listen i `src/components/Sidebar.tsx` med sine egne faner
 — ingen nye rader på toppnivå.
 
+Under agentene ligger **Selskap**: abonnement, medlemmer og firmaopplysninger.
+Skillet går på hvem som eier innstillingen. Postkasse, merkevare og tone hører
+til tilbudsagenten og blir værende der. Navn, organisasjonsnummer og
+fakturaadresse hører til kontoen.
+
+To skjemaer må aldri eie samme felt. `/api/settings` skriver bare tone og
+merkevare; navn og organisasjonsnummer går gjennom `/api/company`. Ellers ville
+et lagre på agentsiden trukket tilbake en endring gjort under Selskap.
+
 ## Utvikling
 
 ```sh
@@ -197,10 +206,14 @@ npm run preview:pdf -- fastpris
   Star Elektro-referanser og faktiske priser.
 - **Fase 2 — drift:** automatisk polling og varsling. Ikke startet. Logikken i
   `/api/leads/fetch` er skrevet så den kan kalles fra en cron uten endring.
-- **Fase 3 — selvbetjent onboarding:** registrering med organisasjonsnummer-
+- **Fase 3 — selvbetjent onboarding og konto:** registrering med organisasjonsnummer-
   sjekk, admin/standard-roller, invitasjoner og partnerkoder for
-  regnskapsførere. Klart. Pakkevalg og betaling gjenstår — prøveperioden
-  utløper i dag uten at noe skjer.
+  regnskapsførere, og en Selskap-seksjon med abonnement, medlemmer og
+  firmaopplysninger. Klart.
+
+  Betaling gjenstår: pakkevalget blir lagret, men ingen faktura sendes og
+  ingenting trekkes. **Prisene i `src/lib/billing/plans.ts` er plassholdere**
+  og må settes før første kunde skal betale.
 - **Fase 4:** prising, flere agenter. Ikke startet.
 
 ### Kjent begrensning
