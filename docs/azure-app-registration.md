@@ -31,11 +31,28 @@ Azure-portalen → **Microsoft Entra ID** → **App registrations** → **New re
 | Felt | Verdi |
 | --- | --- |
 | Name | `Devello Tilbudsagent` |
-| Supported account types | **Accounts in any organizational directory (Any Microsoft Entra ID tenant — Multitenant)** |
+| Supported account types | **Multiple Entra ID tenants** (multitenant) |
+| | → velg **Allow all tenants** |
 | Redirect URI | Web → `http://localhost:3000/api/auth/microsoft/callback` |
 
 Multitenant er poenget: uten det må hver kunde registrere appen i sin egen
 tenant.
+
+Portalen tilbyr **Allow only certain tenants (Preview)** under kontotypen. Ikke
+velg den. Den krever at hver kundes tenant-ID legges inn i Azure før kunden kan
+koble til — altså en manuell Azure-endring per kunde, som velter både
+sluttbrukersamtykket og den selvbetjente onboardingen i fase 3. Skjemaet lar seg
+ikke sende før minst én tenant er lagt inn, så feilmeldingen «At least one
+allowed tenant is required» betyr som regel at feil radioknapp er valgt.
+
+**Allow all tenants** gjør ikke appen løsere: ingen får tilgang til noe før en
+faktisk bruker logger inn og samtykker for sin egen postkasse, og appen ber
+aldri om `Mail.Send`.
+
+Kontotypen dekker jobb- og skolekontoer, ikke personlige Microsoft-kontoer.
+Det er med vilje — v1 er Microsoft 365 (spec §3). Skal en personlig
+Outlook.com-postkasse kunne kobles til under testing, må kontotypen endres til
+varianten som også inkluderer personlige Microsoft-kontoer.
 
 Legg til produksjons-URI-en i tillegg når den finnes:
 `https://<domene>/api/auth/microsoft/callback`.
