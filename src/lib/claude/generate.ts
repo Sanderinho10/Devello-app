@@ -12,6 +12,12 @@ export interface GeneratedDraft {
   email_subject: string;
   email_body: string;
   document: QuoteDocument | null;
+  /**
+   * Poster modellen ba om som ikke fantes i prisfilen, og som derfor ble
+   * droppet. Signalet forsvinner fra dokumentet, så det må telles her — det er
+   * med i vurderingen av hvor mye utkastet tåler.
+   */
+  unresolved_lines: number;
 }
 
 /**
@@ -156,12 +162,16 @@ async function generateWithDocument(
 
   // Prisene kommer herfra, ikke fra modellen.
   const byId = new Map(relevant.map((item) => [item.id, item]));
+  let unresolved = 0;
   const sections = raw.document.sections.map((section) => ({
     title: section.title,
     lines: section.lines.flatMap((line) => {
       const item = byId.get(line.price_item_id);
       // Fant modellen på en id, dropper vi raden heller enn å gjette en pris.
-      if (!item) return [];
+      if (!item) {
+        unresolved += 1;
+        return [];
+      }
       return [
         {
           price_item_id: item.id,
@@ -188,6 +198,7 @@ async function generateWithDocument(
     email_subject: raw.email_subject,
     email_body: raw.email_body,
     document,
+    unresolved_lines: unresolved,
   };
 }
 
@@ -229,7 +240,7 @@ ${sop}`,
     ].join("\n\n"),
   });
 
-  return { ...raw, document: null };
+  return { ...raw, document: null, unresolved_lines: 0 };
 }
 
 // ---------------------------------------------------------------------------

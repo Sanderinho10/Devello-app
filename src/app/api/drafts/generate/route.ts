@@ -3,9 +3,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { classifyQuoteType } from "@/lib/claude/classify";
 import { generateDraft } from "@/lib/claude/generate";
 import { logDraftVersion } from "@/lib/drafts/versions";
+import { assessConfidence, countUnresolvedLines } from "@/lib/drafts/confidence";
 import { sessionOr401, errorResponse } from "@/lib/api";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import type { PriceListItem, QuoteType } from "@/lib/types";
+import type { PriceListItem, QuoteDocument, QuoteType } from "@/lib/types";
 
 export const maxDuration = 300;
 
@@ -48,7 +49,12 @@ export async function POST(request: NextRequest) {
   // versjonen. Å bytte fram og tilbake på type-bryteren skal ikke koste et
   // modellkall per klikk.
   if (body.quote_type && !body.force) {
-    const stored = await reuseStoredVersion(admin, lead.id, body.quote_type);
+    const stored = await reuseStoredVersion(
+      admin,
+      lead.id,
+      body.quote_type,
+      session.companyId,
+    );
     if (stored) {
       await admin
         .from("leads")
@@ -104,6 +110,14 @@ export async function POST(request: NextRequest) {
       priceItems,
     });
 
+    const confidence = assessConfidence({
+      quoteType,
+      references: references ?? [],
+      priceItems,
+      document: generated.document,
+      unresolvedLines: generated.unresolved_lines,
+    });
+
     const { data: draft, error } = await admin
       .from("drafts")
       .upsert(
@@ -111,6 +125,8 @@ export async function POST(request: NextRequest) {
           lead_id: lead.id,
           quote_type: quoteType,
           classification_note: classificationNote,
+          confidence: confidence.level,
+          confidence_note: confidence.reasons.join("\n"),
           email_subject: generated.email_subject,
           email_body: generated.email_body,
           document: generated.document,
@@ -187,6 +203,7 @@ async function reuseStoredVersion(
   admin: SupabaseClient,
   leadId: string,
   quoteType: QuoteType,
+  companyId: string,
 ) {
   const { data: draft } = await admin
     .from("drafts")
@@ -205,10 +222,29 @@ async function reuseStoredVersion(
     .maybeSingle();
   if (!version) return null;
 
+  // Nivået henger på tilbudstypen, og det er typen som byttes her. Prisfilen
+  // kan dessuten ha endret seg siden utkastet ble laget, så vi teller postene
+  // mot dagens aktive rader i stedet for å gjenbruke et gammelt tall.
+  const [{ data: references }, priceItems] = await Promise.all([
+    admin.from("reference_quotes").select("type").eq("company_id", companyId),
+    activePriceItems(admin, companyId),
+  ]);
+
+  const document = version.document as QuoteDocument | null;
+  const confidence = assessConfidence({
+    quoteType,
+    references: references ?? [],
+    priceItems,
+    document,
+    unresolvedLines: countUnresolvedLines(document, priceItems),
+  });
+
   const { data: updated } = await admin
     .from("drafts")
     .update({
       quote_type: quoteType,
+      confidence: confidence.level,
+      confidence_note: confidence.reasons.join("\n"),
       email_subject: version.email_subject ?? "",
       email_body: version.email_body ?? "",
       document: version.document,

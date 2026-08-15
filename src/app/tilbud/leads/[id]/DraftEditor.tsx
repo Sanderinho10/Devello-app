@@ -4,9 +4,11 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PriceItemPicker } from "@/components/PriceItemPicker";
+import { ConfidenceBadge } from "@/components/ConfidenceBadge";
 import {
   QUOTE_TYPE_HELP,
   QUOTE_TYPE_LABELS,
+  type QuoteConfidence,
   computeTotals,
   formatNok,
   hasDocument,
@@ -31,6 +33,8 @@ interface Snapshot {
   email_subject: string;
   email_body: string;
   document: QuoteDocument | null;
+  confidence: QuoteConfidence;
+  confidence_note: string | null;
 }
 
 export function DraftEditor({
@@ -50,6 +54,9 @@ export function DraftEditor({
   const [subject, setSubject] = useState(draft.email_subject);
   const [body, setBody] = useState(draft.email_body);
   const [document, setDocument] = useState<QuoteDocument | null>(draft.document);
+
+  const [confidence, setConfidence] = useState<QuoteConfidence>(draft.confidence);
+  const [confidenceNote, setConfidenceNote] = useState(draft.confidence_note);
 
   const [busy, setBusy] = useState<null | "bekrefter" | "regenererer" | "lagrer">(
     null,
@@ -74,9 +81,10 @@ export function DraftEditor({
       email_subject: draft.email_subject,
       email_body: draft.email_body,
       document: draft.document,
+      confidence: draft.confidence,
+      confidence_note: draft.confidence_note,
     },
   });
-  const [reused, setReused] = useState(false);
 
   const wantsDocument = hasDocument(quoteType);
   const totals = useMemo(
@@ -89,13 +97,21 @@ export function DraftEditor({
    * kan ikke gjenbrukes som en tid-og-materiell-tekst.
    */
   function currentSnapshot(): Snapshot {
-    return { email_subject: subject, email_body: body, document };
+    return {
+      email_subject: subject,
+      email_body: body,
+      document,
+      confidence,
+      confidence_note: confidenceNote,
+    };
   }
 
   function apply(snapshot: Snapshot) {
     setSubject(snapshot.email_subject);
     setBody(snapshot.email_body);
     setDocument(snapshot.document);
+    setConfidence(snapshot.confidence);
+    setConfidenceNote(snapshot.confidence_note);
   }
 
   async function changeType(next: QuoteType) {
@@ -109,7 +125,6 @@ export function DraftEditor({
     if (cached) {
       setQuoteType(next);
       apply(cached);
-      setReused(true);
       // Databasen må følge med, ellers viser PDF-en og bekreft feil type.
       void save(next, cached);
       return;
@@ -167,10 +182,11 @@ export function DraftEditor({
         email_subject: payload.draft.email_subject,
         email_body: payload.draft.email_body,
         document: payload.draft.document,
+        confidence: payload.draft.confidence,
+        confidence_note: payload.draft.confidence_note,
       };
       apply(snapshot);
       setSeen((current) => ({ ...current, [type]: snapshot }));
-      setReused(Boolean(payload.reused));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setQuoteType(previousType);
@@ -277,8 +293,18 @@ export function DraftEditor({
   return (
     <div className="stack">
       {/* Type-bryter: agentens forslag, redigerbart før bekreft */}
-      <div className="card card-pad">
-        <span className="label">Tilbudstype</span>
+      <div className="card card-pad allow-overflow">
+        <div className="row-between" style={{ marginBottom: 8 }}>
+          <span className="label" style={{ marginBottom: 0 }}>
+            Tilbudstype
+          </span>
+          <ConfidenceBadge
+            level={confidence}
+            note={confidenceNote}
+            classificationNote={draft.classification_note}
+            suggestedType={draft.quote_type}
+          />
+        </div>
         <div className="type-switch">
           {ALL_TYPES.map((type) => (
             <button
@@ -292,36 +318,7 @@ export function DraftEditor({
             </button>
           ))}
         </div>
-        <div className="suggestion-note">
-          <span>◆</span>
-          <span>
-            {draft.classification_note ? (
-              <>
-                Agenten foreslo <strong>{QUOTE_TYPE_LABELS[draft.quote_type]}</strong>:{" "}
-                {draft.classification_note}
-              </>
-            ) : (
-              QUOTE_TYPE_HELP[quoteType]
-            )}
-          </span>
-        </div>
-
-        <div className="row-between" style={{ marginTop: 14 }}>
-          <span className="tiny muted">
-            {reused
-              ? "Hentet fra et utkast du allerede har generert. Ingen ny modellkjøring."
-              : "Utkastet er generert for denne typen."}
-          </span>
-          <button
-            type="button"
-            className="button secondary"
-            onClick={() => generate(quoteType, true)}
-            disabled={locked}
-            title="Kjører modellen på nytt og koster et nytt kall"
-          >
-            Generer på nytt
-          </button>
-        </div>
+        <span className="hint">{QUOTE_TYPE_HELP[quoteType]}</span>
       </div>
 
       {error && <div className="banner error">{error}</div>}

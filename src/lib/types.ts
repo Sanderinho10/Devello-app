@@ -7,6 +7,15 @@ export type LeadStatus = "ny" | "utkast_klar" | "bekrefta";
 /** Hvor henvendelsen kom fra. Manuelle er skrevet inn etter en telefon. */
 export type LeadSource = "epost" | "manuell";
 
+/** Hvor mye vekt utkastet tåler. Se lib/drafts/confidence.ts. */
+export type QuoteConfidence = "hoeg" | "middels" | "laag";
+
+export const CONFIDENCE_LABELS: Record<QuoteConfidence, string> = {
+  hoeg: "Godt grunnlag",
+  middels: "Les nøye",
+  laag: "Svakt grunnlag",
+};
+
 export const QUOTE_TYPE_LABELS: Record<QuoteType, string> = {
   punktpris: "Punktpris",
   fastpris: "Fastpris",
@@ -185,6 +194,9 @@ export interface Draft {
   lead_id: string;
   quote_type: QuoteType;
   classification_note: string | null;
+  confidence: QuoteConfidence;
+  /** Én linje per signal bak vurderingen. */
+  confidence_note: string | null;
   email_subject: string;
   email_body: string;
   document: QuoteDocument | null;
