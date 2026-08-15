@@ -103,14 +103,25 @@ export function ReferenceFiles({ items }: { items: ReferenceQuote[] }) {
               {items.map((item) => (
                 <tr key={item.id}>
                   <td>
-                    <a
-                      href={`/api/reference-quotes/${item.id}/file`}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ fontWeight: 550, textDecoration: "underline" }}
-                    >
-                      {item.file_name ?? item.title}
-                    </a>
+                    {/* Eldre rader kan mangle fil. Da er navnet bare tekst —
+                        en lenke ville gitt 404. */}
+                    {item.storage_path ? (
+                      <a
+                        href={`/api/reference-quotes/${item.id}/file`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ fontWeight: 550, textDecoration: "underline" }}
+                      >
+                        {item.file_name ?? item.title}
+                      </a>
+                    ) : (
+                      <>
+                        <span style={{ fontWeight: 550 }}>
+                          {item.file_name ?? item.title}
+                        </span>
+                        <div className="tiny muted">Ingen fil lagret</div>
+                      </>
+                    )}
                   </td>
                   <td>
                     <span className="pill">{QUOTE_TYPE_LABELS[item.type]}</span>

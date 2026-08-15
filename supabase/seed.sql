@@ -58,27 +58,12 @@ values
   ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a3', 'time', 'Timepris elektriker', 'Ordinær arbeidstid', 'time', 1190, true, false),
   ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a3', 'time', 'Kjøring', 'Per oppdrag innenfor Førde kommune', 'stk', 450, true, false);
 
--- Referansetilbud: fasiten agenten matcher tilbudstype mot.
-insert into reference_quotes (company_id, title, type, job_description)
-values
-  (
-    '00000000-0000-0000-0000-000000000001',
-    'Tilbud — stikkontakter og takpunkt, rekkehus Bjørkeveien',
-    'punktpris',
-    'Montering av stikkontakter og takpunkt i nybygg. Standardiserte enheter, kjent antall, kjent omfang.'
-  ),
-  (
-    '00000000-0000-0000-0000-000000000001',
-    'Tilbud — oppgradering sikringsskap Nordvikbygg',
-    'fastpris',
-    'Utskifting av sikringsskap i eldre enebolig. Avgrenset jobb som lar seg spesifisere med materiell og timer, men ikke standardiserte enheter.'
-  ),
-  (
-    '00000000-0000-0000-0000-000000000001',
-    'Tilbud — feilsøking flimrende lys Hafstadvegen',
-    'tid_og_materiell',
-    'Kunden melder om et symptom uten kjent årsak. Omfanget kan ikke fastsettes før feilsøkingen er i gang.'
-  );
+-- Referansetilbud blir IKKE seedet.
+--
+-- En referanse er en fil merket med tilbudstype, og en seedet rad har ingen
+-- fil. Den ville blitt liggende i Referansefiler-fana som en oppføring uten
+-- noe å åpne. Last opp ekte tilbud gjennom fana i stedet — det er den eneste
+-- veien som også får filen inn i storage.
 
 -- Knytt en innlogget bruker til selskapet. Bytt ut e-posten før du kjører.
 -- Brukeren må ha logget inn én gang slik at raden finnes i auth.users.
