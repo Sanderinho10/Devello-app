@@ -52,7 +52,9 @@ export async function GET(request: NextRequest) {
         scope: tokens.scope,
         status: "aktiv",
       },
-      { onConflict: "company_id,email_address" },
+      // Én postkasse per selskap: kobler noen til en annen konto, erstatter
+      // den den forrige i stedet for å legge seg ved siden av.
+      { onConflict: "company_id" },
     );
     if (dbError) throw new Error(dbError.message);
 

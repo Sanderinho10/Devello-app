@@ -68,6 +68,7 @@ Eller lim inn migrasjonene i SQL-editoren i rekkefølge, så `seed.sql`.
 | `0003_dev_auto_join.sql` | **Dev/pilot:** knytter nye brukere til Star Elektro automatisk. Må fjernes i fase 3. |
 | `0004_hardening.sql` | Oppfølging av security advisor |
 | `0005_price_lists.sql` | Prisrader hører til navngitte lister; flere lister per type |
+| `0006_one_mailbox_per_company.sql` | Én postkasse per selskap — «koble til på nytt» erstatter i stedet for å duplisere |
 
 ### 3. Azure
 
