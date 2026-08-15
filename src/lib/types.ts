@@ -4,6 +4,9 @@ export type PriceItemKind = "punktpris" | "materiell" | "time";
 
 export type LeadStatus = "ny" | "utkast_klar" | "bekrefta";
 
+/** Hvor henvendelsen kom fra. Manuelle er skrevet inn etter en telefon. */
+export type LeadSource = "epost" | "manuell";
+
 export const QUOTE_TYPE_LABELS: Record<QuoteType, string> = {
   punktpris: "Punktpris",
   fastpris: "Fastpris",
@@ -119,6 +122,7 @@ export interface ReferenceQuote {
 export interface Lead {
   id: string;
   company_id: string;
+  source: LeadSource;
   mailbox_connection_id: string | null;
   external_message_id: string;
   conversation_id: string | null;

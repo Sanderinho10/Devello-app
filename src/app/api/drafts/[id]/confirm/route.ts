@@ -43,7 +43,7 @@ export async function POST(
   const { data: draft } = await admin
     .from("drafts")
     .select(
-      "*, leads!inner(id, company_id, from_email, from_name, external_message_id, mailbox_connection_id)",
+      "*, leads!inner(id, company_id, from_email, from_name, external_message_id, mailbox_connection_id, source)",
     )
     .eq("id", id)
     // Tilgangssjekken ligger i spørringen, ikke i en etterkontroll.
@@ -56,6 +56,7 @@ export async function POST(
 
   const lead = draft.leads as unknown as {
     id: string;
+    source: "epost" | "manuell";
     from_email: string | null;
     from_name: string | null;
     external_message_id: string;
@@ -101,17 +102,26 @@ export async function POST(
     }
 
     // 2. Outlook-kladd.
-    if (!lead.mailbox_connection_id) {
-      throw new Error("Leadet er ikke koblet til en postkasse.");
+    //
+    // Et manuelt lead har ingen postkasse på seg — det kom aldri inn via en.
+    // Kladden skal likevel havne i selskapets Outlook, så vi slår opp den
+    // aktive postkassen i stedet.
+    const mailboxId = lead.mailbox_connection_id ?? (await activeMailboxId(session.companyId));
+    if (!mailboxId) {
+      throw new Error(
+        "Ingen postkasse tilkoblet. Koble til Microsoft 365 under Innstillinger.",
+      );
     }
-    const token = await accessTokenFor(lead.mailbox_connection_id);
+    const token = await accessTokenFor(mailboxId);
 
     const outlook = await createDraft(token, {
       subject: payload.email_subject,
       body: payload.email_body,
       toEmail: lead.from_email,
       toName: lead.from_name,
-      replyToMessageId: lead.external_message_id,
+      // Bare e-postleads har en melding å svare på. Den syntetiske id-en til
+      // et manuelt lead ville fått createReply til å feile.
+      replyToMessageId: lead.source === "epost" ? lead.external_message_id : null,
     });
 
     if (pdf) {
@@ -172,4 +182,15 @@ function pdfFileName(document: QuoteDocument): string {
     .replace(/^-|-$/g, "")
     .slice(0, 50);
   return `tilbud-${slug || "dokument"}.pdf`;
+}
+
+/** Selskapets aktive postkasse — brukt når leadet ikke bærer en selv. */
+async function activeMailboxId(companyId: string): Promise<string | null> {
+  const { data } = await supabaseAdmin()
+    .from("mailbox_connections")
+    .select("id")
+    .eq("company_id", companyId)
+    .eq("status", "aktiv")
+    .maybeSingle();
+  return data?.id ?? null;
 }

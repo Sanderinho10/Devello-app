@@ -70,6 +70,7 @@ Eller lim inn migrasjonene i SQL-editoren i rekkefølge, så `seed.sql`.
 | `0005_price_lists.sql` | Prisrader hører til navngitte lister; flere lister per type |
 | `0006_one_mailbox_per_company.sql` | Én postkasse per selskap — «koble til på nytt» erstatter i stedet for å duplisere |
 | `0007_mailbox_status_readable.sql` | Brukeren kan lese postkassens status, men ikke tokenene (kolonnerettigheter + policy) |
+| `0008_manual_leads.sql` | `source`-kolonne: leads kan komme manuelt (telefon), ikke bare på e-post |
 
 ### 3. Azure
 
@@ -104,6 +105,8 @@ automatisk ved første innlogging.
 
 ```
 Hent leads          Graph → leads (dedupe på message-id)
+  eller
+Manuell henvendelse saksbehandleren skriver inn en telefonhenvendelse
    ↓
 Generer utkast      klassifiser type → slå opp prisrader → generer dokument + tekst
    ↓                                                        (eller bare tekst)

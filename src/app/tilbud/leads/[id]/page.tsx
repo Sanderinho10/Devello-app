@@ -91,9 +91,14 @@ export default async function LeadPage({
             stikkontakter?» er spørsmålet man stiller hele veien.
           */}
           <aside className="inquiry">
-            <div className="inquiry-head">Henvendelsen</div>
+            <div className="inquiry-head">
+              {lead.source === "manuell" ? "Manuell henvendelse" : "Henvendelsen"}
+            </div>
             <div className="inquiry-meta">
-              <div>{[lead.from_name, lead.from_email].filter(Boolean).join(" · ")}</div>
+              <div>
+                {[lead.from_name, lead.from_email].filter(Boolean).join(" · ") ||
+                  "(ingen kontaktinfo)"}
+              </div>
               <div>{formatDate(lead.received_at)}</div>
             </div>
             {lead.body_text || lead.body_preview ? (

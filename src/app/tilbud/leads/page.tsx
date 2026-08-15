@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LeadActions } from "./LeadActions";
 import { LeadRow } from "./LeadRow";
+import { ManualLead } from "./ManualLead";
 import { currentSession, supabaseServer } from "@/lib/supabase/server";
 import { formatDate, type Lead } from "@/lib/types";
 
@@ -43,7 +44,10 @@ export default async function LeadsPage() {
               : "Ingen postkasse tilkoblet ennå"}
           </p>
         </div>
-        {mailbox && <LeadActions kind="hent" />}
+        <div className="row">
+          <ManualLead />
+          {mailbox && <LeadActions kind="hent" />}
+        </div>
       </div>
 
       {!mailbox && (
@@ -80,7 +84,10 @@ export default async function LeadsPage() {
         {rows.length === 0 ? (
           <div className="empty">
             <div className="empty-title">Ingen leads ennå</div>
-            <div>Trykk «Hent leads» for å lese innboksen.</div>
+            <div>
+              Trykk «Hent leads» for å lese innboksen, eller «Manuell
+              henvendelse» for en jobb som kom på telefon.
+            </div>
           </div>
         ) : (
           <div className="lead-list">

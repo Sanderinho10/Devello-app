@@ -26,8 +26,13 @@ const STATUS_LABEL: Record<LeadStatus, string> = {
 export function LeadRow({ lead }: { lead: Lead }) {
   const [open, setOpen] = useState(false);
 
-  const sender = [lead.from_name, lead.from_email].filter(Boolean).join(" · ");
   const body = lead.body_text || lead.body_preview;
+
+  // Et manuelt lead har ofte verken navn eller e-post. Da ville avsenderlinjen
+  // stått tom og sett ut som en e-post vi ikke klarte å lese.
+  const parts = [lead.from_name, lead.from_email].filter(Boolean);
+  if (lead.source === "manuell") parts.push("manuell henvendelse");
+  const sender = parts.join(" · ") || "(ukjent avsender)";
 
   return (
     <>
@@ -67,7 +72,7 @@ export function LeadRow({ lead }: { lead: Lead }) {
         title={lead.subject || "(uten emne)"}
       >
         <div className="lead-detail-meta">
-          <div>{sender || "(ukjent avsender)"}</div>
+          <div>{sender}</div>
           <div>{formatDate(lead.received_at)}</div>
         </div>
 
