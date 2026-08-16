@@ -1,3 +1,4 @@
+import { FirstFetchFrom } from "./FirstFetchFrom";
 import { SettingsForm } from "./SettingsForm";
 import { currentSession, supabaseServer } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/types";
@@ -26,7 +27,7 @@ export default async function InnstillingerPage({
       .maybeSingle(),
     supabase
       .from("mailbox_connections")
-      .select("email_address, status, last_synced_at")
+      .select("email_address, status, last_synced_at, initial_fetch_from")
       .eq("company_id", session!.companyId)
       .maybeSingle(),
   ]);
@@ -75,6 +76,14 @@ export default async function InnstillingerPage({
                 <div className="tiny muted">
                   Sist synkronisert: {formatDate(mailbox.last_synced_at)}
                 </div>
+                {!mailbox.last_synced_at && (
+                  <FirstFetchFrom
+                    value={(mailbox.initial_fetch_from ?? new Date().toISOString()).slice(
+                      0,
+                      10,
+                    )}
+                  />
+                )}
               </div>
             ) : (
               <p className="muted">

@@ -17,10 +17,12 @@ export function LeadActions({
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [merIgjen, setMerIgjen] = useState(false);
 
   async function run() {
     setBusy(true);
     setError(null);
+    setMerIgjen(false);
     try {
       const res = await fetch(
         kind === "hent" ? "/api/leads/fetch" : "/api/drafts/generate",
@@ -36,6 +38,9 @@ export function LeadActions({
       if (kind === "generer" && payload.lead_id) {
         router.push(`/tilbud/leads/${payload.lead_id}`);
       } else {
+        // Traff hentingen taket, ligger det fortsatt e-post i kø. Uten dette
+        // ville brukeren trodd at alt var inne.
+        if (payload.more) setMerIgjen(true);
         router.refresh();
       }
     } catch (err) {
@@ -63,6 +68,12 @@ export function LeadActions({
       {/* Bryt til egen linje under raden — ellers presser den emnet og
           avsenderen ut av flex-raden. */}
       {error && <div className="banner error row-break">{error}</div>}
+      {merIgjen && (
+        <div className="banner info row-break">
+          Det ligger mer e-post i kø enn vi tar i én runde. Trykk «Hent leads»
+          igjen for å hente neste bolk.
+        </div>
+      )}
     </>
   );
 }

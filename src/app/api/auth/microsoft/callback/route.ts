@@ -58,6 +58,15 @@ export async function GET(request: NextRequest) {
     );
     if (dbError) throw new Error(dbError.message);
 
+    // Standard startpunkt for første henting: i dag. Settes bare når det
+    // mangler, så en ny tilkobling av samme postkasse ikke flytter et
+    // startpunkt brukeren alt har valgt.
+    await admin
+      .from("mailbox_connections")
+      .update({ initial_fetch_from: new Date().toISOString() })
+      .eq("company_id", session.companyId)
+      .is("initial_fetch_from", null);
+
     settings.searchParams.set("koblet", email);
   } catch (err) {
     settings.searchParams.set(

@@ -61,7 +61,13 @@ export async function fetchInboxMessages(
   const limit = options.limit ?? 25;
   const params = new URLSearchParams({
     $top: String(limit),
-    $orderby: "receivedDateTime desc",
+    // Eldste først når vi henter fra et tidspunkt.
+    //
+    // Med nyeste først ville et etterslep større enn taket blitt borte for
+    // godt: vi tok de nyeste, flyttet vannmerket forbi resten, og ingen
+    // henting kom noen gang tilbake til dem. Eldste først lar knappen i
+    // stedet gå gjennom køen bit for bit.
+    $orderby: options.since ? "receivedDateTime asc" : "receivedDateTime desc",
     $select: "id,conversationId,subject,bodyPreview,receivedDateTime,from,body",
   });
   if (options.since) {

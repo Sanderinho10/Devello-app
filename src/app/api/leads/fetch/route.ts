@@ -18,7 +18,7 @@ export async function POST() {
 
   const { data: mailbox } = await admin
     .from("mailbox_connections")
-    .select("id, last_synced_at")
+    .select("id, last_synced_at, initial_fetch_from")
     .eq("company_id", session.companyId)
     .eq("status", "aktiv")
     .maybeSingle();
@@ -42,11 +42,12 @@ export async function POST() {
     .single();
 
   try {
+    // Første henting starter der brukeren har bestemt; etterpå overtar
+    // vannmerket fra forrige kjøring.
+    const since = mailbox.last_synced_at ?? mailbox.initial_fetch_from;
+    const limit = 50;
     const token = await accessTokenFor(mailbox.id);
-    const messages = await fetchInboxMessages(token, {
-      since: mailbox.last_synced_at,
-      limit: 25,
-    });
+    const messages = await fetchInboxMessages(token, { since, limit });
 
     const rows = messages.map((message) => ({
       company_id: session.companyId,
@@ -75,9 +76,21 @@ export async function POST() {
       inserted = data?.length ?? 0;
     }
 
+    // Vannmerket flyttes til den nyeste e-posten vi faktisk tok — ikke til
+    // «nå». Traff vi taket, ligger det fortsatt post igjen i vinduet, og med
+    // «nå» ville den blitt hoppet over for alltid. Slik står køen der til
+    // neste klikk.
+    const merEnnTaket = messages.length === limit;
+    const nyeste = rows.reduce<string | null>(
+      (senest, r) => (!senest || r.received_at > senest ? r.received_at : senest),
+      null,
+    );
     await admin
       .from("mailbox_connections")
-      .update({ last_synced_at: new Date().toISOString() })
+      .update({
+        last_synced_at:
+          merEnnTaket && nyeste ? nyeste : new Date().toISOString(),
+      })
       .eq("id", mailbox.id);
 
     await admin
@@ -90,7 +103,11 @@ export async function POST() {
       })
       .eq("id", run!.id);
 
-    return NextResponse.json({ found: rows.length, new: inserted });
+    return NextResponse.json({
+      found: rows.length,
+      new: inserted,
+      more: merEnnTaket,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await admin
