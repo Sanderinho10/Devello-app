@@ -119,6 +119,15 @@ export async function buildTemplate(kind: PriceItemKind): Promise<Buffer> {
     "↑ Radene over er eksempler. Slett dem og lim inn dine egne. Navn, enhet og pris må være utfylt.";
   note.getCell(1).font = { italic: true, color: { argb: "FF86868B" }, size: 10 };
 
+  // Advarselen står her, i fila, og ikke bare i appen — det er her folk er
+  // idet de limer inn, og det er limingen som drar sammenslåingene med seg.
+  const pasteNote = sheet.getRow(2 + EXAMPLES[kind].length + 2);
+  pasteNote.getCell(1).value =
+    "Lim inn med «Lim inn spesial → Verdier» (Ctrl+Shift+V). Limer du inn vanlig, " +
+    "følger sammenslåtte celler med fra den gamle filen, og da leser Excel samme " +
+    "pris på flere rader.";
+  pasteNote.getCell(1).font = { italic: true, color: { argb: "FF86868B" }, size: 10 };
+
   sheet.getColumn("unit_price").numFmt = "# ##0";
   sheet.getColumn("unit_price").alignment = { horizontal: "right" };
 
@@ -173,6 +182,15 @@ export async function parseWorkbook(file: Buffer): Promise<ParseResult> {
   if ("error" in mapping) {
     return { rows: [], errors: [mapping.error], skipped: 0 };
   }
+
+  // Sammenslåtte celler må stoppes før vi leser noe som helst.
+  //
+  // Excel gir samme verdi til hver rad en sammenslåing dekker. En kode eller
+  // en pris slått sammen over to rader blir dermed lest som to like verdier,
+  // og importen ville gått gjennom med feil priser uten at noe så galt ut.
+  // Det er den slags feil som først viser seg i et tilbud hos en kunde.
+  const merge = mergeProblem(sheet, mapping.columns);
+  if (merge) return { rows: [], errors: [merge], skipped: 0 };
 
   const rows: ParsedRow[] = [];
   const errors: string[] = [];
@@ -267,6 +285,61 @@ function mapHeaders(headerRow: ExcelJS.Row): Mapping {
       description: found.description,
     },
   };
+}
+
+/**
+ * Leter etter sammenslåtte celler i kolonnene vi faktisk leser.
+ *
+ * Sammenslåinger utenfor disse — en tittelrad over overskriftene, en notis
+ * ute til høyre — får stå i fred. Det er bare de som overlapper data vi
+ * importerer, som kan gi feil priser.
+ */
+function mergeProblem(
+  sheet: ExcelJS.Worksheet,
+  columns: Record<string, number | undefined>,
+): string | null {
+  const merges: string[] = sheet.model?.merges ?? [];
+  if (merges.length === 0) return null;
+
+  const lest = new Set(
+    Object.values(columns).filter((n): n is number => typeof n === "number"),
+  );
+  const rammet: string[] = [];
+
+  for (const range of merges) {
+    const match = /^([A-Z]+)(\d+):([A-Z]+)(\d+)$/.exec(range);
+    if (!match) continue;
+    const [, fraKol, fraRad, tilKol, tilRad] = match;
+    const kolFra = colToNumber(fraKol);
+    const kolTil = colToNumber(tilKol);
+    const radTil = Number(tilRad);
+
+    // Bare datarader (2 og nedover), og bare kolonner vi leser.
+    if (radTil < 2) continue;
+    let treffer = false;
+    for (let kol = kolFra; kol <= kolTil; kol++) {
+      if (lest.has(kol)) treffer = true;
+    }
+    if (treffer) rammet.push(range);
+  }
+
+  if (rammet.length === 0) return null;
+
+  const vist = rammet.slice(0, 6).join(", ");
+  return (
+    `Filen har sammenslåtte celler (${vist}${rammet.length > 6 ? `, og ${rammet.length - 6} til` : ""}). ` +
+    "Excel gir samme verdi til alle radene i en sammenslåing, så prisene ville blitt " +
+    "importert feil uten at noe så galt ut. Marker alt i arket og slå av «Slå sammen " +
+    "og midtstill», eller lim inn på nytt med «Lim inn spesial → Verdier» — da følger " +
+    "verken sammenslåinger eller annen formatering med."
+  );
+}
+
+/** «A» → 1, «D» → 4, «AA» → 27. */
+function colToNumber(letters: string): number {
+  let n = 0;
+  for (const letter of letters) n = n * 26 + (letter.charCodeAt(0) - 64);
+  return n;
 }
 
 function normalize(value: string): string {

@@ -32,6 +32,11 @@ export function ExcelDrop({
         </a>{" "}
         om du vil starte fra et ferdig oppsett.
       </p>
+      <p className="hint">
+        Limer du inn fra en eksisterende prisfil, bruk{" "}
+        <strong>Lim inn spesial → Verdier</strong>. Vanlig liming drar med seg
+        sammenslåtte celler, og da havner samme pris på flere rader.
+      </p>
     </FileDrop>
   );
 }
