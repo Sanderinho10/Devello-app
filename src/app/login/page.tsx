@@ -142,7 +142,10 @@ export default function LoginPage() {
         <Link href="/registrer" style={{ textDecoration: "underline" }}>
           Opprett konto
         </Link>
-        {" · "}
+      </p>
+
+      <p className="muted tiny" style={{ textAlign: "center", marginTop: 8 }}>
+        Er du regnskapsfører for bygg- og anleggsbedrifter?{" "}
         <Link href="/partner" style={{ textDecoration: "underline" }}>
           Bli partner
         </Link>
