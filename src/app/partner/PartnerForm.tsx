@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { formatOrgNr } from "@/lib/onboarding/orgnr";
+import { normalizeOrgNr } from "@/lib/onboarding/orgnr";
 
 /**
  * Regnskapsførere henter partnerkoden sin her.
@@ -106,7 +106,6 @@ export function PartnerForm() {
               autoFocus
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
-              placeholder="Førde Regnskap AS"
             />
           </label>
 
@@ -117,10 +116,9 @@ export function PartnerForm() {
               required
               inputMode="numeric"
               value={form.org_nr}
-              onChange={(e) => set("org_nr", e.target.value)}
-              onBlur={(e) => set("org_nr", formatOrgNr(e.target.value))}
-              placeholder="912 345 678"
+              onChange={(e) => set("org_nr", normalizeOrgNr(e.target.value).slice(0, 9))}
             />
+            <span className="hint">Ni siffer.</span>
           </label>
 
           <label className="field">
@@ -131,7 +129,6 @@ export function PartnerForm() {
               inputMode="numeric"
               value={form.payout_account}
               onChange={(e) => set("payout_account", e.target.value)}
-              placeholder="1234.56.78901"
             />
             <span className="hint">Elleve siffer. Hit går andelen din.</span>
           </label>
@@ -144,7 +141,6 @@ export function PartnerForm() {
               required
               value={form.contact_email}
               onChange={(e) => set("contact_email", e.target.value)}
-              placeholder="post@regnskap.no"
             />
           </label>
 
@@ -155,7 +151,6 @@ export function PartnerForm() {
               required
               value={form.address_line}
               onChange={(e) => set("address_line", e.target.value)}
-              placeholder="Storgata 14"
             />
           </label>
 

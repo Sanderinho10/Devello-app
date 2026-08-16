@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { formatOrgNr } from "@/lib/onboarding/orgnr";
+import { normalizeOrgNr } from "@/lib/onboarding/orgnr";
 
 /**
  * Registrering i tre steg: selskapet, brukeren, og i gang.
@@ -190,7 +190,6 @@ export function SignupWizard() {
                 autoFocus
                 value={form.company_name}
                 onChange={(e) => set("company_name", e.target.value)}
-                placeholder="Star Elektro AS"
               />
             </label>
 
@@ -201,9 +200,9 @@ export function SignupWizard() {
                 required
                 inputMode="numeric"
                 value={form.org_nr}
-                onChange={(e) => set("org_nr", e.target.value)}
-                onBlur={(e) => set("org_nr", formatOrgNr(e.target.value))}
-                placeholder="912 345 678"
+                // Bare sifre inn i feltet. Mellomrom og punktum er den
+                // vanligste kilden til «samme selskap, to skrivemåter».
+                onChange={(e) => set("org_nr", normalizeOrgNr(e.target.value).slice(0, 9))}
               />
               <span className="hint">Ni siffer. Vi sjekker at det ikke alt er i bruk.</span>
             </label>
@@ -215,7 +214,6 @@ export function SignupWizard() {
                 required
                 value={form.billing_address_line}
                 onChange={(e) => set("billing_address_line", e.target.value)}
-                placeholder="Storgata 14"
               />
             </label>
 
@@ -228,7 +226,6 @@ export function SignupWizard() {
                   inputMode="numeric"
                   value={form.billing_postal_code}
                   onChange={(e) => set("billing_postal_code", e.target.value)}
-                  placeholder="6800"
                 />
               </label>
               <label className="field">
@@ -238,7 +235,6 @@ export function SignupWizard() {
                   required
                   value={form.billing_city}
                   onChange={(e) => set("billing_city", e.target.value)}
-                  placeholder="Førde"
                 />
               </label>
             </div>
@@ -267,7 +263,6 @@ export function SignupWizard() {
                 autoFocus
                 value={form.full_name}
                 onChange={(e) => set("full_name", e.target.value)}
-                placeholder="Ola Nordmann"
               />
             </label>
 
@@ -280,7 +275,6 @@ export function SignupWizard() {
                 autoComplete="username"
                 value={form.email}
                 onChange={(e) => set("email", e.target.value)}
-                placeholder="ola@firma.no"
               />
             </label>
 
@@ -342,7 +336,6 @@ export function SignupWizard() {
                 className="input"
                 value={form.partner_code}
                 onChange={(e) => set("partner_code", e.target.value.toUpperCase())}
-                placeholder="DEV-XXXXXX"
               />
               <span className="hint">
                 Har regnskapsføreren din anbefalt Devello, legg inn koden deres her.{" "}

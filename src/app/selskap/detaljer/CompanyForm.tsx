@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { formatOrgNr } from "@/lib/onboarding/orgnr";
+import { normalizeOrgNr } from "@/lib/onboarding/orgnr";
 
 export function CompanyForm({
   company,
@@ -83,8 +83,7 @@ export function CompanyForm({
                 inputMode="numeric"
                 disabled={!isAdmin}
                 value={form.org_nr}
-                onChange={(e) => set("org_nr", e.target.value)}
-                onBlur={(e) => set("org_nr", formatOrgNr(e.target.value))}
+                onChange={(e) => set("org_nr", normalizeOrgNr(e.target.value).slice(0, 9))}
               />
             </label>
           </div>

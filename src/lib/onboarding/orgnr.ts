@@ -8,15 +8,15 @@
 
 const WEIGHTS = [3, 2, 7, 6, 5, 4, 3, 2];
 
-/** Sifrene alene. «912 345 678» og «912345678» er samme nummer. */
+/**
+ * Sifrene alene. «912 345 678» og «912345678» er samme nummer.
+ *
+ * Brukes både i feltene (så det ikke går an å taste annet enn sifre) og i
+ * API-rutene (som aldri skal stole på at klienten gjorde det). Lagret form er
+ * alltid ni sifre uten skilletegn — det er den duplikatsjekken sammenligner.
+ */
 export function normalizeOrgNr(value: string): string {
   return value.replace(/\D/g, "");
-}
-
-export function formatOrgNr(value: string): string {
-  const digits = normalizeOrgNr(value);
-  if (digits.length !== 9) return value;
-  return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
 }
 
 export interface OrgNrCheck {
