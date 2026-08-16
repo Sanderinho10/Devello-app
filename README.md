@@ -32,6 +32,10 @@ utkastet og kan endre det før de bekrefter.
 
 ## Kom i gang
 
+Er du ny på prosjektet, start med [docs/utvikleroppsett.md](docs/utvikleroppsett.md)
+— den forklarer hvilke tilganger du trenger og hvordan de gis. Under står de
+tekniske stegene.
+
 ### 1. Avhengigheter
 
 ```sh
