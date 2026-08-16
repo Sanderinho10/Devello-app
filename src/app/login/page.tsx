@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 /**
@@ -23,35 +23,67 @@ export default function LoginPage() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * Har vi allerede en sesjon, skal ingen se dette skjemaet.
+   *
+   * Bekreftelseslenken fra e-posten sender kunden hit med sesjonen liggende i
+   * adressen (#access_token=…). Supabase-klienten plukker den opp når den
+   * starter, og da er kunden logget inn — men uten dette ville de blitt
+   * stående og se på et innloggingsskjema de ikke lenger trengte.
+   */
+  useEffect(() => {
+    let avbrutt = false;
+    (async () => {
+      try {
+        const { data } = await supabaseBrowser().auth.getSession();
+        if (!avbrutt && data.session) {
+          router.replace("/tilbud/leads");
+        }
+      } catch {
+        // Mangler oppsettet, sier skjemaet fra når noen prøver å logge inn.
+      }
+    })();
+    return () => {
+      avbrutt = true;
+    };
+  }, [router]);
+
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
     setError(null);
 
-    const supabase = supabaseBrowser();
+    // Alt ligger i try/catch: kastet noe her før, satte ingen busy tilbake,
+    // og knappen ble stående på «Logger inn…» for alltid uten å si hvorfor.
+    try {
+      const supabase = supabaseBrowser();
 
-    if (mode === "passord") {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        setError(translate(error.message));
-        setBusy(false);
+      if (mode === "passord") {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          setError(translate(error.message));
+          setBusy(false);
+          return;
+        }
+        router.push("/tilbud/leads");
+        router.refresh();
         return;
       }
-      router.push("/tilbud/leads");
-      router.refresh();
-      return;
-    }
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `${window.location.origin}/tilbud/leads` },
-    });
-    if (error) {
-      setError(translate(error.message));
-    } else {
-      setSent(true);
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: `${window.location.origin}/tilbud/leads` },
+      });
+      if (error) {
+        setError(translate(error.message));
+      } else {
+        setSent(true);
+      }
+      setBusy(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setBusy(false);
     }
-    setBusy(false);
   }
 
   if (sent) {
