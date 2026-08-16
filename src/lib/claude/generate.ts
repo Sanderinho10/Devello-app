@@ -1,5 +1,6 @@
 import { structured } from "./client";
 import { loadSop } from "./sop";
+import { referencesBlock, type QuoteReference } from "@/lib/referanser";
 import type {
   Company,
   Lead,
@@ -109,6 +110,8 @@ interface GenerateInput {
   priceItems: PriceListItem[];
   /** Standard mva-sats. */
   vatRate?: number;
+  /** Tidligere bekreftede tilbud som ligner (fra referanselisten). */
+  similar?: QuoteReference[];
 }
 
 export async function generateDraft(
@@ -153,6 +156,7 @@ async function generateWithDocument(
     schema: DOCUMENT_SCHEMA,
     prompt: [
       priceListBlock(relevant),
+      referencesBlock(input.similar ?? []),
       companyBlock(input.company),
       leadBlock(input.lead),
       "---",
@@ -233,6 +237,7 @@ ${sop}`,
       rates.length
         ? priceListBlock(rates)
         : "# Prisfil\n\n(ingen timepriser lagt inn — skriv teksten uten konkrete satser og be kunden om en prat)",
+      referencesBlock(input.similar ?? []),
       companyBlock(input.company),
       leadBlock(input.lead),
       "---",
@@ -275,6 +280,10 @@ Absolutte regler:
   tilbudet og nevn det i forutsetningene i stedet.
 - Mengder skal begrunnes ut fra det kunden faktisk har skrevet. Ikke gjett vilt —
   er mengden uklar, bruk et forsiktig anslag og skriv det i forutsetningene.
+- Finnes det tidligere bekreftede tilbud som ligner, bruk dem som mønster for
+  hvilke poster som hører med, typiske mengder, forutsetningenes ordlyd og
+  tone. Det er slik dette firmaet faktisk sender tilbud. Prisene slår du
+  likevel alltid opp i prisfilen — aldri fra referansene.
 
 E-postteksten skal være kort. Den følger med som melding når PDF-en blir lagt
 ved, så selve tilbudet skal ikke gjentas i teksten.

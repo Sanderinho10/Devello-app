@@ -4,6 +4,7 @@ import { classifyQuoteType } from "@/lib/claude/classify";
 import { generateDraft } from "@/lib/claude/generate";
 import { logDraftVersion } from "@/lib/drafts/versions";
 import { assessConfidence, countUnresolvedLines } from "@/lib/drafts/confidence";
+import { findSimilarReferences } from "@/lib/referanser";
 import { sessionOr401, errorResponse } from "@/lib/api";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import type { PriceListItem, QuoteDocument, QuoteType } from "@/lib/types";
@@ -81,6 +82,15 @@ export async function POST(request: NextRequest) {
 
     const leadText = lead.body_text || lead.body_preview || "";
 
+    // Referanselisten: de 3–5 mest relevante tidligere bekreftede tilbudene,
+    // funnet via nøkkelord fra leadet. Går inn både i klassifisering og
+    // generering. Tenant-ID kommer fra sesjonen, aldri fra modellen.
+    const { references: similar } = await findSimilarReferences(admin, {
+      companyId: session.companyId,
+      leadText: [lead.subject, leadText].filter(Boolean).join("\n\n"),
+      quoteType: body.quote_type ?? null,
+    });
+
     // Brukeren kan overstyre typen fra bryteren; ellers klassifiserer agenten.
     let quoteType = body.quote_type;
     let classificationNote: string | null = null;
@@ -90,6 +100,7 @@ export async function POST(request: NextRequest) {
         subject: lead.subject,
         body: leadText,
         references: references ?? [],
+        similar,
       });
       quoteType = classification.quote_type;
       classificationNote = classification.note;
@@ -108,6 +119,7 @@ export async function POST(request: NextRequest) {
         tone_settings: company!.tone_settings ?? {},
       },
       priceItems,
+      similar,
     });
 
     const confidence = assessConfidence({

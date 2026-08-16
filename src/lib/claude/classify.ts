@@ -1,5 +1,6 @@
 import { structured } from "./client";
 import type { QuoteType, ReferenceQuote } from "@/lib/types";
+import { referencesBlock, type QuoteReference } from "@/lib/referanser";
 
 export interface Classification {
   quote_type: QuoteType;
@@ -40,7 +41,10 @@ De tre tilbudstypene:
   uklart — kunden beskriver et problem heller enn en definert jobb, eller det
   trengs befaring for å vite hva arbeidet faktisk innebærer.
 
-Fasiten er hvilke typer referansetilbud kunden har lagt inn for liknende jobber.
+Fasiten er hvilke typer referansetilbud kunden har lagt inn for liknende jobber,
+og — når de finnes — hvilke typer firmaet faktisk har bekreftet og sendt for
+liknende jobber tidligere (listen «Tidligere bekreftede tilbud»). Bekreftede
+tilbud veier tyngst: de viser hva firmaet gjør i praksis.
 Matcher jobbeskrivelsen en referanse, velger du samme type som referansen. Finnes
 det ingen relevant referanse, velger du ut fra hvor godt definert omfanget er, og
 setter confidence til laag.`;
@@ -49,6 +53,8 @@ export async function classifyQuoteType(input: {
   subject: string | null;
   body: string;
   references: Pick<ReferenceQuote, "title" | "type" | "job_description">[];
+  /** Tidligere bekreftede tilbud som ligner (fra referanselisten). */
+  similar?: QuoteReference[];
 }): Promise<Classification> {
   // Referansefilene er filer merket med type. De fleste har bare et filnavn å
   // gå på — Jobb-linjen kommer bare med når den faktisk har innhold, så
@@ -72,6 +78,8 @@ export async function classifyQuoteType(input: {
     prompt: `# Referansetilbud kunden har lagt inn
 
 ${referenceBlock}
+
+${referencesBlock(input.similar ?? [])}
 
 # Innkommende forespørsel
 

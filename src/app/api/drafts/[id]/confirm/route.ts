@@ -3,7 +3,8 @@ import { attachPdf, createDraft } from "@/lib/graph/drafts";
 import { accessTokenFor } from "@/lib/graph/oauth";
 import { htmlToPdf } from "@/lib/pdf/render";
 import { renderQuoteHtml } from "@/lib/pdf/template";
-import { logDraftVersion } from "@/lib/drafts/versions";
+import { diffSnapshots, logDraftVersion } from "@/lib/drafts/versions";
+import { saveQuoteReference } from "@/lib/referanser";
 import { sessionOr401, errorResponse } from "@/lib/api";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { hasDocument, type QuoteDocument, type QuoteType } from "@/lib/types";
@@ -43,7 +44,7 @@ export async function POST(
   const { data: draft } = await admin
     .from("drafts")
     .select(
-      "*, leads!inner(id, company_id, from_email, from_name, external_message_id, mailbox_connection_id, source)",
+      "*, leads!inner(id, company_id, from_email, from_name, external_message_id, mailbox_connection_id, source, subject, body_text, body_preview)",
     )
     .eq("id", id)
     // Tilgangssjekken ligger i spørringen, ikke i en etterkontroll.
@@ -61,6 +62,9 @@ export async function POST(
     from_name: string | null;
     external_message_id: string;
     mailbox_connection_id: string | null;
+    subject: string | null;
+    body_text: string | null;
+    body_preview: string | null;
   };
   const wantsDocument = hasDocument(payload.quote_type);
 
@@ -162,6 +166,27 @@ export async function POST(
     });
 
     await admin.from("leads").update({ status: "bekrefta" }).eq("id", lead.id);
+
+    // 4. Referanselisten — agentens hukommelse. Brukerens endelige versjon,
+    // tagget med nøkkelord, så neste generering kan finne den igjen.
+    // Skal aldri velte en bekreftelse: kladden er allerede opprettet.
+    try {
+      await saveQuoteReference(admin, {
+        companyId: session.companyId,
+        draftId: draft.id,
+        leadId: lead.id,
+        quoteType: payload.quote_type,
+        leadText: [lead.subject, lead.body_text || lead.body_preview]
+          .filter(Boolean)
+          .join("\n\n"),
+        emailSubject: payload.email_subject,
+        emailBody: payload.email_body,
+        document: final.document,
+        editedByUser: Object.keys(diffSnapshots(previous, final)).length > 0,
+      });
+    } catch (err) {
+      console.error("Kunne ikke skrive til referanselisten:", err);
+    }
 
     return NextResponse.json({
       ok: true,
