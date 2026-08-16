@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ExcelDrop } from "@/components/ExcelDrop";
+import { Modal } from "@/components/Modal";
 import type { PriceListWithCount } from "./page";
 import {
   PRICE_KIND_HELP,
@@ -60,6 +61,15 @@ function KindSection({
   const [error, setError] = useState<string | null>(null);
   const [details, setDetails] = useState<string[]>([]);
 
+  function close() {
+    setAdding(false);
+    setName("");
+    setDescription("");
+    setFile(null);
+    setError(null);
+    setDetails([]);
+  }
+
   async function create(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
@@ -78,10 +88,7 @@ function KindSection({
         setDetails(payload.details ?? []);
         throw new Error(payload.error ?? "Kunne ikke opprette listen");
       }
-      setName("");
-      setDescription("");
-      setFile(null);
-      setAdding(false);
+      close();
       router.refresh();
       if (payload.imported > 0) router.push(`/tilbud/prisfil/${payload.id}`);
     } catch (err) {
@@ -117,16 +124,17 @@ function KindSection({
           <strong>{PRICE_KIND_LABELS[kind]}</strong>
           <div className="tiny muted">{PRICE_KIND_HELP[kind]}</div>
         </div>
-        <button
-          className="button secondary"
-          onClick={() => setAdding((current) => !current)}
-        >
-          {adding ? "Avbryt" : "Ny liste"}
+        <button className="button secondary" onClick={() => setAdding(true)}>
+          Ny liste
         </button>
       </div>
 
-      {adding && (
-        <form className="card-pad" onSubmit={create} style={{ background: "var(--surface-sunken)" }}>
+      <Modal
+        open={adding}
+        onClose={close}
+        title={`Ny ${PRICE_KIND_LABELS[kind].toLowerCase()}`}
+      >
+        <form onSubmit={create}>
           {error && (
             <div className="banner error">
               <div>{error}</div>
@@ -140,29 +148,29 @@ function KindSection({
               )}
             </div>
           )}
-          <div className="grid-2">
-            <label className="field">
-              <span className="label">Navn</span>
-              <input
-                className="input"
-                required
-                autoFocus
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={`${PRICE_KIND_LABELS[kind]} 2026`}
-              />
-            </label>
-            <label className="field">
-              <span className="label">Beskrivelse (valgfritt)</span>
-              <input
-                className="input"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="F.eks. «Næringskunder» eller «Gjelder fra 1. januar»"
-              />
-            </label>
-          </div>
-          <div className="field">
+          <label className="field">
+            <span className="label">Navn</span>
+            <input
+              className="input"
+              required
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={`${PRICE_KIND_LABELS[kind]} 2026`}
+            />
+          </label>
+
+          <label className="field">
+            <span className="label">Beskrivelse (valgfritt)</span>
+            <input
+              className="input"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="F.eks. «Næringskunder» eller «Gjelder fra 1. januar»"
+            />
+          </label>
+
+          <div className="field" style={{ marginBottom: 0 }}>
             <span className="label">Prisrader fra Excel (valgfritt)</span>
             <ExcelDrop
               file={file}
@@ -171,17 +179,22 @@ function KindSection({
             />
           </div>
 
-          <button className="button" type="submit" disabled={busy}>
-            {busy
-              ? file
-                ? "Leser inn filen…"
-                : "Oppretter…"
-              : file
-                ? "Opprett og importer"
-                : "Opprett tom liste"}
-          </button>
+          <div className="modal-actions">
+            <button type="button" className="button secondary" onClick={close} disabled={busy}>
+              Avbryt
+            </button>
+            <button className="button" type="submit" disabled={busy}>
+              {busy
+                ? file
+                  ? "Leser inn filen…"
+                  : "Oppretter…"
+                : file
+                  ? "Opprett og importer"
+                  : "Opprett tom liste"}
+            </button>
+          </div>
         </form>
-      )}
+      </Modal>
 
       {lists.length === 0 ? (
         <div className="empty">
