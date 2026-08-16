@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse } from "@/lib/api";
 import { normalizeOrgNr, validateOrgNr } from "@/lib/onboarding/orgnr";
-import { supabaseAdmin } from "@/lib/supabase/server";
+import { supabaseAdmin, supabaseAnon } from "@/lib/supabase/server";
 import { orgNrTaken } from "../check-org/route";
 
 /**
@@ -154,10 +154,35 @@ export async function POST(request: NextRequest) {
         .select()
         .maybeSingle();
 
+      // 5. Bekreftelseslenka.
+      //
+      // admin.createUser oppretter brukeren rett i databasen og sender
+      // ingenting — det finnes ikke noe flagg som ber den sende. Skal kunden
+      // få lenka, må vi be Supabase om det etterpå. resend() med type
+      // «signup» gjør nettopp det for en bruker som ennå ikke har bekreftet.
+      //
+      // Feiler sendingen, sier vi fra i stedet for å påstå at den gikk. En
+      // kunde som venter på en e-post som aldri kommer, prøver igjen og
+      // igjen og gir til slutt opp — uten å vite hvorfor.
+      let emailError: string | null = null;
+      if (requireConfirmation) {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? request.nextUrl.origin;
+        const { error: sendError } = await supabaseAnon().auth.resend({
+          type: "signup",
+          email,
+          options: { emailRedirectTo: `${appUrl}/login` },
+        });
+        if (sendError) {
+          emailError = sendError.message;
+          console.error("Bekreftelseslenke kunne ikke sendes:", sendError.message);
+        }
+      }
+
       return NextResponse.json({
         ok: true,
         company_id: company.id,
         requires_confirmation: requireConfirmation,
+        email_error: emailError,
       });
     } catch (err) {
       // Rydd opp, ellers blokkerer den halve kontoen e-postadressen for alltid.

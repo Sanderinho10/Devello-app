@@ -43,6 +43,22 @@ export function supabaseAdmin() {
   );
 }
 
+/**
+ * Klient uten sesjon og uten service role.
+ *
+ * Brukes til de auth-kallene som SKAL gå som en vanlig, uinnlogget bruker —
+ * først og fremst å be Supabase sende en bekreftelseslenke. Service
+ * role-klienten kan ikke brukes til det: admin-API-et skriver rett i
+ * databasen og sender aldri e-post.
+ */
+export function supabaseAnon() {
+  return createClient(
+    requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
+    requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  );
+}
+
 export function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {

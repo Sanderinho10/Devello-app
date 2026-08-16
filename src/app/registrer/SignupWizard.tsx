@@ -25,6 +25,7 @@ export function SignupWizard() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     company_name: "",
@@ -97,6 +98,7 @@ export function SignupWizard() {
       // ennå. Å prøve ville gitt «E-posten er ikke bekreftet» — en feilmelding
       // for noe som gikk helt etter planen.
       if (payload.requires_confirmation) {
+        setEmailError(payload.email_error ?? null);
         setAwaitingConfirmation(true);
         setBusy(false);
         return;
@@ -129,15 +131,32 @@ export function SignupWizard() {
             <span className="brand-mark">D</span> Devello
           </div>
 
-          <h2>Sjekk e-posten</h2>
-          <p className="muted" style={{ margin: "8px 0 18px" }}>
-            Kontoen for <strong>{form.company_name}</strong> er opprettet. Vi har
-            sendt en bekreftelseslenke til <strong>{form.email}</strong> — trykk
-            på den, så er du inne.
-          </p>
-          <p className="hint">
-            Finner du den ikke, sjekk søppelpost. Lenken er gyldig i 24 timer.
-          </p>
+          {emailError ? (
+            <>
+              <h2>Kontoen er opprettet</h2>
+              <div className="banner warning" style={{ margin: "8px 0 18px" }}>
+                Kontoen for <strong>{form.company_name}</strong> er klar, men
+                bekreftelseslenken til <strong>{form.email}</strong> kom ikke
+                av gårde: {emailError}
+              </div>
+              <p className="hint">
+                Prøv «Send meg en lenke i stedet» på innloggingssiden — den
+                bekrefter e-posten på samme måte.
+              </p>
+            </>
+          ) : (
+            <>
+              <h2>Sjekk e-posten</h2>
+              <p className="muted" style={{ margin: "8px 0 18px" }}>
+                Kontoen for <strong>{form.company_name}</strong> er opprettet. Vi
+                har sendt en bekreftelseslenke til <strong>{form.email}</strong> —
+                trykk på den, så er du inne.
+              </p>
+              <p className="hint">
+                Finner du den ikke, sjekk søppelpost. Lenken er gyldig i 24 timer.
+              </p>
+            </>
+          )}
 
           <p className="muted tiny" style={{ marginTop: 20 }}>
             <Link href="/login" style={{ textDecoration: "underline" }}>
