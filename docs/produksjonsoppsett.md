@@ -137,23 +137,61 @@ Først i Railway:
 3. Railway viser nå en verdi domenet skal peke på — en CNAME-verdi som
    ligner `xxxx.up.railway.app`. **Kopier den.** La fanen stå åpen.
 
-Så hos domeneleverandøren (der devello.no er registrert):
+Railway ber om **to** poster: en CNAME som peker domenet på appen, og en
+TXT som beviser at du eier domenet. Begge må inn.
 
-4. Logg inn hos leverandøren. Hos **Domeneshop**: «Mitt Domeneshop» →
-   **Domener** → klikk **devello.no** → **DNS-innstillinger**. (Andre
-   leverandører: let etter «DNS», «DNS-innstillinger» eller «Avansert DNS»
-   på domenet.)
-5. Legg til en ny post:
-   - **Host/Navn/Subdomene:** `app`
+> ### Viktig: DNS for devello.no ligger hos Cloudflare
+>
+> Domenet er registrert ett sted, men navnetjenerne — de som faktisk svarer
+> resten av internett — er `julio.ns.cloudflare.com` og
+> `delilah.ns.cloudflare.com`. **Bare poster lagt inn i Cloudflare gjelder.**
+>
+> Legger du dem inn i registrarens DNS-panel i stedet, ser alt riktig ut i
+> panelet, og ingenting skjer. De gamle postene ligger nemlig i begge
+> panelene — de ble kopiert til Cloudflare den gangen navnetjenerne ble
+> byttet — så panelet lyver overbevisende.
+>
+> Er du i tvil om hvem som er autoritativ: slå opp domenet på
+> [dnschecker.org](https://dnschecker.org) med type **NS**.
+
+Enkleste vei — la Railway gjøre det:
+
+4. I dialogen Railway viste: klikk **Connect** ved «One-click DNS Setup»
+   under Cloudflare-logoen. Logg inn på Cloudflare og godkjenn. Railway
+   legger inn begge postene selv, riktig satt opp.
+
+Eller manuelt i Cloudflare:
+
+4. Gå til [dash.cloudflare.com](https://dash.cloudflare.com) → velg
+   **devello.no** → **DNS** → **Records** → **Add record**.
+5. Post 1:
    - **Type:** `CNAME`
-   - **Verdi/Peker til:** verdien du kopierte fra Railway
-   - **TTL:** la stå som foreslått
-6. Lagre.
-7. Tilbake i Railway-fanen: ved siden av app.devello.no står en status.
-   Den går fra venting til en **grønn hake** når DNS-en har spredd seg —
-   alt fra minutter til en times tid. HTTPS-sertifikatet ordner Railway
-   automatisk samtidig.
-8. Når haken er grønn: åpne `https://app.devello.no` — innloggingssiden
+   - **Name:** `app`
+   - **Target:** verdien fra Railway (`xxxx.up.railway.app`, uten `https://`)
+   - **Proxy status:** klikk skyen slik at den blir **grå — «DNS only»**.
+     Dette er viktig. En oransje (proxied) sky lar Cloudflare stå mellom
+     kunden og Railway, og med standardinnstillingene ender det i
+     omdirigeringsløkke eller sertifikatfeil.
+   - **Save**
+6. Post 2:
+   - **Type:** `TXT`
+   - **Name:** `_railway-verify.app`
+   - **Content:** hele `railway-verify=…`-strengen. Den er avkortet på
+     skjermen i Railway — klikk på verdien for å kopiere hele, ikke skriv
+     den av.
+   - **Save**
+
+Merk at Cloudflare legger `.devello.no` bak navnet selv. Skriver du
+`app.devello.no` i Name-feltet, blir posten `app.devello.no.devello.no`.
+
+7. Sjekk at postene faktisk er ute. På [dnschecker.org](https://dnschecker.org):
+   søk `app.devello.no` med type **CNAME** — den skal vise
+   `xxxx.up.railway.app`. Får du «not found», er posten ikke lagret der den
+   må være (se rammen over).
+8. Tilbake i Railway: statusen ved app.devello.no går fra
+   «Waiting for DNS update» til en **grønn hake**. HTTPS-sertifikatet ordner
+   Railway automatisk samtidig.
+9. Når haken er grønn: åpne `https://app.devello.no` — innloggingssiden
    skal laste med hengelås i adressefeltet.
 
 ## Steg 8 — Azure: godkjenn den nye adressen
@@ -234,5 +272,6 @@ Gå gjennom denne på `https://app.devello.no` — ikke på localhost:
 | «Fant ingen Chromium» ved PDF | Railway bygger ikke med Dockerfile — Settings → Build → sett Builder til Dockerfile |
 | Microsoft-innlogging gir feilside | Redirect-URI i Azure matcher ikke tegn for tegn — begge skal være `https://app.devello.no/api/auth/microsoft/callback` |
 | E-postlenker peker på localhost | Site URL i Supabase (steg 9) er ikke lagret |
-| app.devello.no svarer ikke etter en time | Sjekk DNS-posten: host skal være `app` (ikke `app.devello.no`) og type CNAME, verdien uten `https://` foran |
+| app.devello.no svarer ikke, Railway står på «Waiting for DNS update» | Postene er lagt inn i et DNS-panel som ikke er autoritativt. DNS-en for devello.no serves av Cloudflare — postene må inn der (se rammen i steg 7). Sjekk med dnschecker.org type CNAME |
+| app.devello.no gir omdirigeringsløkke eller sertifikatfeil | CNAME-posten er «proxied» (oransje sky) i Cloudflare. Sett den til grå «DNS only» |
 | Appen stopper etter noen dager | Prøvekvoten er brukt opp — kontoen mangler Hobby-plan/kort (steg 1) |
