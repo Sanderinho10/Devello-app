@@ -184,7 +184,7 @@ const TILBUDSDATA_SCHEMA = {
   additionalProperties: false,
 };
 
-interface RawTilbudsdata {
+export interface RawTilbudsdata {
   tilbudstype: QuoteType;
   typebegrunnelse: string;
   status: AgentStatus;
@@ -210,7 +210,7 @@ interface RawTilbudsdata {
   merknader: string[];
 }
 
-interface GenerateInput {
+export interface GenerateInput {
   /** Satt når brukeren har valgt type selv — da velger ikke agenten. */
   lockedType?: QuoteType | null;
   lead: Pick<Lead, "subject" | "body_text" | "from_name" | "from_email">;
@@ -336,7 +336,7 @@ const PLACEHOLDER_PATTERNS: { pattern: RegExp; label: string }[] = [
   { pattern: /\b[XY]\s*(timer|timar|tima|stk|m²)\b/, label: "«X timer»-plassholder" },
 ];
 
-function validate(raw: RawTilbudsdata, input: GenerateInput): string[] {
+export function validate(raw: RawTilbudsdata, input: GenerateInput): string[] {
   const problems: string[] = [];
 
   if (input.lockedType && raw.tilbudstype !== input.lockedType) {

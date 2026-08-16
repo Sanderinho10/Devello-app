@@ -9,7 +9,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "install:chromium": "playwright-core install chromium",
-    "preview:pdf": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/preview-pdf.ts"
+    "preview:pdf": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/preview-pdf.ts",
+    "test:agent": "node --env-file=.env.local --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-agent.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.117.1",

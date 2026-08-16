@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateDraft } from "@/lib/claude/generate";
+import { activePriceItems } from "@/lib/pricelist/active";
 import { logDraftVersion } from "@/lib/drafts/versions";
 import { assessConfidence, countUnresolvedLines } from "@/lib/drafts/confidence";
 import { findSimilarReferences } from "@/lib/referanser";
@@ -166,34 +167,6 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     return errorResponse(err);
   }
-}
-
-/**
- * Prisrader fra aktive lister.
- *
- * En deaktivert liste blir liggende i databasen, men skal ikke kunne dukke opp
- * i et tilbud — derfor filtrerer vi på listen og ikke bare på raden.
- */
-export async function activePriceItems(
-  admin: SupabaseClient,
-  companyId: string,
-): Promise<PriceListItem[]> {
-  const { data: lists } = await admin
-    .from("price_lists")
-    .select("id")
-    .eq("company_id", companyId)
-    .eq("active", true);
-
-  const listIds = (lists ?? []).map((list) => list.id);
-  if (listIds.length === 0) return [];
-
-  const { data: items } = await admin
-    .from("price_list_items")
-    .select("*")
-    .in("price_list_id", listIds)
-    .eq("active", true);
-
-  return (items ?? []) as PriceListItem[];
 }
 
 /**
