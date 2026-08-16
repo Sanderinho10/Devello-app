@@ -2,10 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { FileDrop } from "@/components/FileDrop";
+import { MultiFileDrop } from "@/components/MultiFileDrop";
 import { Modal } from "@/components/Modal";
 import {
-  QUOTE_TYPE_HELP,
   QUOTE_TYPE_LABELS,
   formatDate,
   type QuoteType,
@@ -24,43 +23,108 @@ const ACCEPT =
  * Tittelen kommer fra filnavnet, så det eneste brukeren må ta stilling til er
  * hvilken type tilbudet var. Alt annet ville vært et skjema å fylle ut.
  */
+/** En valgt fil på vei inn, med typen sin og hvor langt den er kommet. */
+interface Kladd {
+  key: string;
+  file: File;
+  type: QuoteType;
+  status: "venter" | "laster" | "feil";
+  error?: string;
+}
+
 export function ReferenceFiles({ items }: { items: ReferenceQuote[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
-  const [type, setType] = useState<QuoteType>("punktpris");
+  const [kladder, setKladder] = useState<Kladd[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function close() {
     setOpen(false);
-    setFile(null);
+    setKladder([]);
     setError(null);
+  }
+
+  function leggTil(filer: File[]) {
+    setError(null);
+    setKladder((forrige) => {
+      // Samme fil to ganger er nesten alltid en glipp — en bunke sluppet inn
+      // igjen fordi man ikke så at den kom med første gang.
+      const finnes = new Set(forrige.map((k) => `${k.file.name}:${k.file.size}`));
+      const nye = filer
+        .filter((f) => !finnes.has(`${f.name}:${f.size}`))
+        .map((f, i) => ({
+          key: `${Date.now()}-${i}-${f.name}`,
+          file: f,
+          // Arver typen fra forrige rad: en bunke er som regel samme slag.
+          type: forrige[forrige.length - 1]?.type ?? ("punktpris" as QuoteType),
+          status: "venter" as const,
+        }));
+      return [...forrige, ...nye];
+    });
+  }
+
+  function settType(key: string, type: QuoteType) {
+    setKladder((f) => f.map((k) => (k.key === key ? { ...k, type } : k)));
+  }
+
+  function fjern(key: string) {
+    setKladder((f) => f.filter((k) => k.key !== key));
   }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (!file) return;
+    if (kladder.length === 0) return;
     setBusy(true);
     setError(null);
-    try {
-      const data = new FormData();
-      data.set("type", type);
-      data.set("file", file);
 
-      const res = await fetch("/api/reference-quotes", {
-        method: "POST",
-        body: data,
-      });
-      const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error ?? "Kunne ikke laste opp");
+    // Én om gangen: serveren henter ut tekst og tagger hver fil, og et titalls
+    // parallelle kall ville bare stått i kø hos oss i stedet for hos deg.
+    // Til gjengjeld ser du hvilken fil som er inne til enhver tid.
+    let feilet = 0;
+    for (const kladd of kladder) {
+      setKladder((f) =>
+        f.map((k) => (k.key === kladd.key ? { ...k, status: "laster" } : k)),
+      );
+      try {
+        const data = new FormData();
+        data.set("type", kladd.type);
+        data.set("file", kladd.file);
 
+        const res = await fetch("/api/reference-quotes", { method: "POST", body: data });
+        const payload = await res.json();
+        if (!res.ok) throw new Error(payload.error ?? "Kunne ikke laste opp");
+
+        // Ferdige rader forsvinner fra listen — det som står igjen, er det
+        // som gjenstår.
+        setKladder((f) => f.filter((k) => k.key !== kladd.key));
+      } catch (err) {
+        feilet++;
+        setKladder((f) =>
+          f.map((k) =>
+            k.key === kladd.key
+              ? {
+                  ...k,
+                  status: "feil",
+                  error: err instanceof Error ? err.message : String(err),
+                }
+              : k,
+          ),
+        );
+      }
+    }
+
+    setBusy(false);
+    router.refresh();
+
+    if (feilet === 0) {
       close();
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
+    } else {
+      setError(
+        feilet === 1
+          ? "Én fil kom ikke inn. Den står igjen under — prøv igjen eller fjern den."
+          : `${feilet} filer kom ikke inn. De står igjen under.`,
+      );
     }
   }
 
@@ -139,45 +203,105 @@ export function ReferenceFiles({ items }: { items: ReferenceQuote[] }) {
         )}
       </div>
 
-      <Modal open={open} onClose={close} title="Legg til nytt tilbud">
+      <Modal open={open} onClose={close} title="Legg til tilbud">
         <form onSubmit={submit}>
           {error && <div className="banner error">{error}</div>}
 
           <div className="field">
-            <span className="label">Fil</span>
-            <FileDrop
-              file={file}
-              onFile={setFile}
+            <span className="label">Filer</span>
+            <MultiFileDrop
+              onFiles={leggTil}
               extensions={["pdf", "doc", "docx"]}
               accept={ACCEPT}
-              label="Dra inn tilbudet, eller"
+              label="Dra inn tilbudene, eller"
               rejectHint="Vi tar imot PDF og Word."
               autoFocus
             />
           </div>
 
-          <label className="field" style={{ marginBottom: 0 }}>
-            <span className="label">Tilbudstype</span>
-            <select
-              className="select"
-              value={type}
-              onChange={(e) => setType(e.target.value as QuoteType)}
-            >
-              {TYPES.map((option) => (
-                <option key={option} value={option}>
-                  {QUOTE_TYPE_LABELS[option]}
-                </option>
-              ))}
-            </select>
-            <span className="hint">{QUOTE_TYPE_HELP[type]}</span>
-          </label>
+          {kladder.length > 0 && (
+            <div className="field" style={{ marginBottom: 0 }}>
+              <div className="row-between" style={{ marginBottom: 8 }}>
+                <span className="label" style={{ margin: 0 }}>
+                  {kladder.length} {kladder.length === 1 ? "fil" : "filer"} · velg
+                  type per fil
+                </span>
+                {kladder.length > 1 && (
+                  <button
+                    type="button"
+                    className="button ghost"
+                    disabled={busy}
+                    onClick={() =>
+                      setKladder((f) => f.map((k) => ({ ...k, type: f[0].type })))
+                    }
+                  >
+                    Bruk øverste type på alle
+                  </button>
+                )}
+              </div>
+
+              <div className="stack" style={{ gap: 6 }}>
+                {kladder.map((kladd) => (
+                  <div key={kladd.key}>
+                    <div className="file-row">
+                      <span className="drop-icon">▦</span>
+                      <span className="file-row-name">
+                        <strong>{kladd.file.name}</strong>
+                        <span className="tiny muted">
+                          {" "}
+                          · {Math.max(1, Math.round(kladd.file.size / 1024))} kB
+                        </span>
+                      </span>
+
+                      {kladd.status === "laster" ? (
+                        <span className="tiny muted">Laster opp…</span>
+                      ) : (
+                        <>
+                          <select
+                            className="select"
+                            style={{ width: 180 }}
+                            value={kladd.type}
+                            disabled={busy}
+                            onChange={(e) =>
+                              settType(kladd.key, e.target.value as QuoteType)
+                            }
+                          >
+                            {TYPES.map((option) => (
+                              <option key={option} value={option}>
+                                {QUOTE_TYPE_LABELS[option]}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            className="button ghost"
+                            disabled={busy}
+                            onClick={() => fjern(kladd.key)}
+                          >
+                            Fjern
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    {kladd.error && (
+                      <div className="tiny file-row-error">{kladd.error}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="modal-actions">
-            <button type="button" className="button secondary" onClick={close}>
+            <button type="button" className="button secondary" onClick={close} disabled={busy}>
               Avbryt
             </button>
-            <button className="button" type="submit" disabled={busy || !file}>
-              {busy ? "Laster opp…" : "Legg til"}
+            <button className="button" type="submit" disabled={busy || kladder.length === 0}>
+              {busy
+                ? "Laster opp…"
+                : kladder.length > 1
+                  ? `Legg til ${kladder.length} filer`
+                  : "Legg til"}
             </button>
           </div>
         </form>

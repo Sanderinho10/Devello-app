@@ -879,6 +879,33 @@ p {
   color: var(--text-tertiary);
 }
 
+/* Én valgt fil på vei inn, med typevalget sitt på samme linje. Roligere enn
+   slippsonen over: den inviterer, denne bare står der og venter. */
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+/* Navnet tar plassen som blir til overs, og kuttes heller enn å presse
+   typevalget ut av raden. */
+.file-row-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-row-error {
+  color: #c0392b;
+  padding: 2px 4px;
+}
+
 .drop-link {
   color: var(--accent);
   text-decoration: underline;
