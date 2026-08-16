@@ -81,7 +81,11 @@ export async function POST(
 
   try {
     const [{ data: company }, { data: brand }] = await Promise.all([
-      admin.from("companies").select("name").eq("id", session.companyId).single(),
+      admin
+        .from("companies")
+        .select("name, billing_address_line, billing_postal_code, billing_city")
+        .eq("id", session.companyId)
+        .single(),
       admin
         .from("company_brand")
         .select("*")
@@ -100,6 +104,11 @@ export async function POST(
         brand: brand ?? {},
         companyName: company!.name,
         logoSrc: await logoDataUri(admin, brand?.logo_path),
+        address: {
+          line: company!.billing_address_line,
+          postalCode: company!.billing_postal_code,
+          city: company!.billing_city,
+        },
       });
       pdf = await htmlToPdf(html);
 

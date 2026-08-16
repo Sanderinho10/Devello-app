@@ -38,8 +38,8 @@ export default async function InnstillingerPage({
         <div>
           <h1>Innstillinger</h1>
           <p className="page-subtitle">
-            Postkasse, merkevare og tone for tilbudsagenten. Selskap og
-            medlemmer ligger under Selskap.
+            Postkassen tilbudene svarer fra, og teksten agenten skriver.
+            Logo, farge og adresse ligger under Selskap.
           </p>
         </div>
       </div>

@@ -124,12 +124,10 @@ const html = renderQuoteHtml({
     primary_color: "#0a5c3a",
     contact_email: "post@starelektro.no",
     contact_phone: "57 82 10 40",
-    address_line: "Storgata 14",
-    postal_code: "6800",
-    city: "Førde",
     website: "starelektro.no",
     footer_note: "Org.nr 912 345 678 MVA · Alle priser er oppgitt eks. mva.",
   },
+  address: { line: "Storgata 14", postalCode: "6800", city: "Førde" },
 });
 
 const pdf = await htmlToPdf(html);

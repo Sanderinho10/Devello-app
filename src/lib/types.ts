@@ -76,8 +76,6 @@ export interface Invitation {
 }
 
 export interface ToneSettings {
-  /** "du" eller "de" — styrer tiltaleform i e-postteksten. */
-  formalitet?: "du" | "de";
   /** Målform for all kundevendt tekst: bokmål eller nynorsk. */
   maalform?: "nb" | "nn";
   signatur?: string;
@@ -97,9 +95,6 @@ export interface CompanyBrand {
   contact_name: string | null;
   contact_email: string | null;
   contact_phone: string | null;
-  address_line: string | null;
-  postal_code: string | null;
-  city: string | null;
   website: string | null;
   footer_note: string | null;
 }

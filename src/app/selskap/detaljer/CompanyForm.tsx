@@ -3,10 +3,20 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { normalizeOrgNr } from "@/lib/onboarding/orgnr";
+import { LogoUpload } from "@/components/LogoUpload";
 
+/**
+ * Alt som gjelder hele selskapet: firmaopplysninger, adresse, profilen som
+ * havner på tilbudene, og målformen agentene skriver på.
+ *
+ * Merkevaren lå tidligere under tilbudsagenten. Den hører hjemme her: logoen
+ * og fargen er selskapets, ikke ett produkts, og neste agent skal bruke den
+ * samme uten at noen må fylle den ut på nytt.
+ */
 export function CompanyForm({
   company,
   isAdmin,
+  harLogo,
 }: {
   company: {
     name: string;
@@ -14,8 +24,15 @@ export function CompanyForm({
     billing_address_line: string;
     billing_postal_code: string;
     billing_city: string;
+    maalform: string;
+    primary_color: string;
+    contact_name: string;
+    contact_email: string;
+    contact_phone: string;
+    website: string;
   };
   isAdmin: boolean;
+  harLogo: boolean;
 }) {
   const router = useRouter();
   const [form, setForm] = useState(company);
@@ -93,8 +110,11 @@ export function CompanyForm({
       <div className="card">
         <div className="card-header">
           <div>
-            <strong>Fakturaadresse</strong>
-            <div className="tiny muted">Hit sender vi fakturaen for Devello.</div>
+            <strong>Adresse</strong>
+            <div className="tiny muted">
+              Både fakturaadressen vår til dere, og avsenderadressen øverst i
+              tilbudene deres.
+            </div>
           </div>
         </div>
         <div className="card-pad">
@@ -125,6 +145,106 @@ export function CompanyForm({
                 disabled={!isAdmin}
                 value={form.billing_city}
                 onChange={(e) => set("billing_city", e.target.value)}
+              />
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <div>
+            <strong>Profil på tilbudene</strong>
+            <div className="tiny muted">
+              Logo, farge og kontaktinfo som blir lagt inn i Devellos PDF-mal.
+            </div>
+          </div>
+        </div>
+        <div className="card-pad">
+          <LogoUpload harLogo={harLogo} kanEndre={isAdmin} />
+
+          <div className="grid-2">
+            <label className="field">
+              <span className="label">Primærfarge</span>
+              <div className="row">
+                <input
+                  type="color"
+                  disabled={!isAdmin}
+                  value={form.primary_color}
+                  onChange={(e) => set("primary_color", e.target.value)}
+                  style={{
+                    width: 44,
+                    height: 38,
+                    padding: 2,
+                    border: "1px solid var(--border-strong)",
+                    borderRadius: 8,
+                    background: "var(--surface)",
+                  }}
+                />
+                <input
+                  className="input"
+                  disabled={!isAdmin}
+                  value={form.primary_color}
+                  onChange={(e) => set("primary_color", e.target.value)}
+                />
+              </div>
+            </label>
+            <label className="field">
+              <span className="label">Målform</span>
+              <select
+                className="select"
+                disabled={!isAdmin}
+                value={form.maalform}
+                onChange={(e) => set("maalform", e.target.value)}
+              >
+                <option value="nb">Bokmål</option>
+                <option value="nn">Nynorsk</option>
+              </select>
+              <span className="hint">
+                All tekst agentene skriver til kundene deres.
+              </span>
+            </label>
+          </div>
+
+          <div className="grid-2">
+            <label className="field">
+              <span className="label">Kontaktperson</span>
+              <input
+                className="input"
+                disabled={!isAdmin}
+                value={form.contact_name}
+                onChange={(e) => set("contact_name", e.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span className="label">Kontakt-e-post</span>
+              <input
+                className="input"
+                type="email"
+                disabled={!isAdmin}
+                value={form.contact_email}
+                onChange={(e) => set("contact_email", e.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="grid-2">
+            <label className="field" style={{ marginBottom: 0 }}>
+              <span className="label">Telefon</span>
+              <input
+                className="input"
+                disabled={!isAdmin}
+                value={form.contact_phone}
+                onChange={(e) => set("contact_phone", e.target.value)}
+              />
+            </label>
+            <label className="field" style={{ marginBottom: 0 }}>
+              <span className="label">Nettsted</span>
+              <input
+                className="input"
+                disabled={!isAdmin}
+                value={form.website}
+                onChange={(e) => set("website", e.target.value)}
               />
             </label>
           </div>

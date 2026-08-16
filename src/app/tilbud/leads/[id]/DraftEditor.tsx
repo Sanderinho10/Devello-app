@@ -41,11 +41,14 @@ export function DraftEditor({
   lead,
   draft,
   brand,
+  address,
   priceItems,
 }: {
   lead: Lead;
   draft: Draft;
   brand: Partial<CompanyBrand> | null;
+  /** Avsenderadressen, fra selskapet — samme kilde som PDF-en bruker. */
+  address: { line: string | null; postalCode: string | null; city: string | null };
   priceItems: PriceListItem[];
 }) {
   const router = useRouter();
@@ -407,9 +410,9 @@ export function DraftEditor({
               {brand?.contact_name ?? ""}
             </div>
             <div className="doc-sender">
-              {brand?.address_line && <div>{brand.address_line}</div>}
-              {(brand?.postal_code || brand?.city) && (
-                <div>{[brand.postal_code, brand.city].filter(Boolean).join(" ")}</div>
+              {address?.line && <div>{address.line}</div>}
+              {(address?.postalCode || address?.city) && (
+                <div>{[address.postalCode, address.city].filter(Boolean).join(" ")}</div>
               )}
               {brand?.contact_email && <div>{brand.contact_email}</div>}
               {brand?.contact_phone && <div>{brand.contact_phone}</div>}

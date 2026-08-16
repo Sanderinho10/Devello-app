@@ -1,47 +1,37 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
+import { mergeToneSettings } from "@/lib/company/tone";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
+/**
+ * Innstillingene som hører til tilbudsagenten alene.
+ *
+ * Merkevare, adresse og målform ligger under Selskap: de gjelder hele
+ * selskapet og skal ikke redigeres to steder. Her står bare det som former
+ * dette ene tilbudet — bunnteksten i PDF-en, signaturen og tilleggsinstruksen.
+ */
 export async function POST(request: NextRequest) {
   const session = await sessionOr401();
   if (session instanceof NextResponse) return session;
 
   try {
-    const body = await request.json();
+    const body = (await request.json()) as {
+      signatur?: string;
+      tillegg?: string;
+      footer_note?: string;
+    };
     const admin = supabaseAdmin();
 
-    // Navn og organisasjonsnummer eies av /api/company. Skrev vi dem her også,
-    // ville et lagre på agentsiden trukket tilbake en endring gjort under
-    // Selskap.
-    const { error: companyError } = await admin
-      .from("companies")
-      .update({
-        tone_settings: {
-          formalitet: body.formalitet,
-          maalform: body.maalform === "nn" ? "nn" : "nb",
-          signatur: body.signatur || undefined,
-          tillegg: body.tillegg || undefined,
-        },
-      })
-      .eq("id", session.companyId);
-    if (companyError) throw new Error(companyError.message);
+    // Slås sammen, ikke overskrives: målform redigeres under Selskap, og et
+    // lagre herfra skal ikke ta den med seg.
+    const { error: companyError } = await mergeToneSettings(admin, session.companyId, {
+      signatur: body.signatur || undefined,
+      tillegg: body.tillegg || undefined,
+    });
+    if (companyError) throw new Error(companyError);
 
     const { error: brandError } = await admin.from("company_brand").upsert(
-      {
-        company_id: session.companyId,
-        // logo_path settes ikke herfra — logoen lastes opp for seg selv i
-        // /api/brand/logo. Tas den med her, ville et lagret skjema uten
-        // filfeltet slettet den.
-        primary_color: body.primary_color || "#1d1d1f",
-        contact_name: body.contact_name || null,
-        contact_email: body.contact_email || null,
-        contact_phone: body.contact_phone || null,
-        address_line: body.address_line || null,
-        postal_code: body.postal_code || null,
-        city: body.city || null,
-        website: body.website || null,
-        footer_note: body.footer_note || null,
-      },
+      { company_id: session.companyId, footer_note: body.footer_note || null },
       { onConflict: "company_id" },
     );
     if (brandError) throw new Error(brandError.message);

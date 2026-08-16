@@ -1,15 +1,19 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { LogoUpload } from "./LogoUpload";
 import type { CompanyBrand, ToneSettings } from "@/lib/types";
 
 /**
- * Innstillinger som hører til tilbudsagenten: merkevaren på PDF-en og tonen i
- * e-posten. Selskapsnavn og organisasjonsnummer ligger under Selskap —
- * de hører ikke til én agent, og to skjemaer som eier samme felt vil før eller
- * siden overskrive hverandre.
+ * Innstillingene som hører til tilbudsagenten alene.
+ *
+ * Logo, farge, kontaktinfo, adresse og målform gjelder hele selskapet og
+ * ligger under Selskap → Detaljer. De sto en stund begge steder, og det er
+ * verre enn å ha dem ett vanskelig sted: to felt for samme opplysning spriker
+ * før eller siden, og da vet ingen hvilket av dem kunden faktisk ser.
+ *
+ * Igjen står det som former dette ene tilbudet.
  */
 export function SettingsForm({
   company,
@@ -20,18 +24,8 @@ export function SettingsForm({
 }) {
   const router = useRouter();
   const [form, setForm] = useState({
-    formalitet: company.tone_settings.formalitet ?? "du",
-    maalform: company.tone_settings.maalform ?? "nb",
     signatur: company.tone_settings.signatur ?? "",
     tillegg: company.tone_settings.tillegg ?? "",
-    primary_color: brand?.primary_color ?? "#1d1d1f",
-    contact_name: brand?.contact_name ?? "",
-    contact_email: brand?.contact_email ?? "",
-    contact_phone: brand?.contact_phone ?? "",
-    address_line: brand?.address_line ?? "",
-    postal_code: brand?.postal_code ?? "",
-    city: brand?.city ?? "",
-    website: brand?.website ?? "",
     footer_note: brand?.footer_note ?? "",
   });
   const [busy, setBusy] = useState(false);
@@ -69,110 +63,26 @@ export function SettingsForm({
       {error && <div className="banner error">{error}</div>}
       {saved && <div className="banner success">Lagret.</div>}
 
-      {/* Merkevare — dette blir injisert i Devellos PDF-mal */}
       <div className="card">
         <div className="card-header">
           <div>
-            <strong>Merkevare</strong>
+            <strong>Tilbudet</strong>
             <div className="tiny muted">
-              Logo, farge og kontaktinfo blir lagt inn i Devellos PDF-mal.
+              Signaturen i e-posten og bunnteksten i PDF-en.
             </div>
           </div>
         </div>
         <div className="card-pad">
-          <LogoUpload harLogo={Boolean(brand?.logo_path)} />
-
-          <div className="grid-2">
-            <label className="field">
-              <span className="label">Primærfarge</span>
-              <div className="row">
-                <input
-                  type="color"
-                  value={form.primary_color}
-                  onChange={(e) => set("primary_color", e.target.value)}
-                  style={{
-                    width: 44,
-                    height: 38,
-                    padding: 2,
-                    border: "1px solid var(--border-strong)",
-                    borderRadius: 8,
-                    background: "var(--surface)",
-                  }}
-                />
-                <input
-                  className="input"
-                  value={form.primary_color}
-                  onChange={(e) => set("primary_color", e.target.value)}
-                />
-              </div>
-            </label>
-          </div>
-
-          <div className="grid-2">
-            <label className="field">
-              <span className="label">Kontaktperson</span>
-              <input
-                className="input"
-                value={form.contact_name}
-                onChange={(e) => set("contact_name", e.target.value)}
-              />
-            </label>
-            <label className="field">
-              <span className="label">Kontakt-e-post</span>
-              <input
-                className="input"
-                value={form.contact_email}
-                onChange={(e) => set("contact_email", e.target.value)}
-              />
-            </label>
-          </div>
-
-          <div className="grid-2">
-            <label className="field">
-              <span className="label">Telefon</span>
-              <input
-                className="input"
-                value={form.contact_phone}
-                onChange={(e) => set("contact_phone", e.target.value)}
-              />
-            </label>
-            <label className="field">
-              <span className="label">Nettsted</span>
-              <input
-                className="input"
-                value={form.website}
-                onChange={(e) => set("website", e.target.value)}
-              />
-            </label>
-          </div>
-
           <label className="field">
-            <span className="label">Adresse</span>
-            <input
-              className="input"
-              value={form.address_line}
-              onChange={(e) => set("address_line", e.target.value)}
+            <span className="label">Signatur</span>
+            <textarea
+              className="textarea"
+              style={{ minHeight: 80 }}
+              value={form.signatur}
+              onChange={(e) => set("signatur", e.target.value)}
             />
+            <span className="hint">Avslutningen på e-postene agenten skriver.</span>
           </label>
-
-          <div className="grid-2">
-            <label className="field">
-              <span className="label">Postnummer</span>
-              <input
-                className="input"
-                value={form.postal_code}
-                onChange={(e) => set("postal_code", e.target.value)}
-              />
-            </label>
-            <label className="field">
-              <span className="label">Poststed</span>
-              <input
-                className="input"
-                value={form.city}
-                onChange={(e) => set("city", e.target.value)}
-              />
-            </label>
-          </div>
 
           <label className="field" style={{ marginBottom: 0 }}>
             <span className="label">Bunntekst i PDF</span>
@@ -183,70 +93,48 @@ export function SettingsForm({
               onChange={(e) => set("footer_note", e.target.value)}
               placeholder="Org.nr 999 999 999 MVA · Kontonr 1234.56.78901"
             />
+            <span className="hint">Står nederst på hver side i tilbuds-PDF-en.</span>
           </label>
         </div>
       </div>
 
-      {/* Tone — styrer hvordan agenten formulerer e-postteksten */}
       <div className="card">
         <div className="card-header">
           <div>
-            <strong>Tone</strong>
+            <strong>Tilleggsinstruks</strong>
             <div className="tiny muted">
-              Styrer hvordan agenten formulerer e-postteksten.
+              Går rett inn i agentens kontekst, ordrett.
             </div>
           </div>
         </div>
         <div className="card-pad">
-          <div className="grid-2">
-            <label className="field">
-              <span className="label">Tiltaleform</span>
-              <select
-                className="select"
-                value={form.formalitet}
-                onChange={(e) => set("formalitet", e.target.value)}
-              >
-                <option value="du">Du</option>
-                <option value="de">De</option>
-              </select>
-            </label>
-            <label className="field">
-              <span className="label">Målform</span>
-              <select
-                className="select"
-                value={form.maalform}
-                onChange={(e) => set("maalform", e.target.value)}
-              >
-                <option value="nb">Bokmål</option>
-                <option value="nn">Nynorsk</option>
-              </select>
-              <span className="hint">
-                All tekst agenten skriver til kundene deres — tilbud og e-post.
-              </span>
-            </label>
-          </div>
-
-          <label className="field">
-            <span className="label">Signatur</span>
-            <textarea
-              className="textarea"
-              style={{ minHeight: 80 }}
-              value={form.signatur}
-              onChange={(e) => set("signatur", e.target.value)}
-              placeholder={"Med vennlig hilsen\nOle Nordmann\nStar Elektro AS"}
-            />
-          </label>
-
           <label className="field" style={{ marginBottom: 0 }}>
             <span className="label">Tilleggsinstruks (valgfritt)</span>
             <textarea
               className="textarea"
-              style={{ minHeight: 70 }}
+              style={{ minHeight: 90 }}
               value={form.tillegg}
               onChange={(e) => set("tillegg", e.target.value)}
               placeholder="F.eks. «Nevn alltid at vi er sertifiserte for anlegg over 400 V.»"
             />
+            <span className="hint">
+              Skriv det slik du ville sagt det til en ny medarbeider. Alt du
+              skriver her følger med på hvert eneste tilbud.
+            </span>
           </label>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-pad">
+          <div className="tiny muted">
+            Logo, farge, kontaktinfo, adresse og målform gjelder hele selskapet
+            og ligger under{" "}
+            <Link href="/selskap/detaljer" className="drop-link">
+              Selskap → Detaljer
+            </Link>
+            .
+          </div>
         </div>
       </div>
 

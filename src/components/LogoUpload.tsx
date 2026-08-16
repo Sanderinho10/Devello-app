@@ -13,11 +13,19 @@ const ENDELSER = /\.(png|jpe?g|webp|svg)$/i;
  * en fil kan ikke ligge og vente på at noen trykker «Lagre» sammen med
  * tekstfeltene. Den lastes opp med én gang og vises som den blir seende ut.
  */
-export function LogoUpload({ harLogo }: { harLogo: boolean }) {
+export function LogoUpload({
+  harLogo,
+  kanEndre = true,
+}: {
+  harLogo: boolean;
+  /** Under Selskap er det bare administratorer som får røre profilen. */
+  kanEndre?: boolean;
+}) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const [busy, setBusy] = useState(false);
+  const laast = busy || !kanEndre;
   const [error, setError] = useState<string | null>(null);
   // Endres etter opplasting, så nettleseren henter det nye bildet i stedet
   // for å vise det gamle fra cachen.
@@ -77,12 +85,12 @@ export function LogoUpload({ harLogo }: { harLogo: boolean }) {
           <button
             type="button"
             className="button ghost"
-            disabled={busy}
+            disabled={laast}
             onClick={() => inputRef.current?.click()}
           >
             Bytt
           </button>
-          <button type="button" className="button ghost" disabled={busy} onClick={fjern}>
+          <button type="button" className="button ghost" disabled={laast} onClick={fjern}>
             Fjern
           </button>
         </div>
@@ -99,9 +107,9 @@ export function LogoUpload({ harLogo }: { harLogo: boolean }) {
             setOver(false);
             lastOpp(event.dataTransfer.files[0]);
           }}
-          onClick={() => inputRef.current?.click()}
+          onClick={() => !laast && inputRef.current?.click()}
           onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
+            if (!laast && (event.key === "Enter" || event.key === " ")) {
               event.preventDefault();
               inputRef.current?.click();
             }

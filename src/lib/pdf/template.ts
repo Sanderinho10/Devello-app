@@ -20,8 +20,10 @@ export function renderQuoteHtml(input: {
   companyName: string;
   /** Logoen som data-URI. Se lib/pdf/logo.ts for hvorfor den ikke er en lenke. */
   logoSrc?: string | null;
+  /** Avsenderadressen, hentet fra selskapet. */
+  address?: { line: string | null; postalCode: string | null; city: string | null };
 }): string {
-  const { document: doc, brand, companyName, quoteType, logoSrc } = input;
+  const { document: doc, brand, companyName, quoteType, logoSrc, address } = input;
   const totals = computeTotals(doc);
   const accent = brand.primary_color || "#1d1d1f";
 
@@ -75,9 +77,11 @@ export function renderQuoteHtml(input: {
     .map((line) => `<div>${escapeHtml(String(line))}</div>`)
     .join("");
 
+  // Adressen eies av selskapet, ikke av merkevaren — den skal være den samme
+  // enten den står på en faktura fra oss eller øverst i et tilbud fra dem.
   const addressLines = [
-    brand.address_line,
-    [brand.postal_code, brand.city].filter(Boolean).join(" "),
+    address?.line,
+    [address?.postalCode, address?.city].filter(Boolean).join(" "),
   ]
     .filter(Boolean)
     .map((line) => `<div>${escapeHtml(String(line))}</div>`)

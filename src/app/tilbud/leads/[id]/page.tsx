@@ -36,12 +36,17 @@ export default async function LeadPage({
   // Prisfilen følger med slik at brukeren kan legge til poster i utkastet.
   // Nye poster må komme herfra — det er samme regel som gjelder for agenten, og
   // bare fra aktive lister, slik at en deaktivert liste ikke kan snike seg inn.
-  const [{ data: brand }, { data: activeLists }] = await Promise.all([
+  const [{ data: brand }, { data: company }, { data: activeLists }] = await Promise.all([
     supabase
       .from("company_brand")
       .select("*")
       .eq("company_id", lead.company_id)
       .maybeSingle(),
+    supabase
+      .from("companies")
+      .select("billing_address_line, billing_postal_code, billing_city")
+      .eq("id", lead.company_id)
+      .single(),
     supabase
       .from("price_lists")
       .select("id")
@@ -82,6 +87,11 @@ export default async function LeadPage({
             lead={lead as Lead}
             draft={draft as Draft}
             brand={brand ?? null}
+            address={{
+              line: company?.billing_address_line ?? null,
+              postalCode: company?.billing_postal_code ?? null,
+              city: company?.billing_city ?? null,
+            }}
             priceItems={(priceItems ?? []) as PriceListItem[]}
           />
 
