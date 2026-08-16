@@ -1,126 +1,238 @@
-# Produksjonsoppsett — app.devello.no
+# Produksjonsoppsett — app.devello.no, klikk for klikk
 
 Målet: plattformen kjører offentlig på `https://app.devello.no`, og
 «Logg inn»-knappen på devello.no peker på `https://app.devello.no/login`.
 
-Appen lager PDF-er med en ekte Chromium (playwright-core). Det krever en host
-som kjører et vanlig Docker-bilde — ikke serverless. Anbefalingen er
-**Railway**: koblet til GitHub, bygger `Dockerfile` automatisk, deployer på
-hver push, og eget domene er to klikk. (Render.com fungerer helt likt om du
-heller vil dit.)
+Appen lager PDF-er med en ekte Chromium-nettleser på serveren. Det krever en
+host som kjører et vanlig Docker-bilde — ikke serverless. Vi bruker
+**Railway**: den kobles til GitHub, bygger `Dockerfile` i repoet automatisk,
+og deployer på nytt hver gang det pushes.
 
-Regn med ca. 5–10 USD/mnd for én app i denne størrelsen.
+**Kostnad:** Railway Hobby-plan er 5 USD/mnd (inkluderer 5 USD forbruk — denne
+appen holder seg normalt innenfor eller like over). Du må legge inn kort.
 
-## Steg 1 — Railway-konto og prosjekt
+## Det du trenger før du starter
 
-1. Gå til [railway.com](https://railway.com) → **Login** → logg inn med
-   GitHub-kontoen som eier `Sanderinho10/Devello-app`.
-2. **New Project** → **Deploy from GitHub repo** → velg `Devello-app`.
-   (Første gang: godkjenn at Railway får tilgang til repoet.)
-3. Railway finner `Dockerfile` selv og begynner å bygge. Første bygg tar
-   noen minutter (Chromium lastes ned). **Bygget vil feile på at appen
-   mangler miljøvariabler — det er ventet. Neste steg fikser det.**
-4. Under **Settings → Source** velger du hvilken gren som deployes. Sett den
-   til grenen dere faktisk jobber mot (i dag
-   `claude/tilbudsagent-produktbyggspec-v2-xj6tvj`, senere `main` når dere
-   merger). Hver push til den grenen gir automatisk ny deploy.
+- GitHub-brukeren som eier `Sanderinho10/Devello-app` (brukernavn + passord)
+- `.env.local`-fila i prosjektmappa på PC-en din (verdiene skal limes inn)
+- Innlogging hos domeneleverandøren der devello.no er registrert
+  (Domeneshop, one.com e.l.)
+- Innlogging på [portal.azure.com](https://portal.azure.com) og
+  [supabase.com/dashboard](https://supabase.com/dashboard)
+- Et betalingskort til Railway
 
-## Steg 2 — miljøvariabler
+Regn med 30–45 minutter totalt, pluss DNS-venting.
 
-I Railway: klikk på tjenesten → **Variables** → **Raw Editor**, og lim inn
-alle på én gang. Verdiene er de samme som i `.env.local`, med disse
-unntakene (markert ⚠️):
+---
 
-| Variabel | Verdi i produksjon |
-| --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | som lokalt |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | som lokalt |
-| `SUPABASE_SERVICE_ROLE_KEY` | som lokalt |
-| `ANTHROPIC_API_KEY` | som lokalt (vurder egen prod-nøkkel med forbruksvarsel) |
-| `MS_CLIENT_ID` | som lokalt |
-| `MS_CLIENT_SECRET` | som lokalt |
-| `MS_TENANT` | `organizations` |
-| ⚠️ `MS_REDIRECT_URI` | `https://app.devello.no/api/auth/microsoft/callback` |
-| ⚠️ `NEXT_PUBLIC_APP_URL` | `https://app.devello.no` |
-| ⚠️ `AUTH_REQUIRE_EMAIL_CONFIRMATION` | `true` — men bare NÅR SMTP er satt opp (se steg 6) |
+## Steg 1 — opprett Railway-konto
 
-Etter lagring: **Deploy** på nytt (Railway spør som regel selv).
+1. Gå til **[railway.com](https://railway.com)**.
+2. Klikk **Login** øverst til høyre.
+3. Velg **Login with GitHub**.
+4. GitHub spør om Railway skal få tilgang → klikk **Authorize Railway**.
+5. Du lander på et tomt «dashboard» — en mørk side med en
+   **New Project**-knapp. Kontoen er nå opprettet.
+6. Railway vil før eller siden be deg velge plan. Velg **Hobby**
+   (5 USD/mnd) og legg inn kort når den spør. Uten plan får du bare en liten
+   engangs prøvekvote, og appen stopper når den er brukt opp.
 
-## Steg 3 — domenet
+## Steg 2 — koble til repoet og start første bygg
 
-1. I Railway: tjenesten → **Settings → Networking** → **Custom Domain** →
-   skriv `app.devello.no`. Railway viser da en CNAME-verdi, typisk noe som
-   `xxxx.up.railway.app`.
-2. Hos domeneleverandøren din for devello.no (Domeneshop e.l.): legg til en
-   DNS-post:
-   - **Type:** CNAME
-   - **Navn/host:** `app`
-   - **Peker til:** CNAME-verdien fra Railway
-3. Vent til Railway viser en grønn hake på domenet (minutter til en time —
-   DNS bruker tid). HTTPS-sertifikat ordner Railway automatisk.
+1. Klikk **New Project** (eller **New** øverst til høyre → **GitHub Repo**).
+2. Velg **Deploy from GitHub repo**.
+3. Første gang: Railway ber om tilgang til GitHub-repoene dine. Klikk
+   **Configure GitHub App**, velg kontoen **Sanderinho10**, og under
+   «Repository access» velg **Only select repositories** → **Devello-app** →
+   **Install & Authorize**.
+4. Tilbake i Railway: klikk på **Devello-app** i lista.
+5. Railway lager et prosjekt med én «service» (en boks midt på skjermen som
+   heter noe med Devello-app) og begynner å bygge med en gang.
 
-## Steg 4 — Azure: ny redirect-URI
+**Forvent at dette første forsøket feiler eller krasjer ved oppstart** —
+appen mangler alle miljøvariablene ennå. Det er helt som det skal. Steg 4
+fikser det.
 
-Innloggingen mot Microsoft godtar bare adresser som er registrert på forhånd.
+## Steg 3 — velg riktig gren
 
-1. [portal.azure.com](https://portal.azure.com) → **App registrations** →
-   appen din → **Authentication**.
-2. Under **Web → Redirect URIs**: **Add URI** →
-   `https://app.devello.no/api/auth/microsoft/callback`
-3. **Save.** Behold localhost-URI-en — den brukes fortsatt til utvikling.
+Railway deployer fra én gren, og den gjetter `main`. Koden ligger i dag på
+en annen gren, så dette må settes:
 
-## Steg 5 — Supabase: produksjonsadressen
+1. Klikk på service-boksen → fanen **Settings**.
+2. Finn seksjonen **Source** (øverst). Der står repoet og en **Branch**.
+3. Klikk på grennavnet og velg
+   `claude/tilbudsagent-produktbyggspec-v2-xj6tvj`.
+4. Sjekk samtidig, i seksjonen **Build** litt lenger ned, at «Builder» viser
+   **Dockerfile** — Railway skal ha funnet den selv. Står det «Nixpacks»,
+   klikk og endre til Dockerfile.
 
-Supabase må vite hvilken adresse den skal lenke tilbake til i e-poster
-(bekreftelse, passord-reset).
+Fra nå av: hver push til den grenen gir automatisk en ny deploy.
 
-1. [supabase.com/dashboard](https://supabase.com/dashboard) → prosjektet
-   **Devello database** → **Authentication → URL Configuration**.
-2. **Site URL:** `https://app.devello.no`
-3. **Redirect URLs:** legg til `https://app.devello.no/**` og behold
-   `http://localhost:3000/**` for utvikling.
+> Når dere senere merger til `main`, bytt Branch tilbake hit til `main`.
 
-## Steg 6 — SMTP før ekte kunder
+## Steg 4 — lim inn miljøvariablene
 
-Uten egen SMTP er Supabase sin innebygde e-post så ratebegrenset at kunder
-blir stengt ute av verifiserings-e-posten. Oppskriften med Resend står i
-[smtp-oppsett.md](smtp-oppsett.md). Når den er gjort:
+Dette er de samme verdiene som i `.env.local` på PC-en din, med tre unntak.
 
-1. Sett `AUTH_REQUIRE_EMAIL_CONFIRMATION=true` i Railway-variablene.
-2. Slå på **Confirm email** i Supabase → Authentication → Sign In / Up.
+1. Åpne fila lokalt: start PowerShell i prosjektmappa og kjør
 
-## Steg 7 — knappen på devello.no
+   ```powershell
+   notepad .env.local
+   ```
 
-Når domenet svarer, er knappen bare en lenke:
+2. I Railway: klikk på service-boksen → fanen **Variables**.
+3. Klikk **Raw Editor** (knapp oppe til høyre i variabellista, kan ligge bak
+   `{}`-ikonet eller ⋮-menyen).
+4. Kopier **hele innholdet** i `.env.local` fra Notepad og lim inn.
+5. Endre så disse tre linjene i Raw Editor før du lagrer:
+
+   ```
+   MS_REDIRECT_URI=https://app.devello.no/api/auth/microsoft/callback
+   NEXT_PUBLIC_APP_URL=https://app.devello.no
+   ```
+
+   og la `AUTH_REQUIRE_EMAIL_CONFIRMATION=false` stå inntil SMTP er på plass
+   (steg 9).
+6. Klikk **Update Variables** / **Save**.
+7. Det dukker opp et banner om at endringene krever ny deploy — klikk
+   **Deploy** i banneret.
+
+## Steg 5 — se bygget bli grønt
+
+1. Klikk på service-boksen → fanen **Deployments**.
+2. Øverst ligger den nyeste deployen. Klikk på den → **View Logs**.
+3. **Build Logs** viser Docker-byggingen. Første gang tar det 5–10 minutter —
+   det meste er nedlasting av Chromium. Det er normalt.
+4. Når statusen går til **Active** (grønn), kjører appen.
+   **Deploy Logs** skal da vise noe à la `▲ Next.js` og `Ready in …`.
+
+Feiler bygget: les siste linjene i Build Logs. Feiler det på
+`npm run build`, ville samme kommando feilet lokalt — fiks lokalt, push, og
+Railway prøver igjen selv.
+
+## Steg 6 — test på Railway-adressen før domenet
+
+Railway kan gi appen en midlertidig adresse, så vi vet at alt virker før vi
+rører DNS:
+
+1. Service-boksen → **Settings** → seksjonen **Networking** (også kalt
+   Public Networking).
+2. Klikk **Generate Domain**. Blir du spurt om port: velg **3000**.
+3. Du får en adresse som `devello-app-production-xxxx.up.railway.app`.
+   Åpne den i nettleseren.
+4. Du skal se innloggingssiden til Devello. Logg inn med din vanlige bruker
+   og se at leads-siden laster.
+
+> «Koble til Outlook» virker IKKE herfra ennå — Microsoft godtar bare
+> adresser som er registrert, og vi registrerer app.devello.no i steg 8.
+> Alt annet (leads, generering, PDF) kan testes nå.
+
+## Steg 7 — pek app.devello.no på Railway
+
+Først i Railway:
+
+1. Samme sted som i steg 6 (**Settings → Networking**): klikk
+   **Custom Domain**.
+2. Skriv `app.devello.no` og bekreft.
+3. Railway viser nå en verdi domenet skal peke på — en CNAME-verdi som
+   ligner `xxxx.up.railway.app`. **Kopier den.** La fanen stå åpen.
+
+Så hos domeneleverandøren (der devello.no er registrert):
+
+4. Logg inn hos leverandøren. Hos **Domeneshop**: «Mitt Domeneshop» →
+   **Domener** → klikk **devello.no** → **DNS-innstillinger**. (Andre
+   leverandører: let etter «DNS», «DNS-innstillinger» eller «Avansert DNS»
+   på domenet.)
+5. Legg til en ny post:
+   - **Host/Navn/Subdomene:** `app`
+   - **Type:** `CNAME`
+   - **Verdi/Peker til:** verdien du kopierte fra Railway
+   - **TTL:** la stå som foreslått
+6. Lagre.
+7. Tilbake i Railway-fanen: ved siden av app.devello.no står en status.
+   Den går fra venting til en **grønn hake** når DNS-en har spredd seg —
+   alt fra minutter til en times tid. HTTPS-sertifikatet ordner Railway
+   automatisk samtidig.
+8. Når haken er grønn: åpne `https://app.devello.no` — innloggingssiden
+   skal laste med hengelås i adressefeltet.
+
+## Steg 8 — Azure: godkjenn den nye adressen
+
+Microsoft-innloggingen (Koble til Outlook) godtar bare adresser som er
+registrert på appregistreringen på forhånd.
+
+1. Gå til [portal.azure.com](https://portal.azure.com) og logg inn som da
+   vi satte opp appen.
+2. Søk øverst på **App registrations** og åpne den.
+3. Klikk på appen din i lista (den vi registrerte for Devello).
+4. I menyen til venstre: **Authentication**.
+5. Under **Web → Redirect URIs** ser du localhost-adressen fra før. Klikk
+   **Add URI** og lim inn:
+
+   ```
+   https://app.devello.no/api/auth/microsoft/callback
+   ```
+
+6. Klikk **Save** nederst.
+7. **Ikke slett** localhost-linja — den brukes fortsatt når dere utvikler
+   lokalt.
+
+## Steg 9 — Supabase: fortell den hvor appen bor
+
+Supabase lager lenkene i e-postene sine (bekreftelse, passord-reset) ut fra
+en «Site URL». Står den på localhost, peker kundenes e-postlenker på
+localhost.
+
+1. Gå til [supabase.com/dashboard](https://supabase.com/dashboard) → åpne
+   prosjektet **Devello database**.
+2. I menyen til venstre: **Authentication**.
+3. Under Configuration: **URL Configuration**.
+4. **Site URL:** bytt til `https://app.devello.no`
+5. Under **Redirect URLs**: klikk **Add URL** og legg til
+   `https://app.devello.no/**` — og legg også til
+   `http://localhost:3000/**` hvis den ikke står der, så lokal utvikling
+   fortsatt virker.
+6. Klikk **Save**.
+
+**Før ekte kunder registrerer seg:** sett opp SMTP med Resend etter
+[smtp-oppsett.md](smtp-oppsett.md). Når det er gjort: sett
+`AUTH_REQUIRE_EMAIL_CONFIRMATION=true` i Railway-variablene (steg 4-måten)
+og slå på **Confirm email** i Supabase → Authentication → Sign In / Up.
+
+## Steg 10 — knappen på devello.no
+
+Knappen er bare en lenke:
 
 ```html
 <a href="https://app.devello.no/login">Logg inn</a>
 ```
 
-Registrering for nye kunder ligger på `https://app.devello.no/registrer`
-om du vil ha en «Prøv gratis»-knapp også.
+Vil du ha en «Prøv gratis»-knapp også, peker den på
+`https://app.devello.no/registrer`.
 
-## Sjekkliste før første kunde slipper til
+---
 
-- [ ] `https://app.devello.no/login` laster med hengelås (HTTPS)
+## Sjekkliste før Star Elektro slipper til
+
+Gå gjennom denne på `https://app.devello.no` — ikke på localhost:
+
+- [ ] Innloggingssiden laster med hengelås (HTTPS)
 - [ ] Logg inn med din egen bruker virker
-- [ ] «Koble til Outlook» fullfører (beviser at Azure-URI-en stemmer)
-- [ ] Generer et tilbud på en manuell henvendelse
-- [ ] «Forhåndsvis PDF» virker (beviser at Chromium er med i bildet)
-- [ ] Registrer et testfirma via /registrer og slett det etterpå
-- [ ] SMTP er på og `AUTH_REQUIRE_EMAIL_CONFIRMATION=true`
-- [ ] Prisene i `src/lib/billing/plans.ts` og kickback-prosenten er de reelle,
-      ikke plassholderne
+- [ ] «Koble til Outlook» fullfører uten feilside (beviser steg 8)
+- [ ] Lag en manuell henvendelse og generer et tilbud
+- [ ] «Forhåndsvis PDF» åpner en PDF (beviser at Chromium er med i bildet)
+- [ ] Registrer et testfirma via `/registrer`, logg inn, slett det etterpå
+- [ ] SMTP er satt opp og `AUTH_REQUIRE_EMAIL_CONFIRMATION=true`
+- [ ] Prisene i `src/lib/billing/plans.ts` og kickback-prosenten i databasen
+      er de reelle, ikke plassholderne
 
 ## Når noe er galt
 
-- **Bygget feiler i Railway:** åpne bygglogg — feiler det på `npm run build`,
-  vil samme kommando feile lokalt også. Fiks lokalt først.
-- **«Fant ingen Chromium»** i PDF-forhåndsvisning: bildet er bygget uten
-  `npx playwright-core install`-steget — sjekk at Railway faktisk bruker
-  `Dockerfile` (Settings → Build) og ikke gjettet Nixpacks.
-- **Microsoft-innlogging hopper til feilside:** redirect-URI-en i Azure
-  matcher ikke `MS_REDIRECT_URI` tegn for tegn. Begge skal være
-  `https://app.devello.no/api/auth/microsoft/callback`.
-- **E-postlenker peker på localhost:** Site URL i Supabase (steg 5) er ikke
-  satt.
+| Symptom | Årsak og fiks |
+| --- | --- |
+| Bygget feiler i Railway | Åpne Build Logs. Feiler `npm run build`, feiler den lokalt også — fiks lokalt og push |
+| «Fant ingen Chromium» ved PDF | Railway bygger ikke med Dockerfile — Settings → Build → sett Builder til Dockerfile |
+| Microsoft-innlogging gir feilside | Redirect-URI i Azure matcher ikke tegn for tegn — begge skal være `https://app.devello.no/api/auth/microsoft/callback` |
+| E-postlenker peker på localhost | Site URL i Supabase (steg 9) er ikke lagret |
+| app.devello.no svarer ikke etter en time | Sjekk DNS-posten: host skal være `app` (ikke `app.devello.no`) og type CNAME, verdien uten `https://` foran |
+| Appen stopper etter noen dager | Prøvekvoten er brukt opp — kontoen mangler Hobby-plan/kort (steg 1) |
