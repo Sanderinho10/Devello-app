@@ -36,6 +36,10 @@ Er du ny på prosjektet, start med [docs/utvikleroppsett.md](docs/utvikleroppset
 — den forklarer hvilke tilganger du trenger og hvordan de gis. Under står de
 tekniske stegene.
 
+Skal du legge appen ut offentlig (app.devello.no), står hele oppskriften i
+[docs/produksjonsoppsett.md](docs/produksjonsoppsett.md) — hosting, domene,
+Azure-redirect og sjekklisten før første kunde.
+
 ### 1. Avhengigheter
 
 ```sh

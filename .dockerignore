@@ -1,0 +1,14 @@
+# Holder bildet lite og hemmeligheter ute.
+node_modules
+.next
+.git
+.env*
+tmp
+tsconfig.tsbuildinfo
+
+# Referansemateriale og designfiler — ikke del av kjørende app.
+# (agent/ SKAL med: motoren leser agent/*.md ved kjøring.)
+devello-agent
+design
+Agentgap_og_referanseliste.md
+referanseliste.patch
