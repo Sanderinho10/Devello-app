@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { LogoUpload } from "./LogoUpload";
 import type { CompanyBrand, ToneSettings } from "@/lib/types";
 
 /**
@@ -23,7 +24,6 @@ export function SettingsForm({
     maalform: company.tone_settings.maalform ?? "nb",
     signatur: company.tone_settings.signatur ?? "",
     tillegg: company.tone_settings.tillegg ?? "",
-    logo_url: brand?.logo_url ?? "",
     primary_color: brand?.primary_color ?? "#1d1d1f",
     contact_name: brand?.contact_name ?? "",
     contact_email: brand?.contact_email ?? "",
@@ -80,16 +80,9 @@ export function SettingsForm({
           </div>
         </div>
         <div className="card-pad">
+          <LogoUpload harLogo={Boolean(brand?.logo_path)} />
+
           <div className="grid-2">
-            <label className="field">
-              <span className="label">Logo-URL</span>
-              <input
-                className="input"
-                value={form.logo_url}
-                onChange={(e) => set("logo_url", e.target.value)}
-                placeholder="https://…/logo.png"
-              />
-            </label>
             <label className="field">
               <span className="label">Primærfarge</span>
               <div className="row">

@@ -29,7 +29,9 @@ export async function POST(request: NextRequest) {
     const { error: brandError } = await admin.from("company_brand").upsert(
       {
         company_id: session.companyId,
-        logo_url: body.logo_url || null,
+        // logo_path settes ikke herfra — logoen lastes opp for seg selv i
+        // /api/brand/logo. Tas den med her, ville et lagret skjema uten
+        // filfeltet slettet den.
         primary_color: body.primary_color || "#1d1d1f",
         contact_name: body.contact_name || null,
         contact_email: body.contact_email || null,

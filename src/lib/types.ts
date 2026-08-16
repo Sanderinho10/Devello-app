@@ -91,7 +91,7 @@ export const MAALFORM_LABELS: Record<"nb" | "nn", string> = {
 
 export interface CompanyBrand {
   company_id: string;
-  logo_url: string | null;
+  logo_path: string | null;
   primary_color: string;
   accent_color: string | null;
   contact_name: string | null;

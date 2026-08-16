@@ -18,8 +18,10 @@ export function renderQuoteHtml(input: {
   quoteType: QuoteType;
   brand: Partial<CompanyBrand>;
   companyName: string;
+  /** Logoen som data-URI. Se lib/pdf/logo.ts for hvorfor den ikke er en lenke. */
+  logoSrc?: string | null;
 }): string {
-  const { document: doc, brand, companyName, quoteType } = input;
+  const { document: doc, brand, companyName, quoteType, logoSrc } = input;
   const totals = computeTotals(doc);
   const accent = brand.primary_color || "#1d1d1f";
 
@@ -181,13 +183,13 @@ export function renderQuoteHtml(input: {
   <header>
     <div>
       ${
-        brand.logo_url
-          ? `<img class="logo" src="${escapeAttr(brand.logo_url)}" alt="${escapeAttr(companyName)}">`
+        logoSrc
+          ? `<img class="logo" src="${escapeAttr(logoSrc)}" alt="${escapeAttr(companyName)}">`
           : `<div class="sender-name">${escapeHtml(companyName)}</div>`
       }
     </div>
     <div class="sender">
-      ${brand.logo_url ? `<div class="sender-name">${escapeHtml(companyName)}</div>` : ""}
+      ${logoSrc ? `<div class="sender-name">${escapeHtml(companyName)}</div>` : ""}
       ${addressLines}
       ${contactLines}
     </div>

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { attachPdf, createDraft } from "@/lib/graph/drafts";
 import { accessTokenFor } from "@/lib/graph/oauth";
 import { htmlToPdf } from "@/lib/pdf/render";
+import { logoDataUri } from "@/lib/pdf/logo";
 import { renderQuoteHtml } from "@/lib/pdf/template";
 import { diffSnapshots, logDraftVersion } from "@/lib/drafts/versions";
 import { saveQuoteReference } from "@/lib/referanser";
@@ -98,6 +99,7 @@ export async function POST(
         quoteType: payload.quote_type,
         brand: brand ?? {},
         companyName: company!.name,
+        logoSrc: await logoDataUri(admin, brand?.logo_path),
       });
       pdf = await htmlToPdf(html);
 

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { htmlToPdf } from "@/lib/pdf/render";
+import { logoDataUri } from "@/lib/pdf/logo";
 import { renderQuoteHtml } from "@/lib/pdf/template";
 import { errorResponse, sessionOr401 } from "@/lib/api";
 import { supabaseAdmin } from "@/lib/supabase/server";
@@ -56,6 +57,7 @@ export async function GET(
         quoteType,
         brand: brand ?? {},
         companyName: company!.name,
+        logoSrc: await logoDataUri(admin, brand?.logo_path),
       }),
     );
 
