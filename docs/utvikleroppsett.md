@@ -77,9 +77,8 @@ Filene som betyr noe:
 
 | Fil | Hva den styrer |
 | --- | --- |
-| `src/lib/claude/generate.ts` | Systemprompten og skjemaet. Her bestemmes hva modellen får lov til å svare |
-| `src/lib/claude/classify.ts` | Valg av tilbudstype — punktpris, fastpris eller tid og materiell |
-| `docs/Tilbudsmail_SOP.md` | Hva som skal stå i e-postteksten. Leses ved generering, så en endring her virker uten kodeendring |
+| `agent/CLAUDE.md` + `agent/*.md` | Motoren — systemprompten. Endres her, ikke i koden. Leses ved generering |
+| `src/lib/claude/generate.ts` | Output-skjemaet, promptbyggingen og kodevalideringen (summer, prisoppslag, plassholdere) |
 | `src/lib/drafts/confidence.ts` | Grønt/gult/rødt: avledet av referansetilbud og treff i prisfilen |
 | `src/lib/pdf/template.ts` | Devellos PDF-mal |
 

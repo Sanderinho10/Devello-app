@@ -144,12 +144,12 @@ src/
 │     ├─ drafts/generate        Klassifisering + generering
 │     └─ drafts/[id]/           confirm (PDF + Outlook-kladd) og pdf (forhåndsvisning)
 ├─ lib/
-│  ├─ claude/                   classify.ts, generate.ts, sop.ts
+│  ├─ claude/                   motor.ts (laster agent/), generate.ts
 │  ├─ graph/                    oauth.ts, client.ts, drafts.ts
 │  ├─ pdf/                      template.ts (Devello-malen), render.ts (HTML→PDF)
 │  ├─ drafts/versions.ts        Versjonslogging
 │  └─ types.ts                  Delte typer + computeTotals()
-docs/Tilbudsmail_SOP.md         Hva som faktisk skal stå i e-posten
+agent/                          Motoren: systemprompten til tilbudsagenten
 design/                         Mockuper, samme CSS som appen
 supabase/migrations/            Skjema og RLS
 ```

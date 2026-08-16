@@ -20,6 +20,7 @@ export function SettingsForm({
   const router = useRouter();
   const [form, setForm] = useState({
     formalitet: company.tone_settings.formalitet ?? "du",
+    maalform: company.tone_settings.maalform ?? "nb",
     signatur: company.tone_settings.signatur ?? "",
     tillegg: company.tone_settings.tillegg ?? "",
     logo_url: brand?.logo_url ?? "",
@@ -204,17 +205,33 @@ export function SettingsForm({
           </div>
         </div>
         <div className="card-pad">
-          <label className="field">
-            <span className="label">Tiltaleform</span>
-            <select
-              className="select"
-              value={form.formalitet}
-              onChange={(e) => set("formalitet", e.target.value)}
-            >
-              <option value="du">Du</option>
-              <option value="de">De</option>
-            </select>
-          </label>
+          <div className="grid-2">
+            <label className="field">
+              <span className="label">Tiltaleform</span>
+              <select
+                className="select"
+                value={form.formalitet}
+                onChange={(e) => set("formalitet", e.target.value)}
+              >
+                <option value="du">Du</option>
+                <option value="de">De</option>
+              </select>
+            </label>
+            <label className="field">
+              <span className="label">Målform</span>
+              <select
+                className="select"
+                value={form.maalform}
+                onChange={(e) => set("maalform", e.target.value)}
+              >
+                <option value="nb">Bokmål</option>
+                <option value="nn">Nynorsk</option>
+              </select>
+              <span className="hint">
+                All tekst agenten skriver til kundene deres — tilbud og e-post.
+              </span>
+            </label>
+          </div>
 
           <label className="field">
             <span className="label">Signatur</span>

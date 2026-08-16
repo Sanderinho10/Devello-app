@@ -1,343 +1,483 @@
 import { structured } from "./client";
-import { loadSop } from "./sop";
+import { loadMotor } from "./motor";
 import { referencesBlock, type QuoteReference } from "@/lib/referanser";
-import type {
-  Company,
-  Lead,
-  PriceListItem,
-  QuoteDocument,
-  QuoteType,
+import {
+  kindsForQuoteType,
+  type Company,
+  type Lead,
+  type PriceItemKind,
+  type PriceListItem,
+  type QuoteDocument,
+  type QuoteType,
 } from "@/lib/types";
 
+/**
+ * Ett kall per generering: agenten velger tilbudstype og leverer utkastet i
+ * samme tur, slik motoren (agent/CLAUDE.md + instruks) er spesifisert. Har
+ * brukeren valgt type selv («Generer på nytt» med bryteren), sendes den inn
+ * som lås — da genererer agenten for den typen uten å velge.
+ *
+ * Prinsippet fra før står: modellen peker på price_item_id og velger mengde.
+ * Prisen slås opp server-side, summene regnes i computeTotals(). En pris fra
+ * modellen finnes ikke som konsept.
+ */
+
+export type AgentStatus = "utkast" | "trenger_avklaring";
+
 export interface GeneratedDraft {
+  quote_type: QuoteType;
+  /** 1–3 setninger, vist i typeboksen. Peker på referansen når en finnes. */
+  typebegrunnelse: string;
+  status: AgentStatus;
   email_subject: string;
   email_body: string;
   document: QuoteDocument | null;
-  /**
-   * Poster modellen ba om som ikke fantes i prisfilen, og som derfor ble
-   * droppet. Signalet forsvinner fra dokumentet, så det må telles her — det er
-   * med i vurderingen av hvor mye utkastet tåler.
-   */
+  /** Kun tid og materiell: estimert spenn i timer, når referansene gir dekning. */
+  estimat_timer: { fra: number; til: number } | null;
+  /** Poster kunden ba om som ikke fantes i noen aktiv prisliste. */
+  ikke_funnet: string[];
+  /** Agentens eneste kanal til brukeren. Vises i UI-et. */
+  merknader: string[];
+  /** Linjer som pekte på en ukjent/feil prisrad og ble droppet av koden. */
   unresolved_lines: number;
 }
 
-/**
- * Modellen velger *hvilke* poster som skal med og *hvor mange*. Den slår aldri
- * opp prisen selv — den peker på en price_item_id, og vi fyller inn enhetspris
- * og enhet fra prisfilen etterpå. Derfor er unit_price ikke med i skjemaet.
- */
 const LINE_SCHEMA = {
   type: "object",
   properties: {
     price_item_id: {
       type: "string",
-      description: "id fra prisfilen. Må være en av de oppgitte id-ene.",
+      description:
+        "id fra prisfilen. Må være en av de oppgitte id-ene, fra riktig liste for tilbudstypen (punktpris → punktprisliste; fastpris → materielliste + timeprisliste; tid og materiell → timeprisliste som satser).",
     },
     description: {
       type: "string",
       description:
-        "Postteksten slik den skal stå i tilbudet. Ta utgangspunkt i navnet fra prisfilen, men gjør den konkret for denne jobben.",
+        "Postteksten slik den skal stå i tilbudet. Kan tilpasses jobben, men prisen og enheten er alltid prislistens.",
     },
-    quantity: { type: "number", description: "Antall enheter." },
+    quantity: {
+      type: "number",
+      description:
+        "Antall enheter. Ved tid og materiell: 1 per sats (satsene er prisen).",
+    },
   },
   required: ["price_item_id", "description", "quantity"],
   additionalProperties: false,
 };
 
-const DOCUMENT_SCHEMA = {
+/**
+ * Speiler devello-agent/skjema/tilbudsdata-skjema.md, med ett bevisst avvik:
+ * ingen pris- eller sumfelt. Modellen peker på prisrader; koden er dommeren
+ * for alt som er penger.
+ */
+const TILBUDSDATA_SCHEMA = {
   type: "object",
   properties: {
-    email_subject: { type: "string" },
-    email_body: { type: "string" },
-    document: {
-      type: "object",
+    tilbudstype: {
+      type: "string",
+      enum: ["punktpris", "fastpris", "tid_og_materiell"],
+    },
+    typebegrunnelse: {
+      type: "string",
+      description:
+        "1–3 setninger, forankret i leadet og i referansene. Pek på den konkrete referansen når en finnes; finnes ingen, si det.",
+    },
+    status: {
+      type: "string",
+      enum: ["utkast", "trenger_avklaring"],
+      description:
+        "trenger_avklaring KUN når jobbtypen er ukjent. Da er dokument null og eposten inneholder ett kort avklaringsspørsmål.",
+    },
+    dokument: {
+      type: ["object", "null"],
+      description:
+        "null ved tid og materiell (satsene står i e-postteksten) og ved trenger_avklaring.",
       properties: {
-        customer: {
+        kunde: {
           type: "object",
           properties: {
-            name: { type: "string" },
-            contact: { type: ["string", "null"] },
-            email: { type: ["string", "null"] },
-            phone: { type: ["string", "null"] },
-            address: { type: ["string", "null"] },
+            navn: { type: "string" },
+            kontakt: { type: ["string", "null"] },
+            epost: { type: ["string", "null"] },
+            telefon: { type: ["string", "null"] },
+            adresse: {
+              type: ["string", "null"],
+              description:
+                "Fra leadet. Ukjent: null — og be om adressen i e-postteksten. Aldri en plassholder.",
+            },
           },
-          required: ["name", "contact", "email", "phone", "address"],
+          required: ["navn", "kontakt", "epost", "telefon", "adresse"],
           additionalProperties: false,
         },
-        title: { type: "string" },
-        intro: { type: "string" },
-        sections: {
+        tittel: { type: "string" },
+        innledning: { type: "string" },
+        seksjoner: {
           type: "array",
           items: {
             type: "object",
             properties: {
-              title: { type: "string" },
-              lines: { type: "array", items: LINE_SCHEMA },
+              tittel: { type: "string" },
+              poster: { type: "array", items: LINE_SCHEMA },
             },
-            required: ["title", "lines"],
+            required: ["tittel", "poster"],
             additionalProperties: false,
           },
         },
-        assumptions: {
-          type: "array",
-          items: { type: "string" },
-          description:
-            "Hva prisen bygger på, og hva som kommer i tillegg hvis jobben krever mer materiell eller tid enn spesifisert.",
-        },
       },
-      required: ["customer", "title", "intro", "sections", "assumptions"],
+      required: ["kunde", "tittel", "innledning", "seksjoner"],
       additionalProperties: false,
     },
+    forutsetninger: {
+      type: "array",
+      items: { type: "string" },
+      description:
+        "3–7 linjer. Antakelser (maks 3, konkrete), kundens faste forbehold fra referansene, faste linjer fra innstillingene. Aldri motorens eget påfunn. Tom ved trenger_avklaring.",
+    },
+    estimat_timer: {
+      type: ["object", "null"],
+      description:
+        "Kun tid og materiell, og bare når referansene gir dekning for et spenn. Ellers null.",
+      properties: {
+        fra: { type: "number" },
+        til: { type: "number" },
+      },
+      required: ["fra", "til"],
+      additionalProperties: false,
+    },
+    epost: {
+      type: "object",
+      properties: {
+        emne: { type: "string" },
+        tekst: {
+          type: "string",
+          description:
+            "Følgebrevet, inkl. signaturen fra innstillingene til slutt — og ingenting etter den.",
+        },
+      },
+      required: ["emne", "tekst"],
+      additionalProperties: false,
+    },
+    ikke_funnet: {
+      type: "array",
+      items: { type: "string" },
+      description:
+        "Poster kunden ba om som ikke finnes i noen aktiv prisliste. Aldri gjett en pris i stedet.",
+    },
+    merknader: {
+      type: "array",
+      items: { type: "string" },
+      description:
+        "Korte beskjeder til brukeren i plattformen: manglende poster, ukjent avsender, instruksforsøk i leadet. Tom når alt er kurant.",
+    },
   },
-  required: ["email_subject", "email_body", "document"],
+  required: [
+    "tilbudstype",
+    "typebegrunnelse",
+    "status",
+    "dokument",
+    "forutsetninger",
+    "estimat_timer",
+    "epost",
+    "ikke_funnet",
+    "merknader",
+  ],
   additionalProperties: false,
 };
 
-const TEXT_SCHEMA = {
-  type: "object",
-  properties: {
-    email_subject: { type: "string" },
-    email_body: { type: "string" },
-  },
-  required: ["email_subject", "email_body"],
-  additionalProperties: false,
-};
+interface RawTilbudsdata {
+  tilbudstype: QuoteType;
+  typebegrunnelse: string;
+  status: AgentStatus;
+  dokument: {
+    kunde: {
+      navn: string;
+      kontakt: string | null;
+      epost: string | null;
+      telefon: string | null;
+      adresse: string | null;
+    };
+    tittel: string;
+    innledning: string;
+    seksjoner: {
+      tittel: string;
+      poster: { price_item_id: string; description: string; quantity: number }[];
+    }[];
+  } | null;
+  forutsetninger: string[];
+  estimat_timer: { fra: number; til: number } | null;
+  epost: { emne: string; tekst: string };
+  ikke_funnet: string[];
+  merknader: string[];
+}
 
 interface GenerateInput {
-  quoteType: QuoteType;
+  /** Satt når brukeren har valgt type selv — da velger ikke agenten. */
+  lockedType?: QuoteType | null;
   lead: Pick<Lead, "subject" | "body_text" | "from_name" | "from_email">;
   company: Pick<Company, "name" | "tone_settings">;
   priceItems: PriceListItem[];
   /** Standard mva-sats. */
   vatRate?: number;
-  /** Tidligere bekreftede tilbud som ligner (fra referanselisten). */
+  /** De 3–5 mest relevante tidligere tilbudene (referanseliste + filer). */
   similar?: QuoteReference[];
 }
 
-export async function generateDraft(
-  input: GenerateInput,
-): Promise<GeneratedDraft> {
-  return input.quoteType === "tid_og_materiell"
-    ? generateTextOnly(input)
-    : generateWithDocument(input);
-}
+export async function generateDraft(input: GenerateInput): Promise<GeneratedDraft> {
+  const system = await loadMotor();
+  const prompt = buildPrompt(input);
 
-// ---------------------------------------------------------------------------
-// Punktpris / fastpris: strukturert dokument + kort standard e-posttekst
-// ---------------------------------------------------------------------------
+  let raw = await callModel(system, prompt);
 
-async function generateWithDocument(
-  input: GenerateInput,
-): Promise<GeneratedDraft> {
-  const relevant = relevantPriceItems(input.quoteType, input.priceItems);
-  if (relevant.length === 0) {
-    throw new Error(
-      `Prisfilen har ingen rader som passer tilbudstypen «${input.quoteType}». Legg inn prisrader under Prisfil før du genererer.`,
+  // Kodevalidering — koden er dommeren, agenten førstelinjen. Feiler den,
+  // får agenten feilene tilbake og ett forsøk til (som plattform-verktoy.md
+  // spesifiserer). Feiler det også: stopp med forklaring.
+  let problems = validate(raw, input);
+  if (problems.length > 0) {
+    raw = await callModel(
+      system,
+      `${prompt}\n\n---\n\nFORRIGE FORSØK FEILET VALIDERINGEN. Rett dette og lever hele tilbudsdataen på nytt:\n${problems
+        .map((p) => `- ${p}`)
+        .join("\n")}`,
     );
+    problems = validate(raw, input);
+    if (problems.length > 0) {
+      throw new Error(
+        `Utkastet besto ikke valideringen: ${problems.join("; ")}`,
+      );
+    }
   }
 
-  const sop = await loadSop();
+  return resolve(raw, input);
+}
 
-  const raw = await structured<{
-    email_subject: string;
-    email_body: string;
-    document: {
-      customer: QuoteDocument["customer"];
-      title: string;
-      intro: string;
-      sections: {
-        title: string;
-        lines: { price_item_id: string; description: string; quantity: number }[];
-      }[];
-      assumptions: string[];
-    };
-  }>({
-    system: documentSystem(input.quoteType, sop),
-    schema: DOCUMENT_SCHEMA,
-    prompt: [
-      priceListBlock(relevant),
-      referencesBlock(input.similar ?? []),
-      companyBlock(input.company),
-      leadBlock(input.lead),
-      "---",
-      `Lag et ${input.quoteType}-tilbud for denne forespørselen.`,
-    ].join("\n\n"),
+async function callModel(system: string, prompt: string): Promise<RawTilbudsdata> {
+  return structured<RawTilbudsdata>({
+    system,
+    schema: TILBUDSDATA_SCHEMA,
+    prompt,
   });
-
-  // Prisene kommer herfra, ikke fra modellen.
-  const byId = new Map(relevant.map((item) => [item.id, item]));
-  let unresolved = 0;
-  const sections = raw.document.sections.map((section) => ({
-    title: section.title,
-    lines: section.lines.flatMap((line) => {
-      const item = byId.get(line.price_item_id);
-      // Fant modellen på en id, dropper vi raden heller enn å gjette en pris.
-      if (!item) {
-        unresolved += 1;
-        return [];
-      }
-      return [
-        {
-          price_item_id: item.id,
-          description: line.description || item.name,
-          quantity: line.quantity,
-          unit: item.unit,
-          unit_price: Number(item.unit_price),
-        },
-      ];
-    }),
-  }));
-
-  const document: QuoteDocument = {
-    customer: raw.document.customer,
-    title: raw.document.title,
-    intro: raw.document.intro,
-    sections,
-    assumptions: raw.document.assumptions,
-    valid_until: thirtyDaysFromNow(),
-    vat_rate: input.vatRate ?? 25,
-  };
-
-  return {
-    email_subject: raw.email_subject,
-    email_body: raw.email_body,
-    document,
-    unresolved_lines: unresolved,
-  };
 }
 
 // ---------------------------------------------------------------------------
-// Tid og materiell: bare tekst, ingen dokument
+// Prompt
 // ---------------------------------------------------------------------------
 
-async function generateTextOnly(
-  input: GenerateInput,
-): Promise<GeneratedDraft> {
-  const sop = await loadSop();
-  const rates = input.priceItems.filter((item) => item.kind === "time" && item.active);
+const KIND_TO_KILDE: Record<PriceItemKind, string> = {
+  punktpris: "punktprisliste",
+  materiell: "materielliste",
+  time: "timeprisliste",
+};
 
-  const raw = await structured<{ email_subject: string; email_body: string }>({
-    system: `Du skriver tilbuds-e-poster for et norsk håndverksfirma.
+function buildPrompt(input: GenerateInput): string {
+  const blocks: string[] = [];
 
-Dette er et tilbud på tid og materiell — løpende regning. Det skal IKKE lages
-noe dokument eller vedlegg. Hele tilbudet ligger i e-postteksten.
+  // Kundekontekst: hele tone_settings ordrett, så en ny innstilling i UI-et
+  // når fram til agenten uten kodeendring her. Målform, signatur og
+  // tilleggsinstruks leses av motoren etter reglene i agent/CLAUDE.md.
+  blocks.push(
+    `# Kundekontekst\n\n${JSON.stringify(
+      {
+        firma: input.company.name,
+        mva_sats_prosent: input.vatRate ?? 25,
+        innstillinger: input.company.tone_settings ?? {},
+      },
+      null,
+      2,
+    )}`,
+  );
 
-Timepriser og eventuelle faste tillegg står i prisfilen under. Bruk tallene
-derfra ordrett. Regn aldri ut noe selv, og finn aldri på en pris som ikke står
-der.
-
-Følg SOP-en under for hva teksten skal inneholde.
-
-# SOP
-
-${sop}`,
-    schema: TEXT_SCHEMA,
-    maxTokens: 8000,
-    prompt: [
-      rates.length
-        ? priceListBlock(rates)
-        : "# Prisfil\n\n(ingen timepriser lagt inn — skriv teksten uten konkrete satser og be kunden om en prat)",
-      referencesBlock(input.similar ?? []),
-      companyBlock(input.company),
-      leadBlock(input.lead),
-      "---",
-      "Skriv e-postteksten for et tilbud på tid og materiell.",
-    ].join("\n\n"),
-  });
-
-  return { ...raw, document: null, unresolved_lines: 0 };
-}
-
-// ---------------------------------------------------------------------------
-// Prompt-byggere
-// ---------------------------------------------------------------------------
-
-function documentSystem(quoteType: QuoteType, sop: string): string {
-  const typeRules =
-    quoteType === "punktpris"
-      ? `Dette er et PUNKTPRIS-tilbud. Hver post har én buntet pris som dekker både
-arbeid og materiell. Bruk bare prisrader av typen «punktpris». Legg alle postene
-i én seksjon.`
-      : `Dette er et FASTPRIS-tilbud. Materiell og timer skal listes hver for seg og
-summeres til én total. Lag to seksjoner: «Materiell» (prisrader av typen
-materiell) og «Arbeid» (prisrader av typen time).
-
-Poenget med å spesifisere er å vise hva som ville komme i tillegg hvis jobben
-krever mer materiell eller tid enn spesifisert. Skriv derfor forutsetningene
-(assumptions) konkret: hvilke mengder og hvilket timetall prisen bygger på, og
-hva som utløser tillegg.`;
-
-  return `Du lager tilbud for et norsk håndverksfirma. Skriv på bokmål.
-
-${typeRules}
-
-Absolutte regler:
-- Bruk bare poster fra prisfilen under. Hver linje må peke på en price_item_id
-  som faktisk står i listen.
-- Du skal ALDRI regne ut priser, summer eller totaler. Du oppgir bare hvilken
-  post og hvor mange enheter. Systemet slår opp enhetsprisen og regner summene.
-- Finner du ingen passende post for noe kunden har spurt om, la det stå utenfor
-  tilbudet og nevn det i forutsetningene i stedet.
-- Mengder skal begrunnes ut fra det kunden faktisk har skrevet. Ikke gjett vilt —
-  er mengden uklar, bruk et forsiktig anslag og skriv det i forutsetningene.
-- Finnes det tidligere bekreftede tilbud som ligner, bruk dem som mønster for
-  hvilke poster som hører med, typiske mengder, forutsetningenes ordlyd og
-  tone. Det er slik dette firmaet faktisk sender tilbud. Prisene slår du
-  likevel alltid opp i prisfilen — aldri fra referansene.
-
-E-postteksten skal være kort. Den følger med som melding når PDF-en blir lagt
-ved, så selve tilbudet skal ikke gjentas i teksten.
-
-# SOP for e-postteksten
-
-${sop}`;
-}
-
-function priceListBlock(items: PriceListItem[]): string {
-  const rows = items
+  const rows = input.priceItems
+    .filter((item) => item.active)
     .map((item) => {
       const parts = [
         `- id: ${item.id}`,
+        `  liste: ${KIND_TO_KILDE[item.kind]}`,
         `  navn: ${item.name}`,
-        `  type: ${item.kind}`,
         `  enhet: ${item.unit}`,
-        `  enhetspris: ${item.unit_price} kr`,
+        `  enhetspris_eks_mva: ${item.unit_price}`,
       ];
       if (item.code) parts.push(`  kode: ${item.code}`);
       if (item.description) parts.push(`  beskrivelse: ${item.description}`);
       return parts.join("\n");
     })
     .join("\n");
-  return `# Prisfil\n\n${rows}`;
-}
+  blocks.push(`# Aktive prislister\n\n${rows || "(ingen prisrader lagt inn)"}`);
 
-function companyBlock(company: GenerateInput["company"]): string {
-  const tone = company.tone_settings ?? {};
-  const lines = [`Firma: ${company.name}`];
-  if (tone.formalitet) lines.push(`Tiltaleform: ${tone.formalitet}`);
-  if (tone.signatur) lines.push(`Signatur:\n${tone.signatur}`);
-  if (tone.tillegg) lines.push(`Tilleggsinstruks: ${tone.tillegg}`);
-  return `# Avsender\n\n${lines.join("\n")}`;
-}
+  blocks.push(referencesBlock(input.similar ?? []));
 
-function leadBlock(lead: GenerateInput["lead"]): string {
-  return `# Forespørselen
+  blocks.push(
+    `# Leadet\n\nFra: ${input.lead.from_name ?? "(ukjent)"} <${
+      input.lead.from_email ?? "ukjent"
+    }>\nEmne: ${input.lead.subject ?? "(uten emne)"}\n\n${
+      input.lead.body_text ?? ""
+    }`,
+  );
 
-Fra: ${lead.from_name ?? "(ukjent)"} <${lead.from_email ?? "ukjent"}>
-Emne: ${lead.subject ?? "(uten emne)"}
-
-${lead.body_text ?? ""}`;
-}
-
-function relevantPriceItems(
-  quoteType: QuoteType,
-  items: PriceListItem[],
-): PriceListItem[] {
-  const active = items.filter((item) => item.active);
-  if (quoteType === "punktpris") {
-    return active.filter((item) => item.kind === "punktpris");
+  if (input.lockedType) {
+    blocks.push(
+      `# Låst tilbudstype\n\ntilbudstype_laast: ${input.lockedType}\n\nBrukeren har valgt typen selv. Generer utkastet for denne typen — ikke velg en annen. Begrunnelsen kan si hva du ellers ville anbefalt.`,
+    );
   }
-  return active.filter((item) => item.kind === "materiell" || item.kind === "time");
+
+  return blocks.filter(Boolean).join("\n\n");
+}
+
+// ---------------------------------------------------------------------------
+// Kodevalidering — sjekklisten fra agent/lag-tilbudsdata.md, håndhevet i kode
+// ---------------------------------------------------------------------------
+
+/**
+ * Plassholdere som aldri skal nå kunden: «<fornavn>», «[adresse]», «X timer».
+ * Sjekklisten i lag-tilbudsdata.md krever dette, og koden er dommeren.
+ */
+const PLACEHOLDER_PATTERNS: { pattern: RegExp; label: string }[] = [
+  { pattern: /<[a-zæøåA-ZÆØÅ_ -]{2,30}>/, label: "«<…>»-plassholder" },
+  { pattern: /\[[a-zæøåA-ZÆØÅ_ -]{2,30}\]/, label: "«[…]»-plassholder" },
+  { pattern: /\b[XY]\s*(timer|timar|tima|stk|m²)\b/, label: "«X timer»-plassholder" },
+];
+
+function validate(raw: RawTilbudsdata, input: GenerateInput): string[] {
+  const problems: string[] = [];
+
+  if (input.lockedType && raw.tilbudstype !== input.lockedType) {
+    problems.push(
+      `tilbudstype skal være «${input.lockedType}» (låst av brukeren), ikke «${raw.tilbudstype}»`,
+    );
+  }
+
+  // Kundevendt tekst, samlet.
+  const texts: [string, string][] = [
+    ["epost.emne", raw.epost.emne],
+    ["epost.tekst", raw.epost.tekst],
+    ...raw.forutsetninger.map(
+      (line, i) => [`forutsetninger[${i}]`, line] as [string, string],
+    ),
+  ];
+  if (raw.dokument) {
+    texts.push(["tittel", raw.dokument.tittel], ["innledning", raw.dokument.innledning]);
+    for (const section of raw.dokument.seksjoner) {
+      for (const line of section.poster) {
+        texts.push(["post", line.description]);
+      }
+    }
+  }
+
+  for (const [field, text] of texts) {
+    for (const { pattern, label } of PLACEHOLDER_PATTERNS) {
+      if (pattern.test(text)) {
+        problems.push(`${field} inneholder ${label}: «${text.slice(0, 60)}»`);
+      }
+    }
+  }
+
+  // Ingen URL-er i e-postteksten (regel i motoren; koden håndhever).
+  if (/https?:\/\/|www\.[a-z]/i.test(raw.epost.tekst)) {
+    problems.push("epost.tekst inneholder en nettadresse");
+  }
+
+  if (raw.status === "utkast") {
+    const wantsDocument = raw.tilbudstype !== "tid_og_materiell";
+    if (wantsDocument && !raw.dokument) {
+      problems.push(`dokument mangler for tilbudstype «${raw.tilbudstype}»`);
+    }
+    if (
+      wantsDocument &&
+      raw.dokument &&
+      raw.dokument.seksjoner.every((s) => s.poster.length === 0) &&
+      raw.ikke_funnet.length === 0
+    ) {
+      problems.push(
+        "dokumentet har ingen poster og ikke_funnet er tom — enten finnes postene i prislistene, eller så skal de stå i ikke_funnet",
+      );
+    }
+  }
+
+  if (raw.status === "trenger_avklaring" && raw.dokument) {
+    problems.push("trenger_avklaring skal ikke ha dokument");
+  }
+
+  if (raw.estimat_timer && raw.tilbudstype !== "tid_og_materiell") {
+    problems.push("estimat_timer brukes bare ved tid og materiell");
+  }
+
+  return problems;
+}
+
+// ---------------------------------------------------------------------------
+// Oppslag — prisene kommer herfra, aldri fra modellen
+// ---------------------------------------------------------------------------
+
+function resolve(raw: RawTilbudsdata, input: GenerateInput): GeneratedDraft {
+  const merknader = [...raw.merknader];
+  const ikkeFunnet = [...raw.ikke_funnet];
+  let unresolved = 0;
+
+  let document: QuoteDocument | null = null;
+
+  if (raw.dokument && raw.status === "utkast") {
+    const allowedKinds = new Set(kindsForQuoteType(raw.tilbudstype));
+    const byId = new Map(
+      input.priceItems
+        .filter((item) => item.active)
+        .map((item) => [item.id, item]),
+    );
+
+    const sections = raw.dokument.seksjoner.map((section) => ({
+      title: section.tittel,
+      lines: section.poster.flatMap((line) => {
+        const item = byId.get(line.price_item_id);
+        // Ukjent id, eller rad fra feil liste for typen: dropp linjen heller
+        // enn å gjette — og si fra, i stedet for å droppe i stillhet.
+        if (!item || !allowedKinds.has(item.kind)) {
+          unresolved += 1;
+          const name = line.description || "en post";
+          if (!ikkeFunnet.includes(name)) ikkeFunnet.push(name);
+          merknader.push(
+            `«${name}» pekte på en prisrad som ikke finnes i riktig aktiv liste, og er tatt ut. Legg den inn på Prisfil-siden eller pris den manuelt.`,
+          );
+          return [];
+        }
+        return [
+          {
+            price_item_id: item.id,
+            description: line.description || item.name,
+            quantity: line.quantity,
+            unit: item.unit,
+            unit_price: Number(item.unit_price),
+          },
+        ];
+      }),
+    }));
+
+    document = {
+      customer: {
+        name: raw.dokument.kunde.navn,
+        contact: raw.dokument.kunde.kontakt,
+        email: raw.dokument.kunde.epost,
+        phone: raw.dokument.kunde.telefon,
+        address: raw.dokument.kunde.adresse,
+      },
+      title: raw.dokument.tittel,
+      intro: raw.dokument.innledning,
+      sections,
+      assumptions: raw.forutsetninger,
+      valid_until: thirtyDaysFromNow(),
+      vat_rate: input.vatRate ?? 25,
+    };
+  }
+
+  return {
+    quote_type: raw.tilbudstype,
+    typebegrunnelse: raw.typebegrunnelse,
+    status: raw.status,
+    email_subject: raw.epost.emne,
+    email_body: raw.epost.tekst,
+    document,
+    estimat_timer: raw.estimat_timer,
+    ikke_funnet: ikkeFunnet,
+    merknader,
+    unresolved_lines: unresolved,
+  };
 }
 
 function thirtyDaysFromNow(): string {

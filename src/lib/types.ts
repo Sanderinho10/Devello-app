@@ -78,9 +78,16 @@ export interface Invitation {
 export interface ToneSettings {
   /** "du" eller "de" — styrer tiltaleform i e-postteksten. */
   formalitet?: "du" | "de";
+  /** Målform for all kundevendt tekst: bokmål eller nynorsk. */
+  maalform?: "nb" | "nn";
   signatur?: string;
   tillegg?: string;
 }
+
+export const MAALFORM_LABELS: Record<"nb" | "nn", string> = {
+  nb: "Bokmål",
+  nn: "Nynorsk",
+};
 
 export interface CompanyBrand {
   company_id: string;
@@ -221,11 +228,22 @@ export interface QuoteLine {
   unit_price: number;
 }
 
+/** utkast = vanlig tilbud. trenger_avklaring = jobben var for ukjent til å prise. */
+export type DraftAgentStatus = "utkast" | "trenger_avklaring";
+
 export interface Draft {
   id: string;
   lead_id: string;
   quote_type: QuoteType;
-  classification_note: string | null;
+  /** Agentens begrunnelse for typevalget, forankret i referansene. */
+  typebegrunnelse: string | null;
+  agent_status: DraftAgentStatus;
+  /** Agentens beskjeder til brukeren. Den kan ikke spørre — dette er kanalen. */
+  merknader: string[];
+  /** Poster kunden ba om som ikke fantes i noen aktiv prisliste. */
+  ikke_funnet: string[];
+  /** Kun tid og materiell: estimert spenn i timer. */
+  estimat_timer: { fra: number; til: number } | null;
   confidence: QuoteConfidence;
   /** Én linje per signal bak vurderingen. */
   confidence_note: string | null;

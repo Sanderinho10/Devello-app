@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
       .update({
         tone_settings: {
           formalitet: body.formalitet,
+          maalform: body.maalform === "nn" ? "nn" : "nb",
           signatur: body.signatur || undefined,
           tillegg: body.tillegg || undefined,
         },

@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { classifyQuoteType } from "@/lib/claude/classify";
 import { generateDraft } from "@/lib/claude/generate";
 import { logDraftVersion } from "@/lib/drafts/versions";
 import { assessConfidence, countUnresolvedLines } from "@/lib/drafts/confidence";
@@ -75,7 +74,7 @@ export async function POST(request: NextRequest) {
           .single(),
         admin
           .from("reference_quotes")
-          .select("title, type, job_description")
+          .select("type")
           .eq("company_id", session.companyId),
         activePriceItems(admin, session.companyId),
       ]);
@@ -91,23 +90,10 @@ export async function POST(request: NextRequest) {
       quoteType: body.quote_type ?? null,
     });
 
-    // Brukeren kan overstyre typen fra bryteren; ellers klassifiserer agenten.
-    let quoteType = body.quote_type;
-    let classificationNote: string | null = null;
-
-    if (!quoteType) {
-      const classification = await classifyQuoteType({
-        subject: lead.subject,
-        body: leadText,
-        references: references ?? [],
-        similar,
-      });
-      quoteType = classification.quote_type;
-      classificationNote = classification.note;
-    }
-
+    // Ett kall: agenten velger type og leverer utkastet i samme tur. Har
+    // brukeren valgt type fra bryteren, sendes den inn som lås.
     const generated = await generateDraft({
-      quoteType,
+      lockedType: body.quote_type ?? null,
       lead: {
         subject: lead.subject,
         body_text: leadText,
@@ -121,6 +107,8 @@ export async function POST(request: NextRequest) {
       priceItems,
       similar,
     });
+
+    const quoteType = generated.quote_type;
 
     const confidence = assessConfidence({
       quoteType,
@@ -136,7 +124,11 @@ export async function POST(request: NextRequest) {
         {
           lead_id: lead.id,
           quote_type: quoteType,
-          classification_note: classificationNote,
+          typebegrunnelse: generated.typebegrunnelse,
+          agent_status: generated.status,
+          merknader: generated.merknader,
+          ikke_funnet: generated.ikke_funnet,
+          estimat_timer: generated.estimat_timer,
           confidence: confidence.level,
           confidence_note: confidence.reasons.join("\n"),
           email_subject: generated.email_subject,

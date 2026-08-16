@@ -333,7 +333,7 @@ export function DraftEditor({
           <ConfidenceBadge
             level={confidence}
             note={confidenceNote}
-            classificationNote={draft.classification_note}
+            classificationNote={draft.typebegrunnelse}
             suggestedType={draft.quote_type}
           />
         </div>
@@ -354,6 +354,27 @@ export function DraftEditor({
       </div>
 
       {error && <div className="banner error">{error}</div>}
+
+      {/* Agentens beskjeder. Den kan ikke spørre — dette er kanalen dens. */}
+      {draft.merknader.length > 0 && (
+        <div className="banner warning">
+          <strong>Fra agenten:</strong>
+          <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+            {draft.merknader.map((note, index) => (
+              <li key={index}>{note}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {draft.agent_status === "trenger_avklaring" && (
+        <div className="banner info">
+          <strong>Avklaringskladd.</strong> Jobben var for ukjent til å prise —
+          e-postteksten under stiller ett avklaringsspørsmål i stedet for å
+          gjette et tilbud. Rediger og send den, eller velg en type og trykk
+          «Generer på nytt» hvis du vet mer enn leadet sier.
+        </div>
+      )}
 
       {confirmed && (
         <div className="banner success">
@@ -379,7 +400,7 @@ export function DraftEditor({
       )}
 
       {/* Dokument-forhåndsvisning for punktpris og fastpris */}
-      {wantsDocument && document && (
+      {draft.agent_status !== "trenger_avklaring" && wantsDocument && document && (
         <div className="doc-preview">
           <div className="doc-head">
             <div style={{ fontSize: 17, fontWeight: 600 }}>

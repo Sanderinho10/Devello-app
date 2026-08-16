@@ -66,7 +66,10 @@ export async function POST(
     body_text: string | null;
     body_preview: string | null;
   };
-  const wantsDocument = hasDocument(payload.quote_type);
+  // En avklaringskladd har ikke noe dokument uansett type — leveransen er ett
+  // avklaringsspørsmål i e-posten, og bekreft skal lage kladden uten PDF.
+  const isClarification = draft.agent_status === "trenger_avklaring";
+  const wantsDocument = !isClarification && hasDocument(payload.quote_type);
 
   if (wantsDocument && !payload.document) {
     return NextResponse.json(
@@ -171,7 +174,7 @@ export async function POST(
     // tagget med nøkkelord, så neste generering kan finne den igjen.
     // Skal aldri velte en bekreftelse: kladden er allerede opprettet.
     try {
-      await saveQuoteReference(admin, {
+      if (!isClarification) await saveQuoteReference(admin, {
         companyId: session.companyId,
         draftId: draft.id,
         leadId: lead.id,
