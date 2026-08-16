@@ -24,6 +24,7 @@ export function SignupWizard() {
   const [step, setStep] = useState<Step>(1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
 
   const [form, setForm] = useState({
     company_name: "",
@@ -92,6 +93,15 @@ export function SignupWizard() {
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.error ?? "Kunne ikke opprette kontoen");
 
+      // Krever oppsettet bekreftelse, finnes det ingen sesjon å logge inn med
+      // ennå. Å prøve ville gitt «E-posten er ikke bekreftet» — en feilmelding
+      // for noe som gikk helt etter planen.
+      if (payload.requires_confirmation) {
+        setAwaitingConfirmation(true);
+        setBusy(false);
+        return;
+      }
+
       // Logg inn med én gang. Kontoen er opprettet uansett, så en feil her
       // betyr bare at de må logge inn selv.
       const { error: loginError } = await supabaseBrowser().auth.signInWithPassword({
@@ -109,6 +119,34 @@ export function SignupWizard() {
       setError(err instanceof Error ? err.message : String(err));
       setBusy(false);
     }
+  }
+
+  if (awaitingConfirmation) {
+    return (
+      <div className="auth-shell">
+        <div className="card card-pad auth-card">
+          <div className="brand" style={{ padding: "0 0 20px" }}>
+            <span className="brand-mark">D</span> Devello
+          </div>
+
+          <h2>Sjekk e-posten</h2>
+          <p className="muted" style={{ margin: "8px 0 18px" }}>
+            Kontoen for <strong>{form.company_name}</strong> er opprettet. Vi har
+            sendt en bekreftelseslenke til <strong>{form.email}</strong> — trykk
+            på den, så er du inne.
+          </p>
+          <p className="hint">
+            Finner du den ikke, sjekk søppelpost. Lenken er gyldig i 24 timer.
+          </p>
+
+          <p className="muted tiny" style={{ marginTop: 20 }}>
+            <Link href="/login" style={{ textDecoration: "underline" }}>
+              Til innlogging
+            </Link>
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (

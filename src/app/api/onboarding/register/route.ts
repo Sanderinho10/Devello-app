@@ -87,14 +87,18 @@ export async function POST(request: NextRequest) {
 
     // 1. Auth-brukeren.
     //
-    // email_confirm: true fordi Supabase-prosjektet ennå ikke har egen SMTP —
-    // den innebygde e-posten er kraftig ratebegrenset, og en kunde som ikke får
-    // bekreftelsesmailen kommer aldri inn. Slå på bekreftelse i Supabase når
-    // SMTP er satt opp, og sett denne til false.
+    // Uten egen SMTP er Supabase sin innebygde e-post kraftig ratebegrenset, og
+    // en kunde som aldri får bekreftelsesmailen kommer aldri inn. Derfor er
+    // bekreftelse av som standard, og slås på med en miljøvariabel når SMTP er
+    // satt opp — se docs/smtp-oppsett.md. Å styre det herfra betyr at
+    // omleggingen er en konfigurasjonsendring og ikke en ny utrulling.
+    const requireConfirmation =
+      process.env.AUTH_REQUIRE_EMAIL_CONFIRMATION === "true";
+
     const { data: created, error: authError } = await admin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true,
+      email_confirm: !requireConfirmation,
       user_metadata: { full_name: fullName },
     });
 
@@ -150,7 +154,11 @@ export async function POST(request: NextRequest) {
         .select()
         .maybeSingle();
 
-      return NextResponse.json({ ok: true, company_id: company.id });
+      return NextResponse.json({
+        ok: true,
+        company_id: company.id,
+        requires_confirmation: requireConfirmation,
+      });
     } catch (err) {
       // Rydd opp, ellers blokkerer den halve kontoen e-postadressen for alltid.
       await admin.auth.admin.deleteUser(userId).catch(() => {});

@@ -170,11 +170,11 @@ Selskapstilhørighet kommer nå fra invitasjoner. Databasetriggeren
 logger inn første gang. Finnes ingen, skjer ingenting — en ukjent bruker skal
 ikke havne i et tilfeldig selskap.
 
-> **Merk:** registrerte brukere blir opprettet ferdig bekreftet
-> (`email_confirm: true`), fordi Supabase-prosjektet ennå ikke har egen SMTP og
-> den innebygde e-posten er kraftig ratebegrenset. Slå på e-postbekreftelse i
-> Supabase når SMTP er satt opp, og sett flagget til `false` i
-> `src/app/api/onboarding/register/route.ts`.
+> **E-postbekreftelse** er styrt av `AUTH_REQUIRE_EMAIL_CONFIRMATION`. Står den
+> `false`, blir nye brukere opprettet ferdig bekreftet og kommer rett inn — det
+> er standard, fordi Supabase sin innebygde e-post er så ratebegrenset at kunder
+> ellers blir stengt ute. Sett opp egen SMTP etter
+> [docs/smtp-oppsett.md](docs/smtp-oppsett.md) og sett den til `true`.
 
 ### Navigasjonsmønsteret
 
