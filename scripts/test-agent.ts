@@ -150,6 +150,9 @@ const { data: draft01 } = await admin
   .select("id")
   .eq("lead_id", lead01.lead.id)
   .single();
+// Idempotent re-kjøring: rydd bort raden fra forrige testrunde, ellers vokser
+// poolen med en dublett per kjøring og elbillader-søket finner kopier.
+await admin.from("quote_references").delete().eq("draft_id", draft01!.id);
 await saveQuoteReference(admin, {
   companyId: STAR,
   draftId: draft01!.id,

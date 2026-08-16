@@ -51,11 +51,12 @@ export interface TagResult {
 const TAG_SCHEMA = {
   type: "object",
   properties: {
+    // NB: ingen minItems/maxItems her — structured outputs støtter ikke
+    // array-begrensninger og avviser hele skjemaet. Antallet styres av
+    // beskrivelsen + normalizeTags().
     tags: {
       type: "array",
       items: { type: "string" },
-      minItems: 3,
-      maxItems: 8,
       description:
         "3–8 nøkkelord for gjenfinning: jobbtype, komponenter, romtype, bygningstype. Små bokstaver, ubestemt entall, bokmål. F.eks. «elbillader», «sikringsskap», «bad», «garasje», «enebolig», «ny kurs», «feilsøking».",
     },
@@ -138,8 +139,10 @@ export async function saveQuoteReference(
   let tagged: TagResult;
   try {
     tagged = await extractTags(tagSource);
-  } catch {
-    // Tagging skal aldri stoppe en bekreftelse. Lagre uten tags heller enn å feile.
+  } catch (err) {
+    // Tagging skal aldri stoppe en bekreftelse. Lagre uten tags heller enn å
+    // feile — men en rad uten tags er nesten usøkbar, så feilen skal i loggen.
+    console.warn("tagging av referanse feilet:", err instanceof Error ? err.message : err);
     tagged = { tags: [], summary: "", customer_type: "ukjent" };
   }
 
@@ -193,11 +196,15 @@ export async function findSimilarReferences(
   let leadTags: string[] = [];
   try {
     leadTags = normalizeTags((await extractTags(input.leadText)).tags);
-  } catch {
+  } catch (err) {
+    console.warn("tagging av lead feilet:", err instanceof Error ? err.message : err);
     leadTags = [];
   }
 
-  const query = leadTags.length ? leadTags.join(" ") : input.leadText.slice(0, 300);
+  // «or» mellom taggene: websearch_to_tsquery AND-er ord som står ved siden av
+  // hverandre, og et lead deler sjelden ALLE nøkkelord med en referanse — ett
+  // godt treff («elbillader») skal være nok. Rangeringen sorterer resten.
+  const query = leadTags.length ? leadTags.join(" or ") : input.leadText.slice(0, 300);
 
   const { data, error } = await admin.rpc("sok_referanser", {
     p_company_id: input.companyId,
