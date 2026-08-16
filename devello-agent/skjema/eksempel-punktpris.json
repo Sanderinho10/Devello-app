@@ -1,0 +1,64 @@
+{
+  "_om": "Komplett eksempel — Marit Aasen-caset fra plattformdemoen. Fasit for felt, form og tone (målform her: nynorsk, fra innstillingene).",
+  "lead_id": "lead-01-marit-aasen",
+  "status": "utkast",
+  "tilbudstype": "punktpris",
+  "typebegrunnelse": "Førespurnaden gjeld standardiserte einingar med kjent tal — 8 doble stikkontaktar, 3 takpunkt og 2 kursar — og opne veggar gjer omfanget klart. Dette matchar referansetilbodet for stikkontaktar og takpunkt i rekkjehus Bjørkevegen, som er punktpris.",
+
+  "tittel": "Tilbod — elektrisk opplegg i ny kjellarstove",
+  "kunde": "Marit Aasen",
+  "adresse": "Bjørkevegen 22, Førde",
+  "innledning": "Takk for førespurnaden om elektrisk arbeid i den nye kjellarstova i Bjørkevegen 22 i Førde. Under følgjer tilbod på doble stikkontaktar, takpunkt med brytar og nye kursar frå sikringsskapet. Kvar post er ein samla punktpris som dekker både arbeid og materiell.",
+
+  "poster": [
+    {
+      "kilde": "punktprisliste",
+      "kode": "P010",
+      "beskrivelse": "Montering av dobbel stikkontakt langs veggane i kjellarstova",
+      "antall": 8,
+      "enhet": "stk",
+      "enhetspris_eks_mva": 890,
+      "sum_eks_mva": 7120
+    },
+    {
+      "kilde": "punktprisliste",
+      "kode": "P020",
+      "beskrivelse": "Montering av takpunkt med brytar i kjellarstova",
+      "antall": 3,
+      "enhet": "stk",
+      "enhetspris_eks_mva": 1340,
+      "sum_eks_mva": 4020
+    },
+    {
+      "kilde": "punktprisliste",
+      "kode": "P030",
+      "beskrivelse": "Nytt kursopplegg frå sikringsskap, inkl. kabel og automat",
+      "antall": 2,
+      "enhet": "stk",
+      "enhetspris_eks_mva": 2450,
+      "sum_eks_mva": 4900
+    }
+  ],
+
+  "sum_eks_mva": 16040,
+  "mva_prosent": 25,
+  "mva_belop": 4010,
+  "total_inkl_mva": 20050,
+  "estimat_timer": null,
+
+  "forutsetninger": [
+    "Alle prisar er eks. mva.",
+    "Prisane gjeld opne veggar med fritt tilgjenge til framføring av kabel, slik du har opplyst. Blir veggane lukka før vi kjem, kan det kome tillegg.",
+    "Det er føresett ledig plass til to nye automatar i eksisterande sikringsskap. Utviding eller oppgradering av skapet er ikkje med i tilbodet og blir avtalt særskilt.",
+    "Elektrikar må få tilgjenge til dei romma som trengst for å utføre installasjonen.",
+    "Anna arbeid enn spesifisert kan utførast etter medgått tid og materiell eller etter avtalt pris."
+  ],
+
+  "epost": {
+    "emne": "Pristilbod — stikkontaktar og lyspunkt i ny kjellarstove",
+    "tekst": "Hei Marit,\n\nTakk for førespurnaden. Du ønskjer elektrisk opplegg i den nye kjellarstova i Bjørkevegen 22: doble stikkontaktar, takpunkt med brytar og nye kursar frå sikringsskapet.\n\nVedlagt finn du tilbodet vårt. Ønskjer du endringar i punkta, er det berre å seie frå, så justerer vi tilbodet.\n\nVi har god kapasitet framover og kan ta oppdraget så snart det passar for deg — ta gjerne kontakt for avtale.\n\nMed venleg helsing\nStar Elektro AS"
+  },
+
+  "ikke_funnet": [],
+  "merknader": []
+}

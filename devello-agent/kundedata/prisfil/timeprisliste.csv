@@ -1,0 +1,4 @@
+Kode,Navn,Enhet,Pris eks. mva,Beskrivelse
+T010,Timepris elektrikar,time,1080,Faktureres per påbegynt halvtime
+T020,Timepris lærling,time,650,Faktureres per påbegynt halvtime
+T030,Oppmøte servicebil,stk,690,Per oppmøte

@@ -1,0 +1,581 @@
+diff --git a/src/app/api/drafts/[id]/confirm/route.ts b/src/app/api/drafts/[id]/confirm/route.ts
+index df459de..caca2e5 100644
+--- a/src/app/api/drafts/[id]/confirm/route.ts
++++ b/src/app/api/drafts/[id]/confirm/route.ts
+@@ -3,7 +3,8 @@ import { attachPdf, createDraft } from "@/lib/graph/drafts";
+ import { accessTokenFor } from "@/lib/graph/oauth";
+ import { htmlToPdf } from "@/lib/pdf/render";
+ import { renderQuoteHtml } from "@/lib/pdf/template";
+-import { logDraftVersion } from "@/lib/drafts/versions";
++import { diffSnapshots, logDraftVersion } from "@/lib/drafts/versions";
++import { saveQuoteReference } from "@/lib/referanser";
+ import { sessionOr401, errorResponse } from "@/lib/api";
+ import { supabaseAdmin } from "@/lib/supabase/server";
+ import { hasDocument, type QuoteDocument, type QuoteType } from "@/lib/types";
+@@ -43,7 +44,7 @@ export async function POST(
+   const { data: draft } = await admin
+     .from("drafts")
+     .select(
+-      "*, leads!inner(id, company_id, from_email, from_name, external_message_id, mailbox_connection_id, source)",
++      "*, leads!inner(id, company_id, from_email, from_name, external_message_id, mailbox_connection_id, source, subject, body_text, body_preview)",
+     )
+     .eq("id", id)
+     // Tilgangssjekken ligger i spørringen, ikke i en etterkontroll.
+@@ -61,6 +62,9 @@ export async function POST(
+     from_name: string | null;
+     external_message_id: string;
+     mailbox_connection_id: string | null;
++    subject: string | null;
++    body_text: string | null;
++    body_preview: string | null;
+   };
+   const wantsDocument = hasDocument(payload.quote_type);
+ 
+@@ -163,6 +167,27 @@ export async function POST(
+ 
+     await admin.from("leads").update({ status: "bekrefta" }).eq("id", lead.id);
+ 
++    // 4. Referanselisten — agentens hukommelse. Brukerens endelige versjon,
++    // tagget med nøkkelord, så neste generering kan finne den igjen.
++    // Skal aldri velte en bekreftelse: kladden er allerede opprettet.
++    try {
++      await saveQuoteReference(admin, {
++        companyId: session.companyId,
++        draftId: draft.id,
++        leadId: lead.id,
++        quoteType: payload.quote_type,
++        leadText: [lead.subject, lead.body_text || lead.body_preview]
++          .filter(Boolean)
++          .join("\n\n"),
++        emailSubject: payload.email_subject,
++        emailBody: payload.email_body,
++        document: final.document,
++        editedByUser: Object.keys(diffSnapshots(previous, final)).length > 0,
++      });
++    } catch (err) {
++      console.error("Kunne ikke skrive til referanselisten:", err);
++    }
++
+     return NextResponse.json({
+       ok: true,
+       web_link: outlook.webLink,
+diff --git a/src/app/api/drafts/generate/route.ts b/src/app/api/drafts/generate/route.ts
+index 7858cc0..56d4b74 100644
+--- a/src/app/api/drafts/generate/route.ts
++++ b/src/app/api/drafts/generate/route.ts
+@@ -4,6 +4,7 @@ import { classifyQuoteType } from "@/lib/claude/classify";
+ import { generateDraft } from "@/lib/claude/generate";
+ import { logDraftVersion } from "@/lib/drafts/versions";
+ import { assessConfidence, countUnresolvedLines } from "@/lib/drafts/confidence";
++import { findSimilarReferences } from "@/lib/referanser";
+ import { sessionOr401, errorResponse } from "@/lib/api";
+ import { supabaseAdmin } from "@/lib/supabase/server";
+ import type { PriceListItem, QuoteDocument, QuoteType } from "@/lib/types";
+@@ -81,6 +82,15 @@ export async function POST(request: NextRequest) {
+ 
+     const leadText = lead.body_text || lead.body_preview || "";
+ 
++    // Referanselisten: de 3–5 mest relevante tidligere bekreftede tilbudene,
++    // funnet via nøkkelord fra leadet. Går inn både i klassifisering og
++    // generering. Tenant-ID kommer fra sesjonen, aldri fra modellen.
++    const { references: similar } = await findSimilarReferences(admin, {
++      companyId: session.companyId,
++      leadText: [lead.subject, leadText].filter(Boolean).join("\n\n"),
++      quoteType: body.quote_type ?? null,
++    });
++
+     // Brukeren kan overstyre typen fra bryteren; ellers klassifiserer agenten.
+     let quoteType = body.quote_type;
+     let classificationNote: string | null = null;
+@@ -90,6 +100,7 @@ export async function POST(request: NextRequest) {
+         subject: lead.subject,
+         body: leadText,
+         references: references ?? [],
++        similar,
+       });
+       quoteType = classification.quote_type;
+       classificationNote = classification.note;
+@@ -108,6 +119,7 @@ export async function POST(request: NextRequest) {
+         tone_settings: company!.tone_settings ?? {},
+       },
+       priceItems,
++      similar,
+     });
+ 
+     const confidence = assessConfidence({
+diff --git a/src/lib/claude/classify.ts b/src/lib/claude/classify.ts
+index 8bae19d..ff6be5c 100644
+--- a/src/lib/claude/classify.ts
++++ b/src/lib/claude/classify.ts
+@@ -1,5 +1,6 @@
+ import { structured } from "./client";
+ import type { QuoteType, ReferenceQuote } from "@/lib/types";
++import { referencesBlock, type QuoteReference } from "@/lib/referanser";
+ 
+ export interface Classification {
+   quote_type: QuoteType;
+@@ -40,7 +41,10 @@ De tre tilbudstypene:
+   uklart — kunden beskriver et problem heller enn en definert jobb, eller det
+   trengs befaring for å vite hva arbeidet faktisk innebærer.
+ 
+-Fasiten er hvilke typer referansetilbud kunden har lagt inn for liknende jobber.
++Fasiten er hvilke typer referansetilbud kunden har lagt inn for liknende jobber,
++og — når de finnes — hvilke typer firmaet faktisk har bekreftet og sendt for
++liknende jobber tidligere (listen «Tidligere bekreftede tilbud»). Bekreftede
++tilbud veier tyngst: de viser hva firmaet gjør i praksis.
+ Matcher jobbeskrivelsen en referanse, velger du samme type som referansen. Finnes
+ det ingen relevant referanse, velger du ut fra hvor godt definert omfanget er, og
+ setter confidence til laag.`;
+@@ -49,6 +53,8 @@ export async function classifyQuoteType(input: {
+   subject: string | null;
+   body: string;
+   references: Pick<ReferenceQuote, "title" | "type" | "job_description">[];
++  /** Tidligere bekreftede tilbud som ligner (fra referanselisten). */
++  similar?: QuoteReference[];
+ }): Promise<Classification> {
+   // Referansefilene er filer merket med type. De fleste har bare et filnavn å
+   // gå på — Jobb-linjen kommer bare med når den faktisk har innhold, så
+@@ -73,6 +79,8 @@ export async function classifyQuoteType(input: {
+ 
+ ${referenceBlock}
+ 
++${referencesBlock(input.similar ?? [])}
++
+ # Innkommende forespørsel
+ 
+ Emne: ${input.subject ?? "(uten emne)"}
+diff --git a/src/lib/claude/generate.ts b/src/lib/claude/generate.ts
+index 70a9d52..44ac8b2 100644
+--- a/src/lib/claude/generate.ts
++++ b/src/lib/claude/generate.ts
+@@ -1,5 +1,6 @@
+ import { structured } from "./client";
+ import { loadSop } from "./sop";
++import { referencesBlock, type QuoteReference } from "@/lib/referanser";
+ import type {
+   Company,
+   Lead,
+@@ -109,6 +110,8 @@ interface GenerateInput {
+   priceItems: PriceListItem[];
+   /** Standard mva-sats. */
+   vatRate?: number;
++  /** Tidligere bekreftede tilbud som ligner (fra referanselisten). */
++  similar?: QuoteReference[];
+ }
+ 
+ export async function generateDraft(
+@@ -153,6 +156,7 @@ async function generateWithDocument(
+     schema: DOCUMENT_SCHEMA,
+     prompt: [
+       priceListBlock(relevant),
++      referencesBlock(input.similar ?? []),
+       companyBlock(input.company),
+       leadBlock(input.lead),
+       "---",
+@@ -233,6 +237,7 @@ ${sop}`,
+       rates.length
+         ? priceListBlock(rates)
+         : "# Prisfil\n\n(ingen timepriser lagt inn — skriv teksten uten konkrete satser og be kunden om en prat)",
++      referencesBlock(input.similar ?? []),
+       companyBlock(input.company),
+       leadBlock(input.lead),
+       "---",
+@@ -275,6 +280,10 @@ Absolutte regler:
+   tilbudet og nevn det i forutsetningene i stedet.
+ - Mengder skal begrunnes ut fra det kunden faktisk har skrevet. Ikke gjett vilt —
+   er mengden uklar, bruk et forsiktig anslag og skriv det i forutsetningene.
++- Finnes det tidligere bekreftede tilbud som ligner, bruk dem som mønster for
++  hvilke poster som hører med, typiske mengder, forutsetningenes ordlyd og
++  tone. Det er slik dette firmaet faktisk sender tilbud. Prisene slår du
++  likevel alltid opp i prisfilen — aldri fra referansene.
+ 
+ E-postteksten skal være kort. Den følger med som melding når PDF-en blir lagt
+ ved, så selve tilbudet skal ikke gjentas i teksten.
+diff --git a/src/lib/referanser/index.ts b/src/lib/referanser/index.ts
+new file mode 100644
+index 0000000..1a30ccf
+--- /dev/null
++++ b/src/lib/referanser/index.ts
+@@ -0,0 +1,268 @@
++import type { SupabaseClient } from "@supabase/supabase-js";
++import { structured } from "@/lib/claude/client";
++import { computeTotals, type QuoteDocument, type QuoteType } from "@/lib/types";
++
++/**
++ * Referanselisten — agentens hukommelse.
++ *
++ * Skrives ved «Bekreft og lag kladd» med brukerens ENDELIGE versjon, tagget
++ * med nøkkelord. Leses ved generering: de 3–5 mest relevante tidligere
++ * tilbudene går inn i konteksten som mønster for mengder, forutsetninger og
++ * tone. Prisene kommer fortsatt bare fra prisfilen.
++ *
++ * Speiler devello-agent/referanseliste/LES_MEG.md og plattform-verktoy.md
++ * (verktøy 1: sok_referanser).
++ */
++
++export interface ReferenceLine {
++  beskrivelse: string;
++  antall: number | null;
++  enhet: string;
++  enhetspris_eks_mva: number;
++}
++
++export interface QuoteReference {
++  id: string;
++  quote_type: QuoteType;
++  title: string;
++  customer_type: "forbruker" | "bedrift" | null;
++  tags: string[];
++  summary: string | null;
++  lines: ReferenceLine[];
++  assumptions: string[];
++  email_subject: string | null;
++  email_body: string | null;
++  subtotal_ex_vat: number | null;
++  edited_by_user: boolean;
++  outcome: "vunnet" | "tapt" | null;
++  confirmed_at: string;
++}
++
++// ---------------------------------------------------------------------------
++// Tagging
++// ---------------------------------------------------------------------------
++
++export interface TagResult {
++  tags: string[];
++  summary: string;
++  customer_type: "forbruker" | "bedrift" | "ukjent";
++}
++
++const TAG_SCHEMA = {
++  type: "object",
++  properties: {
++    tags: {
++      type: "array",
++      items: { type: "string" },
++      minItems: 3,
++      maxItems: 8,
++      description:
++        "3–8 nøkkelord for gjenfinning: jobbtype, komponenter, romtype, bygningstype. Små bokstaver, ubestemt entall, bokmål. F.eks. «elbillader», «sikringsskap», «bad», «garasje», «enebolig», «ny kurs», «feilsøking».",
++    },
++    summary: {
++      type: "string",
++      description: "1–2 setninger på bokmål om hva jobben var. Ingen priser.",
++    },
++    customer_type: { type: "string", enum: ["forbruker", "bedrift", "ukjent"] },
++  },
++  required: ["tags", "summary", "customer_type"],
++  additionalProperties: false,
++};
++
++const TAG_SYSTEM = `Du tagger håndverkstilbud for gjenfinning. Svar bare med JSON etter skjemaet.
++Nøkkelordene skal være de ordene en fagperson ville søkt på for å finne igjen
++akkurat denne typen jobb senere. Normaliser: små bokstaver, ubestemt entall,
++bokmål («stikkontakt», ikke «stikkontaktar» eller «Stikkontakter»). Ta med
++komponent (elbillader, sikringsskap, downlight), rom/sted (bad, garasje,
++kjellerstue), bygningstype (enebolig, rekkehus, næringslokale) og jobbart
++(nyinstallasjon, oppgradering, feilsøking) når det framgår.`;
++
++/**
++ * Trekker ut tags + kort sammendrag fra en tekst (et lead eller et bekreftet
++ * tilbud). Brukes både ved lagring (tagge tilbudet) og ved generering (tagge
++ * leadet, så vi vet hva vi skal søke etter).
++ */
++export async function extractTags(text: string): Promise<TagResult> {
++  return structured<TagResult>({
++    system: TAG_SYSTEM,
++    schema: TAG_SCHEMA,
++    effort: "low",
++    maxTokens: 1500,
++    prompt: text.slice(0, 6000),
++  });
++}
++
++// ---------------------------------------------------------------------------
++// Skriv ved bekreft
++// ---------------------------------------------------------------------------
++
++export async function saveQuoteReference(
++  admin: SupabaseClient,
++  input: {
++    companyId: string;
++    draftId: string;
++    leadId: string;
++    quoteType: QuoteType;
++    leadText: string;
++    emailSubject: string;
++    emailBody: string;
++    document: QuoteDocument | null;
++    editedByUser: boolean;
++  },
++): Promise<void> {
++  const lines: ReferenceLine[] = input.document
++    ? input.document.sections.flatMap((s) =>
++        s.lines.map((l) => ({
++          beskrivelse: l.description,
++          antall: l.quantity,
++          enhet: l.unit,
++          enhetspris_eks_mva: l.unit_price,
++        })),
++      )
++    : [];
++
++  const title =
++    input.document?.title?.trim() || input.emailSubject.trim() || "Tilbud";
++
++  // Tagg ut fra det som faktisk ble sendt (endelig versjon) + leadet.
++  const tagSource = [
++    `Tittel: ${title}`,
++    `Tilbudstype: ${input.quoteType}`,
++    input.document?.intro ? `Innledning: ${input.document.intro}` : "",
++    lines.length ? `Poster:\n${lines.map((l) => `- ${l.beskrivelse}`).join("\n")}` : "",
++    `Forespørselen:\n${input.leadText}`,
++  ]
++    .filter(Boolean)
++    .join("\n\n");
++
++  let tagged: TagResult;
++  try {
++    tagged = await extractTags(tagSource);
++  } catch {
++    // Tagging skal aldri stoppe en bekreftelse. Lagre uten tags heller enn å feile.
++    tagged = { tags: [], summary: "", customer_type: "ukjent" };
++  }
++
++  const tags = normalizeTags(tagged.tags);
++  const searchText = [
++    title,
++    tagged.summary,
++    tags.join(" "),
++    lines.map((l) => l.beskrivelse).join(" "),
++    ...(input.document?.assumptions ?? []),
++  ]
++    .filter(Boolean)
++    .join(" \n");
++
++  await admin.from("quote_references").insert({
++    company_id: input.companyId,
++    draft_id: input.draftId,
++    lead_id: input.leadId,
++    quote_type: input.quoteType,
++    title,
++    customer_type: tagged.customer_type === "ukjent" ? null : tagged.customer_type,
++    tags,
++    summary: tagged.summary || null,
++    lines,
++    assumptions: input.document?.assumptions ?? [],
++    email_subject: input.emailSubject,
++    email_body: input.emailBody,
++    subtotal_ex_vat: input.document ? computeTotals(input.document).subtotal : null,
++    edited_by_user: input.editedByUser,
++    search_text: searchText,
++  });
++}
++
++// ---------------------------------------------------------------------------
++// Søk ved generering
++// ---------------------------------------------------------------------------
++
++/**
++ * De 3–5 mest relevante tidligere tilbudene for et lead. Tenant-ID kommer
++ * alltid fra sesjonen i backend, aldri fra modellen.
++ */
++export async function findSimilarReferences(
++  admin: SupabaseClient,
++  input: {
++    companyId: string;
++    leadText: string;
++    quoteType?: QuoteType | null;
++    limit?: number;
++  },
++): Promise<{ references: QuoteReference[]; leadTags: string[] }> {
++  let leadTags: string[] = [];
++  try {
++    leadTags = normalizeTags((await extractTags(input.leadText)).tags);
++  } catch {
++    leadTags = [];
++  }
++
++  const query = leadTags.length ? leadTags.join(" ") : input.leadText.slice(0, 300);
++
++  const { data, error } = await admin.rpc("sok_referanser", {
++    p_company_id: input.companyId,
++    p_query: query,
++    p_quote_type: input.quoteType ?? null,
++    p_limit: input.limit ?? 5,
++  });
++  if (error) {
++    // Referanser er en forbedring, ikke en forutsetning. Uten dem genererer vi
++    // som før — men vi vil vite om det i loggen.
++    console.error("sok_referanser feilet:", error.message);
++    return { references: [], leadTags };
++  }
++  return { references: (data ?? []) as QuoteReference[], leadTags };
++}
++
++/**
++ * Kompakt tekstblokk til prompten. Aldri hele PDF-er — bare det agenten
++ * trenger for å gjenkjenne mønsteret.
++ */
++export function referencesBlock(refs: QuoteReference[]): string {
++  if (refs.length === 0) {
++    return "# Tidligere bekreftede tilbud\n\n(ingen lignende funnet ennå — dette er blant de første)";
++  }
++  const items = refs.map((r, i) => {
++    const head = `## ${i + 1}. [${r.quote_type}] ${r.title} (${r.confirmed_at.slice(0, 10)}${r.outcome ? `, ${r.outcome}` : ""}${r.edited_by_user ? ", redigert av bruker før sending" : ""})`;
++    const parts = [head];
++    if (r.tags.length) parts.push(`Nøkkelord: ${r.tags.join(", ")}`);
++    if (r.summary) parts.push(`Jobb: ${r.summary}`);
++    if (r.lines.length) {
++      parts.push(
++        "Poster:\n" +
++          r.lines
++            .map(
++              (l) =>
++                `- ${l.beskrivelse}${l.antall != null ? ` × ${l.antall} ${l.enhet}` : ""} à ${l.enhetspris_eks_mva} kr`,
++            )
++            .join("\n"),
++      );
++    }
++    if (r.assumptions.length) {
++      parts.push("Forutsetninger:\n" + r.assumptions.map((a) => `- ${a}`).join("\n"));
++    }
++    return parts.join("\n");
++  });
++  return [
++    "# Tidligere bekreftede tilbud som ligner",
++    "",
++    "Bruk disse som mønster for mengder, forutsetninger, ordlyd og tone — det er",
++    "slik dette firmaet faktisk sender tilbud. Prisene i det nye tilbudet skal",
++    "likevel alltid slås opp i prisfilen, aldri kopieres herfra.",
++    "",
++    ...items,
++  ].join("\n\n");
++}
++
++function normalizeTags(tags: string[]): string[] {
++  const seen = new Set<string>();
++  const out: string[] = [];
++  for (const raw of tags) {
++    const t = raw.toLowerCase().trim().replace(/\s+/g, " ");
++    if (t.length < 2 || t.length > 40 || seen.has(t)) continue;
++    seen.add(t);
++    out.push(t);
++    if (out.length >= 8) break;
++  }
++  return out;
++}
+diff --git a/supabase/migrations/0011_referanseliste.sql b/supabase/migrations/0011_referanseliste.sql
+new file mode 100644
+index 0000000..dff8b8f
+--- /dev/null
++++ b/supabase/migrations/0011_referanseliste.sql
+@@ -0,0 +1,108 @@
++-- Referanselisten — agentens hukommelse.
++--
++-- Hver gang et tilbud bekreftes med «Bekreft og lag kladd», lagres brukerens
++-- ENDELIGE versjon her (ikke agentens første utkast — det er fasiten), tagget
++-- med nøkkelord slik at neste generering kan slå opp de 3–5 mest relevante
++-- tidligere tilbudene («elbillader», «sikringsskap», «bad») uten å dra hele
++-- historikken inn i konteksten.
++--
++-- Speiler devello-agent/referanseliste/LES_MEG.md. Brukeren ser aldri listen;
++-- den redigeres aldri for hånd. Alt lagres, ingenting slettes.
++
++create table quote_references (
++  id              uuid primary key default gen_random_uuid(),
++  company_id      uuid not null references companies(id) on delete cascade,
++  draft_id        uuid references drafts(id) on delete set null,
++  lead_id         uuid references leads(id) on delete set null,
++
++  quote_type      quote_type not null,
++  title           text not null,
++  -- 'forbruker' | 'bedrift' | null når det ikke lot seg avgjøre.
++  customer_type   text,
++  -- Nøkkelord for gjenfinning: jobbtype, komponenter, romtype, bygningstype.
++  -- Små bokstaver, ubestemt entall, 3–8 stk. F.eks.
++  -- {elbillader, garasje, ny kurs, enebolig}
++  tags            text[] not null default '{}',
++  -- 1–2 setninger om hva jobben var. Det er dette (+ tags) søket treffer på.
++  summary         text,
++  -- Kompakte poster: [{beskrivelse, antall, enhet, enhetspris_eks_mva}]
++  lines           jsonb not null default '[]'::jsonb,
++  assumptions     jsonb not null default '[]'::jsonb,
++  email_subject   text,
++  email_body      text,
++  subtotal_ex_vat numeric(12, 2),
++
++  -- Ble utkastet endret av brukeren før bekreftelse? De redigerte er ekstra
++  -- verdifulle: de viser hva agenten bommet på.
++  edited_by_user  boolean not null default false,
++  -- null | 'vunnet' | 'tapt' — settes senere når vi vet det.
++  outcome         text,
++
++  -- Alt søkbart samlet i én tekst, så tsvector-en kan genereres av databasen.
++  search_text     text not null default '',
++  search          tsvector generated always as
++                    (to_tsvector('norwegian', search_text)) stored,
++
++  confirmed_at    timestamptz not null default now()
++);
++
++create index quote_references_company_idx
++  on quote_references (company_id, quote_type, confirmed_at desc);
++create index quote_references_search_idx on quote_references using gin (search);
++create index quote_references_tags_idx   on quote_references using gin (tags);
++
++alter table quote_references enable row level security;
++-- Brukeren skal aldri se listen fra nettleseren; bare service role (API-rutene)
++-- leser og skriver. Ingen policy => ingen tilgang for authenticated.
++
++-- ---------------------------------------------------------------------------
++-- sok_referanser — det agenten kaller (via backend) for å finne lignende tilbud.
++--
++-- Tenant-ID settes ALLTID av backend fra sesjonen, aldri av noe agenten sender.
++-- Sortering: tekst-treff → samme tilbudstype → vunnet → nyest.
++-- Faller tilbake til de nyeste av samme type når søket ikke treffer noe.
++-- ---------------------------------------------------------------------------
++create or replace function sok_referanser(
++  p_company_id uuid,
++  p_query      text,
++  p_quote_type quote_type default null,
++  p_limit      integer default 5
++)
++returns setof quote_references
++language sql
++stable
++security definer
++set search_path = public
++as $$
++  with q as (
++    select case
++      when coalesce(trim(p_query), '') = '' then null
++      else websearch_to_tsquery('norwegian', p_query)
++    end as tsq
++  ),
++  scored as (
++    select r.*,
++           case when q.tsq is null then 0 else ts_rank(r.search, q.tsq) end as rank,
++           -- Egen bonus for tag-treff: ett ord i spørringen som er en hel tag.
++           (select count(*) from unnest(r.tags) t
++             where position(lower(t) in lower(coalesce(p_query, ''))) > 0) as tag_hits
++    from quote_references r, q
++    where r.company_id = p_company_id
++      and (q.tsq is null or r.search @@ q.tsq
++           or exists (select 1 from unnest(r.tags) t
++                       where position(lower(t) in lower(coalesce(p_query, ''))) > 0))
++  )
++  select id, company_id, draft_id, lead_id, quote_type, title, customer_type,
++         tags, summary, lines, assumptions, email_subject, email_body,
++         subtotal_ex_vat, edited_by_user, outcome, search_text, search,
++         confirmed_at
++  from scored
++  order by
++    (rank + tag_hits * 0.5) desc,
++    (p_quote_type is not null and quote_type = p_quote_type) desc,
++    (outcome = 'vunnet') desc,
++    confirmed_at desc
++  limit greatest(1, least(coalesce(p_limit, 5), 8));
++$$;
++
++revoke all on function sok_referanser(uuid, text, quote_type, integer) from public;
