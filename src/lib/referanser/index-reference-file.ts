@@ -1,0 +1,64 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { extractTags, normalizeTags } from "./index";
+import type { QuoteType } from "@/lib/types";
+
+/**
+ * Skriver en opplastet referansefil inn i quote_references-poolen.
+ *
+ * Delt mellom opplastingsruta og engangsruta for eldre filer, så de to aldri
+ * driver fra hverandre i hvordan en fil blir tagget og indeksert.
+ *
+ * Raden erstattes ved re-indeksering (delete + insert på reference_quote_id):
+ * kjøres uthentingen på nytt med bedre tekst, skal det ikke ligge igjen en
+ * gammel rad med dårligere tags ved siden av.
+ */
+export async function indexReferenceFile(
+  admin: SupabaseClient,
+  input: {
+    companyId: string;
+    referenceQuoteId: string;
+    title: string;
+    quoteType: QuoteType;
+    extractedText: string;
+  },
+): Promise<{ tags: string[] }> {
+  const tagged = await extractTags(
+    `Tittel: ${input.title}\nTilbudstype: ${input.quoteType}\n\n${input.extractedText}`,
+  );
+  const tags = normalizeTags(tagged.tags);
+
+  const searchText = [input.title, tagged.summary, tags.join(" "), input.extractedText]
+    .filter(Boolean)
+    .join(" \n")
+    .slice(0, 20_000);
+
+  await admin
+    .from("quote_references")
+    .delete()
+    .eq("reference_quote_id", input.referenceQuoteId);
+
+  const { error } = await admin.from("quote_references").insert({
+    company_id: input.companyId,
+    reference_quote_id: input.referenceQuoteId,
+    draft_id: null,
+    lead_id: null,
+    quote_type: input.quoteType,
+    title: input.title,
+    customer_type: tagged.customer_type === "ukjent" ? null : tagged.customer_type,
+    tags,
+    summary: tagged.summary || null,
+    // Postene i en opplastet PDF er fri tekst, ikke strukturerte rader — vi
+    // lar lines stå tom og lar fullteksten bære søket i stedet. Å gjette
+    // struktur ut av en PDF ville gitt falsk presisjon.
+    lines: [],
+    assumptions: [],
+    email_subject: null,
+    email_body: null,
+    subtotal_ex_vat: null,
+    edited_by_user: false,
+    search_text: searchText,
+  });
+
+  if (error) throw new Error(error.message);
+  return { tags };
+}

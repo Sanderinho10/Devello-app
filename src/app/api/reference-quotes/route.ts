@@ -1,6 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
+import { extractFileText } from "@/lib/referanser/extract-text";
+import { indexReferenceFile } from "@/lib/referanser/index-reference-file";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import type { QuoteType } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
   const session = await sessionOr401();
@@ -38,24 +41,51 @@ export async function POST(request: NextRequest) {
     // navn i tillegg til å velge fil og type.
     const title = file.name.replace(/\.[^.]+$/, "").trim() || file.name;
 
-    const { error } = await admin.from("reference_quotes").insert({
-      company_id: session.companyId,
-      title,
-      type,
-      file_name: file.name,
-      storage_path: storagePath,
-      mime_type: mimeType,
-      // PDF- og Word-uthenting er ikke implementert. Fram til da er det typen
-      // og filnavnet agenten matcher mot, ikke innholdet i filen.
-      extracted_text: null,
-    });
+    // Teksten ut av fila, så agenten kan lese innholdet og ikke bare filnavnet.
+    // Beste-innsats: en skannet PDF uten tekstlag gir null, og fila lagres da
+    // som før — bare uten søkbart innhold.
+    const extractedText = await extractFileText(bytes, file.name);
 
-    if (error) {
+    const { data: created, error } = await admin
+      .from("reference_quotes")
+      .insert({
+        company_id: session.companyId,
+        title,
+        type,
+        file_name: file.name,
+        storage_path: storagePath,
+        mime_type: mimeType,
+        extracted_text: extractedText,
+      })
+      .select("id")
+      .single();
+
+    if (error || !created) {
       // Raden ble ikke til — la ikke filen bli liggende igjen i storage.
       await admin.storage.from("reference-files").remove([storagePath]);
-      throw new Error(error.message);
+      throw new Error(error?.message ?? "Kunne ikke lagre referansen");
     }
-    return NextResponse.json({ ok: true });
+
+    // Inn i den søkbare poolen, samme som bekreftede tilbud. Feiler tagging,
+    // står referansefila der likevel — engangsruta /api/reference-quotes/index
+    // kan indeksere den senere.
+    let tags: string[] = [];
+    if (extractedText) {
+      try {
+        const indexed = await indexReferenceFile(admin, {
+          companyId: session.companyId,
+          referenceQuoteId: created.id,
+          title,
+          quoteType: type as QuoteType,
+          extractedText,
+        });
+        tags = indexed.tags;
+      } catch {
+        // Tagging skal aldri velte en opplasting.
+      }
+    }
+
+    return NextResponse.json({ ok: true, extracted: Boolean(extractedText), tags });
   } catch (err) {
     return errorResponse(err);
   }
