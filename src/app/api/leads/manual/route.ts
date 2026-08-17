@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, after, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
+import { generateForLead } from "@/lib/drafts/generate-for-lead";
 import { supabaseAdmin } from "@/lib/supabase/server";
+
+export const maxDuration = 300;
 
 /**
  * Manuell henvendelse — for jobber som kom på telefon eller over disk.
@@ -47,12 +50,37 @@ export async function POST(request: NextRequest) {
         body_preview: description.slice(0, 240),
         body_text: description,
         received_at: new Date().toISOString(),
-        status: "ny",
+        // Linjen skal si sannheten fra første sekund: agenten er i gang.
+        status: "genererer",
       })
       .select("id")
       .single();
 
     if (error) throw new Error(error.message);
+
+    // Genereringen tar et minutt, og ingen skal sitte og se på en spinner så
+    // lenge. Svaret går ut nå; after() kjører resten etterpå, i samme prosess.
+    // Brukeren ser linjen i listen med det samme og kan skrive inn neste jobb
+    // mens agenten holder på.
+    after(async () => {
+      try {
+        await generateForLead(admin, {
+          leadId: lead.id,
+          companyId: session.companyId,
+          userId: session.userId,
+        });
+      } catch (err) {
+        // Et lead som blir stående på «genererer» for alltid er verre enn et
+        // som sier hva som gikk galt.
+        const melding = err instanceof Error ? err.message : String(err);
+        console.error("Bakgrunnsgenerering feilet:", melding);
+        await admin
+          .from("leads")
+          .update({ status: "ny", generation_error: melding })
+          .eq("id", lead.id);
+      }
+    });
+
     return NextResponse.json({ lead_id: lead.id });
   } catch (err) {
     return errorResponse(err);

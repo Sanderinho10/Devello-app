@@ -8,6 +8,7 @@ import { formatDate, type Lead, type LeadStatus } from "@/lib/types";
 
 const STATUS_LABEL: Record<LeadStatus, string> = {
   ny: "Ny",
+  genererer: "Genererer…",
   utkast_klar: "Utkast klart",
   bekrefta: "Bekreftet",
 };
@@ -49,13 +50,22 @@ export function LeadRow({ lead }: { lead: Lead }) {
             {lead.subject || "(uten emne)"}
           </button>
           <div className="lead-meta">{sender}</div>
+          {lead.generation_error && (
+            <div className="lead-meta" style={{ color: "#c0392b" }}>
+              Genereringen stoppet: {lead.generation_error}
+            </div>
+          )}
         </div>
         <span className={`pill ${lead.status}`}>{STATUS_LABEL[lead.status]}</span>
         <span className="lead-time">{formatDate(lead.received_at)}</span>
 
         {/* Handlingene har sin egen mening — de skal ikke åpne popupen. */}
         <span onClick={(event) => event.stopPropagation()}>
-          {lead.status === "ny" ? (
+          {lead.status === "genererer" ? (
+            // Ingen knapp mens agenten holder på: to samtidige genereringer på
+            // samme lead ville bare overskrevet hverandre.
+            <span className="tiny muted">Agenten jobber…</span>
+          ) : lead.status === "ny" ? (
             <LeadActions kind="generer" leadId={lead.id} />
           ) : (
             <Link className="button secondary" href={`/tilbud/leads/${lead.id}`}>
@@ -86,7 +96,7 @@ export function LeadRow({ lead }: { lead: Lead }) {
           <button type="button" className="button secondary" onClick={() => setOpen(false)}>
             Lukk
           </button>
-          {lead.status !== "ny" && (
+          {lead.status !== "ny" && lead.status !== "genererer" && (
             <Link className="button" href={`/tilbud/leads/${lead.id}`}>
               Åpne utkastet
             </Link>

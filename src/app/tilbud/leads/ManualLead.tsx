@@ -18,7 +18,7 @@ export function ManualLead() {
   const [description, setDescription] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [busy, setBusy] = useState<null | "lagrer" | "genererer">(null);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function close() {
@@ -27,13 +27,18 @@ export function ManualLead() {
     setError(null);
   }
 
+  // Popupen lukkes så snart henvendelsen er lagret — ikke når utkastet er
+  // ferdig. Agenten bruker et minutt, og den tiden skal brukeren kunne bruke
+  // på noe annet. Linjen dukker opp i listen med status «genererer», og
+  // oppdaterer seg selv når utkastet er klart.
+
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!description.trim()) return;
 
     setError(null);
     try {
-      setBusy("lagrer");
+      setBusy(true);
       const created = await fetch("/api/leads/manual", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -46,29 +51,15 @@ export function ManualLead() {
       const lead = await created.json();
       if (!created.ok) throw new Error(lead.error ?? "Kunne ikke lagre henvendelsen");
 
-      setBusy("genererer");
-      const generated = await fetch("/api/drafts/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lead_id: lead.lead_id }),
-      });
-      const draft = await generated.json();
-      if (!generated.ok) {
-        // Leadet er lagret. Send brukeren dit, så arbeidet ikke er tapt selv
-        // om genereringen feilet.
-        router.push(`/tilbud/leads/${lead.lead_id}`);
-        throw new Error(draft.error ?? "Kunne ikke generere utkast");
-      }
-
       setOpen(false);
       setDescription("");
       setName("");
       setEmail("");
-      router.push(`/tilbud/leads/${lead.lead_id}`);
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
-      setBusy(null);
+      setBusy(false);
     }
   }
 
@@ -134,16 +125,12 @@ export function ManualLead() {
               type="button"
               className="button secondary"
               onClick={close}
-              disabled={busy !== null}
+              disabled={busy}
             >
               Avbryt
             </button>
-            <button className="button" type="submit" disabled={busy !== null}>
-              {busy === "lagrer"
-                ? "Lagrer…"
-                : busy === "genererer"
-                  ? "Genererer utkast…"
-                  : "Lag utkast"}
+            <button className="button" type="submit" disabled={busy}>
+              {busy ? "Lagrer…" : "Lag utkast"}
             </button>
           </div>
         </form>

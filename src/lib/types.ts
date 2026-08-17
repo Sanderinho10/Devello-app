@@ -2,7 +2,7 @@ export type QuoteType = "punktpris" | "fastpris" | "tid_og_materiell";
 
 export type PriceItemKind = "punktpris" | "materiell" | "time";
 
-export type LeadStatus = "ny" | "utkast_klar" | "bekrefta";
+export type LeadStatus = "ny" | "genererer" | "utkast_klar" | "bekrefta";
 
 /** Hvor henvendelsen kom fra. Manuelle er skrevet inn etter en telefon. */
 export type LeadSource = "epost" | "manuell";
@@ -176,6 +176,8 @@ export interface Lead {
   body_text: string | null;
   received_at: string | null;
   status: LeadStatus;
+  /** Hvorfor en bakgrunnsgenerering feilet. Null når alt gikk bra. */
+  generation_error: string | null;
   created_at: string;
 }
 

@@ -402,6 +402,29 @@ p {
   background: var(--accent-soft);
   color: var(--accent);
 }
+/* Agenten holder på. Pulsen sier at det skjer noe uten at noe hopper. */
+.pill.genererer {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-secondary);
+  animation: pill-puls 1.6s ease-in-out infinite;
+}
+
+@keyframes pill-puls {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pill.genererer {
+    animation: none;
+  }
+}
+
 .pill.utkast_klar {
   background: var(--warning-soft);
   color: var(--warning);

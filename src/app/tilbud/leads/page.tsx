@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LeadActions } from "./LeadActions";
+import { AutoRefresh } from "./AutoRefresh";
 import { LeadRow } from "./LeadRow";
 import { ManualLead } from "./ManualLead";
 import { currentSession, supabaseServer } from "@/lib/supabase/server";
@@ -97,6 +98,8 @@ export default async function LeadsPage() {
           </div>
         )}
       </div>
+
+      <AutoRefresh aktiv={rows.some((lead) => lead.status === "genererer")} />
     </>
   );
 }
