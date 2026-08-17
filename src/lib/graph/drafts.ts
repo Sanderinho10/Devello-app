@@ -14,7 +14,24 @@ interface CreateDraftInput {
   toName?: string | null;
   /** Svarer vi på en tråd, holder vi kladden i samme samtale. */
   replyToMessageId?: string | null;
+  /** Bildet nederst i signaturen, om firmaet har lagt inn et. */
+  signatureImage?: SignatureImage | null;
 }
+
+export interface SignatureImage {
+  bytes: Buffer;
+  contentType: string;
+  fileName: string;
+}
+
+/**
+ * Bildet må ligge som et inline-vedlegg og refereres med cid:, ikke som en
+ * lenke til oss. En lenke ville krevd at bildet lå åpent på nettet, og de
+ * fleste e-postklienter blokkerer eksterne bilder uansett — mottakeren ville
+ * sett et tomt felt der logoen skulle stått. cid: er slik Outlook selv legger
+ * inn signaturbilder.
+ */
+const SIGNATUR_CID = "devello-signatur";
 
 export interface OutlookDraft {
   id: string;
@@ -36,7 +53,10 @@ export async function createDraft(
       method: "POST",
       body: JSON.stringify({
         subject: input.subject,
-        body: { contentType: "HTML", content: textToHtml(input.body) },
+        body: {
+          contentType: "HTML",
+          content: bodyHtml(input.body, input.signatureImage),
+        },
         toRecipients: input.toEmail
           ? [
               {
@@ -50,6 +70,10 @@ export async function createDraft(
       }),
     },
   );
+
+  if (input.signatureImage) {
+    await attachSignatureImage(accessToken, draft.id, input.signatureImage);
+  }
 
   return { id: draft.id, webLink: draft.webLink };
 }
@@ -73,11 +97,44 @@ async function createReplyDraft(
     method: "PATCH",
     body: JSON.stringify({
       subject: input.subject,
-      body: { contentType: "HTML", content: textToHtml(input.body) },
+      body: {
+        contentType: "HTML",
+        content: bodyHtml(input.body, input.signatureImage),
+      },
     }),
   });
 
+  if (input.signatureImage) {
+    await attachSignatureImage(accessToken, draft.id, input.signatureImage);
+  }
+
   return { id: draft.id, webLink: draft.webLink };
+}
+
+/** Inline-vedlegget bildet i signaturen peker på. */
+async function attachSignatureImage(
+  accessToken: string,
+  draftId: string,
+  image: SignatureImage,
+): Promise<void> {
+  await graphFetch(accessToken, `/me/messages/${draftId}/attachments`, {
+    method: "POST",
+    body: JSON.stringify({
+      "@odata.type": "#microsoft.graph.fileAttachment",
+      name: image.fileName,
+      contentType: image.contentType,
+      contentBytes: image.bytes.toString("base64"),
+      isInline: true,
+      contentId: SIGNATUR_CID,
+    }),
+  });
+}
+
+function bodyHtml(text: string, signatureImage?: SignatureImage | null): string {
+  const html = textToHtml(text);
+  if (!signatureImage) return html;
+  // Under signaturteksten agenten alt har skrevet.
+  return `${html}\n<div style="margin-top:10px"><img src="cid:${SIGNATUR_CID}" alt="" style="max-height:90px"></div>`;
 }
 
 /** Legg en PDF ved kladden. */

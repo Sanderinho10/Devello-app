@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { BrandImageUpload } from "@/components/BrandImageUpload";
 import type { CompanyBrand, ToneSettings } from "@/lib/types";
 
 /**
@@ -83,6 +84,14 @@ export function SettingsForm({
             />
             <span className="hint">Avslutningen på e-postene agenten skriver.</span>
           </label>
+
+          <BrandImageUpload
+            type="signatur"
+            label="Bilde i signaturen (valgfritt)"
+            harBilde={Boolean(brand?.signature_image_path)}
+            hoyde={54}
+            hint="Ligger logoen din i Outlook-signaturen, kopier den og lim den inn her. Bildet legges nederst i e-posten, under signaturteksten, og følger med til kunden som en del av e-posten — ikke som en lenke."
+          />
 
           <label className="field" style={{ marginBottom: 0 }}>
             <span className="label">Bunntekst i PDF</span>

@@ -90,6 +90,8 @@ export const MAALFORM_LABELS: Record<"nb" | "nn", string> = {
 export interface CompanyBrand {
   company_id: string;
   logo_path: string | null;
+  /** Bildet nederst i e-postsignaturen. Sendes som inline-vedlegg. */
+  signature_image_path: string | null;
   primary_color: string;
   accent_color: string | null;
   contact_name: string | null;

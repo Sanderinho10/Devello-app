@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { normalizeOrgNr } from "@/lib/onboarding/orgnr";
-import { LogoUpload } from "@/components/LogoUpload";
+import { BrandImageUpload } from "@/components/BrandImageUpload";
 
 /**
  * Alt som gjelder hele selskapet: firmaopplysninger, adresse, profilen som
@@ -161,7 +161,13 @@ export function CompanyForm({
           </div>
         </div>
         <div className="card-pad">
-          <LogoUpload harLogo={harLogo} kanEndre={isAdmin} />
+          <BrandImageUpload
+            type="logo"
+            label="Logo"
+            harBilde={harLogo}
+            kanEndre={isAdmin}
+            hint="PNG, JPG, WEBP eller SVG, opptil 2 MB. Står best med gjennomsiktig bakgrunn. Uten logo bruker tilbudet firmanavnet i tekst."
+          />
 
           <div className="grid-2">
             <label className="field">

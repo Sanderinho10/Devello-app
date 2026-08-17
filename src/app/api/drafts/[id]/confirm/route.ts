@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { attachPdf, createDraft } from "@/lib/graph/drafts";
 import { accessTokenFor } from "@/lib/graph/oauth";
 import { htmlToPdf } from "@/lib/pdf/render";
+import { brandImageBytes } from "@/lib/brand/image-bytes";
 import { logoDataUri } from "@/lib/pdf/logo";
 import { renderQuoteHtml } from "@/lib/pdf/template";
 import { diffSnapshots, logDraftVersion } from "@/lib/drafts/versions";
@@ -140,6 +141,9 @@ export async function POST(
       // Bare e-postleads har en melding å svare på. Den syntetiske id-en til
       // et manuelt lead ville fått createReply til å feile.
       replyToMessageId: lead.source === "epost" ? lead.external_message_id : null,
+      // Bildet i signaturen, som inline-vedlegg. Har firmaet ikke lagt inn
+      // noe, blir e-posten som før.
+      signatureImage: await brandImageBytes(admin, brand?.signature_image_path),
     });
 
     if (pdf) {
