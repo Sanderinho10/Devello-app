@@ -170,7 +170,7 @@ export async function POST(request: NextRequest) {
         const { error: sendError } = await supabaseAnon().auth.resend({
           type: "signup",
           email,
-          options: { emailRedirectTo: `${appUrl}/login` },
+          options: { emailRedirectTo: `${appUrl}/auth/callback` },
         });
         if (sendError) {
           emailError = sendError.message;

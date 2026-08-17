@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 /**
@@ -15,13 +15,26 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 type Mode = "passord" | "lenke";
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<Shell><h2>Logg inn</h2></Shell>}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
+  const params = useSearchParams();
   const [mode, setMode] = useState<Mode>("passord");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    // En lenke som ikke gikk gjennom sender brukeren hit med grunnen. Uten
+    // dette ville de sett et vanlig innloggingsskjema og ingen forklaring.
+    params.get("feil"),
+  );
 
   /**
    * Har vi allerede en sesjon, skal ingen se dette skjemaet.
@@ -72,7 +85,7 @@ export default function LoginPage() {
 
       const { error } = await supabase.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: `${window.location.origin}/tilbud/leads` },
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
       });
       if (error) {
         setError(translate(error.message));

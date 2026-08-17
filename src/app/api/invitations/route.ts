@@ -81,7 +81,10 @@ export async function POST(request: NextRequest) {
     // nytt — vi ruller den ikke tilbake, for koblingen er det som betyr noe.
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? request.nextUrl.origin;
     const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${appUrl}/tilbud/leads`,
+      // Invitasjonslenka fra Supabase er en engangslenke og kan bli
+      // spist av en e-postskanner. Vår egen lenke under er den pålitelige
+      // veien; denne er bekvemmeligheten når den kommer fram.
+      redirectTo: `${appUrl}/auth/callback`,
     });
 
     // Lenken går tilbake uansett hvordan e-posten gikk. Den er den pålitelige
