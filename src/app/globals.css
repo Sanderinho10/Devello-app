@@ -279,6 +279,28 @@ p {
   color: var(--text-tertiary);
 }
 
+/* Logg ut skal være til å finne, men ikke konkurrere med navigasjonen over.
+   Derfor understreket lenketekst og ikke en knapp med flate. */
+.sidebar-signout {
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--text-tertiary);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.sidebar-signout:hover:not(:disabled) {
+  color: var(--text-secondary);
+}
+
+.sidebar-signout:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
 .main {
   flex: 1;
   min-width: 0;

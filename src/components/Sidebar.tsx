@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { SignOut } from "@/components/SignOut";
 
 /**
  * Navigasjon per agent, ikke per funksjon.
@@ -125,9 +126,9 @@ export function Sidebar({
       {renderSection(COMPANY)}
 
       <div className="sidebar-footer">
-        {companyName}
-        <br />
-        {userEmail}
+        <div>{companyName}</div>
+        <div>{userEmail}</div>
+        <SignOut />
       </div>
     </aside>
   );
