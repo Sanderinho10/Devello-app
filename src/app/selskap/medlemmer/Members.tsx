@@ -34,6 +34,11 @@ export function Members({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
+  // Lenken fra siste invitasjon. Vises til den blir kopiert eller siden lastes
+  // på nytt — e-posten er ikke til å stole på alene, se kommentaren i
+  // /api/invitations.
+  const [link, setLink] = useState<string | null>(null);
+  const [kopiert, setKopiert] = useState(false);
 
   async function invite(event: React.FormEvent) {
     event.preventDefault();
@@ -52,6 +57,8 @@ export function Members({
       setEmail("");
       setRole("standard");
       setOpen(false);
+      setLink(payload.link ?? null);
+      setKopiert(false);
       if (payload.warning) setWarning(payload.warning);
       router.refresh();
     } catch (err) {
@@ -89,6 +96,29 @@ export function Members({
         {warning && (
           <div className="banner warning" style={{ margin: "16px 24px 0" }}>
             {warning}
+          </div>
+        )}
+
+        {link && (
+          <div className="banner info" style={{ margin: "16px 24px 0" }}>
+            <div style={{ marginBottom: 8 }}>
+              Invitasjonen er sendt på e-post. Kommer den ikke fram — eller
+              virker ikke lenken i den — send denne i stedet. Den virker like
+              godt i en melding eller en SMS.
+            </div>
+            <div className="row" style={{ gap: 8, alignItems: "center" }}>
+              <input className="input" readOnly value={link} onFocus={(e) => e.target.select()} />
+              <button
+                type="button"
+                className="button secondary"
+                onClick={async () => {
+                  await navigator.clipboard.writeText(link);
+                  setKopiert(true);
+                }}
+              >
+                {kopiert ? "Kopiert" : "Kopier"}
+              </button>
+            </div>
           </div>
         )}
 

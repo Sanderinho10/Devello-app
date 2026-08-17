@@ -65,12 +65,16 @@ export async function POST(request: NextRequest) {
       .ilike("email", email)
       .is("accepted_at", null);
 
-    const { error } = await admin.from("invitations").insert({
-      company_id: session.companyId,
-      email,
-      role,
-      invited_by: session.userId,
-    });
+    const { data: invite, error } = await admin
+      .from("invitations")
+      .insert({
+        company_id: session.companyId,
+        email,
+        role,
+        invited_by: session.userId,
+      })
+      .select("token")
+      .single();
     if (error) throw new Error(error.message);
 
     // Selve e-posten. Feiler den, står invitasjonen igjen og kan sendes på
@@ -80,17 +84,24 @@ export async function POST(request: NextRequest) {
       redirectTo: `${appUrl}/tilbud/leads`,
     });
 
+    // Lenken går tilbake uansett hvordan e-posten gikk. Den er den pålitelige
+    // veien inn: e-postskannere i Microsoft 365 henter lenker automatisk, og
+    // Supabase sin invitasjonslenke er en engangslenke som da er brukt opp før
+    // mottakeren rekker å klikke. Vår egen tåler det — se
+    // /api/invitations/aktiver.
+    const link = `${appUrl}/invitasjon/${invite.token}`;
+
     if (inviteError) {
       return NextResponse.json({
         ok: true,
+        link,
         warning:
           "Invitasjonen er registrert, men e-posten gikk ikke ut: " +
-          `${inviteError.message}. Be dem registrere seg med denne adressen, ` +
-          "så kobles de til selskapet automatisk.",
+          `${inviteError.message}. Send lenken under i stedet.`,
       });
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, link });
   } catch (err) {
     return errorResponse(err);
   }
