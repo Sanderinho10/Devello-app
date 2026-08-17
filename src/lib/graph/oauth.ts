@@ -34,7 +34,7 @@ function authorityBase(): string {
   return `https://login.microsoftonline.com/${tenant()}/oauth2/v2.0`;
 }
 
-export function buildAuthorizeUrl(state: string): string {
+export function buildAuthorizeUrl(state: string, tvingNyInnlogging = false): string {
   const params = new URLSearchParams({
     client_id: requireEnv("MS_CLIENT_ID"),
     response_type: "code",
@@ -42,10 +42,47 @@ export function buildAuthorizeUrl(state: string): string {
     response_mode: "query",
     scope: GRAPH_SCOPES.join(" "),
     state,
-    // Sluttbrukeren samtykker selv. Ingen IT-godkjenning fra kundens side.
-    prompt: "select_account",
+    // «login» tvinger en fersk innlogging, og dermed to-faktoren om tenanten
+    // krever den. Uten det kan Microsoft gjenbruke en gammel nettleser-sesjon
+    // og gi oss et token uten to-faktor-stempel — som er nøyaktig det som
+    // gjorde at fornyingen i bakgrunnen brøt sammen. Brukes når vi kobler til
+    // på nytt etter en slik feil.
+    prompt: tvingNyInnlogging ? "login" : "select_account",
   });
   return `${authorityBase()}/authorize?${params.toString()}`;
+}
+
+/**
+ * Microsofts feilkoder oversatt til noe en elektriker kan handle på.
+ *
+ * Feilene fra Microsoft er lange, engelske og har trace-ID-er i seg. Vi lagrer
+ * hele svaret i agent_runs for feilsøking, men det brukeren ser skal si hva
+ * som gikk galt og hva de kan gjøre med det.
+ */
+export function forklarTokenfeil(melding: string): string {
+  if (/AADSTS50076|AADSTS50079|interaction_required/i.test(melding)) {
+    return (
+      "Microsoft krever tofaktor-innlogging for denne postkassen, og en " +
+      "fornying i bakgrunnen kan ikke be om engangskoden. Koble til på nytt " +
+      "og fullfør innloggingen, så holder koblingen seg."
+    );
+  }
+  if (/AADSTS50173|token.*revoked|password.*changed/i.test(melding)) {
+    return (
+      "Passordet på Microsoft-kontoen er endret siden koblingen ble satt opp. " +
+      "Koble til på nytt."
+    );
+  }
+  if (/AADSTS65001|consent/i.test(melding)) {
+    return (
+      "Samtykket til Devello er trukket tilbake i Microsoft. Koble til på nytt " +
+      "og godkjenn tilgangen."
+    );
+  }
+  if (/invalid_grant/i.test(melding)) {
+    return "Microsoft godtok ikke den lagrede tilgangen lenger. Koble til på nytt.";
+  }
+  return "Tilgangen til postkassen virker ikke lenger. Koble til på nytt.";
 }
 
 export interface TokenSet {
@@ -117,7 +154,11 @@ export async function accessTokenFor(mailboxId: string): Promise<string> {
   if (!mailbox.refresh_token) {
     await admin
       .from("mailbox_connections")
-      .update({ status: "token_utlopt" })
+      .update({
+        status: "token_utlopt",
+        status_reason:
+          "Koblingen ble satt opp uten varig tilgang. Koble til på nytt.",
+      })
       .eq("id", mailboxId);
     throw new Error(
       "Postkassen har ikke et gyldig refresh token. Koble til på nytt under Innstillinger.",
@@ -135,14 +176,16 @@ export async function accessTokenFor(mailboxId: string): Promise<string> {
         expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
         scope: tokens.scope,
         status: "aktiv",
+        status_reason: null,
       })
       .eq("id", mailboxId);
     return tokens.access_token;
   } catch (err) {
+    const melding = err instanceof Error ? err.message : String(err);
     await admin
       .from("mailbox_connections")
-      .update({ status: "token_utlopt" })
+      .update({ status: "token_utlopt", status_reason: forklarTokenfeil(melding) })
       .eq("id", mailboxId);
-    throw err;
+    throw new Error(forklarTokenfeil(melding));
   }
 }

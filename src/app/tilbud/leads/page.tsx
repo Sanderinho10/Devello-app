@@ -20,7 +20,7 @@ export default async function LeadsPage() {
       .limit(100),
     supabase
       .from("mailbox_connections")
-      .select("email_address, status")
+      .select("email_address, status, status_reason")
       .eq("company_id", session!.companyId)
       .maybeSingle(),
     supabase
@@ -63,7 +63,13 @@ export default async function LeadsPage() {
 
       {mailbox?.status === "token_utlopt" && (
         <div className="banner error">
-          Tilgangen til postkassen har gått ut. Koble til på nytt under Innstillinger.
+          <div style={{ marginBottom: 10 }}>
+            {mailbox.status_reason ??
+              "Tilgangen til postkassen virker ikke lenger. Koble til på nytt."}
+          </div>
+          <a className="button" href="/api/auth/microsoft/start?paanytt=1">
+            Koble til på nytt
+          </a>
         </div>
       )}
 

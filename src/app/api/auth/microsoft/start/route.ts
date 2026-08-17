@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { buildAuthorizeUrl } from "@/lib/graph/oauth";
 import { currentSession } from "@/lib/supabase/server";
 import { randomBytes } from "node:crypto";
@@ -7,7 +7,7 @@ import { randomBytes } from "node:crypto";
  * Starter OAuth-flyten mot Microsoft. Sluttbrukeren samtykker selv — det trengs
  * ingen IT-godkjenning fra kundens side, i motsetning til M365-connector-veien.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   const session = await currentSession();
   if (!session) {
     return NextResponse.redirect(new URL("/login", process.env.NEXT_PUBLIC_APP_URL));
@@ -17,7 +17,11 @@ export async function GET() {
   const nonce = randomBytes(16).toString("hex");
   const state = `${session.companyId}:${nonce}`;
 
-  const response = NextResponse.redirect(buildAuthorizeUrl(state));
+  // Kobler man til på nytt etter at fornyingen brøt sammen, må Microsoft
+  // gjøre en fersk innlogging — ellers kan den gjenbruke en sesjon uten
+  // tofaktor og gi oss et token som feiler på samme måte igjen.
+  const paaNytt = request.nextUrl.searchParams.get("paanytt") === "1";
+  const response = NextResponse.redirect(buildAuthorizeUrl(state, paaNytt));
   response.cookies.set("ms_oauth_state", state, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

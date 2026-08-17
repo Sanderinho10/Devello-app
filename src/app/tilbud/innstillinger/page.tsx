@@ -27,7 +27,7 @@ export default async function InnstillingerPage({
       .maybeSingle(),
     supabase
       .from("mailbox_connections")
-      .select("email_address, status, last_synced_at, initial_fetch_from")
+      .select("email_address, status, status_reason, last_synced_at, initial_fetch_from")
       .eq("company_id", session!.companyId)
       .maybeSingle(),
   ]);
@@ -58,7 +58,10 @@ export default async function InnstillingerPage({
               <strong>Postkasse</strong>
               <div className="tiny muted">Microsoft 365 / Outlook</div>
             </div>
-            <a className="button" href="/api/auth/microsoft/start">
+            <a
+              className="button"
+              href={`/api/auth/microsoft/start${mailbox ? "?paanytt=1" : ""}`}
+            >
               {mailbox ? "Koble til på nytt" : "Koble til Microsoft 365"}
             </a>
           </div>
@@ -73,6 +76,11 @@ export default async function InnstillingerPage({
                     {mailbox.status === "aktiv" ? "Aktiv" : "Trenger ny tilkobling"}
                   </span>
                 </div>
+                {mailbox.status !== "aktiv" && mailbox.status_reason && (
+                  <div className="banner error" style={{ marginTop: 4 }}>
+                    {mailbox.status_reason}
+                  </div>
+                )}
                 <div className="tiny muted">
                   Sist synkronisert: {formatDate(mailbox.last_synced_at)}
                 </div>
