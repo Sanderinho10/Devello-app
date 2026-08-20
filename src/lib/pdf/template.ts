@@ -27,38 +27,64 @@ export function renderQuoteHtml(input: {
   const totals = computeTotals(doc);
   const accent = brand.primary_color || "#1d1d1f";
 
-  const sections = doc.sections
-    .filter((section) => section.lines.length > 0)
+  const brukteSeksjoner = doc.sections.filter((section) => section.lines.length > 0);
+  // Delsummer bare når det faktisk er flere seksjoner. På et punktpristilbud
+  // med én seksjon ville en delsum rett over totalen sagt det samme to ganger.
+  const flereSeksjoner = brukteSeksjoner.length > 1;
+
+  // Én tabell for hele tilbudet, ikke én per seksjon. Kolonneoverskriftene
+  // hører til dokumentet, ikke til rommet — gjentatt over hver seksjon blir de
+  // støy, og de spiser fire linjer på et tilbud med fire rom.
+  const rader = brukteSeksjoner
     .map((section) => {
-      const rows = section.lines
+      const linjer = section.lines
         .map(
           (line) => `
           <tr>
             <td class="desc">${escapeHtml(line.description)}</td>
-            <td class="num">${formatQuantity(line.quantity)} ${escapeHtml(line.unit)}</td>
+            <td class="qty">${formatQuantity(line.quantity)}</td>
+            <td class="unit">${escapeHtml(line.unit)}</td>
             <td class="num">${formatNok(line.unit_price)}</td>
             <td class="num strong">${formatNok(line.quantity * line.unit_price)}</td>
           </tr>`,
         )
         .join("");
 
+      if (!flereSeksjoner) return linjer;
+
+      const delsum = section.lines.reduce(
+        (sum, line) => sum + line.quantity * line.unit_price,
+        0,
+      );
+
       return `
-        <section class="lines">
-          ${doc.sections.length > 1 ? `<h3>${escapeHtml(section.title)}</h3>` : ""}
-          <table>
-            <thead>
-              <tr>
-                <th>Post</th>
-                <th class="num">Antall</th>
-                <th class="num">Enhetspris</th>
-                <th class="num">Sum</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </section>`;
+        <tr class="group"><td colspan="5">${escapeHtml(section.title)}</td></tr>
+        ${linjer}
+        <tr class="subtotal">
+          <td colspan="4" class="num">Sum ${escapeHtml(section.title.toLowerCase())} eks. mva</td>
+          <td class="num">${formatNok(delsum)}</td>
+        </tr>`;
     })
     .join("");
+
+  const sections = rader
+    ? `<table>
+         <colgroup>
+           <col style="width:49%"><col style="width:9%"><col style="width:9%">
+           <col style="width:16%"><col style="width:17%">
+         </colgroup>
+         <thead>
+           <tr>
+             <th>Beskrivelse</th>
+             <th class="qty">Mengde</th>
+             <th class="unit">Enh</th>
+             <th class="num">Enh.pris</th>
+             <th class="num">Beløp</th>
+           </tr>
+         </thead>
+         <tbody>${rader}</tbody>
+       </table>`
+    : "";
 
   const assumptions = doc.assumptions.length
     ? `<section class="assumptions">
@@ -93,91 +119,157 @@ export function renderQuoteHtml(input: {
 <meta charset="utf-8">
 <title>${escapeHtml(doc.title)}</title>
 <style>
-  @page { size: A4; margin: 18mm 16mm 20mm; }
+  /*
+   * Tett sats med vilje.
+   *
+   * Et tilbud som går over to sider blir lest som to dokumenter — kunden ser
+   * totalen på side to og har glemt hva den dekker. Derfor små marger, 9 pt
+   * og stram linjeavstand: så mye av jobben som mulig på ett ark, uten at det
+   * blir trangt å lese.
+   */
+  @page { size: A4; margin: 13mm 14mm 15mm; }
   * { box-sizing: border-box; }
   body {
     font-family: -apple-system, "SF Pro Text", "Segoe UI", Helvetica, Arial, sans-serif;
-    font-size: 10.5pt;
-    line-height: 1.55;
+    font-size: 9pt;
+    line-height: 1.35;
     color: #1d1d1f;
     margin: 0;
     -webkit-font-smoothing: antialiased;
   }
+
+  /* Avsender */
   header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    padding-bottom: 18px;
+    padding-bottom: 8px;
     border-bottom: 2px solid ${accent};
   }
-  .logo { max-height: 46px; max-width: 190px; }
-  .sender-name { font-size: 15pt; font-weight: 600; letter-spacing: -0.01em; }
-  .sender { text-align: right; font-size: 9pt; color: #6e6e73; line-height: 1.5; }
+  .logo { max-height: 42px; max-width: 180px; }
+  .sender-name { font-size: 12pt; font-weight: 600; letter-spacing: -0.01em; }
+  .sender { text-align: right; font-size: 7.5pt; color: #6e6e73; line-height: 1.3; }
+
+  /* Overskrift — tydeligere enn en løpende setning. */
   h1 {
-    font-size: 20pt;
-    font-weight: 600;
+    font-size: 19pt;
+    font-weight: 650;
     letter-spacing: -0.02em;
-    margin: 30px 0 4px;
+    line-height: 1.15;
+    margin: 13px 0 2px;
   }
-  .subtitle { color: #6e6e73; font-size: 9.5pt; margin-bottom: 26px; }
+  .subtitle {
+    color: #86868b;
+    font-size: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 10px;
+  }
+
+  /* Kunde og datoer */
   .meta {
     display: flex;
-    gap: 40px;
-    padding: 16px 0;
+    gap: 28px;
+    padding: 7px 0;
     border-top: 1px solid #e8e8ed;
     border-bottom: 1px solid #e8e8ed;
-    margin-bottom: 26px;
+    margin-bottom: 10px;
+    font-size: 8.5pt;
   }
   .meta > div { flex: 1; }
   .meta .label {
+    font-size: 7pt;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #86868b;
+    margin-bottom: 2px;
+  }
+  .meta .rows { display: flex; gap: 22px; }
+
+  .intro { margin-bottom: 10px; white-space: pre-wrap; }
+
+  /* Poster */
+  h3 {
     font-size: 8pt;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: #86868b;
-    margin-bottom: 4px;
+    margin: 14px 0 3px;
+    font-weight: 600;
+    /* En seksjonstittel alene nederst på en side hjelper ingen. */
+    break-after: avoid;
   }
-  .intro { margin-bottom: 26px; white-space: pre-wrap; }
-  h3 {
-    font-size: 9pt;
+  table { width: 100%; border-collapse: collapse; }
+  /* Går tilbudet over to sider, skal kolonnene stå på begge. */
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+  th {
+    text-align: left;
+    font-size: 7.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    color: #86868b;
+    padding: 4px 0;
+    border-bottom: 1px solid #d2d2d7;
+  }
+  td { padding: 2.6px 0; border-bottom: 1px solid #f2f2f5; vertical-align: top; }
+  td.desc { padding-right: 12px; }
+  .num { text-align: right; white-space: nowrap; }
+  /* Mengde høyrejustert mot enheten, med luft imellom — ellers leses
+     «1» og «stk» som ett ord. */
+  .qty { text-align: right; padding-right: 7px; white-space: nowrap; }
+  .unit { text-align: left; color: #6e6e73; white-space: nowrap; }
+  .strong { font-weight: 600; }
+
+  /* Seksjonsrad inne i tabellen: rommet eller delen jobben er delt i. */
+  tr.group td {
+    padding: 8px 0 2px;
+    border-bottom: 1px solid #e8e8ed;
+    font-size: 8pt;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: #86868b;
-    margin: 24px 0 8px;
-    font-weight: 600;
   }
-  table { width: 100%; border-collapse: collapse; }
-  th {
-    text-align: left;
+  tr.group:first-child td { padding-top: 4px; }
+
+  tr.subtotal td {
+    border-bottom: none;
+    padding-top: 4px;
+    padding-bottom: 1px;
+    font-weight: 600;
     font-size: 8.5pt;
-    font-weight: 600;
-    color: #86868b;
-    padding: 8px 0;
-    border-bottom: 1px solid #e8e8ed;
   }
-  td { padding: 9px 0; border-bottom: 1px solid #f2f2f5; vertical-align: top; }
-  td.desc { padding-right: 16px; }
-  .num { text-align: right; white-space: nowrap; }
-  th.num { text-align: right; }
-  .strong { font-weight: 600; }
-  .totals { margin-top: 22px; margin-left: auto; width: 58%; }
-  .totals .row { display: flex; justify-content: space-between; padding: 6px 0; }
+
+  /* Summer */
+  .totals {
+    margin-top: 9px;
+    margin-left: auto;
+    width: 52%;
+    break-inside: avoid;
+  }
+  .totals .row { display: flex; justify-content: space-between; padding: 3px 0; }
   .totals .row.grand {
     border-top: 2px solid ${accent};
-    margin-top: 6px;
-    padding-top: 12px;
-    font-size: 13pt;
-    font-weight: 600;
+    margin-top: 4px;
+    padding-top: 8px;
+    font-size: 12pt;
+    font-weight: 650;
     letter-spacing: -0.01em;
   }
   .totals .muted { color: #6e6e73; }
-  .assumptions { margin-top: 30px; }
-  .assumptions ul { margin: 0; padding-left: 18px; }
-  .assumptions li { margin-bottom: 5px; }
+
+  /* Forutsetninger */
+  .assumptions { margin-top: 14px; break-inside: avoid; }
+  .assumptions ul { margin: 0; padding-left: 14px; }
+  .assumptions li { margin-bottom: 1px; font-size: 8.5pt; }
+
   footer {
-    margin-top: 40px;
-    padding-top: 14px;
+    margin-top: 16px;
+    padding-top: 7px;
     border-top: 1px solid #e8e8ed;
-    font-size: 8.5pt;
+    font-size: 7.5pt;
     color: #86868b;
     white-space: pre-wrap;
   }
@@ -211,11 +303,15 @@ export function renderQuoteHtml(input: {
       ${doc.customer.email ? `<div>${escapeHtml(doc.customer.email)}</div>` : ""}
       ${doc.customer.phone ? `<div>${escapeHtml(doc.customer.phone)}</div>` : ""}
     </div>
-    <div>
-      <div class="label">Dato</div>
-      <div>${formatDateNo(new Date().toISOString())}</div>
-      <div class="label" style="margin-top:12px">Gyldig til</div>
-      <div>${doc.valid_until ? formatDateNo(doc.valid_until) : "—"}</div>
+    <div class="rows">
+      <div>
+        <div class="label">Dato</div>
+        <div>${formatDateNo(new Date().toISOString())}</div>
+      </div>
+      <div>
+        <div class="label">Gyldig til</div>
+        <div>${doc.valid_until ? formatDateNo(doc.valid_until) : "—"}</div>
+      </div>
     </div>
   </div>
 
@@ -236,10 +332,14 @@ export function renderQuoteHtml(input: {
 </html>`;
 }
 
+/**
+ * Undertittelen er en etikett, ikke en setning.
+ *
+ * Forklaringen på hva en punktpris er hører hjemme i e-posten, der det er
+ * plass til å si det ordentlig. Her stjeler den bare plass fra postene.
+ */
 function quoteTypeLabel(type: QuoteType): string {
-  return type === "punktpris"
-    ? "Tilbud — punktpris. Hver post inkluderer arbeid og materiell."
-    : "Tilbud — fastpris. Materiell og arbeid spesifisert hver for seg.";
+  return type === "punktpris" ? "Pristilbud — punktpris" : "Pristilbud — fastpris";
 }
 
 function formatQuantity(n: number): string {
