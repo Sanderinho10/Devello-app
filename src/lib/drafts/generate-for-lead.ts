@@ -5,6 +5,7 @@ import { logDraftVersion } from "@/lib/drafts/versions";
 import { assessConfidence, countUnresolvedLines } from "@/lib/drafts/confidence";
 import { forbeholdsBibliotek } from "@/lib/referanser/forbehold";
 import { findSimilarReferences } from "@/lib/referanser";
+import { registrerBruk } from "@/lib/billing/subscription";
 import type { QuoteDocument, QuoteType } from "@/lib/types";
 
 /**
@@ -148,6 +149,16 @@ export async function generateForLead(
   });
 
   await settStatus(admin, lead.id, lead.status);
+
+  // Teller ett tilbud på abonnementet — men bare første gang dette leadet
+  // produserer et utkast. Regenererer brukeren for å bytte tilbudstype eller
+  // prøve på nytt, er det den samme jobben, og den unike indeksen i 0025
+  // sørger for at den ikke telles på nytt. Vi vil at de skal iterere.
+  await registrerBruk(admin, {
+    companyId: opts.companyId,
+    agentId: "tilbud",
+    referenceId: lead.id,
+  });
 
   return { leadId: lead.id, draft, reused: false };
 }

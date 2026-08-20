@@ -54,7 +54,6 @@ export interface Company {
   billing_city: string | null;
   /** Én måned gratis fra registrering. */
   trial_ends_at: string | null;
-  plan: string | null;
   /** Partnerkoden som vervet kunden, om noen gjorde det. */
   partner_code: string | null;
 }

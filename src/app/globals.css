@@ -272,6 +272,53 @@ p {
   margin-bottom: 5px;
 }
 
+/* Abonnement per agent: én seksjon per agent, pakkene som kort inni. */
+.agent-abo-head {
+  align-items: flex-start;
+  gap: 16px;
+}
+
+/* Forbruk mot kvote. Tallet er det viktige — stolpen er der for å gjøre
+   «nærmer meg taket» synlig uten at man må lese. */
+.forbruk-bar {
+  margin-top: 8px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.forbruk-fyll {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+
+.forbruk-bar.over .forbruk-fyll {
+  background: var(--warning);
+}
+
+/* Knapp som skal lese som en lenke: oppsigelse hører ikke hjemme som en
+   knapp ved siden av «Velg denne». */
+.linkish {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--text-secondary);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.linkish:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.linkish:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
 .sidebar-footer {
   margin-top: auto;
   padding: 16px 10px 0;
