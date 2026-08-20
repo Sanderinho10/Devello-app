@@ -1,5 +1,4 @@
 import { FirstFetchFrom } from "./FirstFetchFrom";
-import { Lessons, type LessonRow } from "./Lessons";
 import { SettingsForm } from "./SettingsForm";
 import { currentSession, supabaseServer } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/types";
@@ -15,8 +14,7 @@ export default async function InnstillingerPage({
   const session = await currentSession();
   const supabase = await supabaseServer();
 
-  const [{ data: company }, { data: brand }, { data: mailbox }, { data: lessons }, { data: me }] =
-    await Promise.all([
+  const [{ data: company }, { data: brand }, { data: mailbox }] = await Promise.all([
     supabase
       .from("companies")
       .select("tone_settings")
@@ -32,15 +30,6 @@ export default async function InnstillingerPage({
       .select("email_address, status, status_reason, last_synced_at, initial_fetch_from")
       .eq("company_id", session!.companyId)
       .maybeSingle(),
-    // Bare dette selskapets lærdommer — RLS holder dem fra hverandre, og
-    // spørringen sier det samme én gang til.
-    supabase
-      .from("agent_lessons")
-      .select("id, regel, begrunnelse, quote_type, status, ganger, created_at")
-      .eq("company_id", session!.companyId)
-      .in("status", ["foreslaatt", "aktiv"])
-      .order("created_at", { ascending: false }),
-    supabase.from("users").select("role").eq("id", session!.userId).single(),
   ]);
 
   return (
@@ -116,11 +105,6 @@ export default async function InnstillingerPage({
             </div>
           </div>
         </div>
-
-        <Lessons
-          lessons={(lessons ?? []) as LessonRow[]}
-          isAdmin={me?.role === "admin"}
-        />
 
         <SettingsForm
           company={{ tone_settings: company?.tone_settings ?? {} }}

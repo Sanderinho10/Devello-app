@@ -1,6 +1,5 @@
 import { structured } from "./client";
 import { loadMotor } from "./motor";
-import { laerdomsBlokk, type Lesson } from "@/lib/laering/lessons";
 import { forbeholdsBlokk, type Forbehold } from "@/lib/referanser/forbehold";
 import { referencesBlock, type QuoteReference } from "@/lib/referanser";
 import {
@@ -230,8 +229,6 @@ export interface GenerateInput {
   vatRate?: number;
   /** De 3–5 mest relevante tidligere tilbudene (referanseliste + filer). */
   similar?: QuoteReference[];
-  /** Godkjente lærdommer for DETTE selskapet. Se lib/laering/lessons.ts. */
-  lessons?: Lesson[];
   /** Forbeholdene firmaet har brukt før. Agenten velger fra disse, aldri fritt. */
   forbehold?: Forbehold[];
 }
@@ -321,8 +318,6 @@ function buildPrompt(input: GenerateInput): string {
 
   // Lærdommene veier tyngre enn mønsteret i referansene, så de kommer etter —
   // det siste modellen leser før selve leadet.
-  blocks.push(laerdomsBlokk(input.lessons ?? []));
-
   blocks.push(forbeholdsBlokk(input.forbehold ?? []));
 
   blocks.push(

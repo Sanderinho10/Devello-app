@@ -3,7 +3,6 @@ import { generateDraft } from "@/lib/claude/generate";
 import { activePriceItems } from "@/lib/pricelist/active";
 import { logDraftVersion } from "@/lib/drafts/versions";
 import { assessConfidence, countUnresolvedLines } from "@/lib/drafts/confidence";
-import { aktiveLaerdommer } from "@/lib/laering/lessons";
 import { forbeholdsBibliotek } from "@/lib/referanser/forbehold";
 import { findSimilarReferences } from "@/lib/referanser";
 import type { QuoteDocument, QuoteType } from "@/lib/types";
@@ -52,7 +51,7 @@ export async function generateForLead(
     }
   }
 
-  const [{ data: company }, { data: references }, priceItems, lessons, forbehold] =
+  const [{ data: company }, { data: references }, priceItems, forbehold] =
     await Promise.all([
     admin
       .from("companies")
@@ -61,8 +60,6 @@ export async function generateForLead(
       .single(),
     admin.from("reference_quotes").select("type").eq("company_id", opts.companyId),
     activePriceItems(admin, opts.companyId),
-    // Bare dette selskapets lærdommer. Aldri på tvers av kunder.
-    aktiveLaerdommer(admin, opts.companyId),
     // Forbeholdene firmaet har brukt før. Agenten velger fra disse — den
     // formulerer aldri et forbehold selv, like lite som den setter en pris.
     forbeholdsBibliotek(admin, opts.companyId),
@@ -95,7 +92,6 @@ export async function generateForLead(
     },
     priceItems,
     similar,
-    lessons,
     forbehold,
   });
 
