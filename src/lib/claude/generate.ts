@@ -1,6 +1,7 @@
 import { structured } from "./client";
 import { loadMotor } from "./motor";
 import { laerdomsBlokk, type Lesson } from "@/lib/laering/lessons";
+import { forbeholdsBlokk, type Forbehold } from "@/lib/referanser/forbehold";
 import { referencesBlock, type QuoteReference } from "@/lib/referanser";
 import {
   kindsForQuoteType,
@@ -128,11 +129,17 @@ const TILBUDSDATA_SCHEMA = {
       required: ["kunde", "tittel", "innledning", "seksjoner"],
       additionalProperties: false,
     },
-    forutsetninger: {
+    antakelser: {
       type: "array",
       items: { type: "string" },
       description:
-        "3–7 linjer. Antakelser (maks 3, konkrete), kundens faste forbehold fra referansene, faste linjer fra innstillingene. Aldri motorens eget påfunn. Tom ved trenger_avklaring.",
+        "Maks 3. Bare antakelser om DENNE jobben som følger av leadet og postene du valgte — mengder og omfang kunden ikke oppga, formulert så kunden kan motsi dem: «Badegulvet er antatt 10 m².» Ingen forbehold, ingen faste formuleringer. Tom ved trenger_avklaring.",
+    },
+    forbehold: {
+      type: "array",
+      items: { type: "string" },
+      description:
+        "id-er fra forbeholdsbiblioteket, f.eks. «F3». Velg 2–4 som passer jobben. Teksten settes inn ordrett av systemet. Finn aldri på egne — er biblioteket tomt eller passer ingen, la lista stå tom.",
     },
     estimat_timer: {
       type: ["object", "null"],
@@ -176,7 +183,8 @@ const TILBUDSDATA_SCHEMA = {
     "typebegrunnelse",
     "status",
     "dokument",
-    "forutsetninger",
+    "antakelser",
+    "forbehold",
     "estimat_timer",
     "epost",
     "ikke_funnet",
@@ -204,7 +212,8 @@ export interface RawTilbudsdata {
       poster: { price_item_id: string; description: string; quantity: number }[];
     }[];
   } | null;
-  forutsetninger: string[];
+  antakelser: string[];
+  forbehold: string[];
   estimat_timer: { fra: number; til: number } | null;
   epost: { emne: string; tekst: string };
   ikke_funnet: string[];
@@ -223,6 +232,8 @@ export interface GenerateInput {
   similar?: QuoteReference[];
   /** Godkjente lærdommer for DETTE selskapet. Se lib/laering/lessons.ts. */
   lessons?: Lesson[];
+  /** Forbeholdene firmaet har brukt før. Agenten velger fra disse, aldri fritt. */
+  forbehold?: Forbehold[];
 }
 
 export async function generateDraft(input: GenerateInput): Promise<GeneratedDraft> {
@@ -312,6 +323,8 @@ function buildPrompt(input: GenerateInput): string {
   // det siste modellen leser før selve leadet.
   blocks.push(laerdomsBlokk(input.lessons ?? []));
 
+  blocks.push(forbeholdsBlokk(input.forbehold ?? []));
+
   blocks.push(
     `# Leadet\n\nFra: ${input.lead.from_name ?? "(ukjent)"} <${
       input.lead.from_email ?? "ukjent"
@@ -352,12 +365,28 @@ export function validate(raw: RawTilbudsdata, input: GenerateInput): string[] {
     );
   }
 
+  // Forbehold skal peke på biblioteket, ikke på noe modellen fant på. Samme
+  // regel som for priser: en id vi ikke kjenner igjen, er en gjetning.
+  const kjente = new Set((input.forbehold ?? []).map((f) => f.id));
+  for (const id of raw.forbehold) {
+    if (!kjente.has(id)) {
+      problems.push(
+        `forbehold «${id}» finnes ikke i forbeholdsbiblioteket. Velg bare id-er fra listen, eller la lista stå tom.`,
+      );
+    }
+  }
+  if (raw.forbehold.length > 0 && kjente.size === 0) {
+    problems.push(
+      "forbeholdsbiblioteket er tomt — da skal forbehold være en tom liste.",
+    );
+  }
+
   // Kundevendt tekst, samlet.
   const texts: [string, string][] = [
     ["epost.emne", raw.epost.emne],
     ["epost.tekst", raw.epost.tekst],
-    ...raw.forutsetninger.map(
-      (line, i) => [`forutsetninger[${i}]`, line] as [string, string],
+    ...raw.antakelser.map(
+      (line, i) => [`antakelser[${i}]`, line] as [string, string],
     ),
   ];
   if (raw.dokument) {
@@ -467,10 +496,27 @@ function resolve(raw: RawTilbudsdata, input: GenerateInput): GeneratedDraft {
       title: raw.dokument.tittel,
       intro: raw.dokument.innledning,
       sections,
-      assumptions: raw.forutsetninger,
+      assumptions: [
+        ...raw.antakelser,
+        // Ordrett fra biblioteket. Modellen leverte bare id-en.
+        ...raw.forbehold
+          .map((id) => (input.forbehold ?? []).find((f) => f.id === id)?.tekst)
+          .filter((t): t is string => Boolean(t)),
+      ],
       valid_until: thirtyDaysFromNow(),
       vat_rate: input.vatRate ?? 25,
     };
+  }
+
+  // Et tilbud uten forbehold skal ikke gå ut i stillhet. Brukeren skal vite
+  // at det ikke er en vurdering agenten har gjort, men at det ikke fantes noe
+  // å velge fra.
+  if (document && raw.forbehold.length === 0) {
+    merknader.push(
+      (input.forbehold ?? []).length === 0
+        ? "Tilbudet har ingen forbehold: firmaet har ingen lagrede å velge fra ennå. Forbehold kommer fra tidligere bekreftede tilbud og opplastede referansefiler — legg dem inn der, eller skriv dem selv i utkastet."
+        : "Ingen av de lagrede forbeholdene passet denne jobben, så tilbudet har bare antakelsene om omfanget.",
+    );
   }
 
   return {

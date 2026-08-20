@@ -4,6 +4,7 @@ import { activePriceItems } from "@/lib/pricelist/active";
 import { logDraftVersion } from "@/lib/drafts/versions";
 import { assessConfidence, countUnresolvedLines } from "@/lib/drafts/confidence";
 import { aktiveLaerdommer } from "@/lib/laering/lessons";
+import { forbeholdsBibliotek } from "@/lib/referanser/forbehold";
 import { findSimilarReferences } from "@/lib/referanser";
 import type { QuoteDocument, QuoteType } from "@/lib/types";
 
@@ -51,7 +52,8 @@ export async function generateForLead(
     }
   }
 
-  const [{ data: company }, { data: references }, priceItems, lessons] = await Promise.all([
+  const [{ data: company }, { data: references }, priceItems, lessons, forbehold] =
+    await Promise.all([
     admin
       .from("companies")
       .select("name, tone_settings")
@@ -61,6 +63,9 @@ export async function generateForLead(
     activePriceItems(admin, opts.companyId),
     // Bare dette selskapets lærdommer. Aldri på tvers av kunder.
     aktiveLaerdommer(admin, opts.companyId),
+    // Forbeholdene firmaet har brukt før. Agenten velger fra disse — den
+    // formulerer aldri et forbehold selv, like lite som den setter en pris.
+    forbeholdsBibliotek(admin, opts.companyId),
   ]);
 
   const leadText = lead.body_text || lead.body_preview || "";
@@ -91,6 +96,7 @@ export async function generateForLead(
     priceItems,
     similar,
     lessons,
+    forbehold,
   });
 
   const quoteType = generated.quote_type;

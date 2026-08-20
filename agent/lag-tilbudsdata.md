@@ -36,26 +36,24 @@ medgått tid og materiell»).
 Σ post-summer; mva-beløp = sum × sats fra innstillinger; total = sum + mva.
 Ved tid og materiell settes sum-feltene til `null` — satsene er prisen.
 
-**forutsetninger** — én linje per punkt. **Innholdet er kundens, ikke
-motorens** — ingen forbeholdstekst er hardkodet i agenten. Tre kilder, i denne
-rekkefølgen:
+**antakelser** — maks 3, og bare om DENNE jobben. Det du selv fylte inn fordi
+leadet ikke sa det: mengder og omfang. Konkrete nok til at kunden kan motsi
+dem: «Badegulvet er antatt 10 m².» Ingen forbehold her, ingen faste
+formuleringer — dette feltet er stedet gjetningene dine blir synlige, ikke
+stedet du formulerer betingelser.
 
-1. **Antakelsene dine** (maks 3): det du selv fylte inn fordi leadet ikke sa
-   det. Konkrete nok til at kunden kan motsi dem: «Badegulvet er antatt 10 m².»
-2. **Kundens egne faste forbehold**, hentet fra mønsteret i referansefilene og
-   referanselisten: bruker kunden alltid en bestemt mva-linje, faste forbehold
-   per jobbtype eller en fast avslutningslinje, gjenbruker du ordlyden deres.
-   Velg de 2–4 som er relevante for akkurat denne jobben — aldri hele
-   biblioteket.
-3. **Faste linjer fra innstillingene/tilleggsinstruksen**, hvis kunden har
-   definert noen der.
+**forbehold** — **id-er fra forbeholdsbiblioteket, aldri egen tekst.**
 
-Helt ny kunde uten referanser ennå: skriv kun antakelsene, og legg en merknad
-om at faste forbehold bør legges inn via referansefiler eller
-tilleggsinstruksen.
+Biblioteket står i konteksten og inneholder de forbeholdene firmaet faktisk
+har brukt før — hentet fra bekreftede tilbud og opplastede referansefiler.
+Velg de 2–4 som er relevante for jobben og oppgi id-ene. Systemet setter inn
+teksten ordrett; du skal verken omformulere eller supplere.
 
-Hold hele listen på 3–7 linjer. En lang liste leser ingen — og et forbehold du
-selv har diktet opp er en feil, ikke en hjelp.
+Dette er samme regel som for priser, og av samme grunn: et forbehold er
+juridisk bindende tekst kunden kan holde firmaet til. En velformulert setning
+ingen i firmaet har vedtatt, er verre enn ingen setning. Passer ingen av dem,
+eller er biblioteket tomt, lar du lista stå tom — systemet legger selv en
+merknad om hvorfor tilbudet ble uten forbehold.
 
 **epost.emne** — «Pristilbud — <jobbtype>, <adresse>». Uten adresse: bare jobbtypen.
 
@@ -85,9 +83,9 @@ kurant.
       (eller står i `ikke_funnet` med tilhørende merknad)
 - [ ] Alle summer kontrollregnet, mva-sats fra innstillinger
 - [ ] Ingen plassholdere igjen («<fornavn>», «[adresse]», «X timer»)
-- [ ] Forutsetninger: 3–7 linjer; antakelser konkrete og maks 3; hvert
-      forbehold sporbart til kundens referanser eller innstillinger — aldri
-      motorens eget påfunn
+- [ ] Antakelser: maks 3, konkrete, bare om denne jobben
+- [ ] Forbehold: bare id-er fra biblioteket — ingen egenformulert
+      forbeholdstekst noe sted
 - [ ] Riktig målform i all kundevendt tekst
 - [ ] E-posttekst uten priser (unntatt tid og materiell), uten URL-er, uten
       dobbel signatur

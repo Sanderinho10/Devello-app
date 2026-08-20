@@ -51,7 +51,11 @@ export async function indexReferenceFile(
     // lar lines stå tom og lar fullteksten bære søket i stedet. Å gjette
     // struktur ut av en PDF ville gitt falsk presisjon.
     lines: [],
-    assumptions: [],
+    // Forbeholdene fra fila fyller forbeholdsbiblioteket. Det er dette som
+    // gjør at en ny kunde har noe å velge fra før første tilbud er bekreftet.
+    assumptions: (tagged.forutsetninger ?? []).filter(
+      (t) => typeof t === "string" && t.trim().length > 7,
+    ),
     email_subject: null,
     email_body: null,
     subtotal_ex_vat: null,

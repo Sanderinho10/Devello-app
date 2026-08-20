@@ -48,6 +48,8 @@ export interface TagResult {
   tags: string[];
   summary: string;
   customer_type: "forbruker" | "bedrift" | "ukjent";
+  /** Forbehold hentet ordrett ut av teksten. Fyller forbeholdsbiblioteket. */
+  forutsetninger: string[];
 }
 
 const TAG_SCHEMA = {
@@ -67,8 +69,14 @@ const TAG_SCHEMA = {
       description: "1–2 setninger på bokmål om hva jobben var. Ingen priser.",
     },
     customer_type: { type: "string", enum: ["forbruker", "bedrift", "ukjent"] },
+    forutsetninger: {
+      type: "array",
+      items: { type: "string" },
+      description:
+        "Forbehold og faste betingelser som står i teksten, ordrett slik firmaet skrev dem. F.eks. «Prisen forutsetter at det er strøm på stedet», «Stillas kommer i tillegg». Ta bare med det som gjelder generelt — ikke tall og mengder for denne ene jobben. Tom liste når teksten ikke har noen.",
+    },
   },
-  required: ["tags", "summary", "customer_type"],
+  required: ["tags", "summary", "customer_type", "forutsetninger"],
   additionalProperties: false,
 };
 
@@ -147,7 +155,7 @@ export async function saveQuoteReference(
     // Tagging skal aldri stoppe en bekreftelse. Lagre uten tags heller enn å
     // feile — men en rad uten tags er nesten usøkbar, så feilen skal i loggen.
     console.warn("tagging av referanse feilet:", err instanceof Error ? err.message : err);
-    tagged = { tags: [], summary: "", customer_type: "ukjent" };
+    tagged = { tags: [], summary: "", customer_type: "ukjent", forutsetninger: [] };
   }
 
   const tags = normalizeTags(tagged.tags);
