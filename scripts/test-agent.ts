@@ -112,7 +112,7 @@ async function runLead(externalId: string) {
   } else {
     console.log(`  dokument:    (ingen — ${generated.quote_type === "tid_og_materiell" ? "satser i e-posten" : "avklaringskladd"})`);
   }
-  console.log(`  målform:     ${maalformOf(`${generated.email_body} ${generated.document?.intro ?? ""} ${generated.document?.assumptions.join(" ") ?? ""}`)}`);
+  console.log(`  målform:     ${maalformOf(`${generated.email_body} ${generated.document?.assumptions.join(" ") ?? ""}`)}`);
   console.log(`  e-post:      ${generated.email_body.split("\n")[0]}`);
   console.log("");
 

@@ -13,11 +13,6 @@ Ikke gjenta firmanavn eller kundenavn.
 tilbudet likevel, og be om adressen i e-postteksten (én setning som siste
 avsnitt før signaturen). Et tilbud holdes aldri tilbake fordi adressen mangler.
 
-**innledning** — 2–3 setninger: takk for henvendelsen, hva det tilbys pris på,
-og hvordan det er priset («Hver post er en samlet punktpris som dekker både
-arbeid og materiell» / «Fast pris for komplett jobb» / «Arbeidet utføres etter
-medgått tid og materiell»).
-
 **poster** — kun fra de aktive prislistene:
 
 - Beskrivelsen kan tilpasses jobben («Montering av dobbel stikkontakt langs

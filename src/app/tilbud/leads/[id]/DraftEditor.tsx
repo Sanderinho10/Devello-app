@@ -455,16 +455,6 @@ export function DraftEditor({
             </label>
           </div>
 
-          <label className="field">
-            <span className="label">Innledning</span>
-            <textarea
-              className="textarea"
-              style={{ minHeight: 80 }}
-              value={document.intro}
-              onChange={(e) => updateDocument({ intro: e.target.value })}
-            />
-          </label>
-
           {document.sections.map((section, sectionIndex) => {
             const available = itemsForSection(
               quoteType,

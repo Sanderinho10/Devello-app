@@ -186,8 +186,6 @@ export function renderQuoteHtml(input: {
   }
   .meta .rows { display: flex; gap: 22px; }
 
-  .intro { margin-bottom: 10px; white-space: pre-wrap; }
-
   /* Poster */
   h3 {
     font-size: 8pt;
@@ -314,8 +312,6 @@ export function renderQuoteHtml(input: {
       </div>
     </div>
   </div>
-
-  <div class="intro">${escapeHtml(doc.intro)}</div>
 
   ${sections}
 

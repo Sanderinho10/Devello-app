@@ -32,13 +32,6 @@ export function summarizeEdits(
   const sum = sumEndring(before.document, after.document);
   if (sum) deler.push(sum);
 
-  if (
-    before.document?.intro !== after.document?.intro &&
-    (before.document || after.document)
-  ) {
-    deler.push("endret innledningen");
-  }
-
   const forutsetninger = tellForutsetninger(before.document, after.document);
   if (forutsetninger) deler.push(forutsetninger);
 

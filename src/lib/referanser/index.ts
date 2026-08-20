@@ -141,7 +141,6 @@ export async function saveQuoteReference(
   const tagSource = [
     `Tittel: ${title}`,
     `Tilbudstype: ${input.quoteType}`,
-    input.document?.intro ? `Innledning: ${input.document.intro}` : "",
     lines.length ? `Poster:\n${lines.map((l) => `- ${l.beskrivelse}`).join("\n")}` : "",
     `Forespørselen:\n${input.leadText}`,
   ]

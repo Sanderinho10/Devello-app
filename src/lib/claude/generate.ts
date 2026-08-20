@@ -111,7 +111,6 @@ const TILBUDSDATA_SCHEMA = {
           additionalProperties: false,
         },
         tittel: { type: "string" },
-        innledning: { type: "string" },
         seksjoner: {
           type: "array",
           items: {
@@ -125,7 +124,7 @@ const TILBUDSDATA_SCHEMA = {
           },
         },
       },
-      required: ["kunde", "tittel", "innledning", "seksjoner"],
+      required: ["kunde", "tittel", "seksjoner"],
       additionalProperties: false,
     },
     antakelser: {
@@ -205,7 +204,6 @@ export interface RawTilbudsdata {
       adresse: string | null;
     };
     tittel: string;
-    innledning: string;
     seksjoner: {
       tittel: string;
       poster: { price_item_id: string; description: string; quantity: number }[];
@@ -385,7 +383,7 @@ export function validate(raw: RawTilbudsdata, input: GenerateInput): string[] {
     ),
   ];
   if (raw.dokument) {
-    texts.push(["tittel", raw.dokument.tittel], ["innledning", raw.dokument.innledning]);
+    texts.push(["tittel", raw.dokument.tittel]);
     for (const section of raw.dokument.seksjoner) {
       for (const line of section.poster) {
         texts.push(["post", line.description]);
@@ -489,7 +487,6 @@ function resolve(raw: RawTilbudsdata, input: GenerateInput): GeneratedDraft {
         address: raw.dokument.kunde.adresse,
       },
       title: raw.dokument.tittel,
-      intro: raw.dokument.innledning,
       sections,
       assumptions: [
         ...raw.antakelser,

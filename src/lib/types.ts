@@ -198,8 +198,6 @@ export interface QuoteDocument {
   };
   /** Kort tittel på jobben, for eksempel «Elektrisk arbeid — kjellerstue». */
   title: string;
-  /** Innledende avsnitt i dokumentet. */
-  intro: string;
   sections: QuoteSection[];
   /**
    * Hva som kommer i tillegg hvis jobben krever mer materiell eller tid enn

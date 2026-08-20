@@ -23,8 +23,6 @@ const punktpris: QuoteDocument = {
     address: "Bjørkeveien 22, 6800 Førde",
   },
   title: "Elektrisk arbeid — kjellerstue",
-  intro:
-    "Takk for forespørselen om elektrisk arbeid i den nye kjellerstua. Under finner du et tilbud der hver post er en samlet pris som dekker både arbeid og materiell.",
   sections: [
     {
       title: "Poster",
@@ -65,8 +63,6 @@ const punktpris: QuoteDocument = {
 const fastpris: QuoteDocument = {
   ...punktpris,
   title: "Oppgradering av sikringsskap",
-  intro:
-    "Takk for forespørselen om oppgradering av sikringsskapet. Tilbudet under er spesifisert med materiell og timer hver for seg, slik at det går fram hva som kommer i tillegg hvis jobben krever mer enn det som er lagt inn.",
   sections: [
     {
       title: "Materiell",
