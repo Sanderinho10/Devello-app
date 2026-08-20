@@ -61,27 +61,41 @@ export const AGENT_PLANS: AgentPlan[] = [
     agentId: "tilbud",
     name: "Liten",
     priceNok: 950,
-    quota: 30,
-    overageNok: 39,
+    quota: 20,
+    overageNok: 59,
   },
   {
-    id: "tilbud_medium",
+    id: "tilbud_vekst",
     agentId: "tilbud",
-    name: "Medium",
-    priceNok: 1990,
-    quota: 75,
-    overageNok: 39,
+    name: "Vekst",
+    priceNok: 1890,
+    quota: 50,
+    overageNok: 59,
     recommended: true,
   },
   {
     id: "tilbud_stor",
     agentId: "tilbud",
     name: "Stor",
-    priceNok: 3490,
-    quota: 150,
-    overageNok: 39,
+    priceNok: 3290,
+    quota: 120,
+    overageNok: 59,
   },
 ];
+
+/**
+ * Adressen «kontakt oss for større pakke» går til.
+ *
+ * ⚠️ Må være en postkasse noen faktisk leser. Lenken står ved siden av den
+ * største pakken, så den som trykker er en kunde med mer volum enn katalogen
+ * dekker — det er ikke henvendelsen å la ligge.
+ */
+export const KONTAKT_EPOST = "post@devello.no";
+
+/** Største kvote i katalogen for en agent. Brukes i «over N i måneden»-teksten. */
+export function stoersteKvote(agentId: string): number {
+  return plansForAgent(agentId).reduce((max, p) => Math.max(max, p.quota), 0);
+}
 
 export function findAgent(id: string | null | undefined): Agent | null {
   if (!id) return null;

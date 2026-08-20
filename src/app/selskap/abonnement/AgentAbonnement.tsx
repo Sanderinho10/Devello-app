@@ -2,7 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { formatPrice, trialDaysLeft, unitLabel } from "@/lib/billing/agents";
+import {
+  KONTAKT_EPOST,
+  formatPrice,
+  stoersteKvote,
+  trialDaysLeft,
+  unitLabel,
+} from "@/lib/billing/agents";
 import { periodekostnad, type AgentStatus } from "@/lib/billing/subscription";
 
 /** Som AgentStatus, men med perioden som ISO-strenger over nettverket. */
@@ -168,6 +174,8 @@ export function AgentAbonnement({
                     </div>
                   );
                 })}
+
+                <KontaktKort agent={rad.agent} />
               </div>
 
               {rad.bedrePakke && (
@@ -238,6 +246,48 @@ export function AgentAbonnement({
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Siste cellen i pakkeraden.
+ *
+ * Katalogen stopper ved den største pakken, men behovet gjør ikke det. Uten
+ * dette kortet ser en kunde med mer volum bare tre pakker som ikke passer, og
+ * regner ut at de skal betale overforbruk i det uendelige — eller finner en
+ * annen leverandør. Lenken er billigere enn begge deler.
+ */
+function KontaktKort({ agent }: { agent: { id: string; name: string; unit: { ein: string; fleire: string } } }) {
+  const tak = stoersteKvote(agent.id);
+  const emne = encodeURIComponent(`Større pakke — ${agent.name}`);
+
+  return (
+    <div className="card card-pad plan plan-kontakt">
+      <div className="row-between">
+        <strong>Større behov</strong>
+      </div>
+
+      <div className="plan-price" style={{ fontSize: 22 }}>
+        Egen avtale
+      </div>
+      <div className="tiny muted">etter volum</div>
+
+      <ul className="plan-features">
+        <li>
+          Mer enn {tak} {agent.unit.fleire} i måneden
+        </li>
+        <li>Flere postkasser eller avdelinger</li>
+        <li>Vi setter opp en pakke som passer</li>
+      </ul>
+
+      <a
+        className="button secondary"
+        style={{ width: "100%", justifyContent: "center", marginTop: 18 }}
+        href={`mailto:${KONTAKT_EPOST}?subject=${emne}`}
+      >
+        Kontakt oss
+      </a>
     </div>
   );
 }

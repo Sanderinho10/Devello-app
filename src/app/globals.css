@@ -278,6 +278,15 @@ p {
   gap: 16px;
 }
 
+/* «Større behov» står i pakkeraden, men er ikke en pakke man velger.
+   Stiplet kant sier det uten at kortet må ha en egen overskrift som
+   forklarer det. */
+.plan-kontakt {
+  background: none;
+  box-shadow: none;
+  border: 1px dashed var(--border);
+}
+
 /* Forbruk mot kvote. Tallet er det viktige — stolpen er der for å gjøre
    «nærmer meg taket» synlig uten at man må lese. */
 .forbruk-bar {
