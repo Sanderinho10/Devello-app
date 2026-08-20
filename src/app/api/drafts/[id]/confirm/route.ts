@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, after, type NextRequest } from "next/server";
 import { attachPdf, createDraft } from "@/lib/graph/drafts";
 import { accessTokenFor } from "@/lib/graph/oauth";
 import { htmlToPdf } from "@/lib/pdf/render";
@@ -6,6 +6,8 @@ import { brandImageBytes } from "@/lib/brand/image-bytes";
 import { logoDataUri } from "@/lib/pdf/logo";
 import { renderQuoteHtml } from "@/lib/pdf/template";
 import { diffSnapshots, logDraftVersion } from "@/lib/drafts/versions";
+import { summarizeEdits } from "@/lib/laering/diff-summary";
+import { lagreLaerdom, utledLaerdom } from "@/lib/laering/lessons";
 import { saveQuoteReference } from "@/lib/referanser";
 import { sessionOr401, errorResponse } from "@/lib/api";
 import { supabaseAdmin } from "@/lib/supabase/server";
@@ -188,6 +190,9 @@ export async function POST(
     // 4. Referanselisten — agentens hukommelse. Brukerens endelige versjon,
     // tagget med nøkkelord, så neste generering kan finne den igjen.
     // Skal aldri velte en bekreftelse: kladden er allerede opprettet.
+    const endringer = diffSnapshots(previous, final);
+    const bleRedigert = Object.keys(endringer).length > 0;
+
     try {
       if (!isClarification) await saveQuoteReference(admin, {
         companyId: session.companyId,
@@ -200,10 +205,45 @@ export async function POST(
         emailSubject: payload.email_subject,
         emailBody: payload.email_body,
         document: final.document,
-        editedByUser: Object.keys(diffSnapshots(previous, final)).length > 0,
+        editedByUser: bleRedigert,
+        editSummary: bleRedigert ? summarizeEdits(previous, final) : null,
       });
     } catch (err) {
       console.error("Kunne ikke skrive til referanselisten:", err);
+    }
+
+    // 5. Lærdom av rettelsen.
+    //
+    // Etter svaret, ikke før: dette er et modellkall til, og brukeren skal
+    // ikke vente på det. Kladden ligger allerede i Outlook.
+    //
+    // Alt her er avgrenset til dette selskapet — lærdommene til én kunde skal
+    // aldri kunne påvirke en annens tilbud.
+    if (bleRedigert) {
+      after(async () => {
+        try {
+          const { data: eksisterende } = await admin
+            .from("agent_lessons")
+            .select("id, regel")
+            .eq("company_id", session.companyId)
+            .in("status", ["foreslaatt", "aktiv"]);
+
+          const utledning = await utledLaerdom({
+            foer: previous,
+            etter: final,
+            eksisterende: (eksisterende ?? []) as never,
+          });
+          if (utledning) {
+            await lagreLaerdom(admin, {
+              companyId: session.companyId,
+              draftId: draft.id,
+              utledning,
+            });
+          }
+        } catch (err) {
+          console.error("Læring feilet:", err instanceof Error ? err.message : err);
+        }
+      });
     }
 
     return NextResponse.json({

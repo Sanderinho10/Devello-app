@@ -34,6 +34,8 @@ export interface QuoteReference {
   email_body: string | null;
   subtotal_ex_vat: number | null;
   edited_by_user: boolean;
+  /** Hva brukeren rettet på før tilbudet gikk ut. */
+  edit_summary: string | null;
   outcome: "vunnet" | "tapt" | null;
   confirmed_at: string;
 }
@@ -109,6 +111,8 @@ export async function saveQuoteReference(
     emailBody: string;
     document: QuoteDocument | null;
     editedByUser: boolean;
+    /** Hva brukeren endret. Går inn i prompten sammen med referansen. */
+    editSummary?: string | null;
   },
 ): Promise<void> {
   const lines: ReferenceLine[] = input.document
@@ -172,6 +176,7 @@ export async function saveQuoteReference(
     email_body: input.emailBody,
     subtotal_ex_vat: input.document ? computeTotals(input.document).subtotal : null,
     edited_by_user: input.editedByUser,
+    edit_summary: input.editSummary ?? null,
     search_text: searchText,
   });
 }
@@ -248,6 +253,9 @@ export function referencesBlock(refs: QuoteReference[]): string {
     if (r.assumptions.length) {
       parts.push("Forutsetninger:\n" + r.assumptions.map((a) => `- ${a}`).join("\n"));
     }
+    // Rettelsen er ofte mer lærerik enn selve tilbudet: den viser hva forrige
+    // utkast bommet på.
+    if (r.edit_summary) parts.push(`Rettet før sending: ${r.edit_summary}`);
     return parts.join("\n");
   });
   return [

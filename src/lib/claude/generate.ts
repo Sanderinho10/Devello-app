@@ -1,5 +1,6 @@
 import { structured } from "./client";
 import { loadMotor } from "./motor";
+import { laerdomsBlokk, type Lesson } from "@/lib/laering/lessons";
 import { referencesBlock, type QuoteReference } from "@/lib/referanser";
 import {
   kindsForQuoteType,
@@ -220,6 +221,8 @@ export interface GenerateInput {
   vatRate?: number;
   /** De 3–5 mest relevante tidligere tilbudene (referanseliste + filer). */
   similar?: QuoteReference[];
+  /** Godkjente lærdommer for DETTE selskapet. Se lib/laering/lessons.ts. */
+  lessons?: Lesson[];
 }
 
 export async function generateDraft(input: GenerateInput): Promise<GeneratedDraft> {
@@ -304,6 +307,10 @@ function buildPrompt(input: GenerateInput): string {
   blocks.push(`# Aktive prislister\n\n${rows || "(ingen prisrader lagt inn)"}`);
 
   blocks.push(referencesBlock(input.similar ?? []));
+
+  // Lærdommene veier tyngre enn mønsteret i referansene, så de kommer etter —
+  // det siste modellen leser før selve leadet.
+  blocks.push(laerdomsBlokk(input.lessons ?? []));
 
   blocks.push(
     `# Leadet\n\nFra: ${input.lead.from_name ?? "(ukjent)"} <${
