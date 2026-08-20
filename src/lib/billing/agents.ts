@@ -15,12 +15,8 @@ export interface Agent {
   id: string;
   name: string;
   tagline: string;
-  /** Det vi teller. «tilbud» → «30 tilbud i måneden». */
+  /** Det vi teller. «tilbud» → «20 tilbud i måneden». */
   unit: { ein: string; fleire: string };
-  /** false = vises som «kommer», uten pakker å velge. */
-  available: boolean;
-  /** Hva den vil gjøre, for agentene som ikke er lansert. */
-  note?: string;
 }
 
 export interface AgentPlan {
@@ -33,9 +29,15 @@ export interface AgentPlan {
   quota: number;
   /** Kroner per enhet over kvoten, eks. mva. */
   overageNok: number;
-  recommended?: boolean;
 }
 
+/**
+ * Bare agenter som faktisk er til salgs.
+ *
+ * Agenter som er under arbeid hører hjemme i sidemenyen, der de står som
+ * «snart». Abonnementssiden svarer på hva dere betaler for — en rad man ikke
+ * kan kjøpe hører ikke til i det svaret.
+ */
 export const AGENTS: Agent[] = [
   {
     id: "tilbud",
@@ -43,15 +45,6 @@ export const AGENTS: Agent[] = [
     tagline:
       "Leser innboksen, velger tilbudstype og lager utkast med PDF på deres egen mal.",
     unit: { ein: "tilbud", fleire: "tilbud" },
-    available: true,
-  },
-  {
-    id: "dokumentasjon",
-    name: "Dokumentasjonsagenten",
-    tagline: "Samsvarserklæringer og sluttdokumentasjon.",
-    unit: { ein: "sak", fleire: "saker" },
-    available: false,
-    note: "Under arbeid. Si fra om dere vil være med og teste.",
   },
 ];
 
@@ -71,7 +64,6 @@ export const AGENT_PLANS: AgentPlan[] = [
     priceNok: 1890,
     quota: 50,
     overageNok: 59,
-    recommended: true,
   },
   {
     id: "tilbud_stor",

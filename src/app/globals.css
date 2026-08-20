@@ -243,10 +243,6 @@ p {
   outline: 2px solid var(--positive);
 }
 
-.plan.recommended {
-  outline: 1px solid var(--accent);
-}
-
 .plan-price {
   font-size: 30px;
   font-weight: 600;
