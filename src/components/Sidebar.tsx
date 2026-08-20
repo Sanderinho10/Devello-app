@@ -29,6 +29,15 @@ interface NavSection {
   basePath: string;
   tabs: NavTab[];
   comingSoon?: boolean;
+  /**
+   * Vis fanene også når seksjonen ikke er den aktive.
+   *
+   * Agentene folder seg ut når man går inn i dem — det holder sidemenyen kort
+   * etter hvert som det kommer flere av dem. Selskap er ikke en agent man
+   * jobber i, men tre sider man skal finne igjen: abonnement, medlemmer,
+   * firmaopplysninger. De skal stå framme.
+   */
+  alwaysOpen?: boolean;
 }
 
 const AGENTS: NavSection[] = [
@@ -65,6 +74,7 @@ const COMPANY: NavSection = {
     { label: "Medlemmer", href: "/selskap/medlemmer" },
     { label: "Detaljer", href: "/selskap/detaljer" },
   ],
+  alwaysOpen: true,
 };
 
 export function Sidebar({
@@ -96,7 +106,7 @@ export function Sidebar({
           </Link>
         )}
 
-        {active && section.tabs.length > 0 && (
+        {(active || section.alwaysOpen) && section.tabs.length > 0 && (
           <nav className="nav-tabs">
             {section.tabs.map((tab) => (
               <Link
