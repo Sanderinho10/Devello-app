@@ -77,9 +77,18 @@ export function renderQuoteHtml(input: {
 
   const sections = rader
     ? `<table>
+         <!--
+           Beskrivelsen får all plassen som blir til overs. Tallkolonnene er
+           satt til det innholdet faktisk krever — «1 890 kr» er åtte tegn, og
+           en kolonne på 29 mm for det er 15 mm stjålet fra postteksten. Hver
+           post som slipper å brekke til to linjer, er en post mer på arket.
+
+           Bredden er et hint, ikke en tvang: tabellen legges ut automatisk, så
+           et uvanlig stort beløp får plassen det trenger uansett.
+         -->
          <colgroup>
-           <col style="width:49%"><col style="width:9%"><col style="width:9%">
-           <col style="width:16%"><col style="width:17%">
+           <col style="width:61%"><col style="width:8%"><col style="width:6%">
+           <col style="width:12%"><col style="width:13%">
          </colgroup>
          <thead>
            <tr>
@@ -224,8 +233,10 @@ export function renderQuoteHtml(input: {
   .num { text-align: right; white-space: nowrap; }
   /* Mengde høyrejustert mot enheten, med luft imellom — ellers leses
      «1» og «stk» som ett ord. */
-  .qty { text-align: right; padding-right: 7px; white-space: nowrap; }
+  .qty { text-align: right; padding-right: 6px; padding-left: 10px; white-space: nowrap; }
   .unit { text-align: left; color: #6e6e73; white-space: nowrap; }
+  /* Luft foran tallene, så kolonnene ikke klistrer seg sammen når de smalnes. */
+  td.num, th.num { padding-left: 10px; }
   .strong { font-weight: 600; }
 
   /* Seksjonsrad inne i tabellen: rommet eller delen jobben er delt i. */
