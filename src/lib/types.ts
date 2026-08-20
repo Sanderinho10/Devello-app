@@ -223,6 +223,15 @@ export interface QuoteLine {
   quantity: number;
   unit: string;
   unit_price: number;
+  /**
+   * Satt når noen har overstyrt prisen i utkastet.
+   *
+   * Prisen kommer normalt fra prisfilen — modellen peker på en rad, koden
+   * slår opp beløpet. Overstyringen er en menneskelig avgjørelse for denne
+   * ene jobben, og markeres så det er synlig i redigeringen at raden ikke
+   * lenger følger prisfilen.
+   */
+  unit_price_manual?: boolean;
 }
 
 /** utkast = vanlig tilbud. trenger_avklaring = jobben var for ukjent til å prise. */

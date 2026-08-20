@@ -1,14 +1,18 @@
-import { computeTotals, type QuoteDocument } from "@/lib/types";
+import type { QuoteDocument } from "@/lib/types";
 import type { DraftSnapshot } from "@/lib/drafts/versions";
 
 /**
  * Hva brukeren endret, i klartekst.
  *
  * Skrevet i kode, ikke av en modell. Dette er ren telling — hvilke felt som
- * ble rørt, hvor mange poster som kom til eller falt bort, hvor mye summen
- * flyttet seg — og da skal ingen modell stå mellom fakta og teksten. Den korte
- * setningen går inn i referanselisten og vises igjen neste gang et lignende
- * lead kommer inn.
+ * ble rørt, hvor mange poster som kom til eller falt bort — og da skal ingen
+ * modell stå mellom fakta og teksten. Den korte setningen går inn i
+ * referanselisten og vises igjen neste gang et lignende lead kommer inn.
+ *
+ * Beløp er med vilje utelatt. Endrer noen en pris i et utkast, er det en
+ * avgjørelse for den ene jobben — og en setning om at «summen gikk opp 50 %»
+ * i konteksten er nettopp det agenten ikke skal lære av. Prisene kommer fra
+ * prisfilen, alltid.
  */
 export function summarizeEdits(
   before: DraftSnapshot,
@@ -28,9 +32,6 @@ export function summarizeEdits(
 
   const poster = tellPoster(before.document, after.document);
   if (poster) deler.push(poster);
-
-  const sum = sumEndring(before.document, after.document);
-  if (sum) deler.push(sum);
 
   const forutsetninger = tellForutsetninger(before.document, after.document);
   if (forutsetninger) deler.push(forutsetninger);
@@ -74,14 +75,3 @@ function tellForutsetninger(
   return "endret forutsetningene";
 }
 
-function sumEndring(før: QuoteDocument | null, etter: QuoteDocument | null): string | null {
-  if (!før || !etter) return null;
-  const a = computeTotals(før).subtotal;
-  const b = computeTotals(etter).subtotal;
-  if (a === b) return null;
-  const prosent = a === 0 ? null : Math.round(((b - a) / a) * 100);
-  const retning = b > a ? "opp" : "ned";
-  return prosent === null
-    ? `endret summen til ${b} kr`
-    : `justerte summen ${retning} ${Math.abs(prosent)} % (${a} → ${b} kr eks. mva)`;
-}

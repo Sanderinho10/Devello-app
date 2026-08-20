@@ -247,12 +247,17 @@ export function referencesBlock(refs: QuoteReference[]): string {
     if (r.tags.length) parts.push(`Nøkkelord: ${r.tags.join(", ")}`);
     if (r.summary) parts.push(`Jobb: ${r.summary}`);
     if (r.lines.length) {
+      // Uten priser, med vilje. Referansen skal vise HVILKE poster firmaet
+      // tar med og i hvilke mengder — det er mønsteret agenten skal kjenne
+      // igjen. Prisen slås opp i prisfilen hver gang, og et gammelt beløp i
+      // konteksten er bare en invitasjon til å gjenbruke det. Særlig når
+      // beløpet kan være en manuell overstyring for én jobb.
       parts.push(
         "Poster:\n" +
           r.lines
             .map(
               (l) =>
-                `- ${l.beskrivelse}${l.antall != null ? ` × ${l.antall} ${l.enhet}` : ""} à ${l.enhetspris_eks_mva} kr`,
+                `- ${l.beskrivelse}${l.antall != null ? ` × ${l.antall} ${l.enhet}` : ""}`,
             )
             .join("\n"),
       );
@@ -267,11 +272,15 @@ export function referencesBlock(refs: QuoteReference[]): string {
   });
   return [
     "# Tidligere bekreftede tilbud som ligner",
-    "",
-    "Bruk disse som mønster for mengder, forutsetninger, ordlyd og tone — det er",
-    "slik dette firmaet faktisk sender tilbud. Prisene i det nye tilbudet skal",
-    "likevel alltid slås opp i prisfilen, aldri kopieres herfra.",
-    "",
+    // Én streng, ikke fire: listen under blir slått sammen med blanke linjer
+    // mellom hvert element, og delt opp ville avsnittet fått en blank linje
+    // mellom hver setning.
+    [
+      "Bruk disse som mønster for hvilke poster som hører med, hvilke mengder",
+      "som er vanlige, og hvilken ordlyd og tone firmaet bruker — det er slik",
+      "de faktisk sender tilbud. Beløp står ikke her: prisen slås opp i",
+      "prisfilen hver gang, aldri hentet fra et tidligere tilbud.",
+    ].join("\n"),
     ...items,
   ].join("\n\n");
 }

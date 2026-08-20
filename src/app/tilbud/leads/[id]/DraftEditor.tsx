@@ -278,6 +278,12 @@ export function DraftEditor({
     });
   }
 
+  /** Prisen raden ville hatt fra prisfilen, hvis den peker på en rad der. */
+  function katalogpris(line: QuoteLine): number | null {
+    const rad = priceItems.find((item) => item.id === line.price_item_id);
+    return rad ? Number(rad.unit_price) : null;
+  }
+
   function updateLine(
     sectionIndex: number,
     lineIndex: number,
@@ -571,10 +577,43 @@ export function DraftEditor({
                             />
                           </td>
                           <td className="num">
-                            {/* Enhetsprisen kommer fra prisfilen og er ikke redigerbar
-                                her — skal prisen endres, endrer man prisfilen. */}
-                            <span className="muted">{formatNok(line.unit_price)}</span>
+                            {/*
+                              Prisen kommer fra prisfilen, men kan overstyres for
+                              denne ene jobben — en rabatt, et påslag, en avtalt
+                              pris. Overstyringen påvirker bare dette tilbudet:
+                              neste generering slår opp prisfilen på nytt, og
+                              beløpet herfra går aldri inn i agentens kontekst.
+                            */}
+                            <input
+                              className="cell-input num"
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={line.unit_price}
+                              onChange={(e) => {
+                                const pris = Number(e.target.value);
+                                updateLine(sectionIndex, lineIndex, {
+                                  unit_price: pris,
+                                  unit_price_manual: pris !== katalogpris(line),
+                                });
+                              }}
+                            />
                             <div className="tiny muted">per {line.unit}</div>
+                            {line.unit_price_manual && (
+                              <button
+                                type="button"
+                                className="cell-reset"
+                                title="Sett tilbake til prisen i prisfilen"
+                                onClick={() =>
+                                  updateLine(sectionIndex, lineIndex, {
+                                    unit_price: katalogpris(line) ?? line.unit_price,
+                                    unit_price_manual: false,
+                                  })
+                                }
+                              >
+                                endret · tilbakestill
+                              </button>
+                            )}
                           </td>
                           <td className="num">
                             <strong>{formatNok(line.quantity * line.unit_price)}</strong>

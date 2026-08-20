@@ -1376,3 +1376,22 @@ p {
     grid-template-columns: 1fr;
   }
 }
+
+/* «endret · tilbakestill» under en overstyrt enhetspris. Diskret: det er en
+   opplysning om at raden ikke lenger følger prisfilen, ikke en handling
+   brukeren skal ledes mot. */
+.cell-reset {
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 11px;
+  color: #c0392b;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.cell-reset:hover {
+  color: #a4271b;
+}
