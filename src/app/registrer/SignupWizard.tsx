@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { normalizeOrgNr } from "@/lib/onboarding/orgnr";
 
 /**
- * Registrering i tre steg: selskapet, brukeren, og i gang.
+ * Registrering i fire steg: selskapet, brukeren, profilen på tilbudene, og i
+ * gang.
  *
  * Alt samles opp i skjemaet og sendes i ett kall til slutt. Alternativet —
  * å opprette selskapet på steg 1 og brukeren på steg 2 — ville etterlatt
@@ -17,7 +18,28 @@ import { normalizeOrgNr } from "@/lib/onboarding/orgnr";
  * nummeret er opptatt etter at man har fylt ut alt, er en dårlig opplevelse
  * for noe vi kan si fra om med én gang.
  */
-type Step = 1 | 2 | 3;
+type Step = 1 | 2 | 3 | 4;
+
+const MAKS_LOGO_BYTES = 2 * 1024 * 1024;
+
+const LOGO_ACCEPT =
+  ".png,.jpg,.jpeg,.webp,.gif,.svg,image/png,image/jpeg,image/webp,image/gif,image/svg+xml";
+
+/**
+ * Base64 i biter.
+ *
+ * String.fromCharCode(...bytes) på en 2 MB-fil sprenger kallstakken — det er
+ * over to millioner argumenter i ett kall.
+ */
+async function tilBase64(file: File): Promise<string> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let binaer = "";
+  const bit = 0x8000;
+  for (let i = 0; i < bytes.length; i += bit) {
+    binaer += String.fromCharCode(...bytes.subarray(i, i + bit));
+  }
+  return btoa(binaer);
+}
 
 export function SignupWizard() {
   const router = useRouter();
@@ -38,7 +60,23 @@ export function SignupWizard() {
     password: "",
     password_repeat: "",
     partner_code: "",
+    maalform: "nb",
+    primary_color: "#1d1d1f",
+    contact_name: "",
+    contact_email: "",
+    contact_phone: "",
+    website: "",
   });
+
+  // Logoen holdes i minnet til kontoen finnes. /api/brand/logo krever sesjon,
+  // og den har vi ikke ennå — så fila sendes med registreringen i stedet.
+  const [logo, setLogo] = useState<File | null>(null);
+
+  // Kontaktfeltene i steg 3 fylles én gang fra steg 2. I et enmannsfirma er
+  // det den samme personen, og da er halve steget gjort før de kommer dit.
+  // Én gang, ikke hver gang: har de tømt feltet med vilje, skal det holde
+  // seg tomt når de går fram og tilbake.
+  const kontaktSaadd = useRef(false);
 
   function set(key: keyof typeof form, value: string) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -78,6 +116,16 @@ export function SignupWizard() {
       return;
     }
     setError(null);
+
+    if (!kontaktSaadd.current) {
+      kontaktSaadd.current = true;
+      setForm((current) => ({
+        ...current,
+        contact_name: current.contact_name || current.full_name,
+        contact_email: current.contact_email || current.email,
+      }));
+    }
+
     setStep(3);
   }
 
@@ -89,7 +137,24 @@ export function SignupWizard() {
       const res = await fetch("/api/onboarding/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          brand: {
+            maalform: form.maalform,
+            primary_color: form.primary_color,
+            contact_name: form.contact_name,
+            contact_email: form.contact_email,
+            contact_phone: form.contact_phone,
+            website: form.website,
+            logo: logo
+              ? {
+                  data: await tilBase64(logo),
+                  filnavn: logo.name,
+                  mime: logo.type,
+                }
+              : undefined,
+          },
+        }),
       });
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.error ?? "Kunne ikke opprette kontoen");
@@ -176,7 +241,7 @@ export function SignupWizard() {
         </div>
 
         <ol className="wizard-steps">
-          {["Organisasjon", "Din bruker", "Kom i gang"].map((label, index) => {
+          {["Organisasjon", "Din bruker", "Profil", "Kom i gang"].map((label, index) => {
             const number = (index + 1) as Step;
             return (
               <li
@@ -340,6 +405,117 @@ export function SignupWizard() {
         )}
 
         {step === 3 && (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              setStep(4);
+            }}
+          >
+            <h2>Profil på tilbudene</h2>
+            <p className="muted" style={{ margin: "6px 0 18px" }}>
+              Logo, farge og kontaktinfo som blir lagt inn i tilbudene agenten
+              lager. Alt kan stå tomt og fylles ut senere under Selskap →
+              Detaljer — men det er lettere å gjøre nå enn å oppdage det på det
+              første tilbudet som går ut.
+            </p>
+
+            <LogoVelger fil={logo} velg={setLogo} feil={setError} />
+
+            <div className="grid-2">
+              <label className="field">
+                <span className="label">Primærfarge</span>
+                <div className="row">
+                  <input
+                    type="color"
+                    value={form.primary_color}
+                    onChange={(e) => set("primary_color", e.target.value)}
+                    style={{
+                      width: 44,
+                      height: 38,
+                      padding: 2,
+                      border: "1px solid var(--border-strong)",
+                      borderRadius: 8,
+                      background: "var(--surface)",
+                    }}
+                  />
+                  <input
+                    className="input"
+                    value={form.primary_color}
+                    onChange={(e) => set("primary_color", e.target.value)}
+                  />
+                </div>
+              </label>
+              <label className="field">
+                <span className="label">Målform</span>
+                <select
+                  className="select"
+                  value={form.maalform}
+                  onChange={(e) => set("maalform", e.target.value)}
+                >
+                  <option value="nb">Bokmål</option>
+                  <option value="nn">Nynorsk</option>
+                </select>
+                <span className="hint">
+                  All tekst agentene skriver til kundene deres.
+                </span>
+              </label>
+            </div>
+
+            <div className="grid-2">
+              <label className="field">
+                <span className="label">Kontaktperson</span>
+                <input
+                  className="input"
+                  value={form.contact_name}
+                  onChange={(e) => set("contact_name", e.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span className="label">Kontakt-e-post</span>
+                <input
+                  className="input"
+                  type="email"
+                  value={form.contact_email}
+                  onChange={(e) => set("contact_email", e.target.value)}
+                />
+              </label>
+            </div>
+
+            <div className="grid-2">
+              <label className="field">
+                <span className="label">Telefon</span>
+                <input
+                  className="input"
+                  value={form.contact_phone}
+                  onChange={(e) => set("contact_phone", e.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span className="label">Nettsted</span>
+                <input
+                  className="input"
+                  value={form.website}
+                  onChange={(e) => set("website", e.target.value)}
+                />
+              </label>
+            </div>
+
+            <div className="wizard-actions">
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() => setStep(2)}
+              >
+                Tilbake
+              </button>
+              <button className="button" type="submit">
+                Neste
+              </button>
+            </div>
+          </form>
+        )}
+
+        {step === 4 && (
           <form onSubmit={submit}>
             <h2>Kom i gang</h2>
 
@@ -368,7 +544,7 @@ export function SignupWizard() {
               <button
                 type="button"
                 className="button secondary"
-                onClick={() => setStep(2)}
+                onClick={() => setStep(3)}
                 disabled={busy}
               >
                 Tilbake
@@ -387,6 +563,134 @@ export function SignupWizard() {
           </Link>
         </p>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Logovelger som holder fila i minnet.
+ *
+ * BrandImageUpload laster opp med én gang, og det går ikke her: selskapet
+ * finnes ikke ennå, og /api/brand/logo krever en sesjon. Denne holder fila til
+ * registreringen sendes, med de samme tre veiene inn — dra, lim inn, velg.
+ */
+function LogoVelger({
+  fil,
+  velg,
+  feil,
+}: {
+  fil: File | null;
+  velg: (fil: File | null) => void;
+  feil: (melding: string | null) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [over, setOver] = useState(false);
+
+  // Object-URL-en må ryddes opp, ellers holder nettleseren på fila til sida
+  // lastes på nytt.
+  const forhaandsvisning = useMemo(
+    () => (fil ? URL.createObjectURL(fil) : null),
+    [fil],
+  );
+  useEffect(() => {
+    return () => {
+      if (forhaandsvisning) URL.revokeObjectURL(forhaandsvisning);
+    };
+  }, [forhaandsvisning]);
+
+  function taImot(valgt: File | undefined | null) {
+    if (!valgt) return;
+    if (!valgt.type.startsWith("image/")) {
+      feil("Dette er ikke et bilde. PNG, JPG, WEBP, GIF eller SVG.");
+      return;
+    }
+    if (valgt.size > MAKS_LOGO_BYTES) {
+      feil("Logoen kan være opptil 2 MB. Skaler den ned først.");
+      return;
+    }
+    feil(null);
+    velg(valgt);
+  }
+
+  return (
+    <div className="field">
+      <span className="label">Logo (valgfritt)</span>
+
+      {fil && forhaandsvisning ? (
+        <div className="file-row">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={forhaandsvisning}
+            alt=""
+            style={{ height: 38, maxWidth: 220, objectFit: "contain" }}
+          />
+          <span className="file-row-name">{fil.name}</span>
+          <button
+            type="button"
+            className="button ghost"
+            onClick={() => inputRef.current?.click()}
+          >
+            Bytt
+          </button>
+          <button type="button" className="button ghost" onClick={() => velg(null)}>
+            Fjern
+          </button>
+        </div>
+      ) : (
+        <div
+          className={`drop${over ? " over" : ""}`}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setOver(true);
+          }}
+          onDragLeave={() => setOver(false)}
+          onDrop={(event) => {
+            event.preventDefault();
+            setOver(false);
+            taImot(event.dataTransfer.files[0]);
+          }}
+          onPaste={(event) => {
+            const bilde = Array.from(event.clipboardData.files).find((f) =>
+              f.type.startsWith("image/"),
+            );
+            if (!bilde) return;
+            event.preventDefault();
+            taImot(bilde);
+          }}
+          onClick={() => inputRef.current?.click()}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              inputRef.current?.click();
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          aria-label="Logo: dra inn, lim inn eller velg fil"
+        >
+          <span className="drop-icon">▦</span>
+          <span>
+            Dra inn logoen, lim inn med Ctrl+V, eller{" "}
+            <span className="drop-link">velg en fil</span>
+          </span>
+        </div>
+      )}
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept={LOGO_ACCEPT}
+        hidden
+        onChange={(event) => {
+          taImot(event.target.files?.[0]);
+          event.target.value = "";
+        }}
+      />
+
+      <span className="hint">
+        PNG, JPG, WEBP eller SVG, opptil 2 MB. Står best med gjennomsiktig
+        bakgrunn. Uten logo bruker tilbudet firmanavnet i tekst.
+      </span>
     </div>
   );
 }

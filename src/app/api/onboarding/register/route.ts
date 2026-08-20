@@ -1,5 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse } from "@/lib/api";
+import {
+  UgyldigBilde,
+  lagreMerkevarebilde,
+  sjekkStoerrelse,
+} from "@/lib/brand/lagre-bilde";
 import { normalizeOrgNr, validateOrgNr } from "@/lib/onboarding/orgnr";
 import { supabaseAdmin, supabaseAnon } from "@/lib/supabase/server";
 import { orgNrTaken } from "../check-org/route";
@@ -15,8 +20,25 @@ import { orgNrTaken } from "../check-org/route";
  * Brukeren blir admin. Det er den eneste rollen som gir mening for den som
  * oppretter selskapet, og noen må kunne invitere de andre inn.
  */
+/**
+ * Taket på hele kroppen.
+ *
+ * Logoen kommer som base64 og blir en tredjedel større på veien, så 2 MB fil
+ * blir ~2,7 MB tekst. Dette er et åpent endepunkt: kroppen leses helt inn i
+ * minnet før vi får sett på innholdet, så grensa må stå FØR json().
+ */
+const MAKS_KROPP_BYTES = 4 * 1024 * 1024;
+
 export async function POST(request: NextRequest) {
   try {
+    const oppgittLengde = Number(request.headers.get("content-length") ?? 0);
+    if (oppgittLengde > MAKS_KROPP_BYTES) {
+      return NextResponse.json(
+        { error: "Logoen kan være opptil 2 MB. Skaler den ned først." },
+        { status: 413 },
+      );
+    }
+
     const body = (await request.json()) as {
       company_name?: string;
       org_nr?: string;
@@ -27,6 +49,25 @@ export async function POST(request: NextRequest) {
       email?: string;
       password?: string;
       partner_code?: string;
+      /**
+       * Profilen tilbudene skal ha. Alt er valgfritt — poenget med steget er
+       * at det blir spurt om, ikke at det blir krevd.
+       */
+      brand?: {
+        maalform?: string;
+        primary_color?: string;
+        contact_name?: string;
+        contact_email?: string;
+        contact_phone?: string;
+        website?: string;
+        /**
+         * Logoen som base64. Den kan ikke lastes opp på vanlig måte her:
+         * /api/brand/logo krever en sesjon, og på dette tidspunktet finnes
+         * verken selskapet eller brukeren. Krever oppsettet e-postbekreftelse,
+         * kommer sesjonen først timer senere — og da hadde fila vært borte.
+         */
+        logo?: { data: string; filnavn: string; mime: string };
+      };
     };
 
     const companyName = (body.company_name ?? "").trim();
@@ -52,6 +93,31 @@ export async function POST(request: NextRequest) {
         { error: "Passordet må ha minst åtte tegn." },
         { status: 400 },
       );
+    }
+
+    // Logoen valideres før vi oppretter noe. Et åpent endepunkt skal ikke ta
+    // imot vilkårlig store kropper, og en fil som blir avvist etter at
+    // kontoen er laget ville krevd opprydding for ingenting.
+    const logo = body.brand?.logo;
+    let logoBytes: Buffer | null = null;
+    if (logo?.data) {
+      try {
+        logoBytes = Buffer.from(logo.data, "base64");
+        // Buffer.from kaster ikke på ugyldig base64 — den hopper over tegnene
+        // den ikke kjenner og kan ende på null bytes. Da er det ikke et bilde.
+        if (logoBytes.byteLength === 0) {
+          throw new UgyldigBilde("Logofila kunne ikke leses. Prøv å velge den på nytt.");
+        }
+        sjekkStoerrelse(logoBytes.byteLength);
+      } catch (err) {
+        return NextResponse.json(
+          {
+            error:
+              err instanceof UgyldigBilde ? err.message : "Logofila kunne ikke leses.",
+          },
+          { status: 400 },
+        );
+      }
     }
 
     const admin = supabaseAdmin();
@@ -131,6 +197,8 @@ export async function POST(request: NextRequest) {
           billing_city: (body.billing_city ?? "").trim() || null,
           trial_ends_at: trialEnds.toISOString(),
           partner_code: partnerCode,
+          tone_settings:
+            body.brand?.maalform === "nn" ? { maalform: "nn" } : { maalform: "nb" },
         })
         .select("id")
         .single();
@@ -147,14 +215,45 @@ export async function POST(request: NextRequest) {
       });
       if (userError) throw new Error(userError.message);
 
-      // 4. Tom merkevarerad, så innstillingssiden har noe å redigere.
-      await admin
-        .from("company_brand")
-        .insert({ company_id: company.id })
-        .select()
-        .maybeSingle();
+      // 4. Merkevareraden, med det de fylte ut i steg 3.
+      //
+      // Tomme felter blir null og ikke tomme strenger: PDF-malen hopper over
+      // en null, men ville satt av plass til en tom streng.
+      const b = body.brand ?? {};
+      await admin.from("company_brand").insert({
+        company_id: company.id,
+        // Kolonnen er not null med en standardfarge — bare overstyr den når
+        // de faktisk valgte noe.
+        ...(b.primary_color?.trim() ? { primary_color: b.primary_color.trim() } : {}),
+        contact_name: (b.contact_name ?? "").trim() || null,
+        contact_email: (b.contact_email ?? "").trim().toLowerCase() || null,
+        contact_phone: (b.contact_phone ?? "").trim() || null,
+        website: (b.website ?? "").trim() || null,
+      });
 
-      // 5. Bekreftelseslenka.
+      // 5. Logoen, om de la inn en.
+      //
+      // Feiler den, står kontoen likevel. De kan legge inn logoen fra
+      // innstillingene etterpå — å rulle tilbake en ferdig registrering
+      // fordi et bilde ikke ville lagre seg, er ute av proporsjoner.
+      if (logoBytes && logo) {
+        try {
+          await lagreMerkevarebilde(admin, {
+            companyId: company.id,
+            type: "logo",
+            bytes: logoBytes,
+            filnavn: logo.filnavn || "logo.png",
+            mimeType: logo.mime || "",
+          });
+        } catch (err) {
+          console.error(
+            "Logo fra registreringen kunne ikke lagres:",
+            err instanceof Error ? err.message : err,
+          );
+        }
+      }
+
+      // 6. Bekreftelseslenka.
       //
       // admin.createUser oppretter brukeren rett i databasen og sender
       // ingenting — det finnes ikke noe flagg som ber den sende. Skal kunden
