@@ -9,7 +9,11 @@ i målformen fra innstillingene.
 **tittel** — kort og konkret: «Tilbud — elektrisk opplegg i ny kjellerstue».
 Ikke gjenta firmanavn eller kundenavn.
 
-**kunde / adresse** — fra leadet. Mangler adressen: la feltet stå tomt, bygg
+**kunde / kontakt** — `navn` er den tilbudet stiles til. `kontakt` er bare for
+bedriftskunder, der firmaet står som kunde og en person er kontakt. Er kunden
+en privatperson, er `kontakt` null — navnet skal ikke stå to ganger.
+
+**adresse** — fra leadet. Mangler adressen: la feltet stå tomt, bygg
 tilbudet likevel, og be om adressen i e-postteksten (én setning som siste
 avsnitt før signaturen). Et tilbud holdes aldri tilbake fordi adressen mangler.
 

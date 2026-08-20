@@ -27,6 +27,14 @@ export function renderQuoteHtml(input: {
   const totals = computeTotals(doc);
   const accent = brand.primary_color || "#1d1d1f";
 
+  // Kontaktpersonen står bare når den er en ANNEN enn kunden. Feltet finnes
+  // for bedriftskunder — «Nordvik Bygg AS» med «Ole Nordvik» under — og for
+  // en privatperson er de samme navnet. Da skal navnet stå én gang.
+  const kontaktperson =
+    doc.customer.contact && !likeNavn(doc.customer.contact, doc.customer.name)
+      ? doc.customer.contact
+      : null;
+
   const brukteSeksjoner = doc.sections.filter((section) => section.lines.length > 0);
   // Delsummer bare når det faktisk er flere seksjoner. På et punktpristilbud
   // med én seksjon ville en delsum rett over totalen sagt det samme to ganger.
@@ -296,7 +304,7 @@ export function renderQuoteHtml(input: {
     <div>
       <div class="label">Kunde</div>
       <div class="strong">${escapeHtml(doc.customer.name)}</div>
-      ${doc.customer.contact ? `<div>${escapeHtml(doc.customer.contact)}</div>` : ""}
+      ${kontaktperson ? `<div>${escapeHtml(kontaktperson)}</div>` : ""}
       ${doc.customer.address ? `<div>${escapeHtml(doc.customer.address)}</div>` : ""}
       ${doc.customer.email ? `<div>${escapeHtml(doc.customer.email)}</div>` : ""}
       ${doc.customer.phone ? `<div>${escapeHtml(doc.customer.phone)}</div>` : ""}
@@ -336,6 +344,12 @@ export function renderQuoteHtml(input: {
  */
 function quoteTypeLabel(type: QuoteType): string {
   return type === "punktpris" ? "Pristilbud — punktpris" : "Pristilbud — fastpris";
+}
+
+/** «Ole Nordvik» og «ole  nordvik» er samme person. */
+function likeNavn(a: string, b: string): boolean {
+  const rens = (v: string) => v.toLowerCase().replace(/\s+/g, " ").trim();
+  return rens(a) === rens(b);
 }
 
 function formatQuantity(n: number): string {

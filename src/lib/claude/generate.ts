@@ -98,7 +98,11 @@ const TILBUDSDATA_SCHEMA = {
           type: "object",
           properties: {
             navn: { type: "string" },
-            kontakt: { type: ["string", "null"] },
+            kontakt: {
+              type: ["string", "null"],
+              description:
+                "Kontaktperson hos en bedriftskunde — «Nordvik Bygg AS» med «Ole Nordvik» under. Er kunden en privatperson, er dette samme navn som navn-feltet: sett null i stedet for å gjenta det.",
+            },
             epost: { type: ["string", "null"] },
             telefon: { type: ["string", "null"] },
             adresse: {
