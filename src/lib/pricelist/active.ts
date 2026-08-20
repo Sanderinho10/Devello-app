@@ -20,11 +20,16 @@ export async function activePriceItems(
   const listIds = (lists ?? []).map((list) => list.id);
   if (listIds.length === 0) return [];
 
+  // Sortert med vilje. Uten «order by» garanterer ikke Postgres rekkefølgen —
+  // en oppdatert rad kan havne bakerst. Prisblokka i prompten bygges av denne
+  // listen, og Anthropic mellomlagrer på eksakt prefiks: bytter to rader
+  // plass, er blokka en annen streng og cachen bommer på hvert eneste kall.
   const { data: items } = await admin
     .from("price_list_items")
     .select("*")
     .in("price_list_id", listIds)
-    .eq("active", true);
+    .eq("active", true)
+    .order("id");
 
   return (items ?? []) as PriceListItem[];
 }

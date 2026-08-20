@@ -74,11 +74,14 @@ export async function generateForLead(
     companyId: opts.companyId,
     leadText: [lead.subject, leadText].filter(Boolean).join("\n\n"),
     quoteType: opts.quoteType ?? null,
+    leadId: lead.id,
   });
 
   // Ett kall: agenten velger type og leverer utkastet i samme tur. Har
   // brukeren valgt type fra bryteren, sendes den inn som lås.
   const generated = await generateDraft({
+    companyId: opts.companyId,
+    leadId: lead.id,
     lockedType: opts.quoteType ?? null,
     lead: {
       subject: lead.subject,

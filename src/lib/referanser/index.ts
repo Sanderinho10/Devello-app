@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { structured } from "@/lib/claude/client";
+import type { UsageContext } from "@/lib/billing/usage";
 import { computeTotals, type QuoteDocument, type QuoteType } from "@/lib/types";
 
 /**
@@ -93,13 +94,20 @@ kjellerstue), bygningstype (enebolig, rekkehus, næringslokale) og jobbart
  * tilbud). Brukes både ved lagring (tagge tilbudet) og ved generering (tagge
  * leadet, så vi vet hva vi skal søke etter).
  */
-export async function extractTags(text: string): Promise<TagResult> {
+export async function extractTags(
+  text: string,
+  usage?: UsageContext,
+): Promise<TagResult> {
   return structured<TagResult>({
     system: TAG_SYSTEM,
     schema: TAG_SCHEMA,
     effort: "low",
     maxTokens: 1500,
+    // Ingen cachePrefix her. Taggeprompten er systemprompt på ~200 tokens og
+    // en tekst som er ny hver gang — det finnes ikke noe stabilt prefiks å
+    // lagre, og et bruddpunkt ville bare kostet skrivepremie uten treff.
     prompt: text.slice(0, 6000),
+    usage,
   });
 }
 
@@ -149,7 +157,11 @@ export async function saveQuoteReference(
 
   let tagged: TagResult;
   try {
-    tagged = await extractTags(tagSource);
+    tagged = await extractTags(tagSource, {
+      companyId: input.companyId,
+      kind: "tagging_tilbud",
+      leadId: input.leadId,
+    });
   } catch (err) {
     // Tagging skal aldri stoppe en bekreftelse. Lagre uten tags heller enn å
     // feile — men en rad uten tags er nesten usøkbar, så feilen skal i loggen.
@@ -203,11 +215,21 @@ export async function findSimilarReferences(
     leadText: string;
     quoteType?: QuoteType | null;
     limit?: number;
+    /** Leadet, for kost per tilbud i model_usage. */
+    leadId?: string | null;
   },
 ): Promise<{ references: QuoteReference[]; leadTags: string[] }> {
   let leadTags: string[] = [];
   try {
-    leadTags = normalizeTags((await extractTags(input.leadText)).tags);
+    leadTags = normalizeTags(
+      (
+        await extractTags(input.leadText, {
+          companyId: input.companyId,
+          kind: "tagging_lead",
+          leadId: input.leadId ?? null,
+        })
+      ).tags,
+    );
   } catch (err) {
     console.warn("tagging av lead feilet:", err instanceof Error ? err.message : err);
     leadTags = [];

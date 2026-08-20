@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { loggModellbruk, type UsageContext } from "@/lib/billing/usage";
 
 /** Claude Opus 5. Modellvalget er sentralisert her. */
 export const MODEL = "claude-opus-5";
@@ -23,10 +24,45 @@ export function anthropic(): Anthropic {
 export async function structured<T>(options: {
   system: string;
   prompt: string;
+  /**
+   * Stabil del av prompten, som blir lagt FORAN `prompt`.
+   *
+   * Mellomlagringen hos Anthropic er et prefiks-oppslag på eksakte bytes: alt
+   * fram til bruddpunktet blir gjenbrukt, og ett tegn til forskjell gjør hele
+   * treffet ugyldig. Derfor må det som er likt mellom kall stå her, og det som
+   * varierer per lead i `prompt` — ikke omvendt. Står prisblokka etter noe som
+   * endrer seg, betaler vi skrivepremie uten å lese noe tilbake.
+   */
+  cachePrefix?: string;
+  /**
+   * Mellomlagre systemprompten i en time.
+   *
+   * Bare verdt det når den er stor og lik mellom kall. Motoren er 4 000+
+   * tokens og identisk for hvert eneste tilbud fra alle kunder — den skal
+   * caches. Taggeprompten er ~200 tokens, under minstemålet på 512 for
+   * opus-5, og ville aldri blitt lagret uansett.
+   */
+  cacheSystem?: boolean;
   schema: Record<string, unknown>;
   maxTokens?: number;
   effort?: "low" | "medium" | "high" | "xhigh" | "max";
+  /** Logger faktisk tokenforbruk på selskapet. Utelatt = ingen logging. */
+  usage?: UsageContext;
 }): Promise<T> {
+  const content: Anthropic.TextBlockParam[] = [];
+  if (options.cachePrefix) {
+    // 5 minutter, ikke 1 time: bruddpunktet her er per selskap, og
+    // skrivepremien er 1,25× mot 2×. Med 5 min går det i null allerede ved
+    // kall nummer to — som er det som skjer når noen generer flere utkast
+    // etter hverandre, eller når valideringen ber om et nytt forsøk.
+    content.push({
+      type: "text",
+      text: options.cachePrefix,
+      cache_control: { type: "ephemeral" },
+    });
+  }
+  content.push({ type: "text", text: options.prompt });
+
   let response;
   try {
     response = await anthropic().messages.create({
@@ -37,11 +73,26 @@ export async function structured<T>(options: {
         effort: options.effort ?? "high",
         format: { type: "json_schema", schema: options.schema },
       },
-      system: options.system,
-      messages: [{ role: "user", content: options.prompt }],
+      system: options.cacheSystem
+        ? [
+            {
+              type: "text",
+              text: options.system,
+              // 1 time. Motoren er den samme for alle kunder og alle tilbud,
+              // så denne ene oppføringen blir lest av hver eneste generering
+              // på plattformen. Da lønner den doble skrivepremien seg.
+              cache_control: { type: "ephemeral", ttl: "1h" },
+            },
+          ]
+        : options.system,
+      messages: [{ role: "user", content }],
     });
   } catch (err) {
     throw translateApiError(err);
+  }
+
+  if (options.usage) {
+    await loggModellbruk(options.usage, MODEL, response.usage);
   }
 
   if (response.stop_reason === "refusal") {

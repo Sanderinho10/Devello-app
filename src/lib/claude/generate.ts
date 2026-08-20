@@ -1,4 +1,5 @@
 import { structured } from "./client";
+import type { UsageContext } from "@/lib/billing/usage";
 import { loadMotor } from "./motor";
 import { forbeholdsBlokk, type Forbehold } from "@/lib/referanser/forbehold";
 import { referencesBlock, type QuoteReference } from "@/lib/referanser";
@@ -222,6 +223,10 @@ export interface RawTilbudsdata {
 }
 
 export interface GenerateInput {
+  /** Hvilket selskap kallet skal bokføres på. Kommer alltid fra sesjonen. */
+  companyId: string;
+  /** Leadet dette gjelder, for kost per tilbud i model_usage. */
+  leadId?: string | null;
   /** Satt når brukeren har valgt type selv — da velger ikke agenten. */
   lockedType?: QuoteType | null;
   lead: Pick<Lead, "subject" | "body_text" | "from_name" | "from_email">;
@@ -237,20 +242,31 @@ export interface GenerateInput {
 
 export async function generateDraft(input: GenerateInput): Promise<GeneratedDraft> {
   const system = await loadMotor();
-  const prompt = buildPrompt(input);
+  const { prefiks, resten } = buildPrompt(input);
+  const usage = {
+    companyId: input.companyId,
+    kind: "generering" as const,
+    leadId: input.leadId ?? null,
+  };
 
-  let raw = await callModel(system, prompt);
+  let raw = await callModel(system, prefiks, resten, usage);
 
   // Kodevalidering — koden er dommeren, agenten førstelinjen. Feiler den,
   // får agenten feilene tilbake og ett forsøk til (som plattform-verktoy.md
   // spesifiserer). Feiler det også: stopp med forklaring.
+  //
+  // Merk at prefikset er uendret i forsøk to. Det er meningen: retryen skjer
+  // sekunder etter det første kallet, så prislista leses rett ut av cachen og
+  // omkjøringen koster nesten bare det som faktisk er nytt.
   let problems = validate(raw, input);
   if (problems.length > 0) {
     raw = await callModel(
       system,
-      `${prompt}\n\n---\n\nFORRIGE FORSØK FEILET VALIDERINGEN. Rett dette og lever hele tilbudsdataen på nytt:\n${problems
+      prefiks,
+      `${resten}\n\n---\n\nFORRIGE FORSØK FEILET VALIDERINGEN. Rett dette og lever hele tilbudsdataen på nytt:\n${problems
         .map((p) => `- ${p}`)
         .join("\n")}`,
+      usage,
     );
     problems = validate(raw, input);
     if (problems.length > 0) {
@@ -263,11 +279,19 @@ export async function generateDraft(input: GenerateInput): Promise<GeneratedDraf
   return resolve(raw, input);
 }
 
-async function callModel(system: string, prompt: string): Promise<RawTilbudsdata> {
+async function callModel(
+  system: string,
+  prefiks: string,
+  resten: string,
+  usage: UsageContext,
+): Promise<RawTilbudsdata> {
   return structured<RawTilbudsdata>({
     system,
     schema: TILBUDSDATA_SCHEMA,
-    prompt,
+    cachePrefix: prefiks,
+    cacheSystem: true,
+    prompt: resten,
+    usage,
   });
 }
 
@@ -281,13 +305,30 @@ const KIND_TO_KILDE: Record<PriceItemKind, string> = {
   time: "timeprisliste",
 };
 
-function buildPrompt(input: GenerateInput): string {
+interface PromptDeler {
+  /**
+   * Det som er likt fra tilbud til tilbud hos samme kunde: innstillingene og
+   * prislistene. Blir mellomlagret hos Anthropic.
+   *
+   * Prislista er den store posten i prompten — hos en kunde med et par hundre
+   * rader er den tre firedeler av alt som går inn. Den endrer seg bare når
+   * kunden redigerer prisfilen, mens leadet er nytt hver gang. Derfor dette
+   * skillet, og derfor står prislista FØRST: hadde den stått etter leadet,
+   * ville et nytt lead gjort hele blokka ulagerbar.
+   */
+  prefiks: string;
+  /** Referanser, forbehold og selve leadet. Nytt for hvert kall. */
+  resten: string;
+}
+
+function buildPrompt(input: GenerateInput): PromptDeler {
+  const stabile: string[] = [];
   const blocks: string[] = [];
 
   // Kundekontekst: hele tone_settings ordrett, så en ny innstilling i UI-et
   // når fram til agenten uten kodeendring her. Målform, signatur og
   // tilleggsinstruks leses av motoren etter reglene i agent/CLAUDE.md.
-  blocks.push(
+  stabile.push(
     `# Kundekontekst\n\n${JSON.stringify(
       {
         firma: input.company.name,
@@ -314,8 +355,9 @@ function buildPrompt(input: GenerateInput): string {
       return parts.join("\n");
     })
     .join("\n");
-  blocks.push(`# Aktive prislister\n\n${rows || "(ingen prisrader lagt inn)"}`);
+  stabile.push(`# Aktive prislister\n\n${rows || "(ingen prisrader lagt inn)"}`);
 
+  // Herfra og ned varierer det per lead — utenfor bruddpunktet.
   blocks.push(referencesBlock(input.similar ?? []));
 
   // Lærdommene veier tyngre enn mønsteret i referansene, så de kommer etter —
@@ -336,7 +378,10 @@ function buildPrompt(input: GenerateInput): string {
     );
   }
 
-  return blocks.filter(Boolean).join("\n\n");
+  return {
+    prefiks: stabile.filter(Boolean).join("\n\n"),
+    resten: blocks.filter(Boolean).join("\n\n"),
+  };
 }
 
 // ---------------------------------------------------------------------------

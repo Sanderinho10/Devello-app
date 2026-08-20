@@ -80,6 +80,8 @@ async function runLead(externalId: string) {
 
   const started = Date.now();
   const generated = await generateDraft({
+    companyId: STAR,
+    leadId: lead.id,
     lead: {
       subject: lead.subject,
       body_text: leadText,

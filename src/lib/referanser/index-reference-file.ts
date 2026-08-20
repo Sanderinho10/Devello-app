@@ -24,6 +24,7 @@ export async function indexReferenceFile(
 ): Promise<{ tags: string[] }> {
   const tagged = await extractTags(
     `Tittel: ${input.title}\nTilbudstype: ${input.quoteType}\n\n${input.extractedText}`,
+    { companyId: input.companyId, kind: "tagging_referansefil" },
   );
   const tags = normalizeTags(tagged.tags);
 
