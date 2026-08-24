@@ -83,12 +83,20 @@ function LoginForm() {
         return;
       }
 
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      // Vår egen rute, ikke supabase.auth.signInWithOtp.
+      //
+      // Supabase svarer 200 på /otp uansett hva som skjer med e-posten
+      // etterpå, så skjermen sa «Sjekk e-posten» tre ganger på rad mens
+      // ingenting kom fram. Herfra får vi vite om meldingen faktisk gikk ut,
+      // og kan si det hvis den ikke gjorde det. Se 0026.
+      const res = await fetch("/api/auth/lenke", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
       });
-      if (error) {
-        setError(translate(error.message));
+      const payload = await res.json();
+      if (!res.ok) {
+        setError(payload.error ?? "Kunne ikke sende lenken.");
       } else {
         setSent(true);
       }
