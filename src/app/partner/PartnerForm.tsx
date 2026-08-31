@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { normalizeOrgNr } from "@/lib/onboarding/orgnr";
+import { Merke } from "@/components/Merke";
 
 /**
  * Regnskapsførere henter partnerkoden sin her.
@@ -55,7 +56,7 @@ export function PartnerForm() {
       <div className="auth-shell">
         <div className="card card-pad auth-card">
           <div className="brand" style={{ padding: "0 0 20px" }}>
-            <span className="brand-mark">D</span> Devello
+            <Merke size={24} /> Devello
           </div>
 
           <h2>{result.existing ? "Du er partner fra før" : "Du er registrert"}</h2>
@@ -86,7 +87,7 @@ export function PartnerForm() {
     <div className="auth-shell">
       <div className="card card-pad auth-card">
         <div className="brand" style={{ padding: "0 0 20px" }}>
-          <span className="brand-mark">D</span> Devello
+          <Merke size={24} /> Devello
         </div>
 
         <h2>Bli partner</h2>

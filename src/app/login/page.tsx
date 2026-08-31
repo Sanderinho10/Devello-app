@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { Merke } from "@/components/Merke";
 
 /**
  * To måter å logge inn på.
@@ -212,7 +213,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24 }}>
       <div className="card card-pad" style={{ width: 380 }}>
         <div className="brand" style={{ padding: "0 0 18px" }}>
-          <span className="brand-mark">D</span> Devello
+          <Merke size={24} /> Devello
         </div>
         {children}
       </div>

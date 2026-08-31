@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { normalizeOrgNr } from "@/lib/onboarding/orgnr";
+import { Merke } from "@/components/Merke";
 
 /**
  * Registrering i fire steg: selskapet, brukeren, profilen på tilbudene, og i
@@ -193,7 +194,7 @@ export function SignupWizard() {
       <div className="auth-shell">
         <div className="card card-pad auth-card">
           <div className="brand" style={{ padding: "0 0 20px" }}>
-            <span className="brand-mark">D</span> Devello
+            <Merke size={24} /> Devello
           </div>
 
           {emailError ? (
@@ -237,7 +238,7 @@ export function SignupWizard() {
     <div className="auth-shell">
       <div className="card card-pad auth-card">
         <div className="brand" style={{ padding: "0 0 20px" }}>
-          <span className="brand-mark">D</span> Devello
+          <Merke size={24} /> Devello
         </div>
 
         <ol className="wizard-steps">

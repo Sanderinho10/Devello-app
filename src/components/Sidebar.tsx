@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SignOut } from "@/components/SignOut";
+import { Merke } from "@/components/Merke";
 
 /**
  * Navigasjon per agent, ikke per funksjon.
@@ -126,7 +127,7 @@ export function Sidebar({
   return (
     <aside className="sidebar">
       <div className="brand">
-        <span className="brand-mark">D</span>
+        <Merke size={24} />
         Devello
       </div>
 
