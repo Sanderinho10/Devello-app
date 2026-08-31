@@ -11,7 +11,8 @@
     "install:chromium": "playwright-core install chromium",
     "preview:pdf": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/preview-pdf.ts",
     "test:agent": "node --env-file=.env.local --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-agent.ts",
-    "test:perioder": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-perioder.ts"
+    "test:perioder": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-perioder.ts",
+    "test:epost": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-finn-epost.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.117.1",

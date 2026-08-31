@@ -7,6 +7,7 @@ import { logoDataUri } from "@/lib/pdf/logo";
 import { renderQuoteHtml } from "@/lib/pdf/template";
 import { diffSnapshots, logDraftVersion } from "@/lib/drafts/versions";
 import { summarizeEdits } from "@/lib/drafts/edit-summary";
+import { finnEpost } from "@/lib/leads/finn-epost";
 import { saveQuoteReference } from "@/lib/referanser";
 import { sessionOr401, errorResponse } from "@/lib/api";
 import { supabaseAdmin } from "@/lib/supabase/server";
@@ -243,8 +244,14 @@ export async function POST(
       // står på leadet, ikke i skjemaet de nettopp fylte ut.
       manuell: outlook === null,
       outlook_feil: outlookFeil,
-      mottaker: lead.from_email,
-      mottaker_navn: lead.from_name,
+      // Tre kilder, i den rekkefølgen vi stoler på dem: feltet på leadet,
+      // adressen agenten leste ut av henvendelsen, og til slutt et søk i
+      // teksten selv. Et manuelt lead har ofte adressen bare i beskrivelsen.
+      mottaker:
+        lead.from_email ||
+        payload.document?.customer.email ||
+        finnEpost(lead.body_text || lead.body_preview),
+      mottaker_navn: lead.from_name || payload.document?.customer.name || null,
       emne: payload.email_subject,
       tekst: payload.email_body,
       har_pdf: pdf !== null,

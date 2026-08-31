@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse, after, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
 import { generateForLead } from "@/lib/drafts/generate-for-lead";
+import { finnEpost } from "@/lib/leads/finn-epost";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
 export const maxDuration = 300;
@@ -33,7 +34,11 @@ export async function POST(request: NextRequest) {
     }
 
     const customerName = (body.customer_name ?? "").trim() || null;
-    const customerEmail = (body.customer_email ?? "").trim() || null;
+    // Sto feltet tomt, ser vi etter adressen i selve teksten. Folk limer inn
+    // hele henvendelsen og hopper over feltet — og uten dette blir tilbudet
+    // stående uten mottaker selv om adressen er midt i beskrivelsen.
+    const customerEmail =
+      (body.customer_email ?? "").trim() || finnEpost(description);
 
     const admin = supabaseAdmin();
     const { data: lead, error } = await admin
