@@ -38,6 +38,16 @@ interface Snapshot {
   confidence_note: string | null;
 }
 
+/** Det vinduet for manuell sending trenger for å vise tilbudet fram. */
+interface SendSjolvData {
+  mottaker: string | null;
+  mottakerNavn: string | null;
+  emne: string;
+  tekst: string;
+  harPdf: boolean;
+  outlookFeil: string | null;
+}
+
 export function DraftEditor({
   lead,
   draft,
@@ -78,14 +88,13 @@ export function DraftEditor({
    * Outlook — enten fordi ingen postkasse er koblet til, eller fordi
    * koblingen svikta i det øyeblikket.
    */
-  const [sendSjolv, setSendSjolv] = useState<{
-    mottaker: string | null;
-    mottakerNavn: string | null;
-    emne: string;
-    tekst: string;
-    harPdf: boolean;
-    outlookFeil: string | null;
+  /** Hva vinduet viste sist, og for hvilken versjon av utkastet. */
+  const [sisteSending, setSisteSending] = useState<{
+    nokkel: string;
+    data: SendSjolvData;
   } | null>(null);
+
+  const [sendSjolv, setSendSjolv] = useState<SendSjolvData | null>(null);
 
   const [dragging, setDragging] = useState<DragRef | null>(null);
   const [dragOver, setDragOver] = useState<DragRef | null>(null);
@@ -274,14 +283,16 @@ export function DraftEditor({
       // alt de trenger. Det låser ingenting — krysser de ut, står utkastet
       // som før.
       if (payload.manuell) {
-        setSendSjolv({
+        const data: SendSjolvData = {
           mottaker: payload.mottaker ?? null,
           mottakerNavn: payload.mottaker_navn ?? null,
           emne: payload.emne ?? subject,
           tekst: payload.tekst ?? body,
           harPdf: Boolean(payload.har_pdf),
           outlookFeil: payload.outlook_feil ?? null,
-        });
+        };
+        setSendSjolv(data);
+        setSisteSending({ nokkel: tilstandsnokkel(), data });
       }
       router.refresh();
     } catch (err) {
@@ -418,18 +429,38 @@ export function DraftEditor({
     ]);
   }
 
-  const locked = confirmed || busy !== null;
+  // Bare mens noe pågår. Det som skal låse et tilbud er at det er sendt, og
+  // det håndteres av fieldset-en rundt hele redigeringen — og server-siden
+  // avviser generering på et sendt tilbud uansett. Å låse på «bekreftet» ville
+  // stengt typebryteren første gang man trykker «Send selv», midt i flyten der
+  // man nettopp har fått beskjed om at man gjerne kan rette mer.
+  const locked = busy !== null;
 
-  /** Åpner vinduet på nytt for et bekreftet tilbud som ikke er sendt ennå. */
-  function aapneSendSjolv() {
-    setSendSjolv({
-      mottaker: lead.from_email,
-      mottakerNavn: lead.from_name,
-      emne: subject,
-      tekst: body,
-      harPdf: wantsDocument && document !== null,
-      outlookFeil: null,
-    });
+  /**
+   * «Send selv» — hele flyten for et selskap uten postkasse.
+   *
+   * Én knapp, ikke to. Uten Outlook er det ingen kladd å bekrefte og siden å
+   * sende: det er én handling, og den gjør tilbudet klart og viser det fram.
+   *
+   * Trykker man på nytt uten å ha endret noe, lager vi ikke PDF-en om igjen —
+   * vinduet viser det samme som sist. Har man rettet en linje i mellomtiden,
+   * går det gjennom bekreft på nytt og vinduet får med endringen.
+   */
+  async function sendSjolvFlyt() {
+    const naa = tilstandsnokkel();
+    if (sisteSending && sisteSending.nokkel === naa) {
+      setSendSjolv(sisteSending.data);
+      return;
+    }
+    await confirm();
+  }
+
+  /**
+   * Alt som havner i tilbudet, som én streng. Er den lik forrige gang, er det
+   * ingenting nytt å lage.
+   */
+  function tilstandsnokkel(): string {
+    return JSON.stringify({ quoteType, subject, body, document });
   }
 
   async function markerSendt() {
@@ -522,9 +553,9 @@ export function DraftEditor({
       )}
 
       {/*
-        To ulike tilstander, som til nå sa det samme. Uten kladd i Outlook er
-        det ingen kladd, og et grønt felt som påstår at den er opprettet er
-        verre enn ingen beskjed — man tror jobben er gjort.
+        Bare når det faktisk finnes en kladd. Uten postkasse er det ingen
+        kladd, og et grønt felt som påstår at den er opprettet er verre enn
+        ingen beskjed — man tror jobben er gjort.
       */}
       {confirmed && webLink && (
         <div className="banner success">
@@ -537,23 +568,6 @@ export function DraftEditor({
           >
             Åpne kladden
           </a>
-        </div>
-      )}
-
-      {confirmed && !webLink && (
-        <div className="banner info row-between" style={{ gap: 14 }}>
-          <span>
-            {wantsDocument ? "PDF-en er klar." : "Teksten er klar."} Tilbudet er
-            ikke sendt ennå.
-          </span>
-          <button
-            type="button"
-            className="button"
-            onClick={aapneSendSjolv}
-            disabled={busy !== null}
-          >
-            Send selv
-          </button>
         </div>
       )}
 
@@ -927,13 +941,13 @@ export function DraftEditor({
         <span className="muted tiny">
           {!harPostkasse
             ? wantsDocument
-              ? "Bekreft lager PDF-en. Du sender tilbudet selv."
-              : "Bekreft gjør teksten klar. Du sender tilbudet selv."
+              ? "Vi lager PDF-en og gir deg tekst og mottaker. Du sender fra din egen e-post."
+              : "Vi gjør teksten klar. Du sender fra din egen e-post."
             : wantsDocument
               ? "Bekreft lager kladd i Outlook med PDF-en vedlagt. Du sender selv."
               : "Bekreft lager kladd i Outlook. Du sender selv."}
         </span>
-        {confirmed && webLink && (
+        {harPostkasse && confirmed && webLink && (
           <button
             type="button"
             className="button secondary"
@@ -943,18 +957,28 @@ export function DraftEditor({
             Marker som sendt
           </button>
         )}
-        <button className="button" onClick={confirm} disabled={busy !== null}>
+
+        {/*
+          Uten postkasse er dette den eneste knappen. Å skille «bekreft» fra
+          «send» ga to knapper for det som er én handling — gjør tilbudet klart
+          og vis det fram — og den første av dem gjorde ingenting man kunne se.
+        */}
+        <button
+          className="button"
+          onClick={harPostkasse ? confirm : sendSjolvFlyt}
+          disabled={busy !== null}
+        >
           {busy === "bekrefter"
             ? harPostkasse
               ? "Lager kladd…"
-              : "Lagrer…"
-            : confirmed
-              ? harPostkasse
+              : wantsDocument
+                ? "Lager PDF…"
+                : "Gjør klar…"
+            : harPostkasse
+              ? confirmed
                 ? "Oppdater kladd"
-                : "Oppdater tilbudet"
-              : harPostkasse
-                ? "Bekreft og lag kladd"
-                : "Bekreft og lag PDF"}
+                : "Bekreft og lag kladd"
+              : "Send selv"}
         </button>
         </div>
       </fieldset>

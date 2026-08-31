@@ -180,24 +180,31 @@ export async function saveQuoteReference(
     .filter(Boolean)
     .join(" \n");
 
-  await admin.from("quote_references").insert({
-    company_id: input.companyId,
-    draft_id: input.draftId,
-    lead_id: input.leadId,
-    quote_type: input.quoteType,
-    title,
-    customer_type: tagged.customer_type === "ukjent" ? null : tagged.customer_type,
-    tags,
-    summary: tagged.summary || null,
-    lines,
-    assumptions: input.document?.assumptions ?? [],
-    email_subject: input.emailSubject,
-    email_body: input.emailBody,
-    subtotal_ex_vat: input.document ? computeTotals(input.document).subtotal : null,
-    edited_by_user: input.editedByUser,
-    edit_summary: input.editSummary ?? null,
-    search_text: searchText,
-  });
+  // Upsert, ikke insert. Bekreft kan trykkes flere ganger — retter man en
+  // linje og bekrefter på nytt, skal referansen oppdateres, ikke bli til en
+  // rad til. To rader for samme tilbud ville telt dobbelt i mønsteret agenten
+  // leser av. Se 0028.
+  await admin.from("quote_references").upsert(
+    {
+      company_id: input.companyId,
+      draft_id: input.draftId,
+      lead_id: input.leadId,
+      quote_type: input.quoteType,
+      title,
+      customer_type: tagged.customer_type === "ukjent" ? null : tagged.customer_type,
+      tags,
+      summary: tagged.summary || null,
+      lines,
+      assumptions: input.document?.assumptions ?? [],
+      email_subject: input.emailSubject,
+      email_body: input.emailBody,
+      subtotal_ex_vat: input.document ? computeTotals(input.document).subtotal : null,
+      edited_by_user: input.editedByUser,
+      edit_summary: input.editSummary ?? null,
+      search_text: searchText,
+    },
+    { onConflict: "draft_id" },
+  );
 }
 
 // ---------------------------------------------------------------------------
