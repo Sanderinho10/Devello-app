@@ -23,6 +23,8 @@ export interface AgentPlan {
   id: string;
   agentId: string;
   name: string;
+  /** Hvem pakken er for. Samme ordlyd som på devello.no/priser. */
+  tagline: string;
   /** Kroner per måned, eks. mva. */
   priceNok: number;
   /** Antall enheter inkludert per måned. */
@@ -48,30 +50,28 @@ export const AGENTS: Agent[] = [
   },
 ];
 
+/**
+ * Samme pakker og priser som devello.no/priser viser. De to stedene må si det
+ * samme — nettsiden er løftet, dette er regningen.
+ */
 export const AGENT_PLANS: AgentPlan[] = [
   {
-    id: "tilbud_liten",
+    id: "tilbud_basis",
     agentId: "tilbud",
-    name: "Liten",
-    priceNok: 950,
-    quota: 20,
-    overageNok: 59,
+    name: "Basis",
+    tagline: "Enkeltmannsforetak og små firma",
+    priceNok: 790,
+    quota: 30,
+    overageNok: 29,
   },
   {
-    id: "tilbud_vekst",
+    id: "tilbud_pro",
     agentId: "tilbud",
-    name: "Vekst",
-    priceNok: 1890,
-    quota: 50,
-    overageNok: 59,
-  },
-  {
-    id: "tilbud_stor",
-    agentId: "tilbud",
-    name: "Stor",
-    priceNok: 3290,
-    quota: 120,
-    overageNok: 59,
+    name: "Pro",
+    tagline: "Firma med flere montører eller mye leads",
+    priceNok: 1490,
+    quota: 100,
+    overageNok: 29,
   },
 ];
 

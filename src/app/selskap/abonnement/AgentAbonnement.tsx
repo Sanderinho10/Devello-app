@@ -106,6 +106,9 @@ export function AgentAbonnement({
                     <strong>{plan.name}</strong>
                     {valgt && <span className="pill bekrefta">Valgt</span>}
                   </div>
+                  <div className="tiny muted" style={{ marginTop: 2 }}>
+                    {plan.tagline}
+                  </div>
 
                   <div className="plan-price">
                     {formatPrice(plan.priceNok)}

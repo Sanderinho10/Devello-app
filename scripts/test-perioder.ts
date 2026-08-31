@@ -72,15 +72,14 @@ sjekk("no ligg alltid i si eiga periode (40 stikkprøver)", String(hol), "0");
 // ---------------------------------------------------------------------------
 console.log("");
 
-const liten = findAgentPlan("tilbud_liten")!;
-const vekst = findAgentPlan("tilbud_vekst")!;
-const stor = findAgentPlan("tilbud_stor")!;
+const basis = findAgentPlan("tilbud_basis")!;
+const pro = findAgentPlan("tilbud_pro")!;
 
-sjekk("Liten, 20 tilbud (på taket)", String(periodekostnad(liten, 20)), "950");
-sjekk("Liten, 0 tilbud", String(periodekostnad(liten, 0)), "950");
-sjekk("Liten, 25 tilbud (5 over)", String(periodekostnad(liten, 25)), String(950 + 5 * 59));
-sjekk("Vekst, 70 tilbud (20 over)", String(periodekostnad(vekst, 70)), String(1890 + 20 * 59));
-sjekk("Stor, 120 tilbud (på taket)", String(periodekostnad(stor, 120)), "3290");
+sjekk("Basis, 30 tilbud (på taket)", String(periodekostnad(basis, 30)), "790");
+sjekk("Basis, 0 tilbud", String(periodekostnad(basis, 0)), "790");
+sjekk("Basis, 35 tilbud (5 over)", String(periodekostnad(basis, 35)), String(790 + 5 * 29));
+sjekk("Pro, 100 tilbud (på taket)", String(periodekostnad(pro, 100)), "1490");
+sjekk("Pro, 120 tilbud (20 over)", String(periodekostnad(pro, 120)), String(1490 + 20 * 29));
 
 // Overforbrukssatsen skal alltid ligge over enhetsprisen i pakken — ellers
 // lønner det seg å bli stående og sprenge taket, og pakkene betyr ingenting.
@@ -93,19 +92,17 @@ for (const p of AGENT_PLANS) {
 }
 
 // Oppgraderingshintet
-const paaLiten = { agentId: "tilbud", planId: "tilbud_liten", priceNok: 950, quota: 20, overageNok: 59 };
-sjekk("Liten + 20 brukt: ingen bedre pakke", String(finnBedrePakke(paaLiten, 20)), "null");
-// 40 brukt på Liten = 950 + 20×59 = 2130. Vekst = 1890. Stor = 3290.
-sjekk("Liten + 40 brukt: bytt til Vekst", finnBedrePakke(paaLiten, 40)?.plan.id ?? "null", "tilbud_vekst");
-sjekk("Liten + 40 brukt: sparer", String(finnBedrePakke(paaLiten, 40)?.sparerKr), "240");
+const paaBasis = { agentId: "tilbud", planId: "tilbud_basis", priceNok: 790, quota: 30, overageNok: 29 };
+sjekk("Basis + 30 brukt: ingen bedre pakke", String(finnBedrePakke(paaBasis, 30)), "null");
+// 60 brukt på Basis = 790 + 30×29 = 1660. Pro = 1490.
+sjekk("Basis + 60 brukt: bytt til Pro", finnBedrePakke(paaBasis, 60)?.plan.id ?? "null", "tilbud_pro");
+sjekk("Basis + 60 brukt: sparer", String(finnBedrePakke(paaBasis, 60)?.sparerKr), "170");
+// Break-even ligger på 55: 790 + 25×29 = 1515 mot 1490.
+sjekk("Basis + 54 brukt: fortsatt billigst", String(finnBedrePakke(paaBasis, 54)), "null");
 
-const paaVekst = { agentId: "tilbud", planId: "tilbud_vekst", priceNok: 1890, quota: 50, overageNok: 59 };
-// 90 brukt på Vekst = 1890 + 40×59 = 4250. Stor = 3290.
-sjekk("Vekst + 90 brukt: bytt til Stor", finnBedrePakke(paaVekst, 90)?.plan.id ?? "null", "tilbud_stor");
-sjekk("Vekst + 90 brukt: sparer", String(finnBedrePakke(paaVekst, 90)?.sparerKr), "960");
-// Stor har ingen større pakke å foreslå — der tar «Kontakt oss» over.
-const paaStor = { agentId: "tilbud", planId: "tilbud_stor", priceNok: 3290, quota: 120, overageNok: 59 };
-sjekk("Stor + 400 brukt: ingen større pakke", String(finnBedrePakke(paaStor, 400)), "null");
+// Pro har ingen større pakke å foreslå — der tar «Kontakt oss» over.
+const paaPro = { agentId: "tilbud", planId: "tilbud_pro", priceNok: 1490, quota: 100, overageNok: 29 };
+sjekk("Pro + 400 brukt: ingen større pakke", String(finnBedrePakke(paaPro, 400)), "null");
 
 console.log(feil === 0 ? "\nAlle testar passerte." : `\n${feil} feil.`);
 process.exit(feil ? 1 : 0);
