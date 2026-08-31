@@ -122,10 +122,6 @@ export function AgentAbonnement({
                       {unitLabel(rad.agent, plan.quota)} i måneden
                     </li>
                     <li>
-                      {formatPrice(Math.round(plan.priceNok / plan.quota))} per{" "}
-                      {rad.agent.unit.ein} innenfor kvoten
-                    </li>
-                    <li>
                       {formatPrice(plan.overageNok)} per {rad.agent.unit.ein}{" "}
                       over taket
                     </li>
