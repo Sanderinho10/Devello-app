@@ -1643,15 +1643,10 @@ p {
 
 .opplaering-rad {
   display: grid;
-  grid-template-columns: 1fr auto 110px;
+  grid-template-columns: 1fr 130px;
   align-items: center;
   gap: 14px;
   color: var(--text-secondary);
-}
-
-.opplaering-antall {
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
 }
 
 /* Egen strek per ledd, tynnere enn hovedstolpen — den er oppsummeringen,

@@ -32,10 +32,6 @@ export function Opplaeringskort({ status }: { status: Opplaering }) {
           {status.grunnlag.map((ledd) => (
             <div key={ledd.navn} className="opplaering-rad">
               <span>{ledd.navn}</span>
-              <span className="opplaering-antall">
-                {ledd.antall}
-                <span className="muted"> / {ledd.maal}</span>
-              </span>
               <span className="opplaering-strek">
                 <span style={{ width: `${(ledd.oppnaadd / ledd.vekt) * 100}%` }} />
               </span>
@@ -58,19 +54,17 @@ export function Opplaeringskort({ status }: { status: Opplaering }) {
             {status.utfall.map((ledd) => (
               <div key={ledd.navn} className="opplaering-rad">
                 <span>{ledd.navn}</span>
-                <span className="opplaering-antall">
-                  {ledd.av === 0 ? (
-                    <span className="muted">venter</span>
-                  ) : (
-                    <>
-                      {ledd.treff}
-                      <span className="muted"> av {ledd.av}</span>
-                    </>
-                  )}
-                </span>
-                <span className="opplaering-strek">
-                  <span style={{ width: `${(ledd.oppnaadd / ledd.vekt) * 100}%` }} />
-                </span>
+                {/* Uten tilbud å måle på ville en tom strek sagt «feilet på
+                    alt». «venter» sier det som er sant. */}
+                {ledd.av === 0 ? (
+                  <span className="muted tiny" style={{ justifySelf: "end" }}>
+                    venter
+                  </span>
+                ) : (
+                  <span className="opplaering-strek">
+                    <span style={{ width: `${(ledd.oppnaadd / ledd.vekt) * 100}%` }} />
+                  </span>
+                )}
               </div>
             ))}
           </div>
