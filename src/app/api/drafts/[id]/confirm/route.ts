@@ -237,6 +237,9 @@ export async function POST(
         document: final.document,
         editedByUser: bleRedigert,
         editSummary: bleRedigert ? summarizeEdits(previous, final) : null,
+        // Bare for å kunne fjerne dem igjen. Referanselisten skal huske
+        // mønsteret, ikke kunden.
+        kunde: { navn: lead.from_name, epost: lead.from_email },
       });
     } catch (err) {
       console.error("Kunne ikke skrive til referanselisten:", err);

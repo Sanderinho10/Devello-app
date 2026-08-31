@@ -5,6 +5,7 @@ import { extractFileText } from "@/lib/referanser/extract-text";
 import { indexReferenceFile } from "@/lib/referanser/index-reference-file";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import type { QuoteType } from "@/lib/types";
+import { anonymiser } from "@/lib/personvern/anonymiser";
 
 export const maxDuration = 300;
 
@@ -66,7 +67,11 @@ export async function POST() {
             .download(file.storage_path);
           if (blob) {
             const bytes = Buffer.from(await blob.arrayBuffer());
-            text = await extractFileText(bytes, file.file_name ?? file.title);
+            // Samme anonymisering som ved opplasting, ellers ville en
+            // re-indeksering lagt de ekte navnene tilbake i kolonnen.
+            text = anonymiser(
+              await extractFileText(bytes, file.file_name ?? file.title),
+            ) || null;
             if (text) {
               await admin
                 .from("reference_quotes")

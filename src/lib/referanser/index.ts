@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { structured } from "@/lib/claude/client";
 import type { UsageContext } from "@/lib/billing/usage";
+import { anonymiser, anonymiserListe } from "@/lib/personvern/anonymiser";
 import { computeTotals, type QuoteDocument, type QuoteType } from "@/lib/types";
 
 /**
@@ -129,12 +130,35 @@ export async function saveQuoteReference(
     editedByUser: boolean;
     /** Hva brukeren endret. Går inn i prompten sammen med referansen. */
     editSummary?: string | null;
+    /**
+     * Kunden slik den står på leadet. Brukes bare til å fjerne navnet og
+     * adressen igjen — aldri til å lagre dem.
+     */
+    kunde?: { navn?: string | null; epost?: string | null };
   },
 ): Promise<void> {
+  /**
+   * Alt som skrives her går gjennom anonymiseringen.
+   *
+   * Referanselisten skal huske mønsteret — hvilke poster som hører sammen,
+   * hvilke mengder som er vanlige, hvordan firmaet ordlegger seg. Ingenting
+   * av det krever at kunden heter Halvard og bor i Eidsvågskogen 10. Utkastet
+   * beholder de ekte opplysningene, for PDF-en må ha dem; læringsdataene
+   * trenger dem aldri igjen.
+   */
+  const kjente = {
+    navn: input.kunde?.navn ?? input.document?.customer.name,
+    kontakt: input.document?.customer.contact,
+    epost: input.kunde?.epost ?? input.document?.customer.email,
+    telefon: input.document?.customer.phone,
+    adresse: input.document?.customer.address,
+  };
+  const skjul = (t: string | null | undefined) => anonymiser(t, kjente);
+
   const lines: ReferenceLine[] = input.document
     ? input.document.sections.flatMap((s) =>
         s.lines.map((l) => ({
-          beskrivelse: l.description,
+          beskrivelse: skjul(l.description),
           antall: l.quantity,
           enhet: l.unit,
           enhetspris_eks_mva: l.unit_price,
@@ -142,15 +166,18 @@ export async function saveQuoteReference(
       )
     : [];
 
-  const title =
-    input.document?.title?.trim() || input.emailSubject.trim() || "Tilbud";
+  const title = skjul(
+    input.document?.title?.trim() || input.emailSubject.trim() || "Tilbud",
+  );
 
   // Tagg ut fra det som faktisk ble sendt (endelig versjon) + leadet.
   const tagSource = [
     `Tittel: ${title}`,
     `Tilbudstype: ${input.quoteType}`,
     lines.length ? `Poster:\n${lines.map((l) => `- ${l.beskrivelse}`).join("\n")}` : "",
-    `Forespørselen:\n${input.leadText}`,
+    // Også her: nøkkelordene blir de samme uten navnet, og da er det ingen
+    // grunn til å sende det ut av huset.
+    `Forespørselen:\n${skjul(input.leadText)}`,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -170,12 +197,17 @@ export async function saveQuoteReference(
   }
 
   const tags = normalizeTags(tagged.tags);
+  const summary = skjul(tagged.summary);
+  const assumptions = anonymiserListe(input.document?.assumptions ?? [], kjente);
+  const emailSubject = skjul(input.emailSubject);
+  const emailBody = skjul(input.emailBody);
+
   const searchText = [
     title,
-    tagged.summary,
+    summary,
     tags.join(" "),
     lines.map((l) => l.beskrivelse).join(" "),
-    ...(input.document?.assumptions ?? []),
+    ...assumptions,
   ]
     .filter(Boolean)
     .join(" \n");
@@ -193,14 +225,14 @@ export async function saveQuoteReference(
       title,
       customer_type: tagged.customer_type === "ukjent" ? null : tagged.customer_type,
       tags,
-      summary: tagged.summary || null,
+      summary: summary || null,
       lines,
-      assumptions: input.document?.assumptions ?? [],
-      email_subject: input.emailSubject,
-      email_body: input.emailBody,
+      assumptions,
+      email_subject: emailSubject,
+      email_body: emailBody,
       subtotal_ex_vat: input.document ? computeTotals(input.document).subtotal : null,
       edited_by_user: input.editedByUser,
-      edit_summary: input.editSummary ?? null,
+      edit_summary: skjul(input.editSummary) || null,
       search_text: searchText,
     },
     { onConflict: "draft_id" },

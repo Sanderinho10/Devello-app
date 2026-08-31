@@ -4,6 +4,7 @@ import { extractFileText } from "@/lib/referanser/extract-text";
 import { indexReferenceFile } from "@/lib/referanser/index-reference-file";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import type { QuoteType } from "@/lib/types";
+import { anonymiser } from "@/lib/personvern/anonymiser";
 
 export async function POST(request: NextRequest) {
   const session = await sessionOr401();
@@ -44,7 +45,11 @@ export async function POST(request: NextRequest) {
     // Teksten ut av fila, så agenten kan lese innholdet og ikke bare filnavnet.
     // Beste-innsats: en skannet PDF uten tekstlag gir null, og fila lagres da
     // som før — bare uten søkbart innhold.
-    const extractedText = await extractFileText(bytes, file.name);
+    // Anonymisert med én gang. Kolonnen er den største tekstsamlingen vi har,
+    // og et gammelt kundetilbud er fullt av navn og adresser. Selve PDF-en
+    // ligger fortsatt urørt i storage — den er kundens egen fil — men det er
+    // teksten som er søkbar, kopierbar og lett å ta med seg.
+    const extractedText = anonymiser(await extractFileText(bytes, file.name)) || null;
 
     const { data: created, error } = await admin
       .from("reference_quotes")

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { extractTags, normalizeTags } from "./index";
 import type { QuoteType } from "@/lib/types";
+import { anonymiser, anonymiserListe } from "@/lib/personvern/anonymiser";
 
 /**
  * Skriver en opplastet referansefil inn i quote_references-poolen.
@@ -22,13 +23,23 @@ export async function indexReferenceFile(
     extractedText: string;
   },
 ): Promise<{ tags: string[] }> {
+  /**
+   * Opplastede tilbud er gamle kundetilbud, med navn, adresser og
+   * telefonnummer i klartekst. Vi vet ikke hvem kunden var — det står ingen
+   * strukturerte felter å slå opp i — så her er det mønstrene som gjør
+   * jobben. Se lib/personvern/anonymiser.
+   */
+  const tittel = anonymiser(input.title);
+  const tekst = anonymiser(input.extractedText);
+
   const tagged = await extractTags(
-    `Tittel: ${input.title}\nTilbudstype: ${input.quoteType}\n\n${input.extractedText}`,
+    `Tittel: ${tittel}\nTilbudstype: ${input.quoteType}\n\n${tekst}`,
     { companyId: input.companyId, kind: "tagging_referansefil" },
   );
   const tags = normalizeTags(tagged.tags);
+  const summary = anonymiser(tagged.summary);
 
-  const searchText = [input.title, tagged.summary, tags.join(" "), input.extractedText]
+  const searchText = [tittel, summary, tags.join(" "), tekst]
     .filter(Boolean)
     .join(" \n")
     .slice(0, 20_000);
@@ -44,18 +55,20 @@ export async function indexReferenceFile(
     draft_id: null,
     lead_id: null,
     quote_type: input.quoteType,
-    title: input.title,
+    title: tittel,
     customer_type: tagged.customer_type === "ukjent" ? null : tagged.customer_type,
     tags,
-    summary: tagged.summary || null,
+    summary: summary || null,
     // Postene i en opplastet PDF er fri tekst, ikke strukturerte rader — vi
     // lar lines stå tom og lar fullteksten bære søket i stedet. Å gjette
     // struktur ut av en PDF ville gitt falsk presisjon.
     lines: [],
     // Forbeholdene fra fila fyller forbeholdsbiblioteket. Det er dette som
     // gjør at en ny kunde har noe å velge fra før første tilbud er bekreftet.
-    assumptions: (tagged.forutsetninger ?? []).filter(
-      (t) => typeof t === "string" && t.trim().length > 7,
+    assumptions: anonymiserListe(
+      (tagged.forutsetninger ?? []).filter(
+        (t) => typeof t === "string" && t.trim().length > 7,
+      ),
     ),
     email_subject: null,
     email_body: null,

@@ -1601,3 +1601,76 @@ p {
   background: var(--negative-soft);
   color: var(--negative);
 }
+
+/* Opplaeringsstatus paa referansefil-sida. */
+.opplaering {
+  margin-bottom: 20px;
+}
+
+.opplaering-topp {
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+
+.opplaering-tal {
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.opplaering-ledd {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  font-size: 13.5px;
+}
+
+.opplaering-rad {
+  display: grid;
+  grid-template-columns: 1fr auto 110px;
+  align-items: center;
+  gap: 14px;
+  color: var(--text-secondary);
+}
+
+.opplaering-antall {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+/* Egen strek per ledd, tynnere enn hovedstolpen — den er oppsummeringen,
+   disse er delene den bestaar av. */
+.opplaering-strek {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.opplaering-strek > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.opplaering-neste {
+  margin: 18px 0 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+}
+
+.opplaering-neste li {
+  margin-bottom: 5px;
+}
+
+@media (max-width: 620px) {
+  .opplaering-rad {
+    grid-template-columns: 1fr auto;
+  }
+  .opplaering-strek {
+    display: none;
+  }
+}
