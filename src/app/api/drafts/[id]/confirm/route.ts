@@ -58,6 +58,15 @@ export async function POST(
     return NextResponse.json({ error: "Fant ikke utkastet" }, { status: 404 });
   }
 
+  // Sendt er sendt. Å lage en ny PDF og en ny kladd for noe kunden allerede
+  // har fått, ville bare gitt to versjoner av samme tilbud.
+  if (draft.sent_at) {
+    return NextResponse.json(
+      { error: "Tilbudet er sendt og kan ikke endres." },
+      { status: 409 },
+    );
+  }
+
   const lead = draft.leads as unknown as {
     id: string;
     source: "epost" | "manuell";
@@ -126,29 +135,43 @@ export async function POST(
     // Et manuelt lead har ingen postkasse på seg — det kom aldri inn via en.
     // Kladden skal likevel havne i selskapets Outlook, så vi slår opp den
     // aktive postkassen i stedet.
+    // Uten postkasse stopper vi ikke lenger.
+    //
+    // Manuelle leads finnes for dem som ikke har koblet Outlook, men bekreft
+    // kastet likevel — så et utkast de fikk lage, kunne de ikke fullføre.
+    // Nå gjør vi alt annet ferdig, og klienten får det de trenger for å sende
+    // fra sin egen e-post: PDF-en, mottakeren, emnet og teksten.
     const mailboxId = lead.mailbox_connection_id ?? (await activeMailboxId(session.companyId));
-    if (!mailboxId) {
-      throw new Error(
-        "Ingen postkasse tilkoblet. Koble til Microsoft 365 under Innstillinger.",
-      );
-    }
-    const token = await accessTokenFor(mailboxId);
 
-    const outlook = await createDraft(token, {
-      subject: payload.email_subject,
-      body: payload.email_body,
-      toEmail: lead.from_email,
-      toName: lead.from_name,
-      // Bare e-postleads har en melding å svare på. Den syntetiske id-en til
-      // et manuelt lead ville fått createReply til å feile.
-      replyToMessageId: lead.source === "epost" ? lead.external_message_id : null,
-      // Bildet i signaturen, som inline-vedlegg. Har firmaet ikke lagt inn
-      // noe, blir e-posten som før.
-      signatureImage: await brandImageBytes(admin, brand?.signature_image_path),
-    });
+    let outlook: { id: string; webLink: string } | null = null;
+    let outlookFeil: string | null = null;
 
-    if (pdf) {
-      await attachPdf(token, outlook.id, pdfFileName(payload.document!), pdf);
+    if (mailboxId) {
+      try {
+        const token = await accessTokenFor(mailboxId);
+
+        outlook = await createDraft(token, {
+          subject: payload.email_subject,
+          body: payload.email_body,
+          toEmail: lead.from_email,
+          toName: lead.from_name,
+          // Bare e-postleads har en melding å svare på. Den syntetiske id-en
+          // til et manuelt lead ville fått createReply til å feile.
+          replyToMessageId: lead.source === "epost" ? lead.external_message_id : null,
+          // Bildet i signaturen, som inline-vedlegg. Har firmaet ikke lagt inn
+          // noe, blir e-posten som før.
+          signatureImage: await brandImageBytes(admin, brand?.signature_image_path),
+        });
+
+        if (pdf) {
+          await attachPdf(token, outlook.id, pdfFileName(payload.document!), pdf);
+        }
+      } catch (err) {
+        // En utløpt kobling skal ikke koste dem tilbudet. Vi lagrer som før og
+        // lar dem sende manuelt, med grunnen synlig i vinduet.
+        outlookFeil = err instanceof Error ? err.message : String(err);
+        console.error("Outlook-kladd feilet, faller tilbake til manuell:", outlookFeil);
+      }
     }
 
     // 3. Lagre og logg den endelige versjonen.
@@ -170,8 +193,8 @@ export async function POST(
       .update({
         ...final,
         pdf_path: pdfPath,
-        outlook_draft_id: outlook.id,
-        outlook_web_link: outlook.webLink,
+        outlook_draft_id: outlook?.id ?? null,
+        outlook_web_link: outlook?.webLink ?? null,
         confirmed_at: new Date().toISOString(),
       })
       .eq("id", draft.id);
@@ -213,8 +236,18 @@ export async function POST(
 
     return NextResponse.json({
       ok: true,
-      web_link: outlook.webLink,
+      web_link: outlook?.webLink ?? null,
       pdf_path: pdfPath,
+      // Uten kladd i Outlook må mennesket sende selv, og da trenger de dette.
+      // Vi sender det tilbake i stedet for at klienten skal gjette: mottakeren
+      // står på leadet, ikke i skjemaet de nettopp fylte ut.
+      manuell: outlook === null,
+      outlook_feil: outlookFeil,
+      mottaker: lead.from_email,
+      mottaker_navn: lead.from_name,
+      emne: payload.email_subject,
+      tekst: payload.email_body,
+      har_pdf: pdf !== null,
     });
   } catch (err) {
     return errorResponse(err);

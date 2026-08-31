@@ -498,6 +498,13 @@ p {
   color: var(--positive);
 }
 
+/* Sendt er endestasjonen — samme rolige grønt som bekreftet, men fylt,
+   så det er til å skille fra på en rad man skumleser. */
+.pill.sendt {
+  background: var(--positive);
+  color: #fff;
+}
+
 /* Liste over leads */
 .lead-list {
   display: flex;
@@ -1436,4 +1443,80 @@ p {
 
 .cell-reset:hover {
   color: #a4271b;
+}
+
+/* Modal — brukes av «Send tilbudet selv». */
+.modal-bakgrunn {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.32);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.modal {
+  width: min(620px, 100%);
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.modal-lukk {
+  border: 0;
+  background: none;
+  font-size: 17px;
+  line-height: 1;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+
+.modal-lukk:hover {
+  background: var(--surface-alt, rgba(0, 0, 0, 0.04));
+  color: var(--text);
+}
+
+.modal-fot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+}
+
+/* Fila man drar inn i e-posten. Skal se ut som noe man tar tak i. */
+.pdf-dra {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: 13.5px;
+  cursor: grab;
+  user-select: none;
+}
+
+.pdf-dra:active {
+  cursor: grabbing;
+}
+
+/* Redigeringen ligger i en fieldset, som ikke skal se ut som en fieldset. */
+.editor-felt {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-inline-size: 0;
+}
+
+/* Dra-håndtakene er ikke skjemafelt, saa de maa slaas av for seg. */
+.editor-felt:disabled [draggable="true"] {
+  pointer-events: none;
 }

@@ -2,7 +2,12 @@ export type QuoteType = "punktpris" | "fastpris" | "tid_og_materiell";
 
 export type PriceItemKind = "punktpris" | "materiell" | "time";
 
-export type LeadStatus = "ny" | "genererer" | "utkast_klar" | "bekrefta";
+/**
+ * bekrefta = utkastet er ferdig og PDF-en laget; kladden ligger i Outlook
+ * eller venter på å bli sendt manuelt. Kan fortsatt endres.
+ * sendt    = mennesket har sagt at tilbudet er ute hos kunden. Låst.
+ */
+export type LeadStatus = "ny" | "genererer" | "utkast_klar" | "bekrefta" | "sendt";
 
 /** Hvor henvendelsen kom fra. Manuelle er skrevet inn etter en telefon. */
 export type LeadSource = "epost" | "manuell";
@@ -259,6 +264,8 @@ export interface Draft {
   outlook_draft_id: string | null;
   outlook_web_link: string | null;
   confirmed_at: string | null;
+  /** Satt når tilbudet er sendt. Låser utkastet for redigering. */
+  sent_at: string | null;
 }
 
 export interface QuoteTotals {

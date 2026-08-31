@@ -42,6 +42,15 @@ export async function PATCH(
     return NextResponse.json({ error: "Fant ikke utkastet" }, { status: 404 });
   }
 
+  // Låsen hører hjemme her, ikke bare i skjemaet. En fane som stod åpen fra
+  // før tilbudet ble sendt, vet ingenting om at det er sendt.
+  if (draft.sent_at) {
+    return NextResponse.json(
+      { error: "Tilbudet er sendt og kan ikke endres." },
+      { status: 409 },
+    );
+  }
+
   try {
     const before = {
       quote_type: draft.quote_type as QuoteType,

@@ -11,6 +11,7 @@ const STATUS_LABEL: Record<LeadStatus, string> = {
   genererer: "Genererer…",
   utkast_klar: "Utkast klart",
   bekrefta: "Bekreftet",
+  sendt: "Sendt",
 };
 
 /**

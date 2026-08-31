@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { SendSjolv } from "./SendSjolv";
 import Link from "next/link";
 import { PriceItemPicker } from "@/components/PriceItemPicker";
 import { ConfidenceBadge } from "@/components/ConfidenceBadge";
@@ -67,6 +68,21 @@ export function DraftEditor({
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(draft.confirmed_at !== null);
   const [webLink, setWebLink] = useState(draft.outlook_web_link);
+  const [sendt, setSendt] = useState(draft.sent_at !== null);
+
+  /**
+   * Vinduet for manuell sending. Satt når bekreft ikke fikk lagt kladden i
+   * Outlook — enten fordi ingen postkasse er koblet til, eller fordi
+   * koblingen svikta i det øyeblikket.
+   */
+  const [sendSjolv, setSendSjolv] = useState<{
+    mottaker: string | null;
+    mottakerNavn: string | null;
+    emne: string;
+    tekst: string;
+    harPdf: boolean;
+    outlookFeil: string | null;
+  } | null>(null);
 
   const [dragging, setDragging] = useState<DragRef | null>(null);
   const [dragOver, setDragOver] = useState<DragRef | null>(null);
@@ -168,7 +184,9 @@ export function DraftEditor({
     setBusy("lagrer");
     setError(null);
     try {
-      await save(quoteType, currentSnapshot());
+      // Et sendt tilbud lagres ikke — det er låst, og PDF-en skal vise det som
+      // faktisk gikk ut, ikke det som står i skjemaet.
+      if (!sendt) await save(quoteType, currentSnapshot());
 
       const res = await fetch(`/api/drafts/${draft.id}/pdf`);
       if (!res.ok) {
@@ -248,6 +266,20 @@ export function DraftEditor({
       if (!res.ok) throw new Error(payload.error ?? "Kunne ikke lage kladd");
       setConfirmed(true);
       setWebLink(payload.web_link ?? null);
+
+      // Ingen kladd i Outlook: da må mennesket sende selv, og vinduet har
+      // alt de trenger. Det låser ingenting — krysser de ut, står utkastet
+      // som før.
+      if (payload.manuell) {
+        setSendSjolv({
+          mottaker: payload.mottaker ?? null,
+          mottakerNavn: payload.mottaker_navn ?? null,
+          emne: payload.emne ?? subject,
+          tekst: payload.tekst ?? body,
+          harPdf: Boolean(payload.har_pdf),
+          outlookFeil: payload.outlook_feil ?? null,
+        });
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -331,9 +363,56 @@ export function DraftEditor({
 
   const locked = confirmed || busy !== null;
 
+  /** Åpner vinduet på nytt for et bekreftet tilbud som ikke er sendt ennå. */
+  function aapneSendSjolv() {
+    setSendSjolv({
+      mottaker: lead.from_email,
+      mottakerNavn: lead.from_name,
+      emne: subject,
+      tekst: body,
+      harPdf: wantsDocument && document !== null,
+      outlookFeil: null,
+    });
+  }
+
+  async function markerSendt() {
+    setBusy("bekrefter");
+    setError(null);
+    try {
+      const res = await fetch(`/api/drafts/${draft.id}/sendt`, { method: "POST" });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error ?? "Kunne ikke markere som sendt");
+      setSendt(true);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
-    <div className="stack">
-      {/* Type-bryter: agentens forslag, redigerbart før bekreft */}
+    <>
+      {sendt && (
+        <div className="banner success" style={{ marginBottom: 18 }}>
+          <strong>Tilbudet er sendt.</strong> Utkastet er låst, så det som ligger
+          her er det kunden fikk.{" "}
+          {wantsDocument && (
+            <button className="linkish" onClick={previewPdf}>
+              Åpne PDF-en
+            </button>
+          )}
+        </div>
+      )}
+
+      {/*
+        Alt under er skrudd av i ett grep når tilbudet er sendt. En disabled
+        fieldset slår av hvert skjemafelt inni seg — det er hele poenget med
+        elementet, og det er tryggere enn tjue disabled-attributter der den
+        tjueførste blir glemt neste gang noen legger til et felt.
+      */}
+      <fieldset className="stack editor-felt" disabled={sendt}>
+        {/* Type-bryter: agentens forslag, redigerbart før bekreft */}
       <div className="card card-pad allow-overflow">
         <div className="row-between" style={{ marginBottom: 8 }}>
           <span className="label" style={{ marginBottom: 0 }}>
@@ -526,7 +605,7 @@ export function DraftEditor({
                               tabIndex={0}
                               aria-label={`Flytt post ${lineIndex + 1} av ${section.lines.length}`}
                               title="Dra for å flytte, eller bruk piltastene"
-                              draggable
+                              draggable={!sendt}
                               onDragStart={() =>
                                 setDragging({ section: sectionIndex, line: lineIndex })
                               }
@@ -735,10 +814,32 @@ export function DraftEditor({
         )}
         <span className="spacer" />
         <span className="muted tiny">
-          {wantsDocument
-            ? "Bekreft lager kladd i Outlook med PDF-en vedlagt. Du sender selv."
-            : "Bekreft lager kladd i Outlook. Du sender selv."}
+          {confirmed && !webLink
+            ? "Ingen kladd i Outlook — send tilbudet selv."
+            : wantsDocument
+              ? "Bekreft lager kladd i Outlook med PDF-en vedlagt. Du sender selv."
+              : "Bekreft lager kladd i Outlook. Du sender selv."}
         </span>
+        {confirmed && !webLink && (
+          <button
+            type="button"
+            className="button secondary"
+            onClick={aapneSendSjolv}
+            disabled={busy !== null}
+          >
+            Send selv
+          </button>
+        )}
+        {confirmed && webLink && (
+          <button
+            type="button"
+            className="button secondary"
+            onClick={markerSendt}
+            disabled={busy !== null}
+          >
+            Marker som sendt
+          </button>
+        )}
         <button className="button" onClick={confirm} disabled={busy !== null}>
           {busy === "bekrefter"
             ? "Lager kladd…"
@@ -746,8 +847,27 @@ export function DraftEditor({
               ? "Oppdater kladd"
               : "Bekreft og lag kladd"}
         </button>
-      </div>
-    </div>
+        </div>
+      </fieldset>
+
+      {sendSjolv && (
+        <SendSjolv
+          draftId={draft.id}
+          mottaker={sendSjolv.mottaker}
+          mottakerNavn={sendSjolv.mottakerNavn}
+          emne={sendSjolv.emne}
+          tekst={sendSjolv.tekst}
+          harPdf={sendSjolv.harPdf}
+          outlookFeil={sendSjolv.outlookFeil}
+          onFullfoert={() => {
+            setSendSjolv(null);
+            setSendt(true);
+            router.refresh();
+          }}
+          onLukk={() => setSendSjolv(null)}
+        />
+      )}
+    </>
   );
 }
 

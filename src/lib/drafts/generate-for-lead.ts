@@ -36,6 +36,17 @@ export async function generateForLead(
 
   if (!lead) throw new Error("Fant ikke leadet");
 
+  // Et sendt tilbud genereres ikke på nytt. Utkastet lagres med upsert på
+  // lead_id, så en ny generering ville skrevet over det kunden faktisk fikk.
+  const { data: eksisterande } = await admin
+    .from("drafts")
+    .select("sent_at")
+    .eq("lead_id", lead.id)
+    .maybeSingle();
+  if (eksisterande?.sent_at) {
+    throw new Error("Tilbudet er sendt og kan ikke genereres på nytt.");
+  }
+
   // Har vi generert denne typen for dette leadet før, bruker vi den lagrede
   // versjonen. Å bytte fram og tilbake på type-bryteren skal ikke koste et
   // modellkall per klikk.
