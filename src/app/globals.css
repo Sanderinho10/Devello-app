@@ -1520,3 +1520,51 @@ p {
 .editor-felt:disabled [draggable="true"] {
   pointer-events: none;
 }
+
+/* Seksjonsoverskriften i utkastet.
+   Den skal lese som en etikett, ikke som et skjemafelt — de fleste rører den
+   aldri. Rammen kommer fram naar man er innom med musa, saa det likevel er
+   til aa oppdage at den gaar an aa endre. */
+.seksjon-topp {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.seksjon-topp .button {
+  margin-left: auto;
+}
+
+.seksjon-tittel {
+  flex: 1;
+  min-width: 0;
+  /* En overskrift er kort. Et felt som strekker seg over hele bredden ser ut
+     som noe man skal skrive en setning i. */
+  max-width: 340px;
+  padding: 4px 8px;
+  border-color: transparent;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+}
+
+.seksjon-tittel:hover:not(:focus) {
+  border-color: var(--border);
+}
+
+.seksjon-tittel:focus {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.seksjon-tittel::placeholder {
+  color: var(--text-tertiary);
+  opacity: 0.7;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}

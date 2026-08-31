@@ -310,6 +310,60 @@ export function DraftEditor({
     });
   }
 
+  /**
+   * Seksjonene er underoverskriftene i tilbudet — «Gulvvarme», «Bad»,
+   * «Materiell». De styrer hvordan tilbudet er delt opp på PDF-en, med egen
+   * delsum per seksjon når det er mer enn én. Derfor må de kunne endres av
+   * den som skriver tilbudet, og ikke bare av agenten som foreslo dem.
+   */
+  function updateSectionTitle(sectionIndex: number, title: string) {
+    setDocument((current) =>
+      !current
+        ? current
+        : {
+            ...current,
+            sections: current.sections.map((section, si) =>
+              si !== sectionIndex ? section : { ...section, title },
+            ),
+          },
+    );
+  }
+
+  function addSection() {
+    setDocument((current) =>
+      !current
+        ? current
+        : { ...current, sections: [...current.sections, { title: "", lines: [] }] },
+    );
+  }
+
+  function removeSection(sectionIndex: number) {
+    if (!document) return;
+    const section = document.sections[sectionIndex];
+
+    // Den siste seksjonen blir stående. Et dokument uten seksjoner har ingen
+    // steder å legge poster, og da er tilbudet tomt uten at noen ba om det.
+    if (document.sections.length <= 1) return;
+
+    // Poster som forsvinner skal ikke forsvinne stille.
+    if (
+      section.lines.length > 0 &&
+      !window.confirm(
+        `«${section.title || "Seksjonen"}» har ${section.lines.length} ${
+          section.lines.length === 1 ? "post" : "poster"
+        }. Fjern seksjonen med postene?`,
+      )
+    ) {
+      return;
+    }
+
+    setDocument((current) =>
+      !current
+        ? current
+        : { ...current, sections: current.sections.filter((_, si) => si !== sectionIndex) },
+    );
+  }
+
   /** Prisen raden ville hatt fra prisfilen, hvis den peker på en rad der. */
   function katalogpris(line: QuoteLine): number | null {
     const rad = priceItems.find((item) => item.id === line.price_item_id);
@@ -550,9 +604,24 @@ export function DraftEditor({
 
             return (
               <div key={sectionIndex} style={{ marginBottom: 22 }}>
-                <span className="label">
-                  {document.sections.length > 1 ? section.title : "Poster"}
-                </span>
+                <div className="seksjon-topp">
+                  <input
+                    className="input seksjon-tittel"
+                    value={section.title}
+                    placeholder="Overskrift"
+                    aria-label="Overskrift på seksjonen"
+                    onChange={(e) => updateSectionTitle(sectionIndex, e.target.value)}
+                  />
+                  {document.sections.length > 1 && (
+                    <button
+                      type="button"
+                      className="button ghost"
+                      onClick={() => removeSection(sectionIndex)}
+                    >
+                      Fjern
+                    </button>
+                  )}
+                </div>
 
                 <table className="doc-table">
                   <thead>
@@ -728,6 +797,17 @@ export function DraftEditor({
                       items={available}
                       onSelect={(item) => addLine(sectionIndex, item.id)}
                     />
+                    {quoteType === "fastpris" && (
+                      // På fastpris avgjør overskriften hvilken prisliste
+                      // seksjonen henter fra — «arbeid» og «timer» gir
+                      // timepriser, «materiell» og «utstyr» gir materiell, og
+                      // ellers avgjør rekkefølgen. Det er en regel man ikke
+                      // kan se, så den står her i stedet for å overraske.
+                      <span className="hint">
+                        Henter fra {available[0].kind === "time" ? "timeprislisten" : "materiellisten"}.
+                        Skriv «arbeid» eller «materiell» i overskriften for å styre det.
+                      </span>
+                    )}
                   </div>
                 ) : (
                   <p className="hint">
@@ -741,6 +821,10 @@ export function DraftEditor({
               </div>
             );
           })}
+
+          <button type="button" className="button ghost" onClick={addSection}>
+            + Legg til seksjon
+          </button>
 
           {totals && (
             <div className="doc-totals">
