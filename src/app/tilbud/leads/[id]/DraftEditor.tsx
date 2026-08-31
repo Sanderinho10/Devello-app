@@ -44,6 +44,7 @@ export function DraftEditor({
   brand,
   address,
   priceItems,
+  harPostkasse,
 }: {
   lead: Lead;
   draft: Draft;
@@ -51,6 +52,8 @@ export function DraftEditor({
   /** Avsenderadressen, fra selskapet — samme kilde som PDF-en bruker. */
   address: { line: string | null; postalCode: string | null; city: string | null };
   priceItems: PriceListItem[];
+  /** Har selskapet en Microsoft 365-postkasse koblet til? */
+  harPostkasse: boolean;
 }) {
   const router = useRouter();
 
@@ -898,8 +901,10 @@ export function DraftEditor({
         )}
         <span className="spacer" />
         <span className="muted tiny">
-          {confirmed && !webLink
-            ? "Ingen kladd i Outlook — send tilbudet selv."
+          {!harPostkasse
+            ? wantsDocument
+              ? "Bekreft lager PDF-en. Du sender tilbudet selv."
+              : "Bekreft gjør teksten klar. Du sender tilbudet selv."
             : wantsDocument
               ? "Bekreft lager kladd i Outlook med PDF-en vedlagt. Du sender selv."
               : "Bekreft lager kladd i Outlook. Du sender selv."}
@@ -926,10 +931,16 @@ export function DraftEditor({
         )}
         <button className="button" onClick={confirm} disabled={busy !== null}>
           {busy === "bekrefter"
-            ? "Lager kladd…"
+            ? harPostkasse
+              ? "Lager kladd…"
+              : "Lagrer…"
             : confirmed
-              ? "Oppdater kladd"
-              : "Bekreft og lag kladd"}
+              ? harPostkasse
+                ? "Oppdater kladd"
+                : "Oppdater tilbudet"
+              : harPostkasse
+                ? "Bekreft og lag kladd"
+                : "Bekreft og lag PDF"}
         </button>
         </div>
       </fieldset>

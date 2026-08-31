@@ -208,7 +208,14 @@ export async function POST(
       userId: session.userId,
     });
 
-    await admin.from("leads").update({ status: "bekrefta" }).eq("id", lead.id);
+    // Uten kladd i Outlook har ingenting forlatt huset ennå. Da er tilbudet
+    // fortsatt et utkast: PDF-en er laget og versjonen lagret, men «Bekreftet»
+    // ville sagt at det er gjort noe det ikke er. Statusen flytter seg først
+    // når brukeren sier at tilbudet er sendt — se ruta ./sendt.
+    await admin
+      .from("leads")
+      .update({ status: outlook ? "bekrefta" : "utkast_klar" })
+      .eq("id", lead.id);
 
     // 4. Referanselisten — agentens hukommelse. Brukerens endelige versjon,
     // tagget med nøkkelord, så neste generering kan finne den igjen.

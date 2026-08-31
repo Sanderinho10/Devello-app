@@ -36,7 +36,8 @@ export default async function LeadPage({
   // Prisfilen følger med slik at brukeren kan legge til poster i utkastet.
   // Nye poster må komme herfra — det er samme regel som gjelder for agenten, og
   // bare fra aktive lister, slik at en deaktivert liste ikke kan snike seg inn.
-  const [{ data: brand }, { data: company }, { data: activeLists }] = await Promise.all([
+  const [{ data: brand }, { data: company }, { data: activeLists }, { data: mailbox }] =
+    await Promise.all([
     supabase
       .from("company_brand")
       .select("*")
@@ -52,6 +53,13 @@ export default async function LeadPage({
       .select("id")
       .eq("company_id", lead.company_id)
       .eq("active", true),
+    // Uten postkasse handler bekreft om PDF-en, ikke om en kladd i Outlook.
+    // Knappene skal si det fra starten, ikke først etterpå.
+    supabase
+      .from("mailbox_connections")
+      .select("id")
+      .eq("company_id", lead.company_id)
+      .maybeSingle(),
   ]);
 
   const listIds = (activeLists ?? []).map((list) => list.id);
@@ -93,6 +101,7 @@ export default async function LeadPage({
               city: company?.billing_city ?? null,
             }}
             priceItems={(priceItems ?? []) as PriceListItem[]}
+            harPostkasse={Boolean(mailbox)}
           />
 
           {/*

@@ -757,6 +757,17 @@ p {
   box-shadow: var(--shadow-sm);
 }
 
+/* Samme bryter, men som en visningsvelger: fanene skal ta plassen de
+   trenger og ikke deles likt over hele bredden. */
+.type-switch.kompakt {
+  max-width: none;
+}
+
+.type-switch.kompakt .type-option {
+  flex: 0 0 auto;
+  text-decoration: none;
+}
+
 .suggestion-note {
   display: flex;
   gap: 8px;

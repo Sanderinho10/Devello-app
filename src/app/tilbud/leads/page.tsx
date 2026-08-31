@@ -8,14 +8,25 @@ import { formatDate, type Lead } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function LeadsPage() {
+export default async function LeadsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ vis?: string }>;
+}) {
   const session = await currentSession();
   const supabase = await supabaseServer();
 
-  const [{ data: leads }, { data: mailbox }, { data: lastRun }] = await Promise.all([
+  // Arkivet er sendte tilbud. De hører ikke hjemme i arbeidslisten — jobben
+  // er gjort — men de skal være til å finne igjen, saa de faar sin egen
+  // visning i stedet for aa forsvinne.
+  const arkiv = (await searchParams).vis === "arkiv";
+
+  const [{ data: leads }, { data: mailbox }, { data: lastRun }, { count: iArkiv }, { count: iArbeid }] =
+    await Promise.all([
     supabase
       .from("leads")
       .select("*")
+      [arkiv ? "eq" : "neq"]("status", "sendt")
       .order("received_at", { ascending: false, nullsFirst: false })
       .limit(100),
     supabase
@@ -30,6 +41,14 @@ export default async function LeadsPage() {
       .order("started_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from("leads")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "sendt"),
+    supabase
+      .from("leads")
+      .select("id", { count: "exact", head: true })
+      .neq("status", "sendt"),
   ]);
 
   const rows = (leads ?? []) as Lead[];
@@ -74,26 +93,38 @@ export default async function LeadsPage() {
       )}
 
       <div className="card">
-        <div className="card-header">
-          <div className="row" style={{ gap: 14 }}>
-            <strong>
-              {rows.length} {rows.length === 1 ? "forespørsel" : "forespørsler"}
-            </strong>
-            {lastRun?.finished_at && (
-              <span className="muted tiny">
-                Sist hentet {formatDate(lastRun.finished_at)}
-                {lastRun.status === "feil" && " — feilet"}
-              </span>
-            )}
+        <div className="card-header row-between">
+          <div className="type-switch kompakt">
+            <Link
+              href="/tilbud/leads"
+              className={`type-option${arkiv ? "" : " active"}`}
+            >
+              Arbeidsliste {iArbeid ?? 0}
+            </Link>
+            <Link
+              href="/tilbud/leads?vis=arkiv"
+              className={`type-option${arkiv ? " active" : ""}`}
+            >
+              Arkiv {iArkiv ?? 0}
+            </Link>
           </div>
+          {lastRun?.finished_at && !arkiv && (
+            <span className="muted tiny">
+              Sist hentet {formatDate(lastRun.finished_at)}
+              {lastRun.status === "feil" && " — feilet"}
+            </span>
+          )}
         </div>
 
         {rows.length === 0 ? (
           <div className="empty">
-            <div className="empty-title">Ingen leads ennå</div>
+            <div className="empty-title">
+              {arkiv ? "Ingen sendte tilbud ennå" : "Ingen leads ennå"}
+            </div>
             <div>
-              Trykk «Hent leads» for å lese innboksen, eller «Manuell
-              henvendelse» for en jobb som kom på telefon.
+              {arkiv
+                ? "Tilbud havner her når du har merket dem som sendt."
+                : "Trykk «Hent leads» for å lese innboksen, eller «Manuell henvendelse» for en jobb som kom på telefon."}
             </div>
           </div>
         ) : (
