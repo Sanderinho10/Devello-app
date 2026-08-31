@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { Modal } from "@/components/Modal";
 
 /**
  * Sende tilbudet selv, uten Outlook.
@@ -16,6 +17,10 @@ import { useEffect, useRef, useState } from "react";
  *
  * Kryss ut, og ingenting er skjedd: utkastet står som før og kan endres.
  * «Fullført» er det eneste som låser.
+ *
+ * Bygget på Modal, som er et <dialog>. Den gir Esc, fokusfelle og inert
+ * bakgrunn gratis — og like viktig: én popup i appen, ikke to sett med
+ * klassenavn som kan komme i veien for hverandre.
  */
 export function SendSjolv({
   draftId,
@@ -44,7 +49,6 @@ export function SendSjolv({
   const [kopiert, setKopiert] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfFeil, setPdfFeil] = useState<string | null>(null);
-  const dialog = useRef<HTMLDivElement>(null);
 
   const filnavn = `${reint(emne) || "tilbud"}.pdf`;
 
@@ -79,17 +83,6 @@ export function SendSjolv({
     };
   }, [draftId, harPdf]);
 
-  // Escape lukker, som et kryss. Vinduet låser ingenting, så det skal være
-  // like lett å komme ut av som inn i.
-  useEffect(() => {
-    function taste(event: KeyboardEvent) {
-      if (event.key === "Escape") onLukk();
-    }
-    window.addEventListener("keydown", taste);
-    dialog.current?.focus();
-    return () => window.removeEventListener("keydown", taste);
-  }, [onLukk]);
-
   async function kopier(felt: string, verdi: string) {
     try {
       await navigator.clipboard.writeText(verdi);
@@ -115,122 +108,103 @@ export function SendSjolv({
   }
 
   return (
-    <div className="modal-bakgrunn" onMouseDown={onLukk}>
-      <div
-        className="modal card"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Send tilbudet selv"
-        tabIndex={-1}
-        ref={dialog}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <div className="card-header row-between">
-          <div>
-            <strong>Send tilbudet selv</strong>
-            <div className="tiny muted">
-              {outlookFeil
-                ? "Kladden kunne ikke legges i Outlook denne gangen."
-                : "Ingen postkasse er koblet til, så kladden ble ikke lagt i Outlook."}
-            </div>
-          </div>
-          <button className="modal-lukk" onClick={onLukk} aria-label="Lukk">
-            ✕
-          </button>
+    <Modal open onClose={onLukk} title="Send tilbudet selv" size="wide">
+      <p className="muted" style={{ margin: "0 0 18px" }}>
+        {outlookFeil
+          ? "Kladden kunne ikke legges i Outlook denne gangen."
+          : "Ingen postkasse er koblet til, så kladden ble ikke lagt i Outlook."}
+      </p>
+
+      {outlookFeil && (
+        <div className="banner warning" style={{ marginBottom: 16 }}>
+          {outlookFeil}
         </div>
-
-        <div className="card-pad">
-          {outlookFeil && (
-            <div className="banner warning" style={{ marginBottom: 16 }}>
-              {outlookFeil}
-            </div>
-          )}
-          {error && (
-            <div className="banner error" style={{ marginBottom: 16 }}>
-              {error}
-            </div>
-          )}
-
-          <Felt
-            etikett="Mottaker"
-            verdi={mottaker ?? ""}
-            tom="Leadet har ingen e-postadresse — finn den selv."
-            kopiert={kopiert === "mottaker"}
-            kopier={() => kopier("mottaker", mottaker ?? "")}
-            hint={mottakerNavn ?? undefined}
-          />
-
-          <Felt
-            etikett="Emne"
-            verdi={emne}
-            kopiert={kopiert === "emne"}
-            kopier={() => kopier("emne", emne)}
-          />
-
-          <div className="field">
-            <div className="row-between" style={{ marginBottom: 6 }}>
-              <span className="label" style={{ marginBottom: 0 }}>
-                E-posttekst
-              </span>
-              <button className="button ghost" onClick={() => kopier("tekst", tekst)}>
-                {kopiert === "tekst" ? "Kopiert ✓" : "Kopier"}
-              </button>
-            </div>
-            <textarea className="textarea" readOnly value={tekst} style={{ minHeight: 150 }} />
-          </div>
-
-          {harPdf && (
-            <div className="field" style={{ marginBottom: 0 }}>
-              <span className="label">PDF</span>
-              {pdfFeil ? (
-                <div className="banner error">{pdfFeil}</div>
-              ) : !pdfUrl ? (
-                <div className="drop" style={{ cursor: "default" }}>
-                  <span className="drop-icon">▦</span>
-                  <span>Lager PDF…</span>
-                </div>
-              ) : (
-                <div className="file-row">
-                  <span
-                    className="pdf-dra"
-                    draggable
-                    onDragStart={(event) => {
-                      // Chrome og Edge leser dette og lager fila når den
-                      // slippes. Nettlesere som ikke støtter det, ignorerer
-                      // linja — og da står nedlastingsknappen ved siden av.
-                      event.dataTransfer.setData(
-                        "DownloadURL",
-                        `application/pdf:${filnavn}:${pdfUrl}`,
-                      );
-                      event.dataTransfer.effectAllowed = "copy";
-                    }}
-                    title="Dra fila inn i e-posten"
-                  >
-                    📄 {filnavn}
-                  </span>
-                  <span className="file-row-name tiny muted">
-                    Dra fila rett inn i e-posten
-                  </span>
-                  <a className="button ghost" href={pdfUrl} download={filnavn}>
-                    Last ned
-                  </a>
-                </div>
-              )}
-            </div>
-          )}
+      )}
+      {error && (
+        <div className="banner error" style={{ marginBottom: 16 }}>
+          {error}
         </div>
+      )}
 
-        <div className="modal-fot">
-          <span className="muted tiny">
-            Lukker du vinduet, står utkastet som før og kan endres.
+      <Felt
+        etikett="Mottaker"
+        verdi={mottaker ?? ""}
+        tom="Leadet har ingen e-postadresse — finn den selv."
+        kopiert={kopiert === "mottaker"}
+        kopier={() => kopier("mottaker", mottaker ?? "")}
+        hint={mottakerNavn ?? undefined}
+      />
+
+      <Felt
+        etikett="Emne"
+        verdi={emne}
+        kopiert={kopiert === "emne"}
+        kopier={() => kopier("emne", emne)}
+      />
+
+      <div className="field">
+        <div className="row-between" style={{ marginBottom: 6 }}>
+          <span className="label" style={{ marginBottom: 0 }}>
+            E-posttekst
           </span>
-          <span className="spacer" />
-          <button className="button" onClick={fullfoer} disabled={busy}>
-            {busy ? "Lagrer…" : "Tilbudet er sendt"}
+          <button className="button ghost" onClick={() => kopier("tekst", tekst)}>
+            {kopiert === "tekst" ? "Kopiert ✓" : "Kopier"}
           </button>
         </div>
+        <textarea className="textarea" readOnly value={tekst} style={{ minHeight: 150 }} />
       </div>
-    </div>
+
+      {harPdf && (
+        <div className="field" style={{ marginBottom: 0 }}>
+          <span className="label">PDF</span>
+          {pdfFeil ? (
+            <div className="banner error">{pdfFeil}</div>
+          ) : !pdfUrl ? (
+            <div className="drop" style={{ cursor: "default" }}>
+              <span className="drop-icon">▦</span>
+              <span>Lager PDF…</span>
+            </div>
+          ) : (
+            <div className="file-row">
+              <span
+                className="pdf-dra"
+                draggable
+                onDragStart={(event) => {
+                  // Chrome og Edge leser dette og lager fila når den
+                  // slippes. Nettlesere som ikke støtter det, ignorerer
+                  // linja — og da står nedlastingsknappen ved siden av.
+                  event.dataTransfer.setData(
+                    "DownloadURL",
+                    `application/pdf:${filnavn}:${pdfUrl}`,
+                  );
+                  event.dataTransfer.effectAllowed = "copy";
+                }}
+                title="Dra fila inn i e-posten"
+              >
+                📄 {filnavn}
+              </span>
+              <span className="file-row-name tiny muted">
+                Dra fila rett inn i e-posten
+              </span>
+              <a className="button ghost" href={pdfUrl} download={filnavn}>
+                Last ned
+              </a>
+            </div>
+          )}
+        </div>
+      )}
+      <div className="modal-actions" style={{ alignItems: "center" }}>
+        <span className="muted tiny" style={{ marginRight: "auto" }}>
+          Lukker du vinduet, står utkastet som før og kan endres.
+        </span>
+        <button className="button secondary" onClick={onLukk} disabled={busy}>
+          Lukk
+        </button>
+        <button className="button" onClick={fullfoer} disabled={busy}>
+          {busy ? "Lagrer…" : "Tilbudet er sendt"}
+        </button>
+      </div>
+    </Modal>
   );
 }
 
