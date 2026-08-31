@@ -3,71 +3,125 @@
  *
  *   npm run test:opplaering
  *
- * Det som testes er at kurven er pessimistisk. En prosent som sier 100 mens
- * tilbudene fortsatt må rettes hver gang er verre enn ingen prosent — den
- * flytter skylden fra datagrunnlaget til agenten, og da slutter folk å mate
- * den.
+ * Modellen har to lag: grunnlag (inntil 40) for det som er lastet opp, og
+ * utfall (inntil 60) for hvordan de siste tilbudene faktisk gikk. Det testene
+ * vokter er fordelingen: opplasting alene skal ALDRI kunne gi et høyt tall.
+ * En prosent som når 100 uten at et eneste tilbud er målt, er markedsføring.
  */
-import { regnOpplaering } from "@/lib/opplaering/status";
+import { regnOpplaering, type OpplaeringsTal } from "@/lib/opplaering/status";
 
 let feil = 0;
 function sjekk(namn: string, faktisk: number | string | boolean, venta: number | string | boolean) {
   const ok = faktisk === venta;
   if (!ok) feil++;
-  console.log(`${ok ? "ok  " : "FEIL"} ${namn.padEnd(56)} ${faktisk}${ok ? "" : `  (venta ${venta})`}`);
+  console.log(`${ok ? "ok  " : "FEIL"} ${namn.padEnd(58)} ${faktisk}${ok ? "" : `  (venta ${venta})`}`);
 }
 
-const tomt = { prisrader: 0, referansefiler: 0, bekreftaTilbod: 0, rettaTilbod: 0, ulikeTags: 0 };
-sjekk("helt tomt gir 0 %", regnOpplaering(tomt).prosent, 0);
-sjekk("helt tomt sier hva som mangler", regnOpplaering(tomt).merkelapp, "Mangler prisfil");
+function tal(over: Partial<OpplaeringsTal>): OpplaeringsTal {
+  return {
+    prisrader: 0,
+    referansefiler: 0,
+    bekreftaTilbod: 0,
+    ulikeTags: 0,
+    forbehold: 0,
+    sisteUroerte: [],
+    sisteFullDekning: [],
+    sisteMedTreff: [],
+    ...over,
+  };
+}
 
-// Porten: prisfila er ein føresetnad, ikkje eit ledd.
+/** n tilbud der andelen ok er som oppgitt. */
+function serie(n: number, ok: number): boolean[] {
+  return Array.from({ length: n }, (_, i) => i < ok);
+}
+
+console.log("— portene —");
+sjekk("helt tomt gir 0 %", regnOpplaering(tal({})).prosent, 0);
+sjekk("helt tomt sier hva som mangler", regnOpplaering(tal({})).merkelapp, "Mangler prisfil");
 sjekk(
-  "alt annet på plass, men ingen prisfil, gir 0 %",
-  regnOpplaering({ ...tomt, referansefiler: 20, bekreftaTilbod: 80, rettaTilbod: 20, ulikeTags: 40 }).prosent,
+  "perfekte utfall uten prisfil gir likevel 0 %",
+  regnOpplaering(
+    tal({ sisteUroerte: serie(10, 10), sisteFullDekning: serie(10, 10), sisteMedTreff: serie(10, 10) }),
+  ).prosent,
   0,
 );
 
-const medPris = { ...tomt, prisrader: 234 };
-sjekk("prisfil alene gir 0 %", regnOpplaering(medPris).prosent, 0);
+console.log("\n— opplasting alene kan ikke kjøpe et høyt tall —");
+const fulltLager = tal({
+  prisrader: 500,
+  referansefiler: 100,
+  bekreftaTilbod: 0,
+  ulikeTags: 100,
+  forbehold: 50,
+});
+const lagerScore = regnOpplaering(fulltLager).prosent;
+console.log(`     absurd mye opplastet, null tilbud sendt:        ${lagerScore} %`);
+sjekk("…og det stopper under 40", lagerScore <= 40, true);
+sjekk("…med en merkelapp som sier at ingenting er målt",
+  regnOpplaering(fulltLager).merkelapp, "Grunnlag på plass — ikke målt ennå");
 
-// Realistiske stadium. Tala her er dokumentasjon: slik ser kurven ut.
-const stadium = [
-  ["prisfil + 1 referansefil", { ...medPris, referansefiler: 1, ulikeTags: 4 }],
-  ["prisfil + 3 filer, 2 tilbud", { ...medPris, referansefiler: 3, bekreftaTilbod: 2, ulikeTags: 8 }],
-  ["8 filer, 10 tilbud, 3 retta", { ...medPris, referansefiler: 8, bekreftaTilbod: 10, rettaTilbod: 3, ulikeTags: 14 }],
-  ["8 filer, 25 tilbud, 8 retta (alle mål)", { ...medPris, referansefiler: 8, bekreftaTilbod: 25, rettaTilbod: 8, ulikeTags: 20 }],
-  ["20 filer, 80 tilbud, 30 retta", { ...medPris, referansefiler: 20, bekreftaTilbod: 80, rettaTilbod: 30, ulikeTags: 45 }],
-] as const;
+console.log("\n— prisoverstyring teller ikke som retting —");
+// I opplaeringFor blir «edited_by_user uten edit_summary» til uroert=true.
+// Her testes selve regnestykket: to like serier skal gi samme tall.
+const a = regnOpplaering(tal({ prisrader: 100, sisteUroerte: [true, true, true, true] }));
+const b = regnOpplaering(tal({ prisrader: 100, sisteUroerte: serie(4, 4) }));
+sjekk("samme serie gir samme tall", a.prosent, b.prosent);
 
-console.log("");
+console.log("\n— kurven, dokumentert —");
+const stadium: [string, OpplaeringsTal][] = [
+  ["ny kunde: prisfil + 3 filer", tal({ prisrader: 234, referansefiler: 3, ulikeTags: 9, forbehold: 2 })],
+  [
+    "3 tilbud sendt, 2 urørt",
+    tal({
+      prisrader: 234, referansefiler: 3, bekreftaTilbod: 3, ulikeTags: 12, forbehold: 4,
+      sisteUroerte: serie(3, 2), sisteFullDekning: serie(6, 5), sisteMedTreff: serie(6, 3),
+    }),
+  ],
+  [
+    "10 tilbud, 7 urørt, god dekning",
+    tal({
+      prisrader: 234, referansefiler: 6, bekreftaTilbod: 10, ulikeTags: 16, forbehold: 6,
+      sisteUroerte: serie(10, 7), sisteFullDekning: serie(10, 9), sisteMedTreff: serie(10, 8),
+    }),
+  ],
+  [
+    "innkjørt: 10 av 10 urørt, alt dekket",
+    tal({
+      prisrader: 234, referansefiler: 10, bekreftaTilbod: 40, ulikeTags: 25, forbehold: 10,
+      sisteUroerte: serie(10, 10), sisteFullDekning: serie(10, 10), sisteMedTreff: serie(10, 10),
+    }),
+  ],
+  [
+    "innkjørt, men rettes fortsatt ofte",
+    tal({
+      prisrader: 234, referansefiler: 10, bekreftaTilbod: 40, ulikeTags: 25, forbehold: 10,
+      sisteUroerte: serie(10, 4), sisteFullDekning: serie(10, 10), sisteMedTreff: serie(10, 10),
+    }),
+  ],
+];
 for (const [namn, t] of stadium) {
   const r = regnOpplaering(t);
-  console.log(`     ${namn.padEnd(42)} ${String(r.prosent).padStart(3)} %  ${r.merkelapp}`);
+  console.log(`     ${namn.padEnd(44)} ${String(r.prosent).padStart(3)} %  ${r.merkelapp}`);
 }
 
-console.log("");
-const paaMaal = regnOpplaering({ ...medPris, referansefiler: 8, bekreftaTilbod: 25, rettaTilbod: 8, ulikeTags: 20 });
-sjekk("på målet er man IKKE i nærheten av 100", paaMaal.prosent < 80, true);
-sjekk("på målet er man over halvveis", paaMaal.prosent > 50, true);
+console.log("\n— egenskapene —");
+const innkjoert = regnOpplaering(stadium[3][1]);
+sjekk("selv plettfri drift når ikke 100", innkjoert.prosent < 100, true);
+sjekk("men den når over 80", innkjoert.prosent > 80, true);
 
-const mykje = regnOpplaering({ ...medPris, referansefiler: 20, bekreftaTilbod: 80, rettaTilbod: 30, ulikeTags: 45 });
-sjekk("mye data nærmer seg, men treffer ikke 100", mykje.prosent < 100, true);
-sjekk("mye data gir over 85", mykje.prosent > 85, true);
+const rettes = regnOpplaering(stadium[4][1]);
+sjekk("rettinger koster, samme lager", innkjoert.prosent - rettes.prosent >= 12, true);
 
-// Monotoni: meir data skal aldri gi lågare tal.
-let forrige = -1;
-let brot = 0;
-for (let n = 0; n <= 120; n++) {
-  const p = regnOpplaering({ ...medPris, referansefiler: Math.min(n, 30), bekreftaTilbod: n, rettaTilbod: Math.floor(n / 3), ulikeTags: Math.min(n, 50) }).prosent;
-  if (p < forrige) brot++;
-  forrige = p;
-}
-sjekk("flere tilbud gir aldri lavere prosent (121 steg)", brot, 0);
+// Få målinger gir få poeng, selv når alle er plettfrie.
+const faa = regnOpplaering(tal({ prisrader: 234, sisteUroerte: serie(2, 2), sisteFullDekning: serie(2, 2), sisteMedTreff: serie(2, 2) }));
+const mange = regnOpplaering(tal({ prisrader: 234, sisteUroerte: serie(10, 10), sisteFullDekning: serie(10, 10), sisteMedTreff: serie(10, 10) }));
+sjekk("2 plettfrie beviser mindre enn 10 plettfrie", faa.prosent < mange.prosent, true);
 
-// Alltid innanfor 0–100.
-sjekk("aldri over 100", regnOpplaering({ prisrader: 5000, referansefiler: 500, bekreftaTilbod: 5000, rettaTilbod: 5000, ulikeTags: 500 }).prosent <= 100, true);
-sjekk("aldri under 0", regnOpplaering({ prisrader: -1, referansefiler: -5, bekreftaTilbod: -5, rettaTilbod: -5, ulikeTags: -5 }).prosent >= 0, true);
+sjekk("aldri over 100",
+  regnOpplaering(tal({ prisrader: 9999, referansefiler: 999, bekreftaTilbod: 999, ulikeTags: 999, forbehold: 999,
+    sisteUroerte: serie(10, 10), sisteFullDekning: serie(10, 10), sisteMedTreff: serie(10, 10) })).prosent <= 100, true);
+sjekk("aldri under 0", regnOpplaering(tal({ prisrader: -3, referansefiler: -3 })).prosent >= 0, true);
 
 console.log(feil === 0 ? "\nAlle testar passerte." : `\n${feil} feil.`);
 process.exit(feil ? 1 : 0);
