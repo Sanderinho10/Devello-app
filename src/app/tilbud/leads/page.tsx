@@ -3,6 +3,7 @@ import { LeadActions } from "./LeadActions";
 import { AutoRefresh } from "./AutoRefresh";
 import { LeadRow } from "./LeadRow";
 import { ManualLead } from "./ManualLead";
+import { SkjulbartVarsel } from "@/components/SkjulbartVarsel";
 import { currentSession, supabaseServer } from "@/lib/supabase/server";
 import { formatDate, type Lead } from "@/lib/types";
 
@@ -21,8 +22,14 @@ export default async function LeadsPage({
   // visning i stedet for aa forsvinne.
   const arkiv = (await searchParams).vis === "arkiv";
 
-  const [{ data: leads }, { data: mailbox }, { data: lastRun }, { count: iArkiv }, { count: iArbeid }] =
-    await Promise.all([
+  const [
+    { data: leads },
+    { data: mailbox },
+    { data: lastRun },
+    { count: iArkiv },
+    { count: iArbeid },
+    { data: meg },
+  ] = await Promise.all([
     supabase
       .from("leads")
       .select("*")
@@ -49,9 +56,15 @@ export default async function LeadsPage({
       .from("leads")
       .select("id", { count: "exact", head: true })
       .neq("status", "sendt"),
+    supabase
+      .from("users")
+      .select("skjulte_varsel")
+      .eq("id", session!.userId)
+      .maybeSingle(),
   ]);
 
   const rows = (leads ?? []) as Lead[];
+  const skjulte: string[] = meg?.skjulte_varsel ?? [];
 
   return (
     <>
@@ -71,13 +84,14 @@ export default async function LeadsPage({
       </div>
 
       {!mailbox && (
-        <div className="banner warning">
+        <SkjulbartVarsel id="ingen-postkasse" skjult={skjulte.includes("ingen-postkasse")}>
           Koble til en Microsoft 365-postkasse under{" "}
           <Link href="/tilbud/innstillinger" style={{ textDecoration: "underline" }}>
             Innstillinger
           </Link>{" "}
-          for å hente leads.
-        </div>
+          for å hente leads. Jobber dere med manuelle henvendelser, kan du
+          krympe dette varselet.
+        </SkjulbartVarsel>
       )}
 
       {mailbox?.status === "token_utlopt" && (

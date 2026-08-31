@@ -1534,3 +1534,70 @@ p {
   letter-spacing: 0;
   font-weight: 400;
 }
+
+/* Varsel man kan krympe. Se components/SkjulbartVarsel. */
+.varsel-rad {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.varsel-rad > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.varsel-lukk {
+  flex-shrink: 0;
+  margin: -4px -6px 0 0;
+  padding: 4px 6px;
+  border: 0;
+  background: none;
+  color: inherit;
+  opacity: 0.6;
+  font-size: 13px;
+  line-height: 1;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.varsel-lukk:hover {
+  opacity: 1;
+}
+
+/* Krympet: bare trekanten. Den staar igjen der stripa stod, saa det er tydelig
+   at det er noe der — og den aapner varselet med ett klikk. */
+.varsel-krympet {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin-bottom: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.varsel-krympet:hover {
+  filter: brightness(0.95);
+}
+
+.varsel-krympet.warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.varsel-krympet.info {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.varsel-krympet.error {
+  background: var(--negative-soft);
+  color: var(--negative);
+}
