@@ -8,9 +8,11 @@ import { Merke } from "@/components/Merke";
 /**
  * Navigasjon per agent, ikke per funksjon.
  *
- * Hver agent er én toppnivåknapp, og agentens funksjoner ligger som faner inni
- * den. Når dokumentasjonsagenten kommer, får den sine egne faner der — ingen
- * endring i mønsteret, ingen nye menyrader på toppnivå.
+ * Hver agent er én toppnivåknapp med funksjonene sine som faner under — og
+ * fanene står alltid framme. Menyen er kort nok til at alt får plass, og en
+ * meny der radene kommer og går etter hvor man står, er en meny man må lete
+ * i. Blir det trangt den dagen tre agenter har fire faner hver, er det den
+ * avgjørelsen som skal revurderes — ikke antall agenter.
  *
  * Under agentene ligger Selskap: det som gjelder kontoen og ikke en enkelt
  * agent — abonnement, medlemmer, firmaopplysninger. Innstillinger som hører
@@ -29,15 +31,6 @@ interface NavSection {
   basePath: string;
   tabs: NavTab[];
   comingSoon?: boolean;
-  /**
-   * Vis fanene også når seksjonen ikke er den aktive.
-   *
-   * Agentene folder seg ut når man går inn i dem — det holder sidemenyen kort
-   * etter hvert som det kommer flere av dem. Selskap er ikke en agent man
-   * jobber i, men tre sider man skal finne igjen: abonnement, medlemmer,
-   * firmaopplysninger. De skal stå framme.
-   */
-  alwaysOpen?: boolean;
 }
 
 const AGENTS: NavSection[] = [
@@ -73,7 +66,6 @@ const COMPANY: NavSection = {
     { label: "Medlemmer", href: "/selskap/medlemmer" },
     { label: "Detaljer", href: "/selskap/detaljer" },
   ],
-  alwaysOpen: true,
 };
 
 export function Sidebar({
@@ -105,7 +97,7 @@ export function Sidebar({
           </Link>
         )}
 
-        {(active || section.alwaysOpen) && section.tabs.length > 0 && (
+        {section.tabs.length > 0 && (
           <nav className="nav-tabs">
             {section.tabs.map((tab) => (
               <Link
