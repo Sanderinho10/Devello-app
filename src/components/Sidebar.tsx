@@ -9,9 +9,8 @@ import { Merke } from "@/components/Merke";
  * Navigasjon per agent, ikke per funksjon.
  *
  * Hver agent er én toppnivåknapp, og agentens funksjoner ligger som faner inni
- * den. Når SoMe- og Annonser-agentene kommer, blir de egne oppføringer i AGENTS
- * med sine egne faner — ingen endring i mønsteret, ingen nye menyrader på
- * toppnivå.
+ * den. Når dokumentasjonsagenten kommer, får den sine egne faner der — ingen
+ * endring i mønsteret, ingen nye menyrader på toppnivå.
  *
  * Under agentene ligger Selskap: det som gjelder kontoen og ikke en enkelt
  * agent — abonnement, medlemmer, firmaopplysninger. Innstillinger som hører
@@ -54,12 +53,11 @@ const AGENTS: NavSection[] = [
       { label: "Innstillinger", href: "/tilbud/innstillinger" },
     ],
   },
-  { key: "some", label: "SoMe", icon: "◇", basePath: "/some", tabs: [], comingSoon: true },
   {
-    key: "annonser",
-    label: "Annonser",
+    key: "dokumentasjon",
+    label: "Dokumentasjon",
     icon: "◇",
-    basePath: "/annonser",
+    basePath: "/dokumentasjon",
     tabs: [],
     comingSoon: true,
   },
