@@ -521,15 +521,39 @@ export function DraftEditor({
         </div>
       )}
 
-      {confirmed && (
+      {/*
+        To ulike tilstander, som til nå sa det samme. Uten kladd i Outlook er
+        det ingen kladd, og et grønt felt som påstår at den er opprettet er
+        verre enn ingen beskjed — man tror jobben er gjort.
+      */}
+      {confirmed && webLink && (
         <div className="banner success">
-          Kladden er opprettet i Outlook.{" "}
-          {webLink && (
-            <a href={webLink} target="_blank" rel="noreferrer" style={{ textDecoration: "underline" }}>
-              Åpne kladden
-            </a>
-          )}{" "}
-          Du sender selv.
+          Kladden er opprettet i Outlook. Du sender selv.{" "}
+          <a
+            href={webLink}
+            target="_blank"
+            rel="noreferrer"
+            style={{ textDecoration: "underline" }}
+          >
+            Åpne kladden
+          </a>
+        </div>
+      )}
+
+      {confirmed && !webLink && (
+        <div className="banner info row-between" style={{ gap: 14 }}>
+          <span>
+            {wantsDocument ? "PDF-en er klar." : "Teksten er klar."} Tilbudet er
+            ikke sendt ennå.
+          </span>
+          <button
+            type="button"
+            className="button"
+            onClick={aapneSendSjolv}
+            disabled={busy !== null}
+          >
+            Send selv
+          </button>
         </div>
       )}
 
@@ -909,16 +933,6 @@ export function DraftEditor({
               ? "Bekreft lager kladd i Outlook med PDF-en vedlagt. Du sender selv."
               : "Bekreft lager kladd i Outlook. Du sender selv."}
         </span>
-        {confirmed && !webLink && (
-          <button
-            type="button"
-            className="button secondary"
-            onClick={aapneSendSjolv}
-            disabled={busy !== null}
-          >
-            Send selv
-          </button>
-        )}
         {confirmed && webLink && (
           <button
             type="button"
