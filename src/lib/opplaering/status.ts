@@ -71,7 +71,7 @@ function mett(antall: number, maal: number): number {
 
 export interface OpplaeringsTal {
   prisrader: number;
-  referansefiler: number;
+  lesteReferansefiler: number;
   bekreftaTilbod: number;
   /** Ulike nøkkelord på tvers av referansene. Bredden søket kan treffe i. */
   ulikeTags: number;
@@ -101,7 +101,7 @@ export function regnOpplaering(tal: OpplaeringsTal): Opplaering {
     // teller likt her — begge ligger i samme søkbare pool.
     {
       navn: "Referanser i alt",
-      antall: tal.referansefiler + tal.bekreftaTilbod,
+      antall: tal.lesteReferansefiler + tal.bekreftaTilbod,
       maal: 10,
       vekt: 12,
       oppnaadd: 0,
@@ -232,10 +232,16 @@ export async function opplaeringFor(
   const [{ data: lister }, { count: filer }, { data: referansar }, forbehold, { data: utkast }] =
     await Promise.all([
       admin.from("price_lists").select("id").eq("company_id", companyId).eq("active", true),
+      // Bare filer med uthentet tekst. En fil uten tekstlag ligger i listen,
+      // men er usynlig for genereringen — den er ikke i den søkbare poolen og
+      // blir aldri lest. Å telle den her ville vist et grunnlag som ikke
+      // finnes, og det var nettopp det som skjedde: fjorten uleste PDF-er ga
+      // nesten full måler mens agenten ikke hadde én referanse å bygge på.
       admin
         .from("reference_quotes")
         .select("id", { count: "exact", head: true })
-        .eq("company_id", companyId),
+        .eq("company_id", companyId)
+        .not("extracted_text", "is", null),
       admin
         .from("quote_references")
         .select("tags, edited_by_user, edit_summary, draft_id, confirmed_at")
@@ -280,7 +286,7 @@ export async function opplaeringFor(
 
   return regnOpplaering({
     prisrader: prisrader ?? 0,
-    referansefiler: filer ?? 0,
+    lesteReferansefiler: filer ?? 0,
     bekreftaTilbod: bekrefta.length,
     ulikeTags: tags.size,
     forbehold: forbehold.length,
