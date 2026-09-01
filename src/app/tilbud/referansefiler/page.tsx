@@ -1,6 +1,7 @@
 import { Opplaeringskort } from "./Opplaering";
 import { ReferenceFiles } from "./ReferenceFiles";
 import { opplaeringFor } from "@/lib/opplaering/status";
+import { indekserteFiler } from "@/lib/referanser/les-og-indekser";
 import { currentSession, supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import type { ReferenceQuote } from "@/lib/types";
 
@@ -10,7 +11,7 @@ export default async function ReferansefilerPage() {
   const session = await currentSession();
   const supabase = await supabaseServer();
 
-  const [{ data }, opplaering] = await Promise.all([
+  const [{ data }, opplaering, indeksert] = await Promise.all([
     supabase
       .from("reference_quotes")
       .select("*")
@@ -18,6 +19,9 @@ export default async function ReferansefilerPage() {
     // Referanselisten ligger bak service role — tabellen har ingen policy for
     // authenticated. Selskapet kommer fra sesjonen, aldri fra klienten.
     opplaeringFor(supabaseAdmin(), session!.companyId),
+    // «Lest» og «i bruk» er to ting: teksten kan ligge i kolonnen uten at fila
+    // har kommet inn i den søkbare poolen. Listen skal vise forskjellen.
+    indekserteFiler(supabaseAdmin(), session!.companyId),
   ]);
 
   return (
@@ -34,7 +38,10 @@ export default async function ReferansefilerPage() {
 
       <Opplaeringskort status={opplaering} />
 
-      <ReferenceFiles items={(data ?? []) as ReferenceQuote[]} />
+      <ReferenceFiles
+        items={(data ?? []) as ReferenceQuote[]}
+        indekserteIder={[...indeksert]}
+      />
     </>
   );
 }

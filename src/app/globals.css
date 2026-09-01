@@ -505,6 +505,17 @@ p {
   color: #fff;
 }
 
+/* Referansefiler: har agenten den, eller har den den ikke. Grønt betyr at
+   fila står i den søkbare poolen — alt annet er usynlig ved generering. */
+.pill.lest {
+  background: var(--positive-soft);
+  color: var(--positive);
+}
+.pill.ulest {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
 /* Liste over leads */
 .lead-list {
   display: flex;

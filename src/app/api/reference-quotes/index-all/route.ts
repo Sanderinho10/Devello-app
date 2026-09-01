@@ -1,22 +1,19 @@
 import { NextResponse } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
 import { requireAdmin } from "@/lib/api-admin";
-import { extractFileText } from "@/lib/referanser/extract-text";
-import { indexReferenceFile } from "@/lib/referanser/index-reference-file";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import type { QuoteType } from "@/lib/types";
-import { anonymiser } from "@/lib/personvern/anonymiser";
+import { indekserteFiler, lesOgIndekser } from "@/lib/referanser/les-og-indekser";
 
 export const maxDuration = 300;
 
 /**
- * Engangskjøring: trekk ut tekst og indekser referansefiler som ble lastet opp
- * før uthentingen fantes.
+ * Les og indekser alle referansefiler som mangler det.
  *
- * Idempotent — filer som allerede har en rad i poolen hoppes over, så ruta kan
- * kalles igjen uten å duplisere noe. Kjør den én gang per selskap etter
- * utrulling (POST /api/reference-quotes/index-all), eller igjen etter at
- * eldre filer er lastet opp på nytt i bedre kvalitet.
+ * UI-et går én fil om gangen for å kunne vise framdrift — se
+ * /api/reference-quotes/[id]/les. Denne ruta er samlekjøringen for
+ * kommandolinja: én POST, og alt som kan leses er lest.
+ *
+ * Idempotent: filer som allerede står i poolen hoppes over.
  */
 export async function POST() {
   const session = await sessionOr401();
@@ -34,15 +31,7 @@ export async function POST() {
       .eq("company_id", session.companyId)
       .not("storage_path", "is", null);
 
-    const { data: indexed } = await admin
-      .from("quote_references")
-      .select("reference_quote_id")
-      .eq("company_id", session.companyId)
-      .not("reference_quote_id", "is", null);
-
-    const alreadyIndexed = new Set(
-      (indexed ?? []).map((row) => row.reference_quote_id),
-    );
+    const indeksert = await indekserteFiler(admin, session.companyId);
 
     const report = {
       total: (files ?? []).length,
@@ -53,50 +42,16 @@ export async function POST() {
     };
 
     for (const file of files ?? []) {
-      if (alreadyIndexed.has(file.id)) {
-        report.skipped_already_indexed += 1;
-        continue;
-      }
-
       try {
-        // Hent teksten om den mangler — det er hele poenget med ruta.
-        let text = file.extracted_text as string | null;
-        if (!text) {
-          const { data: blob } = await admin.storage
-            .from("reference-files")
-            .download(file.storage_path);
-          if (blob) {
-            const bytes = Buffer.from(await blob.arrayBuffer());
-            // Samme anonymisering som ved opplasting, ellers ville en
-            // re-indeksering lagt de ekte navnene tilbake i kolonnen.
-            text = anonymiser(
-              await extractFileText(bytes, file.file_name ?? file.title, {
-                companyId: session.companyId,
-                kind: "lesing_skanna_pdf",
-              }),
-            ) || null;
-            if (text) {
-              await admin
-                .from("reference_quotes")
-                .update({ extracted_text: text })
-                .eq("id", file.id);
-            }
-          }
-        }
-
-        if (!text) {
-          report.skipped_no_text += 1;
-          continue;
-        }
-
-        await indexReferenceFile(admin, {
-          companyId: session.companyId,
-          referenceQuoteId: file.id,
-          title: file.title,
-          quoteType: file.type as QuoteType,
-          extractedText: text,
-        });
-        report.indexed += 1;
+        const status = await lesOgIndekser(
+          admin,
+          session.companyId,
+          file,
+          indeksert.has(file.id),
+        );
+        if (status === "indeksert") report.indexed += 1;
+        else if (status === "alt_indeksert") report.skipped_already_indexed += 1;
+        else report.skipped_no_text += 1;
       } catch (err) {
         report.failed.push(
           `${file.title}: ${err instanceof Error ? err.message : String(err)}`,

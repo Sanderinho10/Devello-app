@@ -5,6 +5,7 @@ import { indexReferenceFile } from "@/lib/referanser/index-reference-file";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import type { QuoteType } from "@/lib/types";
 import { anonymiser } from "@/lib/personvern/anonymiser";
+import { MAKS_REFERANSEFILER } from "@/lib/referanser/grense";
 
 export async function POST(request: NextRequest) {
   const session = await sessionOr401();
@@ -29,6 +30,26 @@ export async function POST(request: NextRequest) {
     }
 
     const admin = supabaseAdmin();
+
+    // Taket sjekkes her og ikke bare i UI-et: en skjult knapp er ingen grense,
+    // og ruta kan kalles direkte. Sjekken kommer før opplastingen til storage,
+    // så en avvist fil ikke blir liggende igjen der.
+    const { count } = await admin
+      .from("reference_quotes")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", session.companyId);
+
+    if ((count ?? 0) >= MAKS_REFERANSEFILER) {
+      return NextResponse.json(
+        {
+          error:
+            `Grensen er ${MAKS_REFERANSEFILER} referansefiler. ` +
+            "Slett en du ikke trenger for å få plass til denne.",
+        },
+        { status: 409 },
+      );
+    }
+
     const mimeType = file.type || "application/octet-stream";
     const storagePath = `${session.companyId}/${Date.now()}-${sanitize(file.name)}`;
 
