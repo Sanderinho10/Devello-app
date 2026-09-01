@@ -16,7 +16,9 @@ export type ModellKall =
   | "generering"
   | "tagging_lead"
   | "tagging_tilbud"
-  | "tagging_referansefil";
+  | "tagging_referansefil"
+  /** Skannet PDF lest av modellen fordi den ikke hadde tekstlag. */
+  | "lesing_skanna_pdf";
 
 export interface UsageContext {
   companyId: string;

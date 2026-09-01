@@ -70,7 +70,10 @@ export async function POST() {
             // Samme anonymisering som ved opplasting, ellers ville en
             // re-indeksering lagt de ekte navnene tilbake i kolonnen.
             text = anonymiser(
-              await extractFileText(bytes, file.file_name ?? file.title),
+              await extractFileText(bytes, file.file_name ?? file.title, {
+                companyId: session.companyId,
+                kind: "lesing_skanna_pdf",
+              }),
             ) || null;
             if (text) {
               await admin

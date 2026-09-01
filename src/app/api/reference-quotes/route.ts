@@ -49,7 +49,13 @@ export async function POST(request: NextRequest) {
     // og et gammelt kundetilbud er fullt av navn og adresser. Selve PDF-en
     // ligger fortsatt urørt i storage — den er kundens egen fil — men det er
     // teksten som er søkbar, kopierbar og lett å ta med seg.
-    const extractedText = anonymiser(await extractFileText(bytes, file.name)) || null;
+    const extractedText =
+      anonymiser(
+        await extractFileText(bytes, file.name, {
+          companyId: session.companyId,
+          kind: "lesing_skanna_pdf",
+        }),
+      ) || null;
 
     const { data: created, error } = await admin
       .from("reference_quotes")

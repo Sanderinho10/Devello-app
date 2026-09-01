@@ -62,7 +62,7 @@ export function ReferenceFiles({ items }: { items: ReferenceQuote[] }) {
       const deler = [
         payload.indexed > 0 ? `${payload.indexed} filer lest og indeksert` : null,
         payload.skipped_no_text > 0
-          ? `${payload.skipped_no_text} uten tekstlag (skannede PDF-er kan ikke leses)`
+          ? `${payload.skipped_no_text} kunne ikke leses — se om de åpner som vanlig PDF`
           : null,
         (payload.failed ?? []).length > 0 ? `${payload.failed.length} feilet` : null,
       ].filter(Boolean);
@@ -179,7 +179,8 @@ export function ReferenceFiles({ items }: { items: ReferenceQuote[] }) {
               {uleste} {uleste === 1 ? "fil er" : "filer er"} ikke lest ennå
             </strong>{" "}
             — de ligger her, men agenten kan ikke se innholdet, og de teller
-            ikke når utkast lages.
+            ikke når utkast lages. Skannede tilbud leses av modellen, og det tar
+            noen sekunder per fil; blir det mange, trykk igjen når den er ferdig.
           </span>
           <button className="button" onClick={indekser} disabled={indekserer}>
             {indekserer ? "Leser filene…" : "Les og indekser"}
