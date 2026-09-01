@@ -176,11 +176,25 @@ export async function POST(
     }
 
     // 3. Lagre og logg den endelige versjonen.
+    //
+    // «Hva endret brukeren?» må måles mot AI-ens ORIGINALE utkast, ikke mot
+    // siste lagring. Redigeringer lagres fortløpende underveis, så på dette
+    // tidspunktet er drafts-raden allerede full av brukerens endringer — en
+    // diff mot den ville sagt «ingenting endret» om alt som ble rettet.
+    const { data: aiVersjon } = await admin
+      .from("draft_versions")
+      .select("quote_type, email_subject, email_body, document")
+      .eq("draft_id", draft.id)
+      .eq("source", "ai")
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     const previous = {
-      quote_type: draft.quote_type as QuoteType,
-      email_subject: draft.email_subject,
-      email_body: draft.email_body,
-      document: draft.document as QuoteDocument | null,
+      quote_type: (aiVersjon?.quote_type ?? draft.quote_type) as QuoteType,
+      email_subject: aiVersjon?.email_subject ?? draft.email_subject,
+      email_body: aiVersjon?.email_body ?? draft.email_body,
+      document: (aiVersjon?.document ?? draft.document) as QuoteDocument | null,
     };
     const final = {
       quote_type: payload.quote_type,

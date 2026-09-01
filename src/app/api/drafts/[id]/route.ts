@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
-import { logDraftVersion } from "@/lib/drafts/versions";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import type { QuoteDocument, QuoteType } from "@/lib/types";
 
@@ -83,13 +82,10 @@ export async function PATCH(
       .eq("id", draft.id);
     if (error) throw new Error(error.message);
 
-    await logDraftVersion(admin, {
-      draftId: draft.id,
-      source: "redigering",
-      snapshot: after,
-      previous: before,
-      userId: session.userId,
-    });
+    // Med vilje ingen versjonslogg her. To versjoner er nok per tilbud:
+    // AI-ens originale utkast (kilden) og det som faktisk gikk ut (fasiten).
+    // Mellomstegene — hver lagring underveis — er arbeidsprosess, ikke
+    // læringsdata, og hver rad var en kopi av hele dokumentet.
 
     return NextResponse.json({ ok: true, changed: true });
   } catch (err) {

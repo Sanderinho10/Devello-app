@@ -38,6 +38,42 @@ export function ReferenceFiles({ items }: { items: ReferenceQuote[] }) {
   const [kladder, setKladder] = useState<Kladd[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [indekserer, setIndekserer] = useState(false);
+  const [indeksResultat, setIndeksResultat] = useState<string | null>(null);
+
+  /**
+   * Filer uten uthentet tekst er usynlige for agenten.
+   *
+   * De ligger i listen og teller i statistikken, men genereringen leser
+   * innholdet fra den søkbare poolen — og dit kommer bare filer som er lest.
+   * Fjorten opplastede tilbud og et førsteutkast på to poster er nøyaktig
+   * slik det ser ut når ingen av dem er det.
+   */
+  const uleste = items.filter((i) => !i.extracted_text).length;
+
+  async function indekser() {
+    setIndekserer(true);
+    setError(null);
+    setIndeksResultat(null);
+    try {
+      const res = await fetch("/api/reference-quotes/index-all", { method: "POST" });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error ?? "Kunne ikke lese filene");
+      const deler = [
+        payload.indexed > 0 ? `${payload.indexed} filer lest og indeksert` : null,
+        payload.skipped_no_text > 0
+          ? `${payload.skipped_no_text} uten tekstlag (skannede PDF-er kan ikke leses)`
+          : null,
+        (payload.failed ?? []).length > 0 ? `${payload.failed.length} feilet` : null,
+      ].filter(Boolean);
+      setIndeksResultat(deler.length ? deler.join(" · ") : "Alt var allerede indeksert.");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIndekserer(false);
+    }
+  }
 
   function close() {
     setOpen(false);
@@ -136,6 +172,23 @@ export function ReferenceFiles({ items }: { items: ReferenceQuote[] }) {
 
   return (
     <>
+      {uleste > 0 && (
+        <div className="banner warning row-between" style={{ gap: 14 }}>
+          <span>
+            <strong>
+              {uleste} {uleste === 1 ? "fil er" : "filer er"} ikke lest ennå
+            </strong>{" "}
+            — de ligger her, men agenten kan ikke se innholdet, og de teller
+            ikke når utkast lages.
+          </span>
+          <button className="button" onClick={indekser} disabled={indekserer}>
+            {indekserer ? "Leser filene…" : "Les og indekser"}
+          </button>
+        </div>
+      )}
+      {indeksResultat && <div className="banner success">{indeksResultat}</div>}
+      {error && !open && <div className="banner error">{error}</div>}
+
       <div className="card">
         <div className="card-header">
           <strong>

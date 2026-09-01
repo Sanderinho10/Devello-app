@@ -70,7 +70,15 @@ export async function generateForLead(
       .select("name, tone_settings")
       .eq("id", opts.companyId)
       .single(),
-    admin.from("reference_quotes").select("type").eq("company_id", opts.companyId),
+    // Bare filer med uthentet tekst. En fil uten tekst er usynlig for
+    // genereringen, og skal ikke telle i «X referansetilbud å matche mot»
+    // heller — det var slik fjorten opplastede tilbud ga trygghet i
+    // vurderingen mens agenten i praksis fløy blindt.
+    admin
+      .from("reference_quotes")
+      .select("type")
+      .eq("company_id", opts.companyId)
+      .not("extracted_text", "is", null),
     activePriceItems(admin, opts.companyId),
     // Forbeholdene firmaet har brukt før. Agenten velger fra disse — den
     // formulerer aldri et forbehold selv, like lite som den setter en pris.
@@ -188,9 +196,12 @@ async function settStatus(admin: SupabaseClient, leadId: string, forrige: string
 /**
  * Henter den siste lagrede versjonen for en tilbudstype, om den finnes.
  *
- * draft_versions er allerede en full logg over hver versjon med sin type, så vi
- * trenger ingen egen cache — og fordi vi henter den *siste* versjonen, får
- * brukeren tilbake sine egne redigeringer, ikke den opprinnelige AI-teksten.
+ * Poenget er at et bytte på type-bryteren ikke skal koste et modellkall når
+ * typen er generert før. Loggen har bare AI-versjonen og den endelige per
+ * type (mellomlagringer logges ikke — se PATCH-ruta), så etter en
+ * sideoppdatering er det den man får tilbake ved bytte. Redigeringene for
+ * typen man står i ligger trygt i drafts-raden, og innenfor én økt husker
+ * redigeringsflaten alle typene selv.
  */
 async function reuseStoredVersion(
   admin: SupabaseClient,
@@ -219,7 +230,11 @@ async function reuseStoredVersion(
   // kan dessuten ha endret seg siden utkastet ble laget, så vi teller postene
   // mot dagens aktive rader i stedet for å gjenbruke et gammelt tall.
   const [{ data: references }, priceItems] = await Promise.all([
-    admin.from("reference_quotes").select("type").eq("company_id", companyId),
+    admin
+      .from("reference_quotes")
+      .select("type")
+      .eq("company_id", companyId)
+      .not("extracted_text", "is", null),
     activePriceItems(admin, companyId),
   ]);
 
