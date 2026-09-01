@@ -12,6 +12,7 @@ import {
   type QuoteConfidence,
   computeTotals,
   formatNok,
+  lineTotal,
   hasDocument,
   type CompanyBrand,
   type Draft,
@@ -675,6 +676,9 @@ export function DraftEditor({
                       <th className="num" style={{ width: 130 }}>
                         Enhetspris
                       </th>
+                      <th className="num" style={{ width: 90 }}>
+                        Rabatt
+                      </th>
                       <th className="num" style={{ width: 120 }}>
                         Sum
                       </th>
@@ -805,7 +809,32 @@ export function DraftEditor({
                             )}
                           </td>
                           <td className="num">
-                            <strong>{formatNok(line.quantity * line.unit_price)}</strong>
+                            {/*
+                              Rabatt i prosent, per rad. Tomt felt er ingen
+                              rabatt. Kolonnen kommer med i PDF-en bare når
+                              minst én rad har den — se harRabatt.
+                            */}
+                            <input
+                              className="cell-input num"
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="1"
+                              placeholder="–"
+                              aria-label="Rabatt i prosent"
+                              value={line.discount_pct ? line.discount_pct : ""}
+                              onChange={(e) => {
+                                const pct = Number(e.target.value);
+                                updateLine(sectionIndex, lineIndex, {
+                                  discount_pct:
+                                    pct > 0 ? Math.min(100, pct) : undefined,
+                                });
+                              }}
+                            />
+                            <div className="tiny muted">%</div>
+                          </td>
+                          <td className="num">
+                            <strong>{formatNok(lineTotal(line))}</strong>
                           </td>
                           <td>
                             <button
@@ -824,7 +853,7 @@ export function DraftEditor({
 
                     {section.lines.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="muted tiny" style={{ padding: "14px 0" }}>
+                        <td colSpan={7} className="muted tiny" style={{ padding: "14px 0" }}>
                           Ingen poster i denne seksjonen.
                         </td>
                       </tr>

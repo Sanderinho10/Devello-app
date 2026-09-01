@@ -1,6 +1,9 @@
 import {
   computeTotals,
   formatNok,
+  harRabatt,
+  lineDiscount,
+  lineTotal,
   type CompanyBrand,
   type QuoteDocument,
   type QuoteType,
@@ -40,6 +43,12 @@ export function renderQuoteHtml(input: {
   // med én seksjon ville en delsum rett over totalen sagt det samme to ganger.
   const flereSeksjoner = brukteSeksjoner.length > 1;
 
+  // Rabattkolonnen finnes bare når noen har gitt rabatt. Ellers er den en tom
+  // kolonne som stjeler plass fra postteksten og antyder at det var noe å
+  // forhandle om. Beløpet er alltid etter rabatt.
+  const rabatt = harRabatt(doc);
+  const kolonner = rabatt ? 6 : 5;
+
   // Én tabell for hele tilbudet, ikke én per seksjon. Kolonneoverskriftene
   // hører til dokumentet, ikke til rommet — gjentatt over hver seksjon blir de
   // støy, og de spiser fire linjer på et tilbud med fire rom.
@@ -53,23 +62,21 @@ export function renderQuoteHtml(input: {
             <td class="qty">${formatQuantity(line.quantity)}</td>
             <td class="unit">${escapeHtml(line.unit)}</td>
             <td class="num">${formatNok(line.unit_price)}</td>
-            <td class="num strong">${formatNok(line.quantity * line.unit_price)}</td>
+            ${rabatt ? `<td class="num rabatt">${formatRabatt(lineDiscount(line))}</td>` : ""}
+            <td class="num strong">${formatNok(lineTotal(line))}</td>
           </tr>`,
         )
         .join("");
 
       if (!flereSeksjoner) return linjer;
 
-      const delsum = section.lines.reduce(
-        (sum, line) => sum + line.quantity * line.unit_price,
-        0,
-      );
+      const delsum = section.lines.reduce((sum, line) => sum + lineTotal(line), 0);
 
       return `
-        <tr class="group"><td colspan="5">${escapeHtml(section.title)}</td></tr>
+        <tr class="group"><td colspan="${kolonner}">${escapeHtml(section.title)}</td></tr>
         ${linjer}
         <tr class="subtotal">
-          <td colspan="4" class="num">Sum ${escapeHtml(section.title.toLowerCase())} eks. mva</td>
+          <td colspan="${kolonner - 1}" class="num">Sum ${escapeHtml(section.title.toLowerCase())} eks. mva</td>
           <td class="num">${formatNok(delsum)}</td>
         </tr>`;
     })
@@ -87,8 +94,8 @@ export function renderQuoteHtml(input: {
            et uvanlig stort beløp får plassen det trenger uansett.
          -->
          <colgroup>
-           <col style="width:61%"><col style="width:8%"><col style="width:6%">
-           <col style="width:12%"><col style="width:13%">
+           <col style="width:${rabatt ? 54 : 61}%"><col style="width:8%"><col style="width:6%">
+           <col style="width:12%">${rabatt ? `<col style="width:7%">` : ""}<col style="width:13%">
          </colgroup>
          <thead>
            <tr>
@@ -96,6 +103,7 @@ export function renderQuoteHtml(input: {
              <th class="qty">Mengde</th>
              <th class="unit">Enh</th>
              <th class="num">Enh.pris</th>
+             ${rabatt ? `<th class="num">Rabatt</th>` : ""}
              <th class="num">Beløp</th>
            </tr>
          </thead>
@@ -238,6 +246,9 @@ export function renderQuoteHtml(input: {
   /* Luft foran tallene, så kolonnene ikke klistrer seg sammen når de smalnes. */
   td.num, th.num { padding-left: 10px; }
   .strong { font-weight: 600; }
+  /* Rader uten rabatt står tomme i kolonnen — en «0 %» på hver av dem ville
+     gjort rabatten på den ene raden usynlig. */
+  .rabatt { color: #6e6e73; }
 
   /* Seksjonsrad inne i tabellen: rommet eller delen jobben er delt i. */
   tr.group td {
@@ -361,6 +372,12 @@ function quoteTypeLabel(type: QuoteType): string {
 function likeNavn(a: string, b: string): boolean {
   const rens = (v: string) => v.toLowerCase().replace(/\s+/g, " ").trim();
   return rens(a) === rens(b);
+}
+
+/** «10 %», eller ingenting på rader uten rabatt. */
+function formatRabatt(pct: number): string {
+  if (pct <= 0) return "";
+  return `${new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 1 }).format(pct)} %`;
 }
 
 function formatQuantity(n: number): string {

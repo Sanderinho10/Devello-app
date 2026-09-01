@@ -236,6 +236,14 @@ export interface QuoteLine {
    * lenger følger prisfilen.
    */
   unit_price_manual?: boolean;
+  /**
+   * Rabatt på raden, i prosent av linjesummen. Utelatt eller 0 = ingen.
+   *
+   * Som overstyrt pris er dette en menneskelig avgjørelse for den ene jobben,
+   * og går aldri inn i agentens kontekst. Rabattkolonnen vises i tilbudet
+   * bare når minst én rad faktisk har rabatt — se harRabatt.
+   */
+  discount_pct?: number;
 }
 
 /** utkast = vanlig tilbud. trenger_avklaring = jobben var for ukjent til å prise. */
@@ -284,7 +292,7 @@ export function computeTotals(doc: QuoteDocument): QuoteTotals {
   let lines = 0;
   for (const section of doc.sections) {
     for (const line of section.lines) {
-      subtotal += line.quantity * line.unit_price;
+      subtotal += lineTotal(line);
       lines += 1;
     }
   }
@@ -299,6 +307,27 @@ export function computeTotals(doc: QuoteDocument): QuoteTotals {
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+/** Rabatten på en rad, klemt til 0–100. Alt annet er ingen rabatt. */
+export function lineDiscount(line: QuoteLine): number {
+  const pct = Number(line.discount_pct ?? 0);
+  if (!Number.isFinite(pct) || pct <= 0) return 0;
+  return Math.min(100, pct);
+}
+
+/** Linjesummen etter rabatt. Én kilde til beløpet, i UI og PDF. */
+export function lineTotal(line: QuoteLine): number {
+  return line.quantity * line.unit_price * (1 - lineDiscount(line) / 100);
+}
+
+/**
+ * Har minst én rad rabatt? Styrer om rabattkolonnen kommer med i det hele
+ * tatt: et tilbud uten rabatt skal ikke ha en tom kolonne som antyder at det
+ * var noe å forhandle om.
+ */
+export function harRabatt(doc: QuoteDocument): boolean {
+  return doc.sections.some((s) => s.lines.some((l) => lineDiscount(l) > 0));
 }
 
 export function formatNok(amount: number): string {

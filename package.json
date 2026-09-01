@@ -14,6 +14,7 @@
     "test:perioder": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-perioder.ts",
     "test:epost": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-finn-epost.ts",
     "test:popup": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-popup.ts",
+    "test:rabatt": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-rabatt.ts",
     "test:anonym": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-anonymiser.ts",
     "test:opplaering": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-opplaering.ts"
   },
