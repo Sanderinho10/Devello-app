@@ -169,6 +169,16 @@ export async function generateForLead(
 
   await settStatus(admin, lead.id, lead.status);
 
+  // Manuelle leads får agentens tittel som emne. Emnet var første linje av
+  // det som ble limt inn, og det er nesten alltid «Hei,» eller en
+  // mal-plassholder — listen viste fem tilbud som «NAVN». Agenten har alt
+  // satt ord på jobben; det er den listen skal vise. E-postleads beholder
+  // emnet kunden skrev: det er tråden svaret går i.
+  const tittel = generated.document?.title?.trim();
+  if (lead.source === "manuell" && tittel) {
+    await admin.from("leads").update({ subject: tittel }).eq("id", lead.id);
+  }
+
   // Teller ett tilbud på abonnementet — men bare første gang dette leadet
   // produserer et utkast. Regenererer brukeren for å bytte tilbudstype eller
   // prøve på nytt, er det den samme jobben, og den unike indeksen i 0025
