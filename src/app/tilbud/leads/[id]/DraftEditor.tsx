@@ -481,7 +481,11 @@ export function DraftEditor({
   }
 
   return (
-    <>
+    // Ett element ut, ikke en fragment. Siden legger utkastet i et rutenett
+    // med henvendelsen ved siden av — to søsken herfra ville tatt hver sin
+    // kolonne, og banneret om at tilbudet er sendt endte som hele venstre side
+    // mens selve utkastet ble klemt inn i sidespalten.
+    <div style={{ minWidth: 0 }}>
       {sendt && (
         <div className="banner success" style={{ marginBottom: 18 }}>
           <strong>Tilbudet er sendt.</strong> Utkastet er låst, så det som ligger
@@ -955,6 +959,12 @@ export function DraftEditor({
         </label>
       </div>
 
+      {/*
+        Ingen handlingslinje på et sendt tilbud. Det er ingenting igjen å
+        gjøre med det — PDF-en åpnes fra banneret øverst, og en «Send selv»
+        som er skrudd av bare inviterer til å lure på hvorfor.
+      */}
+      {!sendt && (
       <div className="action-bar">
         {wantsDocument && (
           <button
@@ -1010,6 +1020,7 @@ export function DraftEditor({
               : "Send selv"}
         </button>
         </div>
+      )}
       </fieldset>
 
       {sendSjolv && (
@@ -1029,7 +1040,7 @@ export function DraftEditor({
           onLukk={() => setSendSjolv(null)}
         />
       )}
-    </>
+    </div>
   );
 }
 
