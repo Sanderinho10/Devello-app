@@ -892,7 +892,7 @@ p {
   text-align: right;
 }
 
-.doc-table .cell-input {
+.cell-input {
   width: 100%;
   border: 1px solid transparent;
   border-radius: 6px;
@@ -902,17 +902,51 @@ p {
   color: var(--text);
 }
 
-.doc-table .cell-input:hover {
+.cell-input:hover {
   border-color: var(--border);
 }
 
-.doc-table .cell-input:focus {
+.cell-input:focus {
   outline: none;
   border-color: var(--accent);
   background: var(--surface);
 }
 
-.doc-table .cell-input.num {
+.cell-input.num {
+  text-align: right;
+}
+
+/* Tallfelt uten nettleserens opp/ned-piler: de stjeler plass i en smal
+   kolonne og bommer på hva feltet er til. */
+.cell-input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.cell-input[type="number"]::-webkit-inner-spin-button,
+.cell-input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Prisen i prisfila, redigerbar paa stedet. Statusen staar under feltet
+   og tar ikke plass foer den har noe aa si. */
+.pris-celle {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  width: 120px;
+}
+.pris-celle-status {
+  font-size: 11px;
+  min-height: 0;
+  line-height: 1.2;
+  color: var(--text-tertiary);
+}
+.pris-celle-status.lagra {
+  color: var(--positive);
+}
+.pris-celle-status.feil {
+  color: #c0392b;
   text-align: right;
 }
 

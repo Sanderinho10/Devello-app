@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ExcelDrop } from "@/components/ExcelDrop";
+import { PrisCelle } from "@/components/PrisCelle";
 import {
-  formatNok,
   type PriceItemKind,
   type PriceList,
   type PriceListItem,
@@ -308,7 +308,13 @@ export function ListItems({
                     )}
                   </td>
                   <td className="muted">{item.unit}</td>
-                  <td className="num">{formatNok(Number(item.unit_price))}</td>
+                  <td className="num">
+                    <PrisCelle
+                      id={item.id}
+                      pris={Number(item.unit_price)}
+                      onLagra={() => router.refresh()}
+                    />
+                  </td>
                   <td>
                     <button className="button danger" onClick={() => remove(item.id)}>
                       Slett
