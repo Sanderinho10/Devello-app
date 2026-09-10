@@ -9,3 +9,8 @@ build/
 next-env.d.ts
 .DS_Store
 tmp/
+
+# Evaluering: siste køyring er lokal, baseline skal inn i git
+evaluering/resultat/siste*.json
+# Gullsettet er kundens sende tilbod (anonymisert) — aldri i eit offentleg repo
+evaluering/gullsett/

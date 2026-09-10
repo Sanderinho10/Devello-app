@@ -14,6 +14,13 @@ export interface DraftSnapshot {
  * Vi logger alltid — original AI-tekst, hver redigering og den endelige
  * versjonen — uansett om noe faktisk ble endret. Dette er læringsdata, og et
  * tomt diff er like informativt som et stort: det forteller at agenten traff.
+ *
+ * Returnerer om loggingen lyktes. En versjon som ikke ble lagret skal aldri
+ * passere i stillhet igjen: i piloten feilet hver eneste «endelig»-innsetting
+ * fordi enum-verdien i databasen het noe annet (se migrasjon 0030), og ingen
+ * så det før læringsdataene fra seks sendte tilbud var borte. Loggingen
+ * stopper likevel ikke bekreftelsen — et tilbud som er klart skal ut — men
+ * feilen står i loggen, og kalleren kan velge å reagere.
  */
 export async function logDraftVersion(
   supabase: SupabaseClient,
@@ -24,7 +31,7 @@ export async function logDraftVersion(
     previous?: DraftSnapshot | null;
     userId?: string | null;
   },
-): Promise<void> {
+): Promise<boolean> {
   const { data: latest } = await supabase
     .from("draft_versions")
     .select("version")
@@ -35,7 +42,7 @@ export async function logDraftVersion(
 
   const version = (latest?.version ?? 0) + 1;
 
-  await supabase.from("draft_versions").insert({
+  const { error } = await supabase.from("draft_versions").insert({
     draft_id: input.draftId,
     version,
     source: input.source,
@@ -46,6 +53,14 @@ export async function logDraftVersion(
     diff: input.previous ? diffSnapshots(input.previous, input.snapshot) : null,
     created_by: input.userId ?? null,
   });
+
+  if (error) {
+    console.error(
+      `draft_versions: klarte ikke å logge versjon ${version} (${input.source}) for utkast ${input.draftId}: ${error.message}`,
+    );
+    return false;
+  }
+  return true;
 }
 
 export function diffSnapshots(
