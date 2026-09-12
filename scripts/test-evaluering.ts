@@ -213,6 +213,8 @@ interface Kontekst {
   priceById: Map<string, PriceListItem>;
   maalform: string;
   signatur: string | null;
+  /** Har firmaet både materiell- og timeprisliste? Utan dei finst ikkje fastpris. */
+  harFastprisLister: boolean;
 }
 
 /** Gjelder hver eneste sak, uansett fasit. Dette er gulvet. */
@@ -301,7 +303,15 @@ function fasitSjekkar(g: GeneratedDraft, f: Fasit, k: Kontekst): string[] {
     ? g.document.sections.reduce((n, s) => n + s.lines.length, 0)
     : 0;
 
-  if (f.type && g.quote_type !== f.type) feil.push(`type ${g.quote_type}, fasit ${f.type}`);
+  // Fastpris blir bygd av materiellista + timeprislista. Har firmaet berre
+  // punktprisliste (Star Elektro), kan motoren ikkje lage eit fastpris-dokument
+  // — då er punktpris det rette svaret på ei fastpris-sak, og seksjonskravet
+  // (materiell + arbeid kvar for seg) gjeld ikkje.
+  const fastprisUmogleg = f.type === "fastpris" && !k.harFastprisLister;
+  const ventaType = fastprisUmogleg ? "punktpris" : f.type;
+  if (ventaType && g.quote_type !== ventaType) {
+    feil.push(`type ${g.quote_type}, fasit ${ventaType}${fastprisUmogleg ? " (fastpris utan materiell-/timeprisliste)" : ""}`);
+  }
   if (f.status && g.status !== f.status) feil.push(`status ${g.status}, fasit ${f.status}`);
   if (f.dokument === "ja" && !g.document) feil.push("manglar dokument");
   if (f.dokument === "nei" && g.document) feil.push("skulle ikkje hatt dokument");
@@ -312,7 +322,7 @@ function fasitSjekkar(g: GeneratedDraft, f: Fasit, k: Kontekst): string[] {
   if (f.poster_maks !== undefined && postar > f.poster_maks) {
     feil.push(`${postar} postar, fasit høgst ${f.poster_maks}`);
   }
-  if (f.seksjonar_min !== undefined && (g.document?.sections.length ?? 0) < f.seksjonar_min) {
+  if (!fastprisUmogleg && f.seksjonar_min !== undefined && (g.document?.sections.length ?? 0) < f.seksjonar_min) {
     feil.push(`${g.document?.sections.length ?? 0} seksjonar, fasit minst ${f.seksjonar_min}`);
   }
   if (f.sum_min !== undefined && (totals?.subtotal ?? 0) < f.sum_min) {
@@ -458,6 +468,8 @@ const kontekst: Kontekst = {
   maalform:
     tone.maalform === "nn" ? "nynorsk" : tone.maalform === "nb" ? "bokmål" : "",
   signatur: typeof tone.signatur === "string" ? tone.signatur : null,
+  harFastprisLister:
+    priceItems.some((i) => i.kind === "materiell") && priceItems.some((i) => i.kind === "time"),
 };
 
 const saker = await lesSaker(filter);
@@ -469,6 +481,7 @@ const fag = fagFor(company);
 console.log(
   `\n${company!.name} · motor ${motor} · ${priceItems.length} prisrader · ${referansar} referansar · ` +
     `${forbehold.length} forbehold · ${saker.length} saker` +
+    (kontekst.harFastprisLister ? "" : " · berre punktprisliste (fastpris-saker ventar punktpris)") +
     (kaldstart ? " · KALDSTART (ingen referansar i konteksten)" : "") +
     "\n",
 );
