@@ -1,0 +1,11 @@
+# LF overalt, også på Windows. Motoren (agent/**/*.md) går rett inn i
+# systemprompten og cache-nøkkelen hos Anthropic — den skal være byte for byte
+# lik på en utviklers maskin og i produksjon. Evalueringssakene parses på
+# linjeskift. Uten denne fila gir Git for Windows CRLF som standard.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.pdf binary
+*.woff binary
+*.woff2 binary

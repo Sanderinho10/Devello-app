@@ -1,6 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { requireEnv, supabaseAdmin } from "./admin";
+
+// Admin-klienten ligger i admin.ts så scriptene utenfor Next kan bruke den
+// uten å dra inn next/headers. Re-eksportert her: ingen av de ~45 filene som
+// importerer fra server.ts trenger å vite om det.
+export { requireEnv, supabaseAdmin };
 
 /**
  * Supabase-klient for server components og route handlers, med brukerens
@@ -31,19 +37,6 @@ export async function supabaseServer() {
 }
 
 /**
- * Service role-klient. Omgår RLS — brukes bare der vi må røre tokens eller
- * skrive på vegne av agenten. Hvert bruk må selv sjekke hvilket company raden
- * hører til.
- */
-export function supabaseAdmin() {
-  return createClient(
-    requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
-    requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
-    { auth: { persistSession: false, autoRefreshToken: false } },
-  );
-}
-
-/**
  * Klient uten sesjon og uten service role.
  *
  * Brukes til de auth-kallene som SKAL gå som en vanlig, uinnlogget bruker —
@@ -57,16 +50,6 @@ export function supabaseAnon() {
     requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
     { auth: { persistSession: false, autoRefreshToken: false } },
   );
-}
-
-export function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(
-      `Mangler miljøvariabel ${name}. Se .env.example og README for oppsett.`,
-    );
-  }
-  return value;
 }
 
 export interface SessionContext {

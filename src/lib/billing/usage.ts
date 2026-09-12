@@ -1,4 +1,6 @@
-import { supabaseAdmin } from "@/lib/supabase/server";
+// Fra admin.ts, ikke server.ts: server.ts drar inn next/headers, og denne
+// modulen ligger i importkjeden til scriptene (evaluer, gullsett, test:agent).
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 /**
  * Tokenforbruk per modellkall.

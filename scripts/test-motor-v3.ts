@@ -12,10 +12,9 @@
  * 3. Omfangsvakten fanger Roger-saka: ti inkluderte arbeidsposter og et utkast
  *    med to poster skal sendes tilbake; seks poster skal slippe gjennom.
  */
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { omfangBlokk, omfangSjekk, type Omfang } from "@/lib/claude/omfang";
-import { loadBransjepakke, loadMotor, loadMotorV3 } from "@/lib/claude/motor";
+import { lesTekst, loadBransjepakke, loadMotor, loadMotorV3 } from "@/lib/claude/motor";
 import type { RawTilbudsdata } from "@/lib/claude/generate";
 
 let feil = 0;
@@ -28,11 +27,12 @@ function sjekk(navn: string, ok: boolean, detalj?: string) {
 
 const v2Filer = ["CLAUDE.md", "velg-tilbudstype.md", "lag-tilbudsdata.md"];
 const v2Forventa = (
-  await Promise.all(v2Filer.map((f) => readFile(path.join(process.cwd(), "agent", "v2", f), "utf8")))
+  await Promise.all(v2Filer.map((f) => lesTekst(path.join(process.cwd(), "agent", "v2", f))))
 ).join("\n\n---\n\n");
 const v2 = await loadMotor("v2");
 sjekk("v2 lastes som CLAUDE + velg-tilbudstype + lag-tilbudsdata, byte for byte", v2 === v2Forventa);
 sjekk("v2 er v2 — ikke v3-motoren", /# Devello Tilbudsagent — MOTOR\n/.test(v2) && !/MOTOR v3|Steg 1: Omfang/.test(v2));
+sjekk("motoren leses som LF også når git sjekket den ut som CRLF (Windows)", !v2.includes("\r"));
 
 // 2. Bransjepakken ---------------------------------------------------------
 

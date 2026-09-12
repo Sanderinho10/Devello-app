@@ -124,12 +124,21 @@ function parseLeadfil(text: string) {
   };
 }
 
+/**
+ * Sakene og leadfilene leses som LF uansett hva git sjekket dem ut som. Git
+ * for Windows gir CRLF som standard, og da treffer verken `---\n`-blokka eller
+ * `nøkkel: verdi`-linjene — fasiten blir tom og suiten måler ingenting.
+ */
+async function lesTekst(filsti: string): Promise<string> {
+  return (await readFile(filsti, "utf8")).replace(/\r\n/g, "\n");
+}
+
 async function lesSaker(filter: string[]): Promise<Sak[]> {
   const filer = (await readdir(SAKER)).filter((f) => f.endsWith(".md")).sort();
   const saker: Sak[] = [];
 
   for (const fil of filer) {
-    const rå = await readFile(path.join(SAKER, fil), "utf8");
+    const rå = await lesTekst(path.join(SAKER, fil));
     const treff = rå.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
     if (!treff) throw new Error(`${fil} mangler fasit-blokk øverst`);
 
@@ -149,7 +158,7 @@ async function lesSaker(filter: string[]): Promise<Sak[]> {
     if (filter.length && !filter.includes(fasit.id)) continue;
 
     const lead = fasit.kilde
-      ? parseLeadfil(await readFile(path.join(ROT, fasit.kilde), "utf8"))
+      ? parseLeadfil(await lesTekst(path.join(ROT, fasit.kilde)))
       : parseInlineLead(treff[2]);
 
     saker.push({ fasit, lead });

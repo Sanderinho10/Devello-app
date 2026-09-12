@@ -33,13 +33,23 @@ export {
 
 const cache = new Map<string, string>();
 
+/**
+ * Leser en fil som LF uansett hva git sjekket den ut som. Git for Windows
+ * konverterer til CRLF som standard, og da ville prompten på en utviklers
+ * maskin vært en annen enn i produksjon — og cache-nøkkelen hos Anthropic med
+ * den.
+ */
+export async function lesTekst(filsti: string): Promise<string> {
+  return (await readFile(filsti, "utf8")).replace(/\r\n/g, "\n");
+}
+
 async function lesFiler(versjon: MotorVersjon, filer: string[]): Promise<string> {
   const key = `${versjon}:${filer.join(",")}`;
   const hit = cache.get(key);
   if (hit) return hit;
 
   const parts = await Promise.all(
-    filer.map((name) => readFile(path.join(process.cwd(), "agent", versjon, name), "utf8")),
+    filer.map((name) => lesTekst(path.join(process.cwd(), "agent", versjon, name))),
   );
   const tekst = parts.join("\n\n---\n\n");
   cache.set(key, tekst);
@@ -84,7 +94,7 @@ export async function loadBransjepakke(fag: string): Promise<Bransjepakke> {
 
   let raw: string;
   try {
-    raw = await readFile(path.join(process.cwd(), "agent", "v3", "bransje", fag, "jobbtypar.json"), "utf8");
+    raw = await lesTekst(path.join(process.cwd(), "agent", "v3", "bransje", fag, "jobbtypar.json"));
   } catch {
     if (fag === "elektro") throw new Error("Bransjepakken for elektro mangler (agent/v3/bransje/elektro/jobbtypar.json)");
     return loadBransjepakke("elektro");
