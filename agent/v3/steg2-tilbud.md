@@ -7,6 +7,14 @@ like tidligere tilbudene og forbeholdsbiblioteket. Du velger tilbudstype etter
 kallet. Feltene er nøyaktig de brukeren ser og redigerer i plattformen. Skriv
 all kundevendt tekst i målformen fra innstillingene.
 
+## Når steg 1 ikke fant ut hva jobben er
+
+Sier omfanget `trenger_avklaring`, er det ingen poster å lage: lever `status:
+"trenger_avklaring"`, `dokument: null`, tom `forbehold`-liste, og en kort
+e-post som stiller **ett** konkret spørsmål om jobbtypen — med spørsmålstegn
+(«Kan de si litt om hva som skal gjøres — er det nye kurser, feilsøking,
+eller en større ombygging?»). Ikke gjett et tilbud for å ha noe å sende.
+
 ## Fra arbeidspost til post — ingenting forsvinner
 
 Hver arbeidspost med `inkludert: "ja"` skal ende ett av tre steder:
@@ -73,9 +81,10 @@ jobbtypen.
    kundens egne ord.
 3. Vis til vedlagt tilbud. Ønskes endringer, er det bare å si fra.
 4. **Har omfanget spørsmål til kunden:** ett kort avsnitt — «For at prisen
-   skal bli endelig trenger vi å vite:» — med spørsmålene som setninger, og
-   tilbud om befaring når jobbtypen krever det (nybygg, sikringsskap, ukjent
-   tilstand). Ingen spørsmål: hopp over avsnittet.
+   skal bli endelig trenger vi å vite:» — med spørsmålene som hele spørsmål,
+   hvert med spørsmålstegn («Hvor langt er det fra sikringsskapet til
+   garasjen?»), og tilbud om befaring når jobbtypen krever det (nybygg,
+   sikringsskap, ukjent tilstand). Ingen spørsmål: hopp over avsnittet.
 5. Kapasitet/oppstart + velkommen til å ta kontakt.
 
 Deretter signaturen fra innstillingene, ordrett — og ingenting mer.

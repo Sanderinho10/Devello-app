@@ -110,6 +110,10 @@ sjekk("tid og materiell har ingen poster å telle", omfangSjekk(raw(0, 0, "tid_o
 const blokk = omfangBlokk(omfang, nybygg);
 sjekk("omfangsblokken teller inkluderte og lister postene", /10 arbeidsposter er inkludert/.test(blokk) && /\[nei\] bad/.test(blokk));
 sjekk("omfangsblokken tar med spørsmålene", /Er inntaket bestilt\?/.test(blokk));
+const avklaring = omfangBlokk({ ...omfang, status: "trenger_avklaring", arbeidsposter: [], sporsmal_til_kunden: [] }, null);
+sjekk("trenger_avklaring fra steg 1 når fram til steg 2, med krav om spørsmålstegn", /STATUS: trenger_avklaring/.test(avklaring) && /spørsmålstegn/.test(avklaring) && /formuler ett selv/.test(avklaring));
+sjekk("v3 steg 1 sier at alt kunden ber om pris på er «ja»", /uttrykkelig ber om pris på er `ja`/.test(omfangPrompt));
+sjekk("v3 steg 2 krever spørsmålstegn i spørsmålene", /med spørsmålstegn/.test(tilbudPrompt));
 
 // 4. E-postvaktene ---------------------------------------------------------
 

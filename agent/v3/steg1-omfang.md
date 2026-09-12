@@ -28,6 +28,13 @@ sjekklisten blir en arbeidspost med `inkludert`:
 Legg så til det leadet nevner som sjekklisten ikke har. En sjekkliste er et
 gulv, ikke et tak.
 
+**Alt kunden uttrykkelig ber om pris på er `ja`** — også når du tror firmaet
+ikke leverer det (solceller, varmepumpe, alarm), og også når prislistene ikke
+har det. Om firmaet gjør slikt arbeid er ikke din avgjørelse: i steg 2 havner
+posten i `ikke_funnet`, brukeren ser den i plattformen og sier ja eller nei.
+Setter du `nei` eller `ikke_relevant` på noe kunden ba om, forsvinner det i
+stillhet — det er nettopp den dyre feilen.
+
 **4. Sett mengde.** Fra leadet når det står der (`kilde: "lead"`). Ellers anslå
 en rimelig standard (`kilde: "antakelse"`) og skriv antakelsen i `antakelser`
 så kunden kan motsi den: «Fremlegg fra sikringsskap er antatt inntil 10

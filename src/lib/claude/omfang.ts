@@ -40,6 +40,23 @@ export function omfangBlokk(omfang: Omfang, jobbtype: Jobbtype | null): string {
     return `- [${p.inkludert}] ${p.kva}${mengde} · ${kilde}${sitat}${begr}`;
   });
   const ja = omfang.arbeidsposter.filter((p) => p.inkludert === "ja").length;
+
+  // Steg 1 sin konklusjon må fram til steg 2 — ellers står steg 2 med en tom
+  // liste og gjetter selv om det skal lage et tilbud eller spørre.
+  if (omfang.status === "trenger_avklaring") {
+    return [
+      `# Omfang fra steg 1 — STATUS: trenger_avklaring, kundetype ${omfang.kundetype}`,
+      "",
+      "Steg 1 fant ikke ut hva jobben er. Lever status «trenger_avklaring», dokument null, tom forbehold-liste, og en kort e-post med ett konkret spørsmål om jobbtypen — med spørsmålstegn. Ikke lag poster.",
+      "",
+      ...linjer,
+      "",
+      omfang.sporsmal_til_kunden.length
+        ? `Spørsmål steg 1 foreslo: ${omfang.sporsmal_til_kunden.join(" · ")}`
+        : "Steg 1 foreslo ikke noe spørsmål — formuler ett selv ut fra leadet.",
+    ].join("\n");
+  }
+
   return [
     `# Omfang fra steg 1 — jobbtype «${jobbtype?.navn ?? omfang.jobbtype}», kundetype ${omfang.kundetype}`,
     "",

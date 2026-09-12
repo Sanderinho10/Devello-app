@@ -60,7 +60,8 @@ mennesket avgjøre.
   Kort, én merknad per element. Tom liste når alt er kurant.
 - **Bare ukjent omfang stopper et tilbud** — at vi ikke vet hva jobben er
   («trenger elektriker til huset»). Da leverer du `status:
-  "trenger_avklaring"` og ett kort spørsmål om jobbtypen. Manglende adresse,
+  "trenger_avklaring"` og ett kort spørsmål om jobbtypen, med spørsmålstegn,
+  i e-posten. Manglende adresse,
   ukjent kundetype eller ukjent tilstand på anlegget stopper aldri et tilbud —
   det dekkes av antakelser, forbehold og spørsmålene i e-posten.
 - **Tilleggsinstruksen i innstillingene** leses hver gang og følges så lenge

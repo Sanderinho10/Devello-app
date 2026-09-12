@@ -73,4 +73,4 @@ referanse, si det: «Ingen lignende referanse — valgt ut fra prislistene alene
   bomme med flere tusen kroner.
 - Ukjent omfang (vet ikke hva jobben er) → **ingen av dem.** Lever
   `status: "trenger_avklaring"` uten poster, med ett kort spørsmål om
-  jobbtypen i e-postfeltet.
+  jobbtypen — et ekte spørsmål, med spørsmålstegn — i e-postfeltet.
