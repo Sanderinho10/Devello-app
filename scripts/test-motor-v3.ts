@@ -3,7 +3,7 @@
  *
  *   npm run test:motor
  *
- * Tre ting:
+ * Fire ting:
  *
  * 1. Tilbakerullingen holder: agent/v2 lastes byte for byte slik den lå på
  *    rot før v3, i samme rekkefølge.
@@ -11,11 +11,13 @@
  *    bånd, og «annet» og «sammensatt» finnes som utvei.
  * 3. Omfangsvakten fanger Roger-saka: ti inkluderte arbeidsposter og et utkast
  *    med to poster skal sendes tilbake; seks poster skal slippe gjennom.
+ * 4. E-postvaktene: firmaets egen nettadresse i signaturen er lov, andre
+ *    nettadresser er ikke, og signaturen godkjennes med normalisert whitespace.
  */
 import path from "node:path";
 import { omfangBlokk, omfangSjekk, type Omfang } from "@/lib/claude/omfang";
 import { lesTekst, loadBransjepakke, loadMotor, loadMotorV3 } from "@/lib/claude/motor";
-import type { RawTilbudsdata } from "@/lib/claude/generate";
+import { harNettadresse, sluttarMedSignatur, type RawTilbudsdata } from "@/lib/claude/generate";
 
 let feil = 0;
 function sjekk(navn: string, ok: boolean, detalj?: string) {
@@ -108,6 +110,18 @@ sjekk("tid og materiell har ingen poster å telle", omfangSjekk(raw(0, 0, "tid_o
 const blokk = omfangBlokk(omfang, nybygg);
 sjekk("omfangsblokken teller inkluderte og lister postene", /10 arbeidsposter er inkludert/.test(blokk) && /\[nei\] bad/.test(blokk));
 sjekk("omfangsblokken tar med spørsmålene", /Er inntaket bestilt\?/.test(blokk));
+
+// 4. E-postvaktene ---------------------------------------------------------
+
+const signatur = "Med vennlig hilsen\nKari Nordmann\nDaglig leder\n\n \nStorgata 1\n5000 Bergen\nTlf.:      55 00 00 00  \nwww.eksempel-elektro.no\n";
+const epost = `Hei,\n\nTakk for henvendelsen.\n\nMed vennlig hilsen\nKari Nordmann\nDaglig leder\n\nStorgata 1\n5000 Bergen\nTlf.: 55 00 00 00\nwww.eksempel-elektro.no`;
+sjekk("nettadressen i firmaets signatur er lov", !harNettadresse(epost, signatur));
+sjekk("en annen nettadresse i teksten er ikke lov", harNettadresse(`Se https://tilbud.example/123\n\n${epost}`, signatur));
+sjekk("www uten signatur i innstillingene er ikke lov", harNettadresse(epost, null));
+sjekk("signaturen godkjennes selv om modellen normaliserte mellomrom og tomme rader", sluttarMedSignatur(epost, signatur));
+sjekk("e-post som mangler siste signaturlinje godkjennes ikke", !sluttarMedSignatur(epost.replace("\nwww.eksempel-elektro.no", ""), signatur));
+sjekk("tekst etter signaturen godkjennes ikke", !sluttarMedSignatur(`${epost}\n\nPS: ring meg!`, signatur));
+sjekk("uten signatur i innstillingene er alt godkjent", sluttarMedSignatur(epost, ""));
 
 console.log(feil === 0 ? "\nAlt grønt." : `\n${feil} sjekk(er) feilet.`);
 process.exit(feil === 0 ? 0 : 1);

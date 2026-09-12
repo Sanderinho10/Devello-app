@@ -78,11 +78,11 @@ jobbtypen.
    tilstand). Ingen spørsmål: hopp over avsnittet.
 5. Kapasitet/oppstart + velkommen til å ta kontakt.
 
-Deretter signaturen fra innstillingene — og ingenting mer.
+Deretter signaturen fra innstillingene, ordrett — og ingenting mer.
 
 Absolutte regler for e-postteksten: **ingen priser eller summer** (unntak:
-tid og materiell), **ingen nettadresser**, **ingen forutsetninger gjentatt fra
-PDF-en**.
+tid og materiell), **ingen nettadresser** (firmaets egen i signaturen er
+unntaket — den skal stå), **ingen forutsetninger gjentatt fra PDF-en**.
 
 **merknader** — alt brukeren i plattformen bør få vite: poster som manglet i
 prisfilen (én per post), arbeidsposter du slo sammen i en pakke, ukjent
@@ -99,8 +99,8 @@ per element.
 - [ ] Antakelser: maks 3, konkrete, bare om denne jobben
 - [ ] Forbehold: bare id-er fra biblioteket
 - [ ] Riktig målform i all kundevendt tekst
-- [ ] E-posttekst uten priser (unntatt tid og materiell), uten URL-er, med
-      spørsmålene fra omfanget, uten dobbel signatur
+- [ ] E-posttekst uten priser (unntatt tid og materiell), uten URL-er utenom
+      signaturen, med spørsmålene fra omfanget, uten dobbel signatur
 - [ ] Tilbudstype-begrunnelsen peker på en referanse, eller sier at ingen finnes
 
 Feiler et punkt: rett det og valider på nytt før du leverer JSON-en. Får du

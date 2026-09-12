@@ -417,6 +417,35 @@ const PLACEHOLDER_PATTERNS: { pattern: RegExp; label: string }[] = [
   { pattern: /\b[XY]\s*(timer|timar|tima|stk|m²)\b/, label: "«X timer»-plassholder" },
 ];
 
+const NETTADRESSE = /(?:https?:\/\/|www\.)[^\s<>()«»"']+/gi;
+
+function nettadresser(tekst: string): string[] {
+  return (tekst.match(NETTADRESSE) ?? []).map((u) => u.replace(/[.,;:!?]+$/, "").toLowerCase());
+}
+
+/**
+ * Finnes det en nettadresse i teksten som IKKE står i firmaets signatur?
+ * Signaturen kommer fra innstillingene og skal gjengis ordrett — også når den
+ * slutter på firmaets egen nettadresse. Brukes av valideringen her og av
+ * evalueringssuiten, så de dømmer likt.
+ */
+export function harNettadresse(tekst: string, signatur?: string | null): boolean {
+  const iSignaturen = new Set(nettadresser(signatur ?? ""));
+  return nettadresser(tekst).some((u) => !iSignaturen.has(u));
+}
+
+/**
+ * Slutter e-posten med signaturen? Sammenlignet med all whitespace slått
+ * sammen: signaturer som er limt inn fra Outlook har gjerne rader med bare
+ * mellomrom og kolonner justert med mange mellomrom, og modellen normaliserer
+ * dem. Det er ikke en feil — ordene og rekkefølgen er det som skal stemme.
+ */
+export function sluttarMedSignatur(epost: string, signatur?: string | null): boolean {
+  const norm = (s: string) => s.replace(/\s+/g, " ").trim();
+  const sig = norm(signatur ?? "");
+  return sig.length === 0 || norm(epost).endsWith(sig);
+}
+
 export function validate(raw: RawTilbudsdata, input: GenerateInput): string[] {
   const problems: string[] = [];
 
@@ -467,9 +496,13 @@ export function validate(raw: RawTilbudsdata, input: GenerateInput): string[] {
     }
   }
 
-  // Ingen URL-er i e-postteksten (regel i motoren; koden håndhever).
-  if (/https?:\/\/|www\.[a-z]/i.test(raw.epost.tekst)) {
-    problems.push("epost.tekst inneholder en nettadresse");
+  // Ingen URL-er i e-postteksten (regel i motoren; koden håndhever) — unntatt
+  // dem som står i firmaets egen signatur. Star Elektros signatur slutter på
+  // www.star-elektro.no; uten unntaket feilet hvert eneste utkast her, agenten
+  // fikk det tilbake og lærte å stryke nettadressen fra kundens signatur. Feil
+  // resultat, og et ekstra modellkall per tilbud.
+  if (harNettadresse(raw.epost.tekst, input.company.tone_settings?.signatur)) {
+    problems.push("epost.tekst inneholder en nettadresse utenom signaturen");
   }
 
   if (raw.status === "utkast") {
