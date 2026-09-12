@@ -503,6 +503,17 @@ console.log(
 
 const resultat: Record<string, { navn: string; feil: string[] }> = {};
 
+// Kvar motor og kvar modus (full kontekst / kaldstart) har si eiga baseline —
+// det er samanlikninga mellom dei som er poenget. v2 utan suffiks, så gamle
+// baseline-filer framleis gjeld.
+const suffiks = `${motor === "v2" ? "" : `-${motor}`}${kaldstart ? "-kaldstart" : ""}`;
+
+// Sjølve utkasta blir skrivne til disk, eitt per sak, så ei raud linje kan
+// lesast i samanheng: kva agenten faktisk svarte, ikkje berre kva sjekken sa.
+// Ikkje i git — dei inneheld firmaets prisar og signatur.
+const UTKAST = path.join(RESULTAT, `utkast${suffiks}`);
+await mkdir(UTKAST, { recursive: true });
+
 for (const sak of saker) {
   const start = Date.now();
   let feil: string[] = [];
@@ -530,6 +541,7 @@ for (const sak of saker) {
       fag,
     });
 
+    await writeFile(path.join(UTKAST, `${sak.fasit.id}.json`), JSON.stringify(generert, null, 2) + "\n");
     feil = [...universelleSjekkar(generert, kontekst), ...fasitSjekkar(generert, sak.fasit, kontekst)];
   } catch (e) {
     // En generering som kaster er en feil på lik linje med et galt svar —
@@ -552,11 +564,6 @@ for (const sak of saker) {
 const bestått = Object.values(resultat).filter((r) => r.feil.length === 0).length;
 console.log(`\n${bestått} av ${saker.length} saker bestått`);
 
-await mkdir(RESULTAT, { recursive: true });
-// Kvar motor og kvar modus (full kontekst / kaldstart) har si eiga baseline —
-// det er samanlikninga mellom dei som er poenget. v2 utan suffiks, så gamle
-// baseline-filer framleis gjeld.
-const suffiks = `${motor === "v2" ? "" : `-${motor}`}${kaldstart ? "-kaldstart" : ""}`;
 const baselinePath = path.join(RESULTAT, `baseline${suffiks}.json`);
 const sistePath = path.join(RESULTAT, `siste${suffiks}.json`);
 
@@ -588,6 +595,7 @@ if (skrivBaseline) {
   await writeFile(baselinePath, JSON.stringify(resultat, null, 2) + "\n");
   console.log(`\nBaseline skriven (${bestått}/${saker.length}).`);
 }
+console.log(`Utkasta ligg i evaluering/resultat/utkast${suffiks}/<id>.json`);
 
 // Filter-kjøringer skal ikke kunne «bestå» hele suiten. De er for feilsøking.
 if (filter.length) process.exit(0);
