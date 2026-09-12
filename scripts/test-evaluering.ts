@@ -215,6 +215,8 @@ interface Kontekst {
   signatur: string | null;
   /** Har firmaet både materiell- og timeprisliste? Utan dei finst ikkje fastpris. */
   harFastprisLister: boolean;
+  /** Har firmaet referansar av typen tid og materiell? Utan dei gir motoren ikkje timespenn. */
+  harTmReferansar: boolean;
 }
 
 /** Gjelder hver eneste sak, uansett fasit. Dette er gulvet. */
@@ -352,7 +354,11 @@ function fasitSjekkar(g: GeneratedDraft, f: Fasit, k: Kontekst): string[] {
     if (har !== f.kontakt_sett) feil.push(`kontaktperson ${har ? "sett" : "ikkje sett"}, fasit motsett`);
   }
 
-  if (f.estimat_timer !== undefined) {
+  // Timespennet skal berre setjast «når referansane gir dekning» (skjemaet i
+  // generate.ts). Har firmaet ingen tid-og-materiell-referansar, er null det
+  // rette svaret — det er normtider (steg 1 i planen) som skal fjerne dette
+  // atterhaldet, ikkje ei slakkare prøve.
+  if (f.estimat_timer !== undefined && !(f.estimat_timer && !k.harTmReferansar)) {
     const har = Boolean(g.estimat_timer);
     if (har !== f.estimat_timer) feil.push(`estimat_timer ${har ? "sett" : "mangler"}, fasit motsett`);
   }
@@ -408,7 +414,14 @@ async function sjekkGrunnlag(admin: SupabaseClient, companyId: string, priceItem
     console.error("\nGrunnlaget manglar:\n" + feil.map((f) => `  ✗ ${f}`).join("\n") + "\n");
     process.exit(1);
   }
-  return count ?? 0;
+
+  const { count: tm } = await admin
+    .from("quote_references")
+    .select("id", { count: "exact", head: true })
+    .eq("company_id", companyId)
+    .eq("quote_type", "tid_og_materiell");
+
+  return { referansar: count ?? 0, tmReferansar: tm ?? 0 };
 }
 
 async function velgSelskap(admin: SupabaseClient): Promise<string> {
@@ -459,7 +472,7 @@ if (!company) {
 }
 
 const priceItems = await activePriceItems(admin, STAR);
-const referansar = await sjekkGrunnlag(admin, STAR, priceItems);
+const { referansar, tmReferansar } = await sjekkGrunnlag(admin, STAR, priceItems);
 const forbehold = await forbeholdsBibliotek(admin, STAR);
 
 const tone = (company!.tone_settings ?? {}) as Record<string, unknown>;
@@ -470,6 +483,7 @@ const kontekst: Kontekst = {
   signatur: typeof tone.signatur === "string" ? tone.signatur : null,
   harFastprisLister:
     priceItems.some((i) => i.kind === "materiell") && priceItems.some((i) => i.kind === "time"),
+  harTmReferansar: tmReferansar > 0,
 };
 
 const saker = await lesSaker(filter);
@@ -482,6 +496,7 @@ console.log(
   `\n${company!.name} · motor ${motor} · ${priceItems.length} prisrader · ${referansar} referansar · ` +
     `${forbehold.length} forbehold · ${saker.length} saker` +
     (kontekst.harFastprisLister ? "" : " · berre punktprisliste (fastpris-saker ventar punktpris)") +
+    (kontekst.harTmReferansar ? "" : " · ingen tid-og-materiell-referansar (timespenn blir ikkje kravd)") +
     (kaldstart ? " · KALDSTART (ingen referansar i konteksten)" : "") +
     "\n",
 );
