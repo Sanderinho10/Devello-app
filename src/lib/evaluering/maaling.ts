@@ -38,6 +38,8 @@ export interface Maaling {
   omfangsavvikPct: number | null;
   forutsetningerLagtTil: number;
   forutsetningerFjernet: number;
+  /** Motoren som laget utkastet (drafts.motor_versjon). Settes av kalleren. */
+  motor?: string;
 }
 
 export function maal(

@@ -76,7 +76,7 @@ let utenEndeligLogg = 0;
 for (const lead of leads ?? []) {
   const { data: draft } = await admin
     .from("drafts")
-    .select("id, quote_type, email_subject, email_body, document, confirmed_at, sent_at")
+    .select("id, quote_type, email_subject, email_body, document, confirmed_at, sent_at, motor_versjon")
     .eq("lead_id", lead.id)
     .maybeSingle();
   if (!draft?.confirmed_at) continue;
@@ -105,6 +105,7 @@ for (const lead of leads ?? []) {
   };
 
   const m = maal(lead.id, lead.subject ?? "(uten emne)", draft.sent_at, Boolean(endeligLogget), ai, endelig);
+  m.motor = (draft.motor_versjon as string | null) ?? "v2";
   maalinger.push(m);
 
   if (skriv) {
@@ -123,12 +124,13 @@ if (maalinger.length === 0) {
 
 console.log(`\n${maalinger.length} bekreftede tilbud\n`);
 console.log(
-  kolonner(["Tilbud", "Poster ai→sendt", "Dekning", "Manglet", "Fjernet", "Pris ov.", "Avvik", "Omfang"]),
+  kolonner(["Tilbud", "Motor", "Poster ai→sendt", "Dekning", "Manglet", "Fjernet", "Pris ov.", "Avvik", "Omfang"]),
 );
 for (const m of maalinger) {
   console.log(
     kolonner([
       m.emne.slice(0, 44),
+      m.motor ?? "v2",
       `${m.aiPoster}→${m.endeligPoster}`,
       pct(m.dekning),
       String(m.manglet.length),
@@ -265,7 +267,7 @@ async function velgSelskap(admin: SupabaseClient): Promise<string> {
 }
 
 function kolonner(felt: string[]): string {
-  const bredder = [46, 16, 9, 8, 8, 9, 8, 8];
+  const bredder = [46, 7, 16, 9, 8, 8, 9, 8, 8];
   return felt.map((f, i) => (i === 0 ? f.padEnd(bredder[i]) : f.padStart(bredder[i]))).join("");
 }
 
