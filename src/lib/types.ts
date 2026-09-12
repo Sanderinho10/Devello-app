@@ -61,6 +61,13 @@ export interface Company {
   trial_ends_at: string | null;
   /** Partnerkoden som vervet kunden, om noen gjorde det. */
   partner_code: string | null;
+  /**
+   * Motoren selskapet kjører tilbudsagenten på. null = standarden
+   * (MOTOR_DEFAULT, ellers v2). Se lib/claude/motor.ts.
+   */
+  motor_versjon: "v2" | "v3" | null;
+  /** Faget — velger bransjepakken i v3. null = elektro. */
+  fag: string | null;
 }
 
 export interface Member {
@@ -274,6 +281,30 @@ export interface Draft {
   confirmed_at: string | null;
   /** Satt når tilbudet er sendt. Låser utkastet for redigering. */
   sent_at: string | null;
+  /** Motoren som laget utkastet. null for utkast fra før v3. */
+  motor_versjon: "v2" | "v3" | null;
+  /**
+   * Bare v3: omfanget fra steg 1 — jobbtype, kundetype, arbeidsposter,
+   * antakelser og spørsmål til kunden. Formen er lib/claude/generate-v3 Omfang.
+   */
+  omfang: DraftOmfang | null;
+}
+
+export interface DraftOmfang {
+  jobbtype: string;
+  kundetype: "forbruker" | "bedrift" | "ukjent";
+  status: DraftAgentStatus;
+  arbeidsposter: {
+    kva: string;
+    sitat: string;
+    mengde: number | null;
+    enhet: string;
+    kilde: "lead" | "antakelse" | "sjekkliste";
+    inkludert: "ja" | "nei" | "ikke_relevant";
+    begrunnelse: string | null;
+  }[];
+  antakelser: string[];
+  sporsmal_til_kunden: string[];
 }
 
 export interface QuoteTotals {

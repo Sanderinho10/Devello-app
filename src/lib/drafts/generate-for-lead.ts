@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateDraft } from "@/lib/claude/generate";
+import { fagFor, motorFor } from "@/lib/claude/motor-versjon";
 import { activePriceItems } from "@/lib/pricelist/active";
 import { logDraftVersion } from "@/lib/drafts/versions";
 import { assessConfidence, countUnresolvedLines } from "@/lib/drafts/confidence";
@@ -67,7 +68,7 @@ export async function generateForLead(
     await Promise.all([
     admin
       .from("companies")
-      .select("name, tone_settings")
+      .select("name, tone_settings, motor_versjon, fag")
       .eq("id", opts.companyId)
       .single(),
     // Bare filer med uthentet tekst. En fil uten tekst er usynlig for
@@ -97,8 +98,10 @@ export async function generateForLead(
     leadId: lead.id,
   });
 
-  // Ett kall: agenten velger type og leverer utkastet i samme tur. Har
-  // brukeren valgt type fra bryteren, sendes den inn som lås.
+  // Motoren er selskapets valg (eller standarden). v2: ett kall, agenten
+  // velger type og leverer utkastet i samme tur. v3: omfang først, så tilbud.
+  // Har brukeren valgt type fra bryteren, sendes den inn som lås i begge.
+  const motor = motorFor(company);
   const generated = await generateDraft({
     companyId: opts.companyId,
     leadId: lead.id,
@@ -116,6 +119,8 @@ export async function generateForLead(
     priceItems,
     similar,
     forbehold,
+    motor,
+    fag: fagFor(company),
   });
 
   const quoteType = generated.quote_type;
@@ -144,6 +149,10 @@ export async function generateForLead(
         email_subject: generated.email_subject,
         email_body: generated.email_body,
         document: generated.document,
+        // Hvilken motor som laget dette, så gullsettet kan måle v2 og v3 hver
+        // for seg — og omfanget fra steg 1 når det finnes.
+        motor_versjon: generated.motor_versjon,
+        omfang: generated.omfang,
         // Ny generering ugyldiggjør en tidligere PDF.
         pdf_path: null,
       },
