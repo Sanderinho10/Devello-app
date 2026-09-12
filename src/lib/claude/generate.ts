@@ -1,6 +1,7 @@
 import { structured } from "./client";
 import type { UsageContext } from "@/lib/billing/usage";
-import { loadMotor } from "./motor";
+import { loadMotor, type MotorVersjon } from "./motor";
+import { generateDraftV3, type Omfang } from "./generate-v3";
 import { forbeholdsBlokk, type Forbehold } from "@/lib/referanser/forbehold";
 import { referencesBlock, type QuoteReference } from "@/lib/referanser";
 import {
@@ -14,10 +15,14 @@ import {
 } from "@/lib/types";
 
 /**
- * Ett kall per generering: agenten velger tilbudstype og leverer utkastet i
- * samme tur, slik motoren (agent/CLAUDE.md + instruks) er spesifisert. Har
- * brukeren valgt type selv («Generer på nytt» med bryteren), sendes den inn
- * som lås — da genererer agenten for den typen uten å velge.
+ * v2: ett kall per generering — agenten velger tilbudstype og leverer utkastet
+ * i samme tur, slik motoren (agent/v2) er spesifisert. Har brukeren valgt type
+ * selv («Generer på nytt» med bryteren), sendes den inn som lås — da genererer
+ * agenten for den typen uten å velge.
+ *
+ * v3 (generate-v3.ts) gjenbruker skjemaet, prompt-prefikset, valideringen og
+ * prisoppslaget herfra, men legger et omfangssteg foran. generateDraft() velger
+ * versjon ut fra input.motor; alt under er v2-stien, uendret.
  *
  * Prinsippet fra før står: modellen peker på price_item_id og velger mengde.
  * Prisen slås opp server-side, summene regnes i computeTotals(). En pris fra
@@ -42,9 +47,13 @@ export interface GeneratedDraft {
   merknader: string[];
   /** Linjer som pekte på en ukjent/feil prisrad og ble droppet av koden. */
   unresolved_lines: number;
+  /** Hvilken motor som laget utkastet. */
+  motor_versjon: MotorVersjon;
+  /** Bare v3: omfanget fra steg 1 (arbeidsposter, spørsmål, jobbtype). */
+  omfang: Omfang | null;
 }
 
-const LINE_SCHEMA = {
+export const LINE_SCHEMA = {
   type: "object",
   properties: {
     price_item_id: {
@@ -72,7 +81,7 @@ const LINE_SCHEMA = {
  * ingen pris- eller sumfelt. Modellen peker på prisrader; koden er dommeren
  * for alt som er penger.
  */
-const TILBUDSDATA_SCHEMA = {
+export const TILBUDSDATA_SCHEMA = {
   type: "object",
   properties: {
     tilbudstype: {
@@ -238,10 +247,20 @@ export interface GenerateInput {
   similar?: QuoteReference[];
   /** Forbeholdene firmaet har brukt før. Agenten velger fra disse, aldri fritt. */
   forbehold?: Forbehold[];
+  /** Motoren som skal kjøre. Utelatt = v2, slik produksjon kjørte før v3. */
+  motor?: MotorVersjon;
+  /** Faget, for bransjepakken i v3. Utelatt = elektro. */
+  fag?: string;
 }
 
+/** Velger motor. v2 er stien under, uendret; v3 ligger i generate-v3.ts. */
 export async function generateDraft(input: GenerateInput): Promise<GeneratedDraft> {
-  const system = await loadMotor();
+  if (input.motor === "v3") return generateDraftV3(input);
+  return generateDraftV2(input);
+}
+
+export async function generateDraftV2(input: GenerateInput): Promise<GeneratedDraft> {
+  const system = await loadMotor("v2");
   const { prefiks, resten } = buildPrompt(input);
   const usage = {
     companyId: input.companyId,
@@ -276,10 +295,10 @@ export async function generateDraft(input: GenerateInput): Promise<GeneratedDraf
     }
   }
 
-  return resolve(raw, input);
+  return { ...resolve(raw, input), motor_versjon: "v2", omfang: null };
 }
 
-async function callModel(
+export async function callModel(
   system: string,
   prefiks: string,
   resten: string,
@@ -305,7 +324,7 @@ const KIND_TO_KILDE: Record<PriceItemKind, string> = {
   time: "timeprisliste",
 };
 
-interface PromptDeler {
+export interface PromptDeler {
   /**
    * Det som er likt fra tilbud til tilbud hos samme kunde: innstillingene og
    * prislistene. Blir mellomlagret hos Anthropic.
@@ -321,7 +340,7 @@ interface PromptDeler {
   resten: string;
 }
 
-function buildPrompt(input: GenerateInput): PromptDeler {
+export function buildPrompt(input: GenerateInput): PromptDeler {
   const stabile: string[] = [];
   const blocks: string[] = [];
 
@@ -485,7 +504,11 @@ export function validate(raw: RawTilbudsdata, input: GenerateInput): string[] {
 // Oppslag — prisene kommer herfra, aldri fra modellen
 // ---------------------------------------------------------------------------
 
-function resolve(raw: RawTilbudsdata, input: GenerateInput): GeneratedDraft {
+/** Prisoppslaget. Returnerer utkastet uten motor-feltene — kalleren setter dem. */
+export function resolve(
+  raw: RawTilbudsdata,
+  input: GenerateInput,
+): Omit<GeneratedDraft, "motor_versjon" | "omfang"> {
   const merknader = [...raw.merknader];
   const ikkeFunnet = [...raw.ikke_funnet];
   let unresolved = 0;

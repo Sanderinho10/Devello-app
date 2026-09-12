@@ -14,6 +14,8 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 /** Hvilket av kallene i tilbudsløpet dette var. */
 export type ModellKall =
   | "generering"
+  /** v3, steg 1: omfanget — arbeidsposter og spørsmål, ingen priser. */
+  | "omfang"
   | "tagging_lead"
   | "tagging_tilbud"
   | "tagging_referansefil"

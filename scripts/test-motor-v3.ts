@@ -1,0 +1,113 @@
+/**
+ * Prøve på motor v3 — det som kan prøves uten modell og database.
+ *
+ *   npm run test:motor
+ *
+ * Tre ting:
+ *
+ * 1. Tilbakerullingen holder: agent/v2 lastes byte for byte slik den lå på
+ *    rot før v3, i samme rekkefølge.
+ * 2. Bransjepakken for elektro er hel: unike id-er, sjekklister, fornuftige
+ *    bånd, og «annet» og «sammensatt» finnes som utvei.
+ * 3. Omfangsvakten fanger Roger-saka: ti inkluderte arbeidsposter og et utkast
+ *    med to poster skal sendes tilbake; seks poster skal slippe gjennom.
+ */
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { omfangBlokk, omfangSjekk, type Omfang } from "@/lib/claude/omfang";
+import { loadBransjepakke, loadMotor, loadMotorV3 } from "@/lib/claude/motor";
+import type { RawTilbudsdata } from "@/lib/claude/generate";
+
+let feil = 0;
+function sjekk(navn: string, ok: boolean, detalj?: string) {
+  console.log(`${ok ? "✓" : "✗"} ${navn}${!ok && detalj ? ` — ${detalj}` : ""}`);
+  if (!ok) feil += 1;
+}
+
+// 1. v2 er frosset ---------------------------------------------------------
+
+const v2Filer = ["CLAUDE.md", "velg-tilbudstype.md", "lag-tilbudsdata.md"];
+const v2Forventa = (
+  await Promise.all(v2Filer.map((f) => readFile(path.join(process.cwd(), "agent", "v2", f), "utf8")))
+).join("\n\n---\n\n");
+const v2 = await loadMotor("v2");
+sjekk("v2 lastes som CLAUDE + velg-tilbudstype + lag-tilbudsdata, byte for byte", v2 === v2Forventa);
+sjekk("v2 er v2 — ikke v3-motoren", /# Devello Tilbudsagent — MOTOR\n/.test(v2) && !/MOTOR v3|Steg 1: Omfang/.test(v2));
+
+// 2. Bransjepakken ---------------------------------------------------------
+
+const pakke = await loadBransjepakke("elektro");
+const ider = pakke.jobbtyper.map((j) => j.id);
+sjekk("elektro: minst 12 jobbtyper", pakke.jobbtyper.length >= 12, `${pakke.jobbtyper.length}`);
+sjekk("elektro: unike id-er", new Set(ider).size === ider.length);
+sjekk("elektro: «annet» og «sammensatt» finnes", ider.includes("annet") && ider.includes("sammensatt"));
+sjekk(
+  "elektro: hver jobbtype har sjekkliste med minst 2 punkter",
+  pakke.jobbtyper.every((j) => j.sjekkliste.length >= 2),
+);
+sjekk(
+  "elektro: bånd er [lav, høy] med lav < høy, eller null",
+  pakke.jobbtyper.every((j) => j.band_eks_mva === null || (j.band_eks_mva.length === 2 && j.band_eks_mva[0] < j.band_eks_mva[1])),
+);
+sjekk(
+  "elektro: min_poster er et heltall ≥ 0",
+  pakke.jobbtyper.every((j) => Number.isInteger(j.min_poster) && j.min_poster >= 0),
+);
+sjekk("ukjent fag faller tilbake på elektro", (await loadBransjepakke("tannlege")).fag === "elektro");
+
+const omfangPrompt = await loadMotorV3("omfang", "elektro");
+sjekk("v3 omfang-prompt har CLAUDE, steg 1, eksempler og sjekklistene",
+  /MOTOR v3/.test(omfangPrompt) && /Steg 1: Omfang/.test(omfangPrompt) && /<example>/.test(omfangPrompt) && /## elbillader/.test(omfangPrompt));
+const tilbudPrompt = await loadMotorV3("tilbud", "elektro");
+sjekk("v3 tilbud-prompt har CLAUDE, velg-tilbudstype, steg 2 og eksempel",
+  /MOTOR v3/.test(tilbudPrompt) && /Velg tilbudstype/.test(tilbudPrompt) && /Steg 2: Fra omfang til tilbud/.test(tilbudPrompt) && /<tilbudsdata>/.test(tilbudPrompt));
+sjekk("v3 tilbud-prompt har ikke sjekklistene (de hører til steg 1)", !/## elbillader/.test(tilbudPrompt));
+
+// 3. Omfangsvakten ---------------------------------------------------------
+
+const nybygg = pakke.jobbtyper.find((j) => j.id === "nybygg_tilbygg_komplett")!;
+const omfang: Omfang = {
+  jobbtype: "nybygg_tilbygg_komplett",
+  kundetype: "forbruker",
+  status: "utkast",
+  arbeidsposter: [
+    ...["stikk", "takpunkt", "kurs", "skap", "overspenningsvern", "utelys", "komfyr", "oppvask", "jording", "dokumentasjon"].map((kva) => ({
+      kva, sitat: "", mengde: 1, enhet: "stk", kilde: "lead" as const, inkludert: "ja" as const, begrunnelse: null,
+    })),
+    { kva: "bad", sitat: "", mengde: null, enhet: "stk", kilde: "sjekkliste", inkludert: "nei", begrunnelse: "ikke nevnt" },
+  ],
+  antakelser: ["Åpne vegger."],
+  sporsmal_til_kunden: ["Er inntaket bestilt?"],
+};
+
+function raw(poster: number, ikkeFunnet = 0, type: RawTilbudsdata["tilbudstype"] = "punktpris"): RawTilbudsdata {
+  return {
+    tilbudstype: type,
+    typebegrunnelse: "",
+    status: "utkast",
+    dokument: {
+      kunde: { navn: "K", kontakt: null, epost: null, telefon: null, adresse: null },
+      tittel: "T",
+      seksjoner: [{ tittel: "S", poster: Array.from({ length: poster }, (_, i) => ({ price_item_id: `id${i}`, description: `post ${i}`, quantity: 1 })) }],
+    },
+    antakelser: [],
+    forbehold: [],
+    estimat_timer: null,
+    epost: { emne: "E", tekst: "T" },
+    ikke_funnet: Array.from({ length: ikkeFunnet }, (_, i) => `mangler ${i}`),
+    merknader: [],
+  };
+}
+
+sjekk("Roger-saka: 2 poster for 10 inkluderte arbeidsposter sendes tilbake", omfangSjekk(raw(2), omfang, nybygg).length === 1);
+sjekk("6 poster for 10 inkluderte slipper gjennom (minst halvparten, og minst jobbtypens minimum)", omfangSjekk(raw(6), omfang, nybygg).length === 0);
+sjekk("3 poster + 3 i ikke_funnet teller som 6", omfangSjekk(raw(3, 3), omfang, nybygg).length === 0);
+sjekk("jobbtypens minimum gjelder selv med få arbeidsposter", omfangSjekk(raw(2), { ...omfang, arbeidsposter: omfang.arbeidsposter.slice(0, 2) }, nybygg).length === 1);
+sjekk("tid og materiell har ingen poster å telle", omfangSjekk(raw(0, 0, "tid_og_materiell"), omfang, nybygg).length === 0);
+
+const blokk = omfangBlokk(omfang, nybygg);
+sjekk("omfangsblokken teller inkluderte og lister postene", /10 arbeidsposter er inkludert/.test(blokk) && /\[nei\] bad/.test(blokk));
+sjekk("omfangsblokken tar med spørsmålene", /Er inntaket bestilt\?/.test(blokk));
+
+console.log(feil === 0 ? "\nAlt grønt." : `\n${feil} sjekk(er) feilet.`);
+process.exit(feil === 0 ? 0 : 1);

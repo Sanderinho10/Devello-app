@@ -1,5 +1,6 @@
 import { FirstFetchFrom } from "./FirstFetchFrom";
 import { SettingsForm } from "./SettingsForm";
+import { standardMotor } from "@/lib/claude/motor-versjon";
 import { currentSession, supabaseServer } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/types";
 
@@ -17,7 +18,7 @@ export default async function InnstillingerPage({
   const [{ data: company }, { data: brand }, { data: mailbox }] = await Promise.all([
     supabase
       .from("companies")
-      .select("tone_settings")
+      .select("tone_settings, motor_versjon")
       .eq("id", session!.companyId)
       .single(),
     supabase
@@ -107,8 +108,12 @@ export default async function InnstillingerPage({
         </div>
 
         <SettingsForm
-          company={{ tone_settings: company?.tone_settings ?? {} }}
+          company={{
+            tone_settings: company?.tone_settings ?? {},
+            motor_versjon: company?.motor_versjon ?? null,
+          }}
           brand={brand ?? null}
+          standardMotor={standardMotor()}
         />
       </div>
     </>
