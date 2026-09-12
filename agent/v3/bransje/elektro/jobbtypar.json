@@ -1,0 +1,288 @@
+{
+  "fag": "elektro",
+  "versjon": "2026-09-12",
+  "merknad": "Bransjekunnskap Devello eier — ikke kundedata. Sjekklistene er gulv, ikke tak: agenten vurderer hvert punkt (ja / nei / ikke relevant) og legger til det leadet nevner. Prisbåndene er eks. mva, satt fra offentlige prisguider (Boligsmart, Elektrikerpris, EL Alliansen, byggebolig.no) og skal kalibreres mot gullsettet. Et bånd er en rimelighetsvakt: utenfor båndet får agenten utkastet tilbake én gang med beskjed om å sjekke omfanget. min_poster er det færreste antall poster + ikke_funnet et tilbud av denne typen kan ha.",
+  "alltid": [
+    "Dokumentasjon i henhold til NEK 400",
+    "Samsvarserklæring (FEL § 12)"
+  ],
+  "jobbtyper": [
+    {
+      "id": "elbillader",
+      "navn": "Elbillader",
+      "typisk_tilbudstype": "punktpris",
+      "min_poster": 2,
+      "band_eks_mva": [6000, 30000],
+      "sjekkliste": [
+        "Laderboks (levert av firmaet, eller kundens egen)",
+        "Ny kurs fra sikringsskap til lader",
+        "Jordfeilautomat / vern for laderkursen (type A eller B etter lader)",
+        "Kabel og fremlegg (lengde skap → lader, inne/ute, i rør eller på kabelbro)",
+        "Overspenningsvern i skapet (hvis ikke montert fra før)",
+        "Lastbalansering / effektstyring",
+        "Hulltaking gjennom vegg eller mur",
+        "Graving eller kabelbeskyttelse utendørs",
+        "Ombygging eller utvidelse av sikringsskap ved plassmangel",
+        "Oppmøte / servicebil",
+        "Dokumentasjon og samsvarserklæring",
+        "Melding til nettselskap ved økt effekt"
+      ]
+    },
+    {
+      "id": "sikringsskap",
+      "navn": "Nytt eller oppgradert sikringsskap",
+      "typisk_tilbudstype": "punktpris",
+      "min_poster": 3,
+      "band_eks_mva": [6000, 45000],
+      "sjekkliste": [
+        "Nytt skap eller ombygging av eksisterende",
+        "Jordfeilautomater per kurs (antall kurser)",
+        "Overspenningsvern",
+        "Hovedsikring / overbelastningsvern",
+        "Flytting og tilkobling av eksisterende kurser",
+        "Ny kursfortegnelse",
+        "Jording og utjevning (kontroll, ev. utbedring)",
+        "Kontroll av inntak og kapasitet",
+        "Melding til nettselskap ved endring av inntak",
+        "Oppmøte / servicebil",
+        "Dokumentasjon og samsvarserklæring"
+      ]
+    },
+    {
+      "id": "ny_kurs",
+      "navn": "Ny kurs / nytt kursopplegg",
+      "typisk_tilbudstype": "punktpris",
+      "min_poster": 2,
+      "band_eks_mva": null,
+      "sjekkliste": [
+        "Kurs fra sikringsskap inkl. kabel og automat (antall)",
+        "Ledig plass i sikringsskapet — ellers ombygging",
+        "Punktene kursen skal forsyne (stikk, komfyr, VVB, varmekabel …)",
+        "Føringsvei (åpen/skjult, rør, kabelbro, hulltaking)",
+        "Oppmøte / servicebil",
+        "Dokumentasjon og samsvarserklæring"
+      ]
+    },
+    {
+      "id": "stikk_og_brytere",
+      "navn": "Stikkontakter, brytere og lyspunkter",
+      "typisk_tilbudstype": "punktpris",
+      "min_poster": 2,
+      "band_eks_mva": null,
+      "sjekkliste": [
+        "Nye punkter for stikkontakt (antall, enkle/doble, innendørs/utendørs IP44)",
+        "Nye punkter for bryter / dimmer (antall)",
+        "Nye lyspunkter / takpunkt (antall)",
+        "Utskifting av eksisterende materiell (antall)",
+        "Flytting av eksisterende punkter",
+        "Ny kurs om eksisterende ikke har kapasitet",
+        "Føringsvei: åpne vegger, eksisterende rør, eller ny skjult/åpen forlegning",
+        "Hulltaking i mur/betong",
+        "Oppmøte / servicebil",
+        "Dokumentasjon og samsvarserklæring"
+      ]
+    },
+    {
+      "id": "downlights_belysning",
+      "navn": "Downlights og belysning",
+      "typisk_tilbudstype": "punktpris",
+      "min_poster": 2,
+      "band_eks_mva": null,
+      "sjekkliste": [
+        "Downlights / armaturer (antall, levert av firma eller kunde)",
+        "Punkt per downlight inkl. hulltaking i himling",
+        "Dimmer / bryter / smartstyring",
+        "Driver / trafo og strømforsyning (LED)",
+        "Ny kurs ved behov",
+        "Lyskinner / skinnesystem med spotter",
+        "Utbedring av himling etter hulltaking (ikke elektro — forbehold)",
+        "Oppmøte / servicebil",
+        "Dokumentasjon og samsvarserklæring"
+      ]
+    },
+    {
+      "id": "bad",
+      "navn": "Bad — elektro",
+      "typisk_tilbudstype": "punktpris",
+      "min_poster": 4,
+      "band_eks_mva": [6000, 35000],
+      "sjekkliste": [
+        "Varmekabel eller varmefolie i gulv (areal m², effekt) inkl. termostat",
+        "Downlights / taklys i baderom (antall, IP-klasse)",
+        "Speilbelysning / punkt over speil",
+        "Stikkontakt(er) ved speil / i servantskap",
+        "Punkt for vaskemaskin og tørketrommel",
+        "Punkt for avtrekksvifte / ventilasjon med fuktstyring",
+        "Punkt for varmtvannsbereder",
+        "Ny kurs / jordfeilautomat til baderomskurser",
+        "Utjevningsjording i baderom",
+        "Samordning med rørlegger / flislegger (grensesnitt — forbehold)",
+        "Oppmøte / servicebil",
+        "Dokumentasjon og samsvarserklæring"
+      ]
+    },
+    {
+      "id": "kjokken",
+      "navn": "Kjøkken — elektro",
+      "typisk_tilbudstype": "punktpris",
+      "min_poster": 4,
+      "band_eks_mva": [5000, 45000],
+      "sjekkliste": [
+        "Punkt for platetopp / komfyr inkl. komfyrvakt",
+        "Punkt for stekeovn",
+        "Punkt for oppvaskmaskin",
+        "Punkt for kjøleskap / fryseskap",
+        "Punkt for ventilator / kjøkkenvifte",
+        "Stikkontakter over benk (antall)",
+        "Lys under overskap (lyslist/LED) inkl. driver og dimmer",
+        "Takbelysning / downlights",
+        "Nye kurser fra sikringsskap (antall)",
+        "Oppmøte / servicebil",
+        "Dokumentasjon og samsvarserklæring"
+      ]
+    },
+    {
+      "id": "varmekabel_gulvvarme",
+      "navn": "Varmekabel / varmefolie i gulv",
+      "typisk_tilbudstype": "punktpris",
+      "min_poster": 2,
+      "band_eks_mva": null,
+      "sjekkliste": [
+        "Varmekabel eller varmefolie (areal m² per rom/sone, effekt W/m²)",
+        "Termostat per sone",
+        "Ny kurs ved behov",
+        "Testing og dokumentasjon per sone",
+        "Underlag (Depron/isolasjon) og dampsperre der firmaet leverer det",
+        "Oppmøte / servicebil",
+        "Dokumentasjon og samsvarserklæring"
+      ]
+    },
+    {
+      "id": "utelys",
+      "navn": "Utebelysning og utendørs stikk",
+      "typisk_tilbudstype": "punktpris",
+      "min_poster": 2,
+      "band_eks_mva": null,
+      "sjekkliste": [
+        "Utelamper / punkt for utebelysning (antall, med/uten sensor)",
+        "Utendørs stikkontakt IP44 (antall)",
+        "Hulltaking gjennom yttervegg",
+        "Kabel ute (i rør, i bakken — graving er normalt ikke med)",
+        "Bryter / sensor / tidsstyring",
+        "Oppmøte / servicebil",
+        "Dokumentasjon og samsvarserklæring"
+      ]
+    },
+    {
+      "id": "nybygg_tilbygg_komplett",
+      "navn": "Komplett elektroinstallasjon i nybygg eller tilbygg",
+      "typisk_tilbudstype": "punktpris",
+      "min_poster": 6,
+      "band_eks_mva": [40000, 400000],
+      "sjekkliste": [
+        "Befaring / prosjektering og tegningsgrunnlag",
+        "Inntak og hovedsikring (ev. melding til nettselskap)",
+        "Sikringsskap med jordfeilautomater og overspenningsvern",
+        "Antall kurser",
+        "Stikkontakter per rom (antall)",
+        "Takpunkter / lyspunkter og brytere per rom (antall)",
+        "Kjøkken: komfyr med komfyrvakt, oppvaskmaskin, kjøl/frys, ventilator",
+        "Bad: varmekabel, lys, stikk, vifte, VVB",
+        "Varmekabel / gulvvarme øvrige rom",
+        "Utelys og utendørs stikk",
+        "Jording (hovedjord, utjevning)",
+        "Rør og føringsveier i vegger (åpne vegger / skjult anlegg)",
+        "Svakstrøm: data, TV, ringeklokke (om ønsket)",
+        "Kursfortegnelse, dokumentasjon og samsvarserklæring",
+        "Rigg, kjøring og oppmøte over byggeperioden"
+      ]
+    },
+    {
+      "id": "elkontroll_utbedring",
+      "navn": "Utbedring av avvik etter elkontroll / tilstandsrapport",
+      "typisk_tilbudstype": "punktpris",
+      "min_poster": 3,
+      "band_eks_mva": [3000, 80000],
+      "sjekkliste": [
+        "Hvert avvik i rapporten som egen arbeidspost (TG2/TG3 først)",
+        "Festing og terminering av løse kabler",
+        "Utskifting av defekt materiell (brytere, stikk, koblingsbokser)",
+        "Jordfeilautomater / overspenningsvern i skap",
+        "Jording og utjevning",
+        "Kursfortegnelse",
+        "Måling og kontroll etter utbedring",
+        "Oppmøte / servicebil",
+        "Dokumentasjon og samsvarserklæring"
+      ]
+    },
+    {
+      "id": "feilsoking",
+      "navn": "Feilsøking / feil på anlegget",
+      "typisk_tilbudstype": "tid_og_materiell",
+      "min_poster": 0,
+      "band_eks_mva": null,
+      "sjekkliste": [
+        "Timepris for feilsøking (ordinær tid, ev. utenom arbeidstid)",
+        "Oppmøte / servicebil",
+        "Materiell etter medgått forbruk",
+        "Estimert timespenn når referansene gir dekning",
+        "Dokumentasjon og samsvarserklæring for utbedret arbeid"
+      ]
+    },
+    {
+      "id": "inntak",
+      "navn": "Nytt eller oppgradert strøminntak",
+      "typisk_tilbudstype": "punktpris",
+      "min_poster": 3,
+      "band_eks_mva": [8000, 70000],
+      "sjekkliste": [
+        "Inntaksboks / inntakstrakt og inntakskabel til fordeling",
+        "Hovedsikring / overbelastningsvern",
+        "Måler og målerplass (nettselskapets krav)",
+        "Melding til nettselskap",
+        "Jording (hovedjord, ringjord/spyd)",
+        "Tilpasning i sikringsskap",
+        "Graving og rør ute (normalt ikke med — forbehold)",
+        "Oppmøte / servicebil",
+        "Dokumentasjon og samsvarserklæring"
+      ]
+    },
+    {
+      "id": "komfyrvakt_enkeltpunkt",
+      "navn": "Komfyrvakt eller enkelt punkt",
+      "typisk_tilbudstype": "punktpris",
+      "min_poster": 1,
+      "band_eks_mva": [1500, 10000],
+      "sjekkliste": [
+        "Selve punktet (komfyrvakt, én stikkontakt, én bryter)",
+        "Ny kurs om eksisterende ikke kan brukes",
+        "Oppmøte / servicebil",
+        "Dokumentasjon og samsvarserklæring"
+      ]
+    },
+    {
+      "id": "sammensatt",
+      "navn": "Flere ulike jobber i én forespørsel",
+      "typisk_tilbudstype": "punktpris",
+      "min_poster": 3,
+      "band_eks_mva": null,
+      "sjekkliste": [
+        "Én seksjon per jobb — bruk sjekklisten for hver av dem",
+        "Felles: oppmøte / servicebil én gang, dokumentasjon og samsvarserklæring én gang"
+      ]
+    },
+    {
+      "id": "annet",
+      "navn": "Annet elektroarbeid",
+      "typisk_tilbudstype": "punktpris",
+      "min_poster": 1,
+      "band_eks_mva": null,
+      "sjekkliste": [
+        "Arbeidspostene leadet beskriver",
+        "Ny kurs / kapasitet i skap ved behov",
+        "Oppmøte / servicebil",
+        "Dokumentasjon og samsvarserklæring"
+      ]
+    }
+  ]
+}
