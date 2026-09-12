@@ -43,9 +43,9 @@ Kaldstart har eigen baseline (`baseline-kaldstart.json`).
 | Summane stemmer med postane | `computeTotals` mot manuell utrekning |
 | `unresolved_lines` = 0 | Ein post som peika på ein ukjend prisrad blei teken ut |
 | Ingen plassholdarar (`<fornavn>`, `[adresse]`, «X timer») | Speglar `PLACEHOLDER_PATTERNS` i `generate.ts` — bevisst duplisert, så prøva dømmer det som faktisk kom ut |
-| Ingen nettadresse i e-postteksten | E-postsystem pakkar dei inn i sporingslenker |
+| Ingen nettadresse i e-postteksten — utanom firmaets eiga i signaturen | E-postsystem pakkar dei inn i sporingslenker. Signaturen er kundens og skal stå ordrett, nettadresse eller ikkje |
 | Ingen beløp i e-postteksten | Prisane høyrer heime i PDF-en. Unntak: tid og materiell, der satsane *er* prisen |
-| E-posten sluttar med signaturen frå innstillingane | Motoren seier «ingenting etter signaturen» |
+| E-posten sluttar med signaturen frå innstillingane | Motoren seier «ingenting etter signaturen». Samanlikna med whitespace normalisert — Outlook-signaturar har tomme rader og kolonnar med mange mellomrom, og modellen ryddar dei |
 | Målform = firmaet si målform | Ikkje kunden si — case 09 er nettopp det. `maalform: firma` i fasiten tyder «det som står i innstillingane», så sakene verkar for både nynorsk- og bokmålsfirma |
 
 **Fasiten per sak** — alt er valfritt, saka sjekkar berre det ho har sett:

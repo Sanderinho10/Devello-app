@@ -30,7 +30,7 @@
 import { readFile, readdir, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { generateDraft, type GeneratedDraft } from "@/lib/claude/generate";
+import { generateDraft, harNettadresse, sluttarMedSignatur, type GeneratedDraft } from "@/lib/claude/generate";
 import { erMotorVersjon, fagFor, motorFor } from "@/lib/claude/motor-versjon";
 import { findSimilarReferences } from "@/lib/referanser";
 import { forbeholdsBibliotek } from "@/lib/referanser/forbehold";
@@ -241,8 +241,10 @@ function universelleSjekkar(g: GeneratedDraft, k: Kontekst): string[] {
     }
   }
 
-  if (/https?:\/\/|www\.[a-z]/i.test(g.email_body)) {
-    feil.push("e-postteksten inneheld ei nettadresse");
+  // Same dommar som valideringa i generate.ts: firmaets eiga nettadresse i
+  // signaturen er lov, alt anna er feil.
+  if (harNettadresse(g.email_body, k.signatur)) {
+    feil.push("e-postteksten inneheld ei nettadresse utanom signaturen");
   }
 
   // Prisane høyrer heime i PDF-en. Unntaket er tid og materiell, der satsane
@@ -251,7 +253,9 @@ function universelleSjekkar(g: GeneratedDraft, k: Kontekst): string[] {
     feil.push("e-postteksten inneheld eit beløp (prisane skal stå i PDF-en)");
   }
 
-  if (k.signatur && !g.email_body.trimEnd().endsWith(k.signatur.trimEnd())) {
+  // Whitespace-tolerant: Outlook-signaturar har rader med berre mellomrom og
+  // kolonnar justerte med mange mellomrom, og modellen normaliserer dei.
+  if (!sluttarMedSignatur(g.email_body, k.signatur)) {
     feil.push("e-postteksten sluttar ikkje med signaturen frå innstillingane");
   }
 
