@@ -548,6 +548,54 @@ export function DraftEditor({
         </div>
       )}
 
+      {/*
+        v3: omfanget agenten la til grunn. Spørsmålene står også i e-posten;
+        arbeidspostene viser hva som ble vurdert og hva som bevisst ble holdt
+        utenfor — det er der en fagperson raskest ser om agenten har forstått
+        jobben.
+      */}
+      {draft.omfang && (
+        <details className="card card-pad">
+          <summary style={{ cursor: "pointer" }}>
+            <strong>Omfanget agenten la til grunn</strong>
+            <span className="tiny muted" style={{ marginLeft: 8 }}>
+              {draft.omfang.arbeidsposter.filter((p) => p.inkludert === "ja").length} arbeidsposter med,{" "}
+              {draft.omfang.arbeidsposter.filter((p) => p.inkludert === "nei").length} holdt utenfor
+              {draft.omfang.sporsmal_til_kunden.length > 0 &&
+                ` · ${draft.omfang.sporsmal_til_kunden.length} spørsmål til kunden`}
+            </span>
+          </summary>
+          <div className="stack" style={{ gap: 10, marginTop: 10 }}>
+            {draft.omfang.sporsmal_til_kunden.length > 0 && (
+              <div>
+                <span className="label">Spørsmål til kunden (står i e-posten)</span>
+                <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+                  {draft.omfang.sporsmal_til_kunden.map((q, i) => (
+                    <li key={i}>{q}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div>
+              <span className="label">Arbeidsposter</span>
+              <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+                {draft.omfang.arbeidsposter
+                  .filter((p) => p.inkludert !== "ikke_relevant")
+                  .map((p, i) => (
+                    <li key={i} className={p.inkludert === "nei" ? "muted" : undefined}>
+                      {p.inkludert === "ja" ? "Med: " : "Ikke priset: "}
+                      {p.kva}
+                      {p.mengde != null ? ` × ${p.mengde} ${p.enhet}` : ""}
+                      {p.kilde === "antakelse" ? " (antatt)" : ""}
+                      {p.inkludert === "nei" && p.begrunnelse ? ` — ${p.begrunnelse}` : ""}
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          </div>
+        </details>
+      )}
+
       {draft.agent_status === "trenger_avklaring" && (
         <div className="banner info">
           <strong>Avklaringskladd.</strong> Jobben var for ukjent til å prise —

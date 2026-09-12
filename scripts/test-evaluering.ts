@@ -6,6 +6,9 @@
  *   npm run evaluer -- --baseline   skriv resultatet som ny baseline
  *   npm run evaluer -- --kaldstart  som over, men uten referanser i konteksten:
  *                                   slik en ny kunde uten historikk ser agenten
+ *   npm run evaluer -- --motor v3   kjør en bestemt motor (v2 eller v3) i stedet
+ *                                   for den selskapet har valgt. Egen baseline
+ *                                   per motor, så v2 og v3 kan sammenlignes.
  *
  * Forskjellen fra test:agent er at denne DØMMER. test:agent skriver ut hva
  * agenten svarte og lar et menneske vurdere det; her har hver sak en fasit,
@@ -28,6 +31,7 @@ import { readFile, readdir, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { generateDraft, type GeneratedDraft } from "@/lib/claude/generate";
+import { erMotorVersjon, fagFor, motorFor } from "@/lib/claude/motor-versjon";
 import { findSimilarReferences } from "@/lib/referanser";
 import { forbeholdsBibliotek } from "@/lib/referanser/forbehold";
 import { activePriceItems } from "@/lib/pricelist/active";
@@ -405,7 +409,13 @@ for (const key of ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "ANT
 const args = process.argv.slice(2);
 const skrivBaseline = args.includes("--baseline");
 const kaldstart = args.includes("--kaldstart");
-const filter = args.filter((a) => !a.startsWith("--"));
+const motorArg = args[args.indexOf("--motor") + 1];
+if (args.includes("--motor") && !erMotorVersjon(motorArg)) {
+  console.error("--motor må vere v2 eller v3");
+  process.exit(1);
+}
+// Filteret er saks-id-ar; verdien etter --motor er ikkje ei sak.
+const filter = args.filter((a, i) => !a.startsWith("--") && args[i - 1] !== "--motor");
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -417,7 +427,7 @@ const STAR = await velgSelskap(admin);
 
 const { data: company } = await admin
   .from("companies")
-  .select("name, tone_settings")
+  .select("name, tone_settings, motor_versjon, fag")
   .eq("id", STAR)
   .single();
 if (!company) {
@@ -439,8 +449,12 @@ const kontekst: Kontekst = {
 
 const saker = await lesSaker(filter);
 
+// Motoren: --motor foran selskapets valg foran standarden.
+const motor = erMotorVersjon(motorArg) ? motorArg : motorFor(company);
+const fag = fagFor(company);
+
 console.log(
-  `\n${company!.name} · ${priceItems.length} prisrader · ${referansar} referansar · ` +
+  `\n${company!.name} · motor ${motor} · ${priceItems.length} prisrader · ${referansar} referansar · ` +
     `${forbehold.length} forbehold · ${saker.length} saker` +
     (kaldstart ? " · KALDSTART (ingen referansar i konteksten)" : "") +
     "\n",
@@ -471,6 +485,8 @@ for (const sak of saker) {
       priceItems,
       similar,
       forbehold,
+      motor,
+      fag,
     });
 
     feil = [...universelleSjekkar(generert, kontekst), ...fasitSjekkar(generert, sak.fasit, kontekst)];
@@ -496,9 +512,12 @@ const bestått = Object.values(resultat).filter((r) => r.feil.length === 0).leng
 console.log(`\n${bestått} av ${saker.length} saker bestått`);
 
 await mkdir(RESULTAT, { recursive: true });
-// Kaldstart og full kontekst er to ulike målingar med kvar sin baseline.
-const baselinePath = path.join(RESULTAT, kaldstart ? "baseline-kaldstart.json" : "baseline.json");
-const sistePath = path.join(RESULTAT, kaldstart ? "siste-kaldstart.json" : "siste.json");
+// Kvar motor og kvar modus (full kontekst / kaldstart) har si eiga baseline —
+// det er samanlikninga mellom dei som er poenget. v2 utan suffiks, så gamle
+// baseline-filer framleis gjeld.
+const suffiks = `${motor === "v2" ? "" : `-${motor}`}${kaldstart ? "-kaldstart" : ""}`;
+const baselinePath = path.join(RESULTAT, `baseline${suffiks}.json`);
+const sistePath = path.join(RESULTAT, `siste${suffiks}.json`);
 
 let baseline: Record<string, { navn: string; feil: string[] }> | null = null;
 try {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { BrandImageUpload } from "@/components/BrandImageUpload";
+import { MOTOR_LABELS, MOTOR_VERSJONER, type MotorVersjon } from "@/lib/claude/motor-versjon";
 import type { CompanyBrand, ToneSettings } from "@/lib/types";
 
 /**
@@ -19,15 +20,20 @@ import type { CompanyBrand, ToneSettings } from "@/lib/types";
 export function SettingsForm({
   company,
   brand,
+  standardMotor,
 }: {
-  company: { tone_settings: ToneSettings };
+  company: { tone_settings: ToneSettings; motor_versjon: MotorVersjon | null };
   brand: Partial<CompanyBrand> | null;
+  /** Motoren som gjelder når selskapet ikke har valgt selv. */
+  standardMotor: MotorVersjon;
 }) {
   const router = useRouter();
   const [form, setForm] = useState({
     signatur: company.tone_settings.signatur ?? "",
     tillegg: company.tone_settings.tillegg ?? "",
     footer_note: brand?.footer_note ?? "",
+    // Tom streng = følg standarden. Lagres som null.
+    motor_versjon: company.motor_versjon ?? "",
   });
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -129,6 +135,42 @@ export function SettingsForm({
             <span className="hint">
               Skriv det slik du ville sagt det til en ny medarbeider. Alt du
               skriver her følger med på hvert eneste tilbud.
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <div>
+            <strong>Motor</strong>
+            <div className="tiny muted">
+              Hvilken versjon av agenten som lager utkastene. Kan byttes tilbake
+              når som helst — neste utkast bruker den du velger.
+            </div>
+          </div>
+        </div>
+        <div className="card-pad">
+          <label className="field" style={{ marginBottom: 0 }}>
+            <span className="label">Versjon</span>
+            <select
+              className="select"
+              id="motor_versjon"
+              value={form.motor_versjon}
+              onChange={(e) => set("motor_versjon", e.target.value)}
+            >
+              <option value="">Standard ({MOTOR_LABELS[standardMotor]})</option>
+              {MOTOR_VERSJONER.map((v) => (
+                <option key={v} value={v}>
+                  {MOTOR_LABELS[v]}
+                </option>
+              ))}
+            </select>
+            <span className="hint">
+              v3 lister først opp alt arbeid jobben består av, stiller inntil tre
+              spørsmål til kunden i e-posten, og stopper utkast som er urimelig
+              små for jobbtypen. v2 er motoren slik den var før. Utkast som
+              allerede er laget endres ikke.
             </span>
           </label>
         </div>

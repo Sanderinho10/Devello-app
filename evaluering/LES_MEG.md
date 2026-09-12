@@ -14,7 +14,13 @@ npm run evaluer                 # alle saker
 npm run evaluer -- 05 09        # berre desse (feilsøking, alltid exit 0)
 npm run evaluer -- --baseline   # godkjenn dagens resultat som ny baseline
 npm run evaluer -- --kaldstart  # same saker, men utan referansar i konteksten
+npm run evaluer -- --motor v3   # køyr ein bestemt motor (v2/v3), eiga baseline
 ```
+
+`--motor` overstyrer motoren selskapet har valt (`companies.motor_versjon`).
+Baseline-filene får suffiks per motor og modus (`baseline.json` = v2,
+`baseline-v3.json`, `baseline-v3-kaldstart.json` …), så v2 og v3 kan
+samanliknast sak for sak. Køyr begge før du flyttar eit selskap til v3.
 
 Selskapet blir valt med `EVAL_COMPANY_ID` i `.env.local`. Utan den listar
 skriptet selskapa og stoppar — demo-selskapet frå `seed.sql` (10 prisrader,

@@ -153,10 +153,34 @@ src/
 │  ├─ pdf/                      template.ts (Devello-malen), render.ts (HTML→PDF)
 │  ├─ drafts/versions.ts        Versjonslogging
 │  └─ types.ts                  Delte typer + computeTotals()
-agent/                          Motoren: systemprompten til tilbudsagenten
+agent/
+├─ v2/                          Dagens motor, frosset: ett kall fra lead til prisrader
+└─ v3/                          Omfang først, så pris. Sjekklister per fag under bransje/
 design/                         Mockuper, samme CSS som appen
+evaluering/                     Evalueringssuite og gullsett — se evaluering/LES_MEG.md
 supabase/migrations/            Skjema og RLS
 ```
+
+### Motor og tilbakerulling
+
+Tilbudsagenten finnes i to versjoner side om side (`src/lib/claude/motor.ts`).
+Hvilken et selskap kjører er en innstilling, ikke en utrulling:
+
+1. `companies.motor_versjon` — selskapets eget valg, satt under Tilbud →
+   Innstillinger → Motor.
+2. `MOTOR_DEFAULT` i miljøet — standarden for selskaper uten eget valg.
+3. Ingen av delene → `v2`.
+
+Hvert utkast lagres med `drafts.motor_versjon`, så `npm run gullsett` måler v2
+og v3 hver for seg, og `npm run evaluer -- --motor v3` kjører suiten mot én
+bestemt motor med egen baseline. Viser målingen at v3 er dårligere, settes
+selskapet (eller standarden) tilbake til v2. v2-koden og v2-filene er ikke
+endret av v3, og alle nye kolonner er additive.
+
+v3 gjør tre ting v2 ikke gjør: lister først opp alt arbeid jobben består av
+mot jobbtypesjekklistene for faget (`agent/v3/bransje/<fag>/jobbtypar.json`),
+stiller inntil tre spørsmål til kunden i e-posten, og sender utkast som er
+urimelig små for jobbtypen tilbake til agenten én gang før de vises.
 
 ### Onboarding
 
@@ -203,7 +227,15 @@ npm run typecheck
 npm run build
 npm run preview:pdf            # eksempel-PDF uten database, havner i tmp/
 npm run preview:pdf -- fastpris
+npm run test:motor             # motor v3 og tilbakerullingen, uten database
+npm run test:gullsett          # målingen bak gullsettet, uten database
+npm run evaluer                # evalueringssuiten — 15 saker med fasit, se evaluering/LES_MEG.md
+npm run evaluer -- --motor v3  # samme, mot én bestemt motor (egen baseline)
+npm run gullsett               # agentens utkast mot det firmaet faktisk sendte
 ```
+
+Evalueringen og gullsettet trenger `EVAL_COMPANY_ID` i `.env.local` — id-en
+til selskapet som skal måles. Uten den lister scriptene selskapene og stopper.
 
 ## Status mot fasene
 

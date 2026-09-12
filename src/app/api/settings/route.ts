@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
+import { erMotorVersjon } from "@/lib/claude/motor-versjon";
 import { mergeToneSettings } from "@/lib/company/tone";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
@@ -19,8 +20,24 @@ export async function POST(request: NextRequest) {
       signatur?: string;
       tillegg?: string;
       footer_note?: string;
+      /** "v2" | "v3" | "" — tom streng betyr standarden. */
+      motor_versjon?: string;
     };
     const admin = supabaseAdmin();
+
+    // Motoren er også agentens innstilling — det er den som former tilbudet
+    // mer enn noe annet her. Tom streng = følg standarden (null i basen).
+    if (body.motor_versjon !== undefined) {
+      const valgt = body.motor_versjon === "" ? null : body.motor_versjon;
+      if (valgt !== null && !erMotorVersjon(valgt)) {
+        return NextResponse.json({ error: "Ukjent motorversjon." }, { status: 400 });
+      }
+      const { error: motorError } = await admin
+        .from("companies")
+        .update({ motor_versjon: valgt })
+        .eq("id", session.companyId);
+      if (motorError) throw new Error(motorError.message);
+    }
 
     // Slås sammen, ikke overskrives: målform redigeres under Selskap, og et
     // lagre herfra skal ikke ta den med seg.
