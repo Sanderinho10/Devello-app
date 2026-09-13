@@ -114,6 +114,11 @@ const avklaring = omfangBlokk({ ...omfang, status: "trenger_avklaring", arbeidsp
 sjekk("trenger_avklaring fra steg 1 når fram til steg 2, med krav om spørsmålstegn", /STATUS: trenger_avklaring/.test(avklaring) && /spørsmålstegn/.test(avklaring) && /formuler ett selv/.test(avklaring));
 sjekk("v3 steg 1 sier at alt kunden ber om pris på er «ja»", /uttrykkelig ber om pris på er `ja`/.test(omfangPrompt));
 sjekk("v3 steg 2 krever spørsmålstegn i spørsmålene", /med spørsmålstegn/.test(tilbudPrompt));
+sjekk("v3: gjetta omfang slår punktpris — tid og materiell blir vurdert først",
+  /Er omfanget gjettet\?/.test(tilbudPrompt) && tilbudPrompt.indexOf("Er omfanget gjettet?") < tilbudPrompt.indexOf("finnes alle arbeidspostene som punktposter"));
+const elkontroll = pakke.jobbtyper.find((j) => j.id === "elkontroll_utbedring")!;
+sjekk("elkontroll_utbedring krev ein rapport — elles er det feilsoking",
+  /FORUTSETNING/.test(elkontroll.sjekkliste[0]) && /feilsoking/.test(elkontroll.sjekkliste[0]));
 
 // 4. E-postvaktene ---------------------------------------------------------
 

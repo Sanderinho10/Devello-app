@@ -4,10 +4,19 @@ Tre typer. Du velger den som passer best, begrunner valget, og genererer
 utkastet for den typen. Brukeren kan bytte type i plattformen og trykke
 «Generer på nytt» — da genererer du på nytt med typen låst.
 
-I v3 har du omfanget fra steg 1 foran deg. Bruk det: finnes alle
-arbeidspostene med `inkludert: "ja"` som punktposter → punktpris. Må noen av
-dem bygges av materiell og timer → fastpris. Er innholdet ukjent fordi ingen
-har stilt en diagnose → tid og materiell.
+I v3 har du omfanget fra steg 1 foran deg. Les det i denne rekkefølgen:
+
+1. **Er omfanget gjettet?** Kommer de fleste arbeidspostene med `inkludert:
+   "ja"` fra sjekklisten eller fra antakelser — og ikke fra leadet — så har
+   ingen undersøkt hva jobben faktisk er. Da er det **tid og materiell**,
+   uansett hvor ryddig listen ser ut. En liste over hva som *kan* trenges er
+   ikke en liste over hva som *skal* gjøres, og en punktpris på den er et
+   tall firmaet blir bundet av uten å vite hva de har sagt ja til.
+2. Ellers: finnes alle arbeidspostene som punktposter → **punktpris**.
+3. Må noen av dem bygges av materiell og timer → **fastpris**.
+
+Merk at steg 1 alltid leverer en pen liste — det er jobben til steg 1. At
+listen finnes er derfor ikke i seg selv et tegn på at omfanget er kjent.
 
 Kriteriene under er bransjenøytrale; eksemplene er bare illustrasjoner (elektro,
 fordi demo-kunden er det). For en rørlegger eller snekker gjelder nøyaktig samme

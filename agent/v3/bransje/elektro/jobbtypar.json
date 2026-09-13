@@ -199,11 +199,12 @@
     },
     {
       "id": "elkontroll_utbedring",
-      "navn": "Utbedring av avvik etter elkontroll / tilstandsrapport",
+      "navn": "Utbedring av avvik etter elkontroll / tilstandsrapport — krever at kunden HAR en rapport",
       "typisk_tilbudstype": "punktpris",
       "min_poster": 3,
       "band_eks_mva": [3000, 80000],
       "sjekkliste": [
+        "FORUTSETNING: kunden har en rapport eller avviksliste. Skal noen først undersøke hva som er galt, er jobben «feilsoking», ikke denne",
         "Hvert avvik i rapporten som egen arbeidspost (TG2/TG3 først)",
         "Festing og terminering av løse kabler",
         "Utskifting av defekt materiell (brytere, stikk, koblingsbokser)",
