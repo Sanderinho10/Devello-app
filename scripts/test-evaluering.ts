@@ -591,7 +591,14 @@ if (baseline && !skrivBaseline) {
 }
 
 await writeFile(sistePath, JSON.stringify(resultat, null, 2) + "\n");
-if (skrivBaseline) {
+
+// Ei køyring der genereringa kasta (tom kreditt, nettverk nede) måler ikkje
+// agenten, og skal ikkje bli baseline — elles blir neste ekte køyring
+// samanlikna med 0/15 og alt ser «fiksa» ut.
+const infrastrukturfeil = Object.values(resultat).filter((r) => r.feil.some((f) => f.startsWith("generering feila:"))).length;
+if (skrivBaseline && infrastrukturfeil > 0) {
+  console.log(`\nBaseline IKKJE skriven: ${infrastrukturfeil} sak(er) feila før agenten svarte. Køyr på nytt med --baseline når alt går gjennom.`);
+} else if (skrivBaseline) {
   await writeFile(baselinePath, JSON.stringify(resultat, null, 2) + "\n");
   console.log(`\nBaseline skriven (${bestått}/${saker.length}).`);
 }
