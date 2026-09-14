@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ExcelDrop } from "@/components/ExcelDrop";
+import { Vaskepanel } from "./Vaskepanel";
 import { PrisCelle } from "@/components/PrisCelle";
 import {
   type PriceItemKind,
@@ -39,6 +40,7 @@ export function ListItems({
   const [file, setFile] = useState<File | null>(null);
   const [replace, setReplace] = useState(false);
   const [imported, setImported] = useState<number | null>(null);
+  const [importUtenPris, setImportUtenPris] = useState(0);
 
   const shown = useMemo(() => {
     const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
@@ -105,6 +107,7 @@ export function ListItems({
     setError(null);
     setDetails([]);
     setImported(null);
+    setImportUtenPris(0);
     try {
       const data = new FormData();
       data.set("price_list_id", list.id);
@@ -118,6 +121,7 @@ export function ListItems({
         throw new Error(payload.error ?? "Importen feilet");
       }
       setImported(payload.imported);
+      setImportUtenPris(payload.utenPris ?? 0);
       setFile(null);
       router.refresh();
     } catch (err) {
@@ -129,6 +133,10 @@ export function ListItems({
 
   return (
     <div className="stack">
+      {/* Står øverst med vilje: det som ser rart ut skal møte deg før
+          importknappen, ikke etter at du har lagt til enda en rad. */}
+      <Vaskepanel items={items} onVelgRad={setQuery} />
+
       <div className="card">
         <div className="card-header">
           <strong>Importer fra Excel</strong>
@@ -140,6 +148,13 @@ export function ListItems({
           {imported !== null && (
             <div className="banner success">
               Importerte {imported} {imported === 1 ? "rad" : "rader"}.
+              {importUtenPris > 0 && (
+                <>
+                  {" "}
+                  {importUtenPris} av dem har ingen pris — se gjennomgangen
+                  øverst.
+                </>
+              )}
             </div>
           )}
 

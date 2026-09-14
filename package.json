@@ -14,6 +14,7 @@
     "evaluer": "node --env-file=.env.local --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-evaluering.ts",
     "gullsett": "node --env-file=.env.local --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/gullsett.ts",
     "test:gullsett": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-gullsett.ts",
+    "test:prisvask": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-prisvask.ts",
     "test:motor": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-motor-v3.ts",
     "test:perioder": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-perioder.ts",
     "test:epost": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-finn-epost.ts",

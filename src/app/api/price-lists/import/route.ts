@@ -67,6 +67,10 @@ export async function POST(request: NextRequest) {
       imported: parsed.rows.length,
       skipped: parsed.skipped,
       replaced: replace,
+      // Rader uten pris blir importert — noen er «inkludert uten tillegg» og
+      // hører hjemme i listen. Men de skal telles opp med en gang, ikke
+      // oppdages i et tilbud tre uker senere.
+      utenPris: parsed.rows.filter((r) => Number(r.unit_price) === 0).length,
     });
   } catch (err) {
     return errorResponse(err);
