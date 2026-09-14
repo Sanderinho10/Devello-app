@@ -68,6 +68,13 @@ export interface Company {
   motor_versjon: "v2" | "v3" | null;
   /** Faget — velger bransjepakken i v3. null = elektro. */
   fag: string | null;
+  /**
+   * Modulene selskapet har: «tilbud», «ordre». Styrer sidemeny og
+   * API-tilgang. Se lib/moduler.ts.
+   */
+  moduler: string[];
+  /** Neste ledige ordrenummer. Deles ut av neste_ordrenummer() i databasen. */
+  next_order_no: number;
 }
 
 export interface Member {
@@ -377,4 +384,78 @@ export function formatDate(iso: string | null): string {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(iso));
+}
+
+// ---------------------------------------------------------------------------
+// Ordre
+// ---------------------------------------------------------------------------
+
+/**
+ * opna      = opprettet, ingen har begynt.
+ * paagaar   = jobben er i gang.
+ * ferdig    = arbeidet er gjort, ikke fakturert.
+ * fakturert = settes av fakturasteget senere; kan ikke settes for hånd ennå.
+ * avbrutt   = jobben ble ikke noe av. Kan settes fra alle andre tilstander.
+ */
+export type OrderStatus = "opna" | "paagaar" | "ferdig" | "fakturert" | "avbrutt";
+
+export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
+  opna: "Åpen",
+  paagaar: "Pågår",
+  ferdig: "Ferdig",
+  fakturert: "Fakturert",
+  avbrutt: "Avbrutt",
+};
+
+/** Statusene som er en jobb i arbeid. Resten er avsluttet. */
+export const ORDER_ACTIVE_STATUSES: OrderStatus[] = ["opna", "paagaar"];
+
+/**
+ * Tilbudet slik det var da ordren ble opprettet. Tilbudet kan redigeres
+ * videre i tilbudsmodulen; ordren skal vise det kunden faktisk sa ja til.
+ */
+export interface OrderQuoteSnapshot {
+  quote_type: QuoteType;
+  document: QuoteDocument | null;
+  totals: QuoteTotals | null;
+}
+
+export interface Order {
+  id: string;
+  company_id: string;
+  /** Løpenummer per selskap, fra 1000. Nummeret montøren skriver på bestillingen. */
+  order_no: number;
+  status: OrderStatus;
+  title: string;
+  /** Kort arbeidsbeskrivelse. Null når ingen har skrevet noe. */
+  description: string | null;
+  /** Hvem som skrev beskrivelsen: agenten eller et menneske. */
+  description_source: "ai" | "manuell" | null;
+  customer_name: string;
+  customer_contact: string | null;
+  customer_email: string | null;
+  customer_phone: string | null;
+  /** Adressen der jobben gjøres. */
+  site_address: string | null;
+  /** Hvor ordren kom fra. Begge null for en ordre uten tilbud. */
+  lead_id: string | null;
+  draft_id: string | null;
+  quote_type: QuoteType | null;
+  quote_snapshot: OrderQuoteSnapshot | null;
+  /** Planlagt sum eks. mva fra snapshotet. Null for tid og materiell. */
+  planned_total: number | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  closed_at: string | null;
+}
+
+export interface OrderEvent {
+  id: string;
+  order_id: string;
+  /** 'oppretta' | 'status' | 'redigert' — timer og faktura får egne senere. */
+  kind: string;
+  note: string | null;
+  created_by: string | null;
+  created_at: string;
 }

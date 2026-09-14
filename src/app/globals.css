@@ -505,6 +505,29 @@ p {
   color: #fff;
 }
 
+/* Ordrestatus. Åpen er blå som «ny», pågår gul som «utkast klart», ferdig
+   grønn, fakturert fylt grønn som endestasjonen «sendt», avbrutt grå. */
+.pill.opna {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.pill.paagaar {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+.pill.ferdig {
+  background: var(--positive-soft);
+  color: var(--positive);
+}
+.pill.fakturert {
+  background: var(--positive);
+  color: #fff;
+}
+.pill.avbrutt {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-tertiary);
+}
+
 /* Referansefiler: har agenten den, eller har den den ikke. Grønt betyr at
    fila står i den søkbare poolen — alt annet er usynlig ved generering. */
 .pill.lest {
@@ -1447,6 +1470,43 @@ p {
 
 .tiny {
   font-size: 12.5px;
+}
+
+/* Ordre: løpenummer og sum i listen, statusknapper og faner på ordresiden */
+.ordre-nr {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 56px;
+}
+
+.ordre-sum {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--text-secondary);
+  min-width: 96px;
+  text-align: right;
+}
+
+.ordre-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Fanene inne på ordren. De fire som ikke finnes ennå er skrudd av, men
+   står der: de sier hva ordren kommer til å samle. */
+.ordre-faner .type-option:disabled {
+  cursor: default;
+  color: var(--text-tertiary);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ordre-faner .nav-badge {
+  margin-left: 0;
 }
 
 /* Handlingsfelt nedst i utkastet */

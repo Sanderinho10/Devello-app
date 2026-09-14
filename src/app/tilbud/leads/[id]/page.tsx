@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DraftEditor } from "./DraftEditor";
+import { harModul } from "@/lib/moduler";
 import { supabaseServer } from "@/lib/supabase/server";
 import {
   formatDate,
@@ -36,8 +37,13 @@ export default async function LeadPage({
   // Prisfilen følger med slik at brukeren kan legge til poster i utkastet.
   // Nye poster må komme herfra — det er samme regel som gjelder for agenten, og
   // bare fra aktive lister, slik at en deaktivert liste ikke kan snike seg inn.
-  const [{ data: brand }, { data: company }, { data: activeLists }, { data: mailbox }] =
-    await Promise.all([
+  const [
+    { data: brand },
+    { data: company },
+    { data: activeLists },
+    { data: mailbox },
+    { data: ordre },
+  ] = await Promise.all([
     supabase
       .from("company_brand")
       .select("*")
@@ -45,7 +51,7 @@ export default async function LeadPage({
       .maybeSingle(),
     supabase
       .from("companies")
-      .select("billing_address_line, billing_postal_code, billing_city")
+      .select("billing_address_line, billing_postal_code, billing_city, moduler")
       .eq("id", lead.company_id)
       .single(),
     supabase
@@ -60,6 +66,10 @@ export default async function LeadPage({
       .select("id")
       .eq("company_id", lead.company_id)
       .maybeSingle(),
+    // Finnes det en ordre for dette utkastet, blir «Opprett ordre» en lenke.
+    draft
+      ? supabase.from("orders").select("id, order_no").eq("draft_id", draft.id).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   const listIds = (activeLists ?? []).map((list) => list.id);
@@ -102,6 +112,10 @@ export default async function LeadPage({
             }}
             priceItems={(priceItems ?? []) as PriceListItem[]}
             harPostkasse={Boolean(mailbox)}
+            ordre={{
+              aktiv: harModul(company?.moduler, "ordre"),
+              eksisterande: ordre ?? null,
+            }}
           />
 
           {/*

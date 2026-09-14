@@ -22,7 +22,9 @@ export type ModellKall =
   | "tagging_tilbud"
   | "tagging_referansefil"
   /** Skannet PDF lest av modellen fordi den ikke hadde tekstlag. */
-  | "lesing_skanna_pdf";
+  | "lesing_skanna_pdf"
+  /** Ordremodulen: kort arbeidsbeskrivelse ved oppretting fra tilbud. Liten modell. */
+  | "ordre_beskrivelse";
 
 export interface UsageContext {
   companyId: string;
@@ -65,7 +67,7 @@ export async function loggModellbruk(
 }
 
 /**
- * Dollar per million tokens for claude-opus-5.
+ * Dollar per million tokens, per modell.
  *
  * ⚠️ Håndholdte tall. Endrer Anthropic prisene, endres de her — det finnes
  * ingen pris-API å slå opp i. Sjekk mot konsollen før du stoler på en
@@ -74,21 +76,38 @@ export async function loggModellbruk(
  * Skrivepremien avhenger av levetiden på cachen: 1,25× ved 5 minutter,
  * 2× ved 1 time. Vi bruker 5 minutter på prisblokka og 1 time på motoren,
  * så en samlet sats her er et anslag. Tokentallene i tabellen er eksakte.
+ *
+ * Haiku-satsen finnes fordi ordremodulen kjører små kall på den lille
+ * modellen. Priset alle rader som opus, ville en beskrivelse på 300 tokens
+ * sett fem ganger dyrere ut enn den var.
  */
-export const SATSER_USD_PER_MTOK = {
-  input: 5,
-  cache_write: 6.25,
-  cache_read: 0.5,
-  output: 25,
-} as const;
+export interface Satser {
+  input: number;
+  cache_write: number;
+  cache_read: number;
+  output: number;
+}
+
+export const SATSER_USD_PER_MTOK: Record<string, Satser> = {
+  "claude-opus-5": { input: 5, cache_write: 6.25, cache_read: 0.5, output: 25 },
+  "claude-haiku-4-5": { input: 1, cache_write: 1.25, cache_read: 0.1, output: 5 },
+};
+
+/** Modellen radene uten kjent sats prises som. Opus er den dyreste — bedre å overdrive. */
+const STANDARD_SATS = SATSER_USD_PER_MTOK["claude-opus-5"];
+
+export function satserFor(model: string | null | undefined): Satser {
+  return (model && SATSER_USD_PER_MTOK[model]) || STANDARD_SATS;
+}
 
 export function kostnadUsd(rad: {
+  model?: string | null;
   input_tokens: number;
   cache_write_tokens: number;
   cache_read_tokens: number;
   output_tokens: number;
 }): number {
-  const s = SATSER_USD_PER_MTOK;
+  const s = satserFor(rad.model);
   return (
     (rad.input_tokens * s.input +
       rad.cache_write_tokens * s.cache_write +
