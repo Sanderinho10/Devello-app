@@ -33,6 +33,7 @@ import path from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { anonymiser, anonymiserListe } from "@/lib/personvern/anonymiser";
 import { maal, type Maaling, type Snapshot } from "@/lib/evaluering/maaling";
+import { prisavvik } from "@/lib/opplaering/prisavvik";
 import type { QuoteDocument, QuoteType } from "@/lib/types";
 
 const ROT = process.cwd();
@@ -156,6 +157,23 @@ console.log(`  gjennomsnittlig dekning ...................... ${pct(snitt((m) =>
 console.log(`  poster agenten manglet, totalt ............... ${maalinger.reduce((s, m) => s + m.manglet.length, 0)}`);
 console.log(`  poster brukeren fjernet, totalt .............. ${maalinger.reduce((s, m) => s + m.fjernet.length, 0)}`);
 console.log(`  prisoverstyringer, totalt .................... ${maalinger.reduce((s, m) => s + m.prisoverstyrt.length, 0)}`);
+
+// Rettingene på tvers av tilbud. Én overstyring er en avgjørelse; den samme
+// overstyringen tre ganger er en gal prisrad.
+const forslag = prisavvik(maalinger);
+if (forslag.length > 0) {
+  console.log("\nPrisrader firmaet retter selv");
+  for (const f of forslag) {
+    const merke = f.tillit === "enige" ? "→" : f.tillit === "sprikende" ? "?" : " ";
+    console.log(`  ${merke} ${f.tekst}`);
+  }
+  const enige = forslag.filter((f) => f.tillit === "enige").length;
+  if (enige > 0) {
+    console.log(`\n  ${enige} rad(er) kan rettes i prisfila med én gang. Det fjerner ${
+      forslag.filter((f) => f.tillit === "enige").reduce((sum, f) => sum + f.antall, 0)
+    } av ${maalinger.reduce((s, m) => s + m.prisoverstyrt.length, 0)} overstyringer.`);
+  }
+}
 
 if (utenEndeligLogg > 0) {
   console.log(
