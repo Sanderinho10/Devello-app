@@ -8,6 +8,16 @@ import { computeTotals, lineTotal, type QuoteDocument, type QuoteLine, type Quot
  * gullsettsakene skal kjøres om igjen mot en ny motor.
  */
 
+export interface PrisOverstyring {
+  /** Prisraden begge postene peker på. null når posten ikke har en rad. */
+  price_item_id: string | null;
+  post: string;
+  /** Det prisfilen sa. */
+  fra: number;
+  /** Det firmaet faktisk sendte. */
+  til: number;
+}
+
 export interface Snapshot {
   quote_type: QuoteType;
   email_subject: string | null;
@@ -31,7 +41,7 @@ export interface Maaling {
   /** Poster agenten hadde som brukeren tok ut. */
   fjernet: string[];
   /** Samme post, annet beløp: prisfilen var feil eller manglet raden. */
-  prisoverstyrt: { post: string; fra: number; til: number }[];
+  prisoverstyrt: PrisOverstyring[];
   /** (utkast − sendt) / sendt, rått. */
   avvikPct: number | null;
   /** Samme, men med de sendte prisene på postene agenten traff. */
@@ -73,7 +83,12 @@ export function maal(
 
   const prisoverstyrt = par
     .filter(({ e, a }) => Math.abs(Number(e.unit_price) - Number(a.unit_price)) > 0.005)
-    .map(({ e, a }) => ({ post: e.description, fra: Number(a.unit_price), til: Number(e.unit_price) }));
+    .map(({ e, a }) => ({
+      price_item_id: a.price_item_id ?? e.price_item_id ?? null,
+      post: e.description,
+      fra: Number(a.unit_price),
+      til: Number(e.unit_price),
+    }));
 
   const aiSum = ai.document ? computeTotals(ai.document).subtotal : 0;
   const endeligSum = endelig.document ? computeTotals(endelig.document).subtotal : 0;
