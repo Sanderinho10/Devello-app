@@ -6,6 +6,13 @@ import { GrossistSok, formatPris, type GrossistTreff } from "@/components/Grossi
 import { salspris, summerMateriell } from "@/lib/ordre/summering";
 import { formatNok, type MaterialEntry } from "@/lib/types";
 
+export interface FakturaInfo {
+  invoice_id: string;
+  invoice_no: string;
+  supplier_name: string | null;
+  voucher_date: string | null;
+}
+
 /**
  * Materiell på ordren.
  *
@@ -24,12 +31,15 @@ export function MateriellFane({
   entries,
   standardPaaslag,
   harKatalog,
+  fakturaInfo = {},
 }: {
   orderId: string;
   laast: boolean;
   entries: MaterialEntry[];
   standardPaaslag: number;
   harKatalog: boolean;
+  /** Per invoice_line_id: fakturaen linja kom fra. */
+  fakturaInfo?: Record<string, FakturaInfo>;
 }) {
   const router = useRouter();
   const [valgt, setValgt] = useState<GrossistTreff | null>(null);
@@ -42,6 +52,9 @@ export function MateriellFane({
   const [error, setError] = useState<string | null>(null);
 
   const sum = summerMateriell(entries);
+  const fraFaktura = entries.filter((e) => e.invoice_line_id);
+  const manuelle = entries.filter((e) => !e.invoice_line_id);
+  const entryAvId = new Map(entries.map((e) => [e.id, e]));
   const kostValgt = valgt ? (valgt.net_price_per_unit ?? valgt.list_price_per_unit) : 0;
   const salValgt = salspris(kostValgt, tal(paaslag) ?? standardPaaslag);
 
@@ -86,6 +99,25 @@ export function MateriellFane({
     }
   }
 
+  async function loys(e: MaterialEntry) {
+    const info = e.invoice_line_id ? fakturaInfo[e.invoice_line_id] : null;
+    if (!info || !e.invoice_line_id) return;
+    if (!window.confirm(`Løse «${e.name}» fra ordren? Linja går tilbake til fakturaen som ukoblet.`)) return;
+    setError(null);
+    try {
+      const res = await fetch(`/api/regnskap/fakturaer/${info.invoice_id}/loys`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ line_id: e.invoice_line_id }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error ?? "Kunne ikke løse");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
   async function slett(e: MaterialEntry) {
     if (!window.confirm(`Slette «${e.name}»?`)) return;
     setError(null);
@@ -97,6 +129,97 @@ export function MateriellFane({
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
+  }
+
+  /** Én linje i lista. Fakturalinjer er låst i mengde og kost; erstattede er nedtonet. */
+  function rad(e: MaterialEntry) {
+    const kost = e.cost_price === null ? null : Number(e.cost_price);
+    const sal = Number(e.sale_price);
+    const q = Number(e.quantity);
+    const info = e.invoice_line_id ? fakturaInfo[e.invoice_line_id] : null;
+    const erstattaAv = e.replaced_by ? entryAvId.get(e.replaced_by) : null;
+    const erstattaInfo = erstattaAv?.invoice_line_id ? fakturaInfo[erstattaAv.invoice_line_id] : null;
+    const erstatta = Boolean(e.replaced_by);
+
+    return (
+      <div key={e.id} className={`lead-row materiell-rad${erstatta ? " erstatta" : ""}`}>
+        <span className="ordre-nr">{e.item_no ?? "—"}</span>
+        <div className="lead-main">
+          <div className="lead-subject" style={{ cursor: "default" }}>
+            {e.name}
+          </div>
+          <div className="lead-meta">
+            {q.toLocaleString("nb-NO")} {e.unit} × {formatPris(sal)}
+            {kost !== null && ` · kost ${formatPris(kost)}`}
+            {!info && e.note && ` · ${e.note}`}
+          </div>
+          {info && (
+            <div className="chips">
+              <span className="chip faktura">
+                Faktura {info.invoice_no}
+                {info.supplier_name && ` · ${info.supplier_name}`}
+                {info.voucher_date && ` · ${formatDag(info.voucher_date)}`}
+              </span>
+            </div>
+          )}
+          {erstatta && (
+            <div className="tiny" style={{ color: "var(--warning)", marginTop: 3 }}>
+              Erstattet av faktura{erstattaInfo ? ` ${erstattaInfo.invoice_no}` : ""} — teller ikke i summen.
+            </div>
+          )}
+        </div>
+        <span className="materiell-paaslag">
+          {redigerPaaslag?.id === e.id ? (
+            <form
+              className="row"
+              onSubmit={(ev) => {
+                ev.preventDefault();
+                patch(e.id, { markup_pct: redigerPaaslag.verdi });
+              }}
+            >
+              <input
+                className="input"
+                inputMode="decimal"
+                value={redigerPaaslag.verdi}
+                onChange={(ev) => setRedigerPaaslag({ id: e.id, verdi: ev.target.value })}
+                style={{ width: 72 }}
+                autoFocus
+              />
+              <button className="button" type="submit">
+                OK
+              </button>
+              <button type="button" className="button ghost" onClick={() => setRedigerPaaslag(null)}>
+                ×
+              </button>
+            </form>
+          ) : (
+            <button
+              type="button"
+              className="linkish"
+              disabled={laast || kost === null || erstatta}
+              title={kost === null ? "Fritekstlinje uten kostpris" : "Trykk for å overstyre påslaget"}
+              onClick={() => setRedigerPaaslag({ id: e.id, verdi: String(Number(e.markup_pct)) })}
+            >
+              {Number(e.markup_pct).toLocaleString("nb-NO")} %
+            </button>
+          )}
+        </span>
+        <span className="ordre-sum">
+          <strong>{formatNok(q * sal)}</strong>
+        </span>
+        {!laast && !erstatta && (
+          info ? (
+            <button type="button" className="button ghost" onClick={() => loys(e)}>
+              Løs fra ordre
+            </button>
+          ) : (
+            <button type="button" className="button ghost" onClick={() => slett(e)}>
+              Slett
+            </button>
+          )
+        )}
+      </div>
+    );
   }
 
   return (
@@ -276,78 +399,26 @@ export function MateriellFane({
             <div>{laast ? "Ordren er avsluttet." : "Søk opp en vare over, eller legg til en fritekstlinje."}</div>
           </div>
         ) : (
-          <div className="lead-list">
-            {entries.map((e) => {
-              const kost = e.cost_price === null ? null : Number(e.cost_price);
-              const sal = Number(e.sale_price);
-              const q = Number(e.quantity);
-              return (
-                <div key={e.id} className="lead-row materiell-rad">
-                  <span className="ordre-nr">{e.item_no ?? "—"}</span>
-                  <div className="lead-main">
-                    <div className="lead-subject" style={{ cursor: "default" }}>
-                      {e.name}
-                    </div>
-                    <div className="lead-meta">
-                      {q.toLocaleString("nb-NO")} {e.unit} × {formatPris(sal)}
-                      {kost !== null && ` · kost ${formatPris(kost)}`}
-                      {e.note && ` · ${e.note}`}
-                    </div>
-                  </div>
-                  <span className="materiell-paaslag">
-                    {redigerPaaslag?.id === e.id ? (
-                      <form
-                        className="row"
-                        onSubmit={(ev) => {
-                          ev.preventDefault();
-                          patch(e.id, { markup_pct: redigerPaaslag.verdi });
-                        }}
-                      >
-                        <input
-                          className="input"
-                          inputMode="decimal"
-                          value={redigerPaaslag.verdi}
-                          onChange={(ev) => setRedigerPaaslag({ id: e.id, verdi: ev.target.value })}
-                          style={{ width: 72 }}
-                          autoFocus
-                        />
-                        <button className="button" type="submit">
-                          OK
-                        </button>
-                        <button type="button" className="button ghost" onClick={() => setRedigerPaaslag(null)}>
-                          ×
-                        </button>
-                      </form>
-                    ) : (
-                      <button
-                        type="button"
-                        className="linkish"
-                        disabled={laast || kost === null}
-                        title={kost === null ? "Fritekstlinje uten kostpris" : "Trykk for å overstyre påslaget"}
-                        onClick={() => setRedigerPaaslag({ id: e.id, verdi: String(Number(e.markup_pct)) })}
-                      >
-                        {Number(e.markup_pct).toLocaleString("nb-NO")} %
-                      </button>
-                    )}
-                  </span>
-                  <span className="ordre-sum">
-                    <strong>{formatNok(q * sal)}</strong>
-                  </span>
-                  {!laast && (
-                    <button type="button" className="button ghost" onClick={() => slett(e)}>
-                      Slett
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <>
+            {fraFaktura.length > 0 && (
+              <>
+                <div className="dato-skille">Fra leverandørfakturaer</div>
+                <div className="lead-list">{fraFaktura.map((e) => rad(e))}</div>
+                {manuelle.length > 0 && <div className="dato-skille">Ført manuelt</div>}
+              </>
+            )}
+            <div className="lead-list">{manuelle.map((e) => rad(e))}</div>
+          </>
         )}
 
         {entries.length > 0 && (
           <div className="card-pad" style={{ borderTop: "1px solid var(--border)" }}>
             <div className="row-between tiny" style={{ padding: "3px 0" }}>
-              <span className="muted">Sum kost</span>
+              <span className="muted">
+                Sum kost
+                {sum.fraFaktura > 0 && ` · ${sum.fraFaktura} ${sum.fraFaktura === 1 ? "linje" : "linjer"} fra faktura`}
+                {sum.erstatta > 0 && ` · ${sum.erstatta} erstattet`}
+              </span>
               <span>{formatNok(sum.kost)}</span>
             </div>
             <div className="row-between" style={{ marginTop: 6, fontWeight: 600 }}>
@@ -359,6 +430,12 @@ export function MateriellFane({
       </div>
     </div>
   );
+}
+
+/** «2026-09-12» → «12.09». */
+function formatDag(iso: string): string {
+  const d = new Date(iso + "T00:00:00");
+  return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
 function tal(s: string): number | null {

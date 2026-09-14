@@ -59,6 +59,7 @@ const ORDRE: NavSection = {
   basePath: "/ordre",
   tabs: [
     { label: "Ordrer", href: "/ordre" },
+    { label: "Leverandørfakturaer", href: "/ordre/leverandorfakturaer" },
     { label: "Grossister", href: "/ordre/grossister" },
     { label: "Innstillinger", href: "/ordre/innstillinger" },
   ],

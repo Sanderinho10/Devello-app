@@ -568,4 +568,106 @@ export interface MaterialEntry {
   registered_by: string | null;
   registered_at: string;
   updated_at: string;
+  /** Satt når linjen kom fra en leverandørfaktura. Mengde og kost er låst. */
+  invoice_line_id: string | null;
+  /**
+   * En manuell linje som en fakturalinje har gjort overflødig peker hit.
+   * Linjen står igjen, men er ute av summene.
+   */
+  replaced_by: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Regnskapssystem og leverandørfakturaer
+// ---------------------------------------------------------------------------
+
+export type AccountingProvider = "poweroffice" | "tripletex";
+export type AccountingEnv = "production" | "demo";
+export type ConnectionStatus = "aktiv" | "feil" | "kopla_fra";
+
+export const ACCOUNTING_PROVIDER_LABELS: Record<AccountingProvider, string> = {
+  poweroffice: "PowerOffice Go",
+  tripletex: "Tripletex",
+};
+
+/**
+ * Koplinga slik UI-et ser den — uten client_key. Kolonnerettighetene i
+ * 0035 gjør at nøkkelen aldri kan leses med brukerens sesjon.
+ */
+export interface AccountingConnectionPublic {
+  id: string;
+  company_id: string;
+  provider: AccountingProvider;
+  environment: AccountingEnv;
+  status: ConnectionStatus;
+  status_reason: string | null;
+  sync_cursor: string | null;
+  last_sync_at: string | null;
+  last_sync_note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type InvoiceMatchStatus = "kopla" | "delvis" | "ukopla" | "ignorert";
+
+export const INVOICE_MATCH_LABELS: Record<InvoiceMatchStatus, string> = {
+  kopla: "Koblet",
+  delvis: "Delvis koblet",
+  ukopla: "Ukoblet",
+  ignorert: "Ignorert",
+};
+
+export interface SupplierInvoice {
+  id: string;
+  company_id: string;
+  connection_id: string;
+  provider: AccountingProvider;
+  external_id: string;
+  voucher_no: number | null;
+  /** IncomingInvoice | IncomingCreditNote */
+  voucher_type: string;
+  invoice_no: string | null;
+  voucher_date: string | null;
+  due_date: string | null;
+  supplier_external_id: string | null;
+  supplier_no: string | null;
+  supplier_name: string | null;
+  supplier_org_nr: string | null;
+  currency: string | null;
+  net_amount: number | null;
+  total_amount: number | null;
+  references_found: string[];
+  has_ehf: boolean;
+  ehf_storage_path: string | null;
+  ehf_parsed_at: string | null;
+  parse_error: string | null;
+  match_status: InvoiceMatchStatus;
+  order_id: string | null;
+  line_count: number;
+  matched_line_count: number;
+  fetched_at: string;
+  updated_at: string;
+}
+
+export interface SupplierInvoiceLine {
+  id: string;
+  company_id: string;
+  invoice_id: string;
+  line_no: string | null;
+  item_no: string | null;
+  gtin: string | null;
+  name: string;
+  description: string | null;
+  quantity: number;
+  unit: string;
+  unit_price: number;
+  line_total: number;
+  vat_pct: number | null;
+  order_reference: string | null;
+  supplier_item_id: string | null;
+  order_id: string | null;
+  material_entry_id: string | null;
+  status: InvoiceMatchStatus;
+  created_at: string;
+  updated_at: string;
 }

@@ -56,6 +56,15 @@ export async function PATCH(
     const endringer: Record<string, unknown> = {};
     const kost = entry.cost_price === null ? null : Number(entry.cost_price);
 
+    // En linje fra en leverandørfaktura er fakturaens tall: mengde og
+    // kostpris kan ikke endres her. Påslag og fakturerbar kan.
+    if (entry.invoice_line_id && body.quantity !== undefined) {
+      return NextResponse.json(
+        { error: "Mengden kommer fra leverandørfakturaen og kan ikke endres." },
+        { status: 400 },
+      );
+    }
+
     if (body.quantity !== undefined) {
       const q = tal(body.quantity);
       if (q === null || q <= 0) {
@@ -111,6 +120,13 @@ export async function DELETE(
     const admin = supabaseAdmin();
     const entry = await hentLinje(admin, session, id, entryId);
     if (entry instanceof NextResponse) return entry;
+
+    if (entry.invoice_line_id) {
+      return NextResponse.json(
+        { error: "Linjen kommer fra en leverandørfaktura. Bruk «Løs fra ordre» i stedet." },
+        { status: 400 },
+      );
+    }
 
     const { error } = await admin.from("material_entries").delete().eq("id", entry.id);
     if (error) throw new Error(error.message);

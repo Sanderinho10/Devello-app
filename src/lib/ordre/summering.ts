@@ -20,7 +20,12 @@ export interface Materiellsum {
   kost: number;
   /** Sum salgspris eks. mva. */
   sal: number;
+  /** Linjer som teller — erstattede er ikke med. */
   linjer: number;
+  /** Hvor mange av linjene som kom fra en leverandørfaktura. */
+  fraFaktura: number;
+  /** Manuelle linjer som en faktura har erstattet. Ute av summene. */
+  erstatta: number;
 }
 
 export function summerTimar(
@@ -48,17 +53,32 @@ export function summerTimar(
   };
 }
 
-export function summerMateriell(
-  entries: Pick<MaterialEntry, "quantity" | "cost_price" | "sale_price">[],
-): Materiellsum {
+/**
+ * En manuell linje som en fakturalinje har erstattet (replaced_by satt) er
+ * ute av summene: fakturaen er fasiten for hva som faktisk ble brukt. Den
+ * står igjen i lista, nedtonet, så det er mulig å se hva som ble ført.
+ */
+type MateriellLinje = Pick<MaterialEntry, "quantity" | "cost_price" | "sale_price"> &
+  Partial<Pick<MaterialEntry, "replaced_by" | "invoice_line_id">>;
+
+export function summerMateriell(entries: MateriellLinje[]): Materiellsum {
   let kost = 0;
   let sal = 0;
+  let linjer = 0;
+  let fraFaktura = 0;
+  let erstatta = 0;
   for (const e of entries) {
+    if (e.replaced_by) {
+      erstatta += 1;
+      continue;
+    }
     const q = Number(e.quantity);
     kost += q * Number(e.cost_price ?? 0);
     sal += q * Number(e.sale_price);
+    linjer += 1;
+    if (e.invoice_line_id) fraFaktura += 1;
   }
-  return { kost: round2(kost), sal: round2(sal), linjer: entries.length };
+  return { kost: round2(kost), sal: round2(sal), linjer, fraFaktura, erstatta };
 }
 
 /** Salgspris fra kostpris og påslag, to desimaler. Én formel for API og UI. */

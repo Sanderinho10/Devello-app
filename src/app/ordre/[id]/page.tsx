@@ -44,7 +44,7 @@ export default async function OrdreSide({
       .eq("order_id", ordre.id),
     supabase
       .from("material_entries")
-      .select("quantity, cost_price, sale_price")
+      .select("quantity, cost_price, sale_price, replaced_by, invoice_line_id")
       .eq("order_id", ordre.id),
   ]);
 
@@ -82,7 +82,9 @@ export default async function OrdreSide({
               <span className="tiny muted">Materiell</span>
               <strong>{formatNok(materiellsum.sal)}</strong>
               <span className="tiny muted">
-                {materiellsum.linjer} {materiellsum.linjer === 1 ? "linje" : "linjer"} · kost{" "}
+                {materiellsum.linjer} {materiellsum.linjer === 1 ? "linje" : "linjer"}
+                {materiellsum.fraFaktura > 0 && `, hvorav ${materiellsum.fraFaktura} fra faktura`}
+                {" · kost "}
                 {formatNok(materiellsum.kost)} →
               </span>
             </Link>

@@ -23,6 +23,7 @@
     "test:anonym": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-anonymiser.ts",
     "test:opplaering": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-opplaering.ts",
     "test:nelfo4": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-nelfo4.ts",
+    "test:ehf": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-ehf.ts",
     "grossist:importer": "node --env-file=.env.local --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/importer-grossist.ts"
   },
   "dependencies": {
@@ -30,6 +31,7 @@
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.58.0",
     "exceljs": "^4.4.0",
+    "fast-xml-parser": "^5.11.1",
     "jszip": "^3.10.1",
     "mammoth": "^1.12.1",
     "next": "^16.3.1",

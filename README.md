@@ -89,6 +89,7 @@ Eller lim inn migrasjonene i SQL-editoren i rekkefølge, så `seed.sql`.
 | `0032_ordre.sql` | Ordremodulen: `companies.moduler`, `orders` med løpenummer per selskap, `order_events` |
 | `0033_grossistkatalog.sql` | Grossister og varekatalog (EFO/NELFO 4.0), pris per måleenhet, trigramsøk, standardpåslag |
 | `0034_timar_og_materiell.sql` | `time_entries` og `material_entries` på ordren, med priser kopiert inn ved føring |
+| `0035_regnskapskopling_og_leverandorfakturaer.sql` | Kobling til regnskapssystem (client key skjult for nettleseren), leverandørfakturaer og EHF-linjer, `replaced_by` på materiell |
 
 ### 3. Azure
 
@@ -145,7 +146,7 @@ src/
 ├─ app/
 │  ├─ tilbud/                   Agentens faner: leads, prisfil, referansefiler, innstillinger
 │  │  └─ leads/[id]/            Utkastredigering — dokument eller tekst etter type
-│  ├─ ordre/                    Ordremodulen (bak companies.moduler): ordreliste, grossister, innstillinger
+│  ├─ ordre/                    Ordremodulen (bak companies.moduler): ordrer, leverandørfakturaer, grossister, innstillinger
 │  │  └─ [id]/                  Ordren som faner: Oversikt, timer/, materiell/ — layout.tsx eier header og faner
 │  └─ api/
 │     ├─ auth/microsoft/        OAuth-flyten mot Entra ID
@@ -154,7 +155,8 @@ src/
 │     ├─ drafts/[id]/           confirm (PDF + Outlook-kladd) og pdf (forhåndsvisning)
 │     ├─ orders/                Opprett ordre, PATCH status/felt, [id]/timer og [id]/materiell
 │     ├─ grossist/sok           Søk i grossistkatalogen
-│     └─ order-settings         Standardpåslag på materiell
+│     ├─ order-settings         Standardpåslag på materiell
+│     └─ regnskap/              connection (PUT/DELETE), sync, fakturaer/[id]/{kople,loys,ignorer}
 ├─ lib/
 │  ├─ claude/                   motor.ts (laster agent/), generate.ts
 │  ├─ graph/                    oauth.ts, client.ts, drafts.ts
@@ -162,6 +164,7 @@ src/
 │  ├─ drafts/versions.ts        Versjonslogging
 │  ├─ ordre/                    beskrivelse.ts (AI-utkast), status.ts, summering.ts, hent.ts, api.ts
 │  ├─ grossist/nelfo4.ts        Parser for EFO/NELFO 4.0-varefiler — ren funksjon, ingen database
+│  ├─ regnskap/                 poweroffice.ts (API-klient), ehf.ts (parser), matching.ts, sync.ts
 │  ├─ moduler.ts                harModul() — hvilke moduler et selskap har
 │  └─ types.ts                  Delte typer + computeTotals()
 agent/
@@ -243,6 +246,39 @@ sporbarhet. Katalogen (`supplier_items`) er noe annet enn kundens egen
 prisfil (`price_list_items`): prisfilen er det firmaet selger for,
 katalogen det firmaet kjøper for. Tilbudsagenten ser ikke katalogen.
 
+### PowerOffice Go
+
+Grossisten sender fakturaen som EHF rett til kundens regnskapssystem. Devello
+er ikke fakturamottak — regnskapet bor i PowerOffice Go. Men fakturaen har
+linjer med elnummer, mengde og pris, og en ordrereferanse, og Go gir ut
+original-XML-en via API. Så vi **leser**: henter inngående fakturaer, laster
+ned EHF-XML-en, leser linjene, finner ordrenummeret montøren skrev på
+bestillingen, og legger linjene på ordren som materiell med
+`source = 'faktura'`. Kostprisen er fakturaens, påslaget selskapets.
+
+Det vi aldri gjør: skrive til Go. Ingen bokføring, ingen betaling, ingen
+salgsfaktura herfra. Bare `GET`.
+
+Oppsettet:
+
+1. Devello har application key og subscription key fra
+   developer.poweroffice.net, én per miljø — `POGO_APPLICATION_KEY`,
+   `POGO_SUBSCRIPTION_KEY` og `POGO_DEMO_*` i `.env.local`.
+   Produksjonstilgang krever at PowerOffice har godkjent Devello.
+2. Kunden aktiverer utvidelsen i Go: Meny → Innstillinger → Utvidelser →
+   Legg til utvidelse → «Egendefinert utvidelse», limer inn Devello sin
+   application key, gir lesetilgang til inngående faktura,
+   bilagsdokumentasjon og leverandør, og får en **client key**.
+3. Client key limes inn under Ordre → Innstillinger → Regnskapssystem.
+   Den lagres i `accounting_connections.client_key`, som ingen nettleser
+   kan lese (kolonnerettigheter, samme grep som postkasse-tokenene).
+
+«Hent fakturaer nå» kjører `synkroniserFakturaer(companyId)` i
+`src/lib/regnskap/sync.ts`. Den tar et selskap, ikke en sesjon, så en cron
+kan kalle den senere. Fakturaer uten gjenkjent ordrenummer havner under
+Ordre → Leverandørfakturaer → Ukoblet, der de kobles for hånd eller
+ignoreres. Kreditnotaer hentes og vises, men kobles aldri automatisk.
+
 ### Navigasjonsmønsteret
 
 Sidebar er organisert **per agent**, ikke per funksjon. Alt som hører til
@@ -272,6 +308,7 @@ npm run preview:pdf            # eksempel-PDF uten database, havner i tmp/
 npm run preview:pdf -- fastpris
 npm run test:motor             # motor v3 og tilbakerullingen, uten database
 npm run test:nelfo4            # parseren for grossistenes varefiler, uten database
+npm run test:ehf               # EHF-parseren og ordrenummer-matchingen, uten database
 npm run test:gullsett          # målingen bak gullsettet, uten database
 npm run evaluer                # evalueringssuiten — 15 saker med fasit, se evaluering/LES_MEG.md
 npm run evaluer -- --motor v3  # samme, mot én bestemt motor (egen baseline)
