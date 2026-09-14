@@ -56,7 +56,11 @@ const ORDRE: NavSection = {
   label: "Ordre",
   icon: "▣",
   basePath: "/ordre",
-  tabs: [{ label: "Ordrer", href: "/ordre" }],
+  tabs: [
+    { label: "Ordrer", href: "/ordre" },
+    { label: "Grossister", href: "/ordre/grossister" },
+    { label: "Innstillinger", href: "/ordre/innstillinger" },
+  ],
 };
 
 const DOKUMENTASJON: NavSection = {
@@ -102,6 +106,11 @@ export function Sidebar({
 
   function renderSection(section: NavSection) {
     const active = pathname.startsWith(section.basePath);
+    // «/ordre» er prefiks for alle ordre-sidene; den lengste fanen som
+    // passer er den som gjelder, ellers ville Ordrer alltid stått aktiv.
+    const aktivFane = section.tabs
+      .filter((tab) => pathname === tab.href || pathname.startsWith(tab.href + "/"))
+      .sort((a, b) => b.href.length - a.href.length)[0];
     return (
       <div className="nav-agent" key={section.key}>
         {section.comingSoon ? (
@@ -126,7 +135,7 @@ export function Sidebar({
               <Link
                 key={tab.href}
                 href={tab.href}
-                className={`nav-tab${pathname.startsWith(tab.href) ? " active" : ""}`}
+                className={`nav-tab${tab === aktivFane ? " active" : ""}`}
               >
                 {tab.label}
               </Link>

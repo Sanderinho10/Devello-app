@@ -75,6 +75,8 @@ export interface Company {
   moduler: string[];
   /** Neste ledige ordrenummer. Deles ut av neste_ordrenummer() i databasen. */
   next_order_no: number;
+  /** Standardpåslag på materiell i prosent. Kopieres inn på hver materiellinje. */
+  materials_markup_pct: number;
 }
 
 export interface Member {
@@ -458,4 +460,58 @@ export interface OrderEvent {
   note: string | null;
   created_by: string | null;
   created_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Grossistkatalog
+// ---------------------------------------------------------------------------
+
+/** En grossist selskapet handler hos: Onninen, Ahlsell, Solar … */
+export interface Supplier {
+  id: string;
+  company_id: string;
+  name: string;
+  /** Vårt kundenummer hos grossisten. */
+  customer_no: string | null;
+  /** Grossistens organisasjonsnummer, fra varefila. */
+  seller_id: string | null;
+  active: boolean;
+  last_import_at: string | null;
+  last_import_status: "ok" | "feil" | null;
+  last_import_note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * En vare i grossistkatalogen. Prisene appen bruker er per måleenhet
+ * (list_price_per_unit, net_price_per_unit); list_price og
+ * qty_per_price_unit er slik fila sa det, for sporbarhet.
+ */
+export interface SupplierItem {
+  id: string;
+  company_id: string;
+  supplier_id: string;
+  /** 0 ukjent, 1 elnr, 2 EAN, 3 fabrikant, 4 NRF, 9 tillegg. */
+  item_kind: number;
+  item_no: string;
+  name: string;
+  /** stk, m, l, kg. */
+  unit: string;
+  price_unit: string | null;
+  qty_per_price_unit: number;
+  list_price: number;
+  list_price_per_unit: number;
+  discount_group: string | null;
+  discount_pct: number | null;
+  net_price_per_unit: number | null;
+  brand: string | null;
+  product_type: string | null;
+  stocked: boolean | null;
+  sales_pack: number | null;
+  block_no: string | null;
+  gtin: string | null;
+  active: boolean;
+  price_date: string | null;
+  imported_at: string;
 }

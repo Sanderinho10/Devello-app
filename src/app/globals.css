@@ -1509,6 +1509,29 @@ p {
   margin-left: 0;
 }
 
+/* Grossistsøk: treff som knapper på Materiell-fanen, som rader på Grossister */
+.grossist-rad {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: default;
+}
+
+.grossist-rad.clickable {
+  cursor: pointer;
+}
+
+.grossist-treff {
+  max-height: 420px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
 /* Handlingsfelt nedst i utkastet */
 .action-bar {
   position: sticky;
