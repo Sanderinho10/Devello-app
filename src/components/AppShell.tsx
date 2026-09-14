@@ -15,13 +15,17 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   const supabase = await supabaseServer();
   const { data: company } = await supabase
     .from("companies")
-    .select("name")
+    .select("name, moduler")
     .eq("id", session.companyId)
     .single();
 
   return (
     <div className="shell">
-      <Sidebar companyName={company?.name ?? "Devello"} userEmail={session.email} />
+      <Sidebar
+        companyName={company?.name ?? "Devello"}
+        userEmail={session.email}
+        moduler={company?.moduler ?? []}
+      />
       <main className="main">{children}</main>
     </div>
   );

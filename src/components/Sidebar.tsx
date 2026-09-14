@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SignOut } from "@/components/SignOut";
 import { Merke } from "@/components/Merke";
+import { harModul } from "@/lib/moduler";
 
 /**
  * Navigasjon per agent, ikke per funksjon.
@@ -17,6 +18,10 @@ import { Merke } from "@/components/Merke";
  * Under agentene ligger Selskap: det som gjelder kontoen og ikke en enkelt
  * agent — abonnement, medlemmer, firmaopplysninger. Innstillinger som hører
  * til én agent, som postkasse og tone, blir værende hos agenten.
+ *
+ * Hvilke moduler som vises styres av companies.moduler (lib/moduler.ts).
+ * Tilbud står alltid; Ordre bare når selskapet har modulen. Det er samme
+ * bryter som API-et sjekker, så menyen og tilgangen kan ikke sprike.
  */
 
 interface NavTab {
@@ -33,28 +38,43 @@ interface NavSection {
   comingSoon?: boolean;
 }
 
-const AGENTS: NavSection[] = [
-  {
-    key: "tilbud",
-    label: "Tilbud",
-    icon: "◆",
-    basePath: "/tilbud",
-    tabs: [
-      { label: "Leads", href: "/tilbud/leads" },
-      { label: "Prisfil", href: "/tilbud/prisfil" },
-      { label: "Referansefiler", href: "/tilbud/referansefiler" },
-      { label: "Innstillinger", href: "/tilbud/innstillinger" },
-    ],
-  },
-  {
-    key: "dokumentasjon",
-    label: "Dokumentasjon",
-    icon: "◇",
-    basePath: "/dokumentasjon",
-    tabs: [],
-    comingSoon: true,
-  },
-];
+const TILBUD: NavSection = {
+  key: "tilbud",
+  label: "Tilbud",
+  icon: "◆",
+  basePath: "/tilbud",
+  tabs: [
+    { label: "Leads", href: "/tilbud/leads" },
+    { label: "Prisfil", href: "/tilbud/prisfil" },
+    { label: "Referansefiler", href: "/tilbud/referansefiler" },
+    { label: "Innstillinger", href: "/tilbud/innstillinger" },
+  ],
+};
+
+const ORDRE: NavSection = {
+  key: "ordre",
+  label: "Ordre",
+  icon: "▣",
+  basePath: "/ordre",
+  tabs: [{ label: "Ordrer", href: "/ordre" }],
+};
+
+const DOKUMENTASJON: NavSection = {
+  key: "dokumentasjon",
+  label: "Dokumentasjon",
+  icon: "◇",
+  basePath: "/dokumentasjon",
+  tabs: [],
+  comingSoon: true,
+};
+
+/** Seksjonene selskapet skal se, i rekkefølgen jobben går: tilbud → ordre → dokumentasjon. */
+function agentSections(moduler: string[]): NavSection[] {
+  const sections = [TILBUD];
+  if (harModul(moduler, "ordre")) sections.push(ORDRE);
+  sections.push(DOKUMENTASJON);
+  return sections;
+}
 
 const COMPANY: NavSection = {
   key: "selskap",
@@ -71,9 +91,12 @@ const COMPANY: NavSection = {
 export function Sidebar({
   companyName,
   userEmail,
+  moduler,
 }: {
   companyName: string;
   userEmail: string;
+  /** companies.moduler — hvilke seksjoner som skal vises. */
+  moduler: string[];
 }) {
   const pathname = usePathname();
 
@@ -121,7 +144,7 @@ export function Sidebar({
         Devello
       </div>
 
-      {AGENTS.map(renderSection)}
+      {agentSections(moduler).map(renderSection)}
 
       <div className="nav-separator" />
       {renderSection(COMPANY)}

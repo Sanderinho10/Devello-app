@@ -4,6 +4,14 @@ import { loggModellbruk, type UsageContext } from "@/lib/billing/usage";
 /** Claude Opus 5. Modellvalget er sentralisert her. */
 export const MODEL = "claude-opus-5";
 
+/**
+ * Claude Haiku 4.5 — den lille modellen, for kall der kvaliteten ikke
+ * avhenger av resonnering: en arbeidsbeskrivelse på tre setninger trenger
+ * ikke opus. Nyeste Haiku i Anthropics modelloversikt per september 2026.
+ * Endres modellen, må satsene i lib/billing/usage.ts følge med.
+ */
+export const MODEL_SMALL = "claude-haiku-4-5";
+
 let cached: Anthropic | null = null;
 
 export function anthropic(): Anthropic {
@@ -46,9 +54,18 @@ export async function structured<T>(options: {
   schema: Record<string, unknown>;
   maxTokens?: number;
   effort?: "low" | "medium" | "high" | "xhigh" | "max";
+  /**
+   * Modellen kallet skal gå til. Standard er MODEL (opus). MODEL_SMALL får
+   * verken adaptiv tenking eller effort — Haiku tar ikke imot noen av delene —
+   * bare skjemaet og max_tokens fra kallet.
+   */
+  model?: string;
   /** Logger faktisk tokenforbruk på selskapet. Utelatt = ingen logging. */
   usage?: UsageContext;
 }): Promise<T> {
+  const model = options.model ?? MODEL;
+  const liten = model !== MODEL;
+
   const content: Anthropic.TextBlockParam[] = [];
   if (options.cachePrefix) {
     // 5 minutter, ikke 1 time: bruddpunktet her er per selskap, og
@@ -66,11 +83,11 @@ export async function structured<T>(options: {
   let response;
   try {
     response = await anthropic().messages.create({
-      model: MODEL,
+      model,
       max_tokens: options.maxTokens ?? 16000,
-      thinking: { type: "adaptive" },
+      ...(liten ? {} : { thinking: { type: "adaptive" as const } }),
       output_config: {
-        effort: options.effort ?? "high",
+        ...(liten ? {} : { effort: options.effort ?? "high" }),
         format: { type: "json_schema", schema: options.schema },
       },
       system: options.cacheSystem
@@ -92,7 +109,7 @@ export async function structured<T>(options: {
   }
 
   if (options.usage) {
-    await loggModellbruk(options.usage, MODEL, response.usage);
+    await loggModellbruk(options.usage, model, response.usage);
   }
 
   if (response.stop_reason === "refusal") {

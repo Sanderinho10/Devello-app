@@ -86,6 +86,7 @@ Eller lim inn migrasjonene i SQL-editoren i rekkefølge, så `seed.sql`.
 | `0008_manual_leads.sql` | `source`-kolonne: leads kan komme manuelt (telefon), ikke bare på e-post |
 | `0009_draft_confidence.sql` | Sikkerhetsnivå per utkast, avledet av referansetilbud og treff i prisfilen |
 | `0010_onboarding.sql` | **Fjerner dev auto-join.** Roller, fakturaadresse, prøveperiode, invitasjoner og partnere |
+| `0032_ordre.sql` | Ordremodulen: `companies.moduler`, `orders` med løpenummer per selskap, `order_events` |
 
 ### 3. Azure
 
@@ -142,16 +143,21 @@ src/
 ├─ app/
 │  ├─ tilbud/                   Agentens faner: leads, prisfil, referansefiler, innstillinger
 │  │  └─ leads/[id]/            Utkastredigering — dokument eller tekst etter type
+│  ├─ ordre/                    Ordremodulen: ordreliste og ordreside (bak companies.moduler)
+│  │  └─ [id]/                  Status, beskrivelse, kunde, grunnlag fra tilbudet, hendelser
 │  └─ api/
 │     ├─ auth/microsoft/        OAuth-flyten mot Entra ID
 │     ├─ leads/fetch            «Hent leads»
 │     ├─ drafts/generate        Klassifisering + generering
-│     └─ drafts/[id]/           confirm (PDF + Outlook-kladd) og pdf (forhåndsvisning)
+│     ├─ drafts/[id]/           confirm (PDF + Outlook-kladd) og pdf (forhåndsvisning)
+│     └─ orders/                Opprett ordre (fra tilbud eller manuelt) og PATCH status/felt
 ├─ lib/
 │  ├─ claude/                   motor.ts (laster agent/), generate.ts
 │  ├─ graph/                    oauth.ts, client.ts, drafts.ts
 │  ├─ pdf/                      template.ts (Devello-malen), render.ts (HTML→PDF)
 │  ├─ drafts/versions.ts        Versjonslogging
+│  ├─ ordre/                    beskrivelse.ts (AI-utkast til arbeidsbeskrivelse), status.ts
+│  ├─ moduler.ts                harModul() — hvilke moduler et selskap har
 │  └─ types.ts                  Delte typer + computeTotals()
 agent/
 ├─ v2/                          Dagens motor, frosset: ett kall fra lead til prisrader
@@ -208,8 +214,12 @@ ikke havne i et tilfeldig selskap.
 
 Sidebar er organisert **per agent**, ikke per funksjon. Alt som hører til
 tilbudsagenten ligger som faner inni én «Tilbud»-knapp. Nye agenter blir egne
-oppføringer i `AGENTS`-listen i `src/components/Sidebar.tsx` med sine egne faner
-— ingen nye rader på toppnivå.
+seksjoner i `src/components/Sidebar.tsx` med sine egne faner — ingen nye rader
+på toppnivå.
+
+Hvilke seksjoner et selskap ser, styres av `companies.moduler` (`tilbud`,
+`ordre`): Tilbud står alltid, Ordre bare når modulen er på, og samme flagg
+sjekkes i `/api/orders` og i `ordre/layout.tsx` — se `src/lib/moduler.ts`.
 
 Under agentene ligger **Selskap**: abonnement, medlemmer og firmaopplysninger.
 Skillet går på hvem som eier innstillingen. Postkasse, merkevare og tone hører

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SendSjolv } from "./SendSjolv";
+import { OpprettOrdre } from "./OpprettOrdre";
 import Link from "next/link";
 import { PriceItemPicker } from "@/components/PriceItemPicker";
 import { ConfidenceBadge } from "@/components/ConfidenceBadge";
@@ -56,6 +57,7 @@ export function DraftEditor({
   address,
   priceItems,
   harPostkasse,
+  ordre,
 }: {
   lead: Lead;
   draft: Draft;
@@ -65,6 +67,11 @@ export function DraftEditor({
   priceItems: PriceListItem[];
   /** Har selskapet en Microsoft 365-postkasse koblet til? */
   harPostkasse: boolean;
+  /**
+   * Ordremodulen: er den på for selskapet, og finnes det alt en ordre for
+   * dette utkastet? Av → ingenting vises; tilbud fungerer uten ordre.
+   */
+  ordre: { aktiv: boolean; eksisterande: { id: string; order_no: number } | null };
 }) {
   const router = useRouter();
 
@@ -1070,6 +1077,17 @@ export function DraftEditor({
         </div>
       )}
       </fieldset>
+
+      {/*
+        Utenfor fieldset-en med vilje: et sendt tilbud er låst, men det er
+        nettopp da kunden sier ja og ordren skal opprettes.
+      */}
+      <OpprettOrdre
+        draftId={draft.id}
+        aktiv={ordre.aktiv}
+        eksisterande={ordre.eksisterande}
+        confirmed={confirmed}
+      />
 
       {sendSjolv && (
         <SendSjolv
