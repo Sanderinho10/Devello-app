@@ -163,9 +163,27 @@ export function pogoClient(kopling: PogoKopling) {
     return res;
   }
 
-  async function get<T>(path: string, query?: Record<string, string | number | undefined>): Promise<T> {
+  /**
+   * GET med JSON-svar. Go svarer 204 med tom kropp når en liste er tom
+   * (en demoklient uten fakturaer, for eksempel) — det er null her, ikke
+   * en feil. Alt annet som ikke er JSON er en feil vi sier fra om.
+   */
+  async function get<T>(
+    path: string,
+    query?: Record<string, string | number | undefined>,
+  ): Promise<T | null> {
     const res = await raw(path, query);
-    return (await res.json()) as T;
+    if (res.status === 204) return null;
+    const tekst = await res.text();
+    if (!tekst.trim()) return null;
+    try {
+      return JSON.parse(tekst) as T;
+    } catch {
+      throw new PogoFeil(
+        `PowerOffice Go svarte med noe som ikke er JSON på ${path}: ${tekst.slice(0, 120)}`,
+        502,
+      );
+    }
   }
 
   return {
@@ -214,7 +232,7 @@ export function pogoClient(kopling: PogoKopling) {
     },
 
     async hentDokumentasjonsstatus(voucherId: string): Promise<PogoDokumentasjon> {
-      const o = await get<Record<string, unknown>>("/VoucherDocumentation", { id: voucherId });
+      const o = (await get<Record<string, unknown>>("/VoucherDocumentation", { id: voucherId })) ?? {};
       return {
         VoucherId: strengEllerNull(felt(o, "VoucherId")),
         VoucherNo: talEllerNull(felt(o, "VoucherNo")),
@@ -240,7 +258,7 @@ export function pogoClient(kopling: PogoKopling) {
     },
 
     async hentLeverandoer(supplierId: string): Promise<PogoLeverandoer> {
-      const o = await get<Record<string, unknown>>(`/Suppliers/${encodeURIComponent(supplierId)}`);
+      const o = (await get<Record<string, unknown>>(`/Suppliers/${encodeURIComponent(supplierId)}`)) ?? {};
       return {
         Id: String(felt(o, "Id") ?? supplierId),
         Number: strengEllerNull(felt(o, "Number")),
