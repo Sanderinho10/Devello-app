@@ -13,11 +13,13 @@
  *    med to poster skal sendes tilbake; seks poster skal slippe gjennom.
  * 4. E-postvaktene: firmaets egen nettadresse i signaturen er lov, andre
  *    nettadresser er ikke, og signaturen godkjennes med normalisert whitespace.
+ * 5. Nullprisvakten: en prisrad på 0 kr blir aldri en tilbudslinje.
  */
 import path from "node:path";
 import { omfangBlokk, omfangSjekk, type Omfang } from "@/lib/claude/omfang";
 import { lesTekst, loadBransjepakke, loadMotor, loadMotorV3 } from "@/lib/claude/motor";
-import { harNettadresse, sluttarMedSignatur, type RawTilbudsdata } from "@/lib/claude/generate";
+import { buildPrompt, harNettadresse, resolve, sluttarMedSignatur, type GenerateInput, type RawTilbudsdata } from "@/lib/claude/generate";
+import type { PriceListItem } from "@/lib/types";
 
 let feil = 0;
 function sjekk(navn: string, ok: boolean, detalj?: string) {
@@ -131,6 +133,47 @@ sjekk("signaturen godkjennes selv om modellen normaliserte mellomrom og tomme ra
 sjekk("e-post som mangler siste signaturlinje godkjennes ikke", !sluttarMedSignatur(epost.replace("\nwww.eksempel-elektro.no", ""), signatur));
 sjekk("tekst etter signaturen godkjennes ikke", !sluttarMedSignatur(`${epost}\n\nPS: ring meg!`, signatur));
 sjekk("uten signatur i innstillingene er alt godkjent", sluttarMedSignatur(epost, ""));
+
+// 5. Nullprisvakten -------------------------------------------------------
+
+function prisrad(id: string, navn: string, pris: number): PriceListItem {
+  return {
+    id, company_id: "c", price_list_id: "p", kind: "punktpris", code: null,
+    name: navn, description: null, unit: "stk", unit_price: pris,
+    includes_labour: true, includes_material: true, active: true,
+  };
+}
+const prisrader = [prisrad("ok", "Stikkontakt dobbel", 1450), prisrad("null", "Solcelleanlegg", 0)];
+const inn = {
+  companyId: "c",
+  lead: { subject: "S", body_text: "B", from_name: null, from_email: null },
+  company: { name: "F", tone_settings: null },
+  priceItems: prisrader,
+} as unknown as GenerateInput;
+
+function medPoster(...ider: string[]): RawTilbudsdata {
+  return {
+    ...raw(0),
+    dokument: {
+      kunde: { navn: "K", kontakt: null, epost: null, telefon: null, adresse: null },
+      tittel: "T",
+      seksjoner: [{ tittel: "S", poster: ider.map((id) => ({ price_item_id: id, description: `post ${id}`, quantity: 1 })) }],
+    },
+  };
+}
+
+const utan = resolve(medPoster("ok"), inn);
+sjekk("ei rad med pris blir ei tilbodslinje", utan.document?.sections[0].lines.length === 1 && utan.unresolved_lines === 0);
+
+const med = resolve(medPoster("ok", "null"), inn);
+sjekk("ei rad på 0 kr blir aldri ei tilbodslinje", med.document?.sections[0].lines.length === 1);
+sjekk("nullraden hamnar i ikke_funnet i staden", med.ikke_funnet.some((n) => /post null/.test(n)));
+sjekk("merknaden namngir prisraden som må fiksast", med.merknader.some((m) => /Solcelleanlegg/.test(m) && /0 kr/.test(m)));
+sjekk("nullraden tel som uløyst linje", med.unresolved_lines === 1);
+
+const { prefiks } = buildPrompt(inn);
+sjekk("prislista i prompten åtvarar mot nullraden", /Solcelleanlegg[\s\S]*?ADVARSEL/.test(prefiks));
+sjekk("rada med pris får inga åtvaring", !/Stikkontakt dobbel\n\s+enhet: stk\n\s+enhetspris_eks_mva: 1450\n\s+ADVARSEL/.test(prefiks));
 
 console.log(feil === 0 ? "\nAlt grønt." : `\n${feil} sjekk(er) feilet.`);
 process.exit(feil === 0 ? 0 : 1);

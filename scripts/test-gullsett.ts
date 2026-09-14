@@ -9,8 +9,13 @@
  * er at målingen skiller de to: første saken er «fjernet + prisoverstyrt»,
  * andre er «bare prisoverstyrt» — ingen av dem er «manglet», og
  * omfangsavviket skal være null i begge.
+ *
+ * Til slutt: lærdommen på tvers av tilbud (prisavvik). Den samme raden rettet
+ * til det samme beløpet flere ganger skal gi et forslag; rettet til ulike
+ * beløp skal gi et spørsmål, ikke et tall.
  */
-import { maal, type Snapshot } from "@/lib/evaluering/maaling";
+import { maal, type Maaling, type Snapshot } from "@/lib/evaluering/maaling";
+import { prisavvik } from "@/lib/opplaering/prisavvik";
 import type { QuoteDocument, QuoteLine } from "@/lib/types";
 
 let feil = 0;
@@ -144,6 +149,51 @@ const d = maal(
   snap(dok([linje(null, "Manuelt priset post", 1500)])),
 );
 sjekk("D: post uten prisrad matches på tekst", d.dekning === 1 && d.prisoverstyrt.length === 1);
+
+// Lærdommen på tvers -------------------------------------------------------
+
+function maaling(...overstyringar: { id: string | null; post: string; fra: number; til: number }[]): Maaling {
+  return {
+    leadId: "l", emne: "e", sendt: null, endeligFraLogg: true,
+    aiPoster: 0, endeligPoster: 0, aiSum: 0, endeligSum: 0, dekning: 1,
+    manglet: [], fjernet: [],
+    prisoverstyrt: overstyringar.map((o) => ({ price_item_id: o.id, post: o.post, fra: o.fra, til: o.til })),
+    avvikPct: null, omfangsavvikPct: null,
+    forutsetningerLagtTil: 0, forutsetningerFjernet: 0,
+  };
+}
+
+// Easee-raden slik Roger faktisk rettet den: tre ganger, samme sted.
+const easee = { id: "easee", post: "Pakkepris Easee elbillader", fra: 12452.54 };
+// Tesla-raden: to ganger, men til ulike beløp.
+const tesla = { id: "tesla", post: "Pakkepris installasjon, lader innkjøpt av kunde", fra: 4532.84 };
+
+const laert = prisavvik([
+  maaling({ ...easee, til: 11160 }, { ...tesla, til: 7000 }),
+  maaling({ ...easee, til: 11160 }),
+  maaling({ ...easee, til: 11060 }, { ...tesla, til: 6360 }),
+  maaling({ id: "engangs", post: "Ladeplate", fra: 2069.47, til: 2500 }),
+]);
+
+const e = laert.find((f) => f.price_item_id === "easee")!;
+sjekk("E: raden som er rettet oftest kommer først", laert[0].price_item_id === "easee");
+sjekk("E: tre enige rettinger gir et forslag", e.tillit === "enige" && e.forslag === 11160, `${e.tillit} ${e.forslag}`);
+sjekk("E: forslaget er lavere enn prisfila", (e.endringPct ?? 0) < 0 && e.tekst.includes("for høy"));
+
+const t = laert.find((f) => f.price_item_id === "tesla")!;
+sjekk("E: to sprikende rettinger gir ikke et tall", t.tillit === "sprikende" && t.forslag === null);
+sjekk("E: sprikende retting ber brukeren avgjøre", /avgjørelse/.test(t.tekst));
+
+const en = laert.find((f) => f.price_item_id === "engangs")!;
+sjekk("E: én retting er for lite til å konkludere", en.tillit === "enkelt" && en.forslag === null);
+
+sjekk("E: ingen overstyringer gir ingen forslag", prisavvik([maaling()]).length === 0);
+
+const utanRad = prisavvik([
+  maaling({ id: null, post: "Manuelt priset post", fra: 1000, til: 1500 }),
+  maaling({ id: null, post: "Manuelt  priset POST", fra: 1000, til: 1500 }),
+]);
+sjekk("E: poster uten prisrad grupperes på normalisert tekst", utanRad.length === 1 && utanRad[0].antall === 2);
 
 console.log(feil === 0 ? "\nAlt grønt." : `\n${feil} sjekk(er) feilet.`);
 process.exit(feil === 0 ? 0 : 1);
