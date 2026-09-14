@@ -371,6 +371,12 @@ export function buildPrompt(input: GenerateInput): PromptDeler {
       ];
       if (item.code) parts.push(`  kode: ${item.code}`);
       if (item.description) parts.push(`  beskrivelse: ${item.description}`);
+      // En rad uten pris er ikke en pris. Hos importerte prisfiler er dette
+      // som regel en kategorioverskrift eller en rad noen aldri fylte ut.
+      // Koden dropper linjen uansett (se resolve()); dette sparer runden.
+      if (Number(item.unit_price) === 0) {
+        parts.push("  ADVARSEL: denne raden har ingen pris (0). Bruk den ikke — finn en rad med pris, eller legg posten i ikke_funnet.");
+      }
       return parts.join("\n");
     })
     .join("\n");
@@ -560,6 +566,23 @@ export function resolve(
       title: section.tittel,
       lines: section.poster.flatMap((line) => {
         const item = byId.get(line.price_item_id);
+
+        // En prisrad på 0 kr er ikke en pris — det er en rad ingen har fylt
+        // ut, eller en kategorioverskrift som ble importert som rad. Hos Star
+        // Elektro er 61 av 247 aktive rader slik. Slipper en av dem gjennom,
+        // gir tilbudet arbeidet bort gratis, og hverken agenten eller Roger
+        // ser det i en lang postliste. Dette er ikke et modellproblem — en ny
+        // runde gir samme rad — så koden avgjør det uten å be om et nytt svar.
+        if (item && allowedKinds.has(item.kind) && Number(item.unit_price) === 0) {
+          unresolved += 1;
+          const name = line.description || item.name;
+          if (!ikkeFunnet.includes(name)) ikkeFunnet.push(name);
+          merknader.push(
+            `«${name}» er tatt ut: prisraden «${item.name}» står til 0 kr i prisfila. Sett en pris på raden på Prisfil-siden, eller pris posten manuelt — den skal ikke ut til kunden gratis.`,
+          );
+          return [];
+        }
+
         // Ukjent id, eller rad fra feil liste for typen: dropp linjen heller
         // enn å gjette — og si fra, i stedet for å droppe i stillhet.
         if (!item || !allowedKinds.has(item.kind)) {
