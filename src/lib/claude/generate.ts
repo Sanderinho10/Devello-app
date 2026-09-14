@@ -371,11 +371,12 @@ export function buildPrompt(input: GenerateInput): PromptDeler {
       ];
       if (item.code) parts.push(`  kode: ${item.code}`);
       if (item.description) parts.push(`  beskrivelse: ${item.description}`);
-      // En rad uten pris er ikke en pris. Hos importerte prisfiler er dette
-      // som regel en kategorioverskrift eller en rad noen aldri fylte ut.
-      // Koden dropper linjen uansett (se resolve()); dette sparer runden.
+      // En rad uten pris betyr enten «inkludert uten tillegg»
+      // (samsvarserklæring, dokumentasjon) eller en kategorioverskrift som
+      // ble importert som prisrad. Modellen ser forskjellen fra navnet; den
+      // trenger bare å vite at raden ikke bærer penger.
       if (Number(item.unit_price) === 0) {
-        parts.push("  ADVARSEL: denne raden har ingen pris (0). Bruk den ikke — finn en rad med pris, eller legg posten i ikke_funnet.");
+        parts.push("  MERK: denne raden har ingen pris (0). Bruk den bare når posten faktisk er med uten tillegg. Skal arbeidet koste noe, finn en rad med pris — eller legg posten i ikke_funnet.");
       }
       return parts.join("\n");
     })
@@ -551,6 +552,8 @@ export function resolve(
   const merknader = [...raw.merknader];
   const ikkeFunnet = [...raw.ikke_funnet];
   let unresolved = 0;
+  /** Prisrader uten pris som ble brukt. Samles til én merknad til slutt. */
+  const utenPris: string[] = [];
 
   let document: QuoteDocument | null = null;
 
@@ -567,20 +570,20 @@ export function resolve(
       lines: section.poster.flatMap((line) => {
         const item = byId.get(line.price_item_id);
 
-        // En prisrad på 0 kr er ikke en pris — det er en rad ingen har fylt
-        // ut, eller en kategorioverskrift som ble importert som rad. Hos Star
-        // Elektro er 61 av 247 aktive rader slik. Slipper en av dem gjennom,
-        // gir tilbudet arbeidet bort gratis, og hverken agenten eller Roger
-        // ser det i en lang postliste. Dette er ikke et modellproblem — en ny
-        // runde gir samme rad — så koden avgjør det uten å be om et nytt svar.
+        // En rad på 0 kr kan bety to helt ulike ting, og koden kan ikke se
+        // forskjell. Hos Star Elektro står «Samsvarserklæring for utført
+        // arbeid» til 0 med vilje — den er med i alle seks sendte tilbud, og
+        // skal være der. «Solcelleanlegg» står også til 0, men det er en
+        // kategorioverskrift som ble importert som prisrad; gikk den ut,
+        // ville kunden fått anlegget gratis.
+        //
+        // Derfor tas linjen IKKE ut — det ville strøket Rogers egne
+        // inkludert-poster fra hvert eneste tilbud. I stedet samles radene i
+        // én merknad, så brukeren ser dem og kan avgjøre. Lærer vi senere
+        // hvilke nullrader firmaet sender med vilje (samme mekanikk som
+        // prisavvik.ts), kan de filtreres bort herfra.
         if (item && allowedKinds.has(item.kind) && Number(item.unit_price) === 0) {
-          unresolved += 1;
-          const name = line.description || item.name;
-          if (!ikkeFunnet.includes(name)) ikkeFunnet.push(name);
-          merknader.push(
-            `«${name}» er tatt ut: prisraden «${item.name}» står til 0 kr i prisfila. Sett en pris på raden på Prisfil-siden, eller pris posten manuelt — den skal ikke ut til kunden gratis.`,
-          );
-          return [];
+          utenPris.push(item.name);
         }
 
         // Ukjent id, eller rad fra feil liste for typen: dropp linjen heller
@@ -626,6 +629,15 @@ export function resolve(
       valid_until: thirtyDaysFromNow(),
       vat_rate: input.vatRate ?? 25,
     };
+  }
+
+  if (utenPris.length > 0) {
+    const unike = [...new Set(utenPris)];
+    merknader.push(
+      `${unike.length === 1 ? "Én post står" : `${unike.length} poster står`} til 0 kr fordi prisraden ikke har en pris: ${unike
+        .map((n) => `«${n}»`)
+        .join(", ")}. Er det med vilje — inkludert i jobben — eller mangler raden en pris? Sett prisen på Prisfil-siden hvis den mangler.`,
+    );
   }
 
   // Et tilbud uten forbehold skal ikke gå ut i stillhet. Brukeren skal vite

@@ -13,7 +13,8 @@
  *    med to poster skal sendes tilbake; seks poster skal slippe gjennom.
  * 4. E-postvaktene: firmaets egen nettadresse i signaturen er lov, andre
  *    nettadresser er ikke, og signaturen godkjennes med normalisert whitespace.
- * 5. Nullprisvakten: en prisrad på 0 kr blir aldri en tilbudslinje.
+ * 5. Nullprisvakten: en prisrad på 0 kr beholdes (Rogers «Samsvarserklæring»
+ *    står til 0 med vilje), men samles i én merknad så brukeren kan avgjøre.
  */
 import path from "node:path";
 import { omfangBlokk, omfangSjekk, type Omfang } from "@/lib/claude/omfang";
@@ -143,7 +144,11 @@ function prisrad(id: string, navn: string, pris: number): PriceListItem {
     includes_labour: true, includes_material: true, active: true,
   };
 }
-const prisrader = [prisrad("ok", "Stikkontakt dobbel", 1450), prisrad("null", "Solcelleanlegg", 0)];
+const prisrader = [
+  prisrad("ok", "Stikkontakt dobbel", 1450),
+  prisrad("null", "Solcelleanlegg", 0),
+  prisrad("null2", "Samsvarserklæring for utført arbeid", 0),
+];
 const inn = {
   companyId: "c",
   lead: { subject: "S", body_text: "B", from_name: null, from_email: null },
@@ -164,16 +169,21 @@ function medPoster(...ider: string[]): RawTilbudsdata {
 
 const utan = resolve(medPoster("ok"), inn);
 sjekk("ei rad med pris blir ei tilbodslinje", utan.document?.sections[0].lines.length === 1 && utan.unresolved_lines === 0);
+sjekk("utan nullrader kjem det inga nullpris-merknad", !utan.merknader.some((m) => /0 kr/.test(m)));
 
-const med = resolve(medPoster("ok", "null"), inn);
-sjekk("ei rad på 0 kr blir aldri ei tilbodslinje", med.document?.sections[0].lines.length === 1);
-sjekk("nullraden hamnar i ikke_funnet i staden", med.ikke_funnet.some((n) => /post null/.test(n)));
-sjekk("merknaden namngir prisraden som må fiksast", med.merknader.some((m) => /Solcelleanlegg/.test(m) && /0 kr/.test(m)));
-sjekk("nullraden tel som uløyst linje", med.unresolved_lines === 1);
+const med = resolve(medPoster("ok", "null", "null2"), inn);
+sjekk("nullrader blir ståande som linjer — Roger sin «Samsvarserklæring» skal ikkje strykast",
+  med.document?.sections[0].lines.length === 3);
+sjekk("nullrader hamnar ikkje i ikke_funnet", med.ikke_funnet.length === 0);
+sjekk("nullrader tel ikkje som uløyste linjer", med.unresolved_lines === 0);
+const nullMerknad = med.merknader.filter((m) => /0 kr/.test(m));
+sjekk("alle nullradene samlast i éi merknad", nullMerknad.length === 1, `${nullMerknad.length}`);
+sjekk("merknaden namngir begge radene", /Solcelleanlegg/.test(nullMerknad[0] ?? "") && /Samsvarserklæring/.test(nullMerknad[0] ?? ""));
+sjekk("merknaden spør om det er med vilje", /med vilje/.test(nullMerknad[0] ?? ""));
 
 const { prefiks } = buildPrompt(inn);
-sjekk("prislista i prompten åtvarar mot nullraden", /Solcelleanlegg[\s\S]*?ADVARSEL/.test(prefiks));
-sjekk("rada med pris får inga åtvaring", !/Stikkontakt dobbel\n\s+enhet: stk\n\s+enhetspris_eks_mva: 1450\n\s+ADVARSEL/.test(prefiks));
+sjekk("prislista i prompten merkar nullraden", /Solcelleanlegg[\s\S]*?MERK: denne raden har ingen pris/.test(prefiks));
+sjekk("rada med pris blir ikkje merka", !/enhetspris_eks_mva: 1450\n\s+MERK/.test(prefiks));
 
 console.log(feil === 0 ? "\nAlt grønt." : `\n${feil} sjekk(er) feilet.`);
 process.exit(feil === 0 ? 0 : 1);
