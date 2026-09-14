@@ -87,6 +87,8 @@ Eller lim inn migrasjonene i SQL-editoren i rekkefølge, så `seed.sql`.
 | `0009_draft_confidence.sql` | Sikkerhetsnivå per utkast, avledet av referansetilbud og treff i prisfilen |
 | `0010_onboarding.sql` | **Fjerner dev auto-join.** Roller, fakturaadresse, prøveperiode, invitasjoner og partnere |
 | `0032_ordre.sql` | Ordremodulen: `companies.moduler`, `orders` med løpenummer per selskap, `order_events` |
+| `0033_grossistkatalog.sql` | Grossister og varekatalog (EFO/NELFO 4.0), pris per måleenhet, trigramsøk, standardpåslag |
+| `0034_timar_og_materiell.sql` | `time_entries` og `material_entries` på ordren, med priser kopiert inn ved føring |
 
 ### 3. Azure
 
@@ -143,20 +145,23 @@ src/
 ├─ app/
 │  ├─ tilbud/                   Agentens faner: leads, prisfil, referansefiler, innstillinger
 │  │  └─ leads/[id]/            Utkastredigering — dokument eller tekst etter type
-│  ├─ ordre/                    Ordremodulen: ordreliste og ordreside (bak companies.moduler)
-│  │  └─ [id]/                  Status, beskrivelse, kunde, grunnlag fra tilbudet, hendelser
+│  ├─ ordre/                    Ordremodulen (bak companies.moduler): ordreliste, grossister, innstillinger
+│  │  └─ [id]/                  Ordren som faner: Oversikt, timer/, materiell/ — layout.tsx eier header og faner
 │  └─ api/
 │     ├─ auth/microsoft/        OAuth-flyten mot Entra ID
 │     ├─ leads/fetch            «Hent leads»
 │     ├─ drafts/generate        Klassifisering + generering
 │     ├─ drafts/[id]/           confirm (PDF + Outlook-kladd) og pdf (forhåndsvisning)
-│     └─ orders/                Opprett ordre (fra tilbud eller manuelt) og PATCH status/felt
+│     ├─ orders/                Opprett ordre, PATCH status/felt, [id]/timer og [id]/materiell
+│     ├─ grossist/sok           Søk i grossistkatalogen
+│     └─ order-settings         Standardpåslag på materiell
 ├─ lib/
 │  ├─ claude/                   motor.ts (laster agent/), generate.ts
 │  ├─ graph/                    oauth.ts, client.ts, drafts.ts
 │  ├─ pdf/                      template.ts (Devello-malen), render.ts (HTML→PDF)
 │  ├─ drafts/versions.ts        Versjonslogging
-│  ├─ ordre/                    beskrivelse.ts (AI-utkast til arbeidsbeskrivelse), status.ts
+│  ├─ ordre/                    beskrivelse.ts (AI-utkast), status.ts, summering.ts, hent.ts, api.ts
+│  ├─ grossist/nelfo4.ts        Parser for EFO/NELFO 4.0-varefiler — ren funksjon, ingen database
 │  ├─ moduler.ts                harModul() — hvilke moduler et selskap har
 │  └─ types.ts                  Delte typer + computeTotals()
 agent/
@@ -210,6 +215,34 @@ ikke havne i et tilfeldig selskap.
 > ellers blir stengt ute. Sett opp egen SMTP etter
 > [docs/smtp-oppsett.md](docs/smtp-oppsett.md) og sett den til `true`.
 
+### Grossistkatalog
+
+Materiell på en ordre velges fra grossistens egen varefil, ikke fra fritekst.
+Grossistene (Onninen, Ahlsell, Solar …) leverer sortimentet som
+**EFO/NELFO Vareformat 4.0**: en semikolonseparert tekstfil i Windows-1252,
+med én header (`VH`), én varelinje per vare (`VL`) og tilleggsposter etter
+linja. Kundespesifikke pristilbud (`PH`/`PL`) og rabattfiler leser vi også.
+`src/lib/grossist/nelfo4.ts` er parseren; `npm run test:nelfo4` prøver den
+uten fil og uten database.
+
+Importen kjøres av Devello med et script inntil opplasting og FTP-henting er
+på plass:
+
+```sh
+npm run grossist:importer -- --selskap <company_id> --grossist "Onninen" \
+    --varefil ./V4varefil.zip [--rabattfil ./R4rabatt.txt] [--kundenr 123456]
+```
+
+Fila er hele sortimentet: varer som ikke står i den lenger blir inaktive.
+Importen er trygg å kjøre om igjen.
+
+**Prisen i appen er per måleenhet.** Grossisten priser kabel per 100 meter
+(prisenhet `HMT`); montøren fører meter. Omregningen skjer ved import, og
+`list_price`/`qty_per_price_unit` fra fila står igjen på raden for
+sporbarhet. Katalogen (`supplier_items`) er noe annet enn kundens egen
+prisfil (`price_list_items`): prisfilen er det firmaet selger for,
+katalogen det firmaet kjøper for. Tilbudsagenten ser ikke katalogen.
+
 ### Navigasjonsmønsteret
 
 Sidebar er organisert **per agent**, ikke per funksjon. Alt som hører til
@@ -238,6 +271,7 @@ npm run build
 npm run preview:pdf            # eksempel-PDF uten database, havner i tmp/
 npm run preview:pdf -- fastpris
 npm run test:motor             # motor v3 og tilbakerullingen, uten database
+npm run test:nelfo4            # parseren for grossistenes varefiler, uten database
 npm run test:gullsett          # målingen bak gullsettet, uten database
 npm run evaluer                # evalueringssuiten — 15 saker med fasit, se evaluering/LES_MEG.md
 npm run evaluer -- --motor v3  # samme, mot én bestemt motor (egen baseline)

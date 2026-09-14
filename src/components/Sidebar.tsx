@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { SignOut } from "@/components/SignOut";
 import { Merke } from "@/components/Merke";
 import { harModul } from "@/lib/moduler";
@@ -104,6 +105,10 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
 
+  // Mobil: menyen ligger bak en knapp og lukker seg når man har valgt.
+  const [open, setOpen] = useState(false);
+  useEffect(() => setOpen(false), [pathname]);
+
   function renderSection(section: NavSection) {
     const active = pathname.startsWith(section.basePath);
     // «/ordre» er prefiks for alle ordre-sidene; den lengste fanen som
@@ -153,15 +158,32 @@ export function Sidebar({
         Devello
       </div>
 
-      {agentSections(moduler).map(renderSection)}
+      <div className="sidebar-topbar">
+        <span className="brand-mobil">
+          <Merke size={22} />
+          Devello
+        </span>
+        <button
+          type="button"
+          className="button secondary"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+        >
+          {open ? "Lukk" : "Meny"}
+        </button>
+      </div>
 
-      <div className="nav-separator" />
-      {renderSection(COMPANY)}
+      <div className={`sidebar-nav${open ? " open" : ""}`}>
+        {agentSections(moduler).map(renderSection)}
 
-      <div className="sidebar-footer">
-        <div>{companyName}</div>
-        <div>{userEmail}</div>
-        <SignOut />
+        <div className="nav-separator" />
+        {renderSection(COMPANY)}
+
+        <div className="sidebar-footer">
+          <div>{companyName}</div>
+          <div>{userEmail}</div>
+          <SignOut />
+        </div>
       </div>
     </aside>
   );

@@ -515,3 +515,57 @@ export interface SupplierItem {
   price_date: string | null;
   imported_at: string;
 }
+
+// ---------------------------------------------------------------------------
+// Timer og materiell på ordren
+// ---------------------------------------------------------------------------
+
+/** En timeføring. Navn og pris er kopiert fra timeprislista da den ble ført. */
+export interface TimeEntry {
+  id: string;
+  company_id: string;
+  order_id: string;
+  /** Montøren timene gjelder. */
+  user_id: string;
+  /** YYYY-MM-DD. */
+  work_date: string;
+  price_item_id: string | null;
+  time_type_name: string;
+  unit_price: number;
+  hours: number;
+  note: string | null;
+  billable: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** manuell = ført i appen. faktura og pakkseddel kommer fra POGO i steg 3. */
+export type MaterialSource = "manuell" | "faktura" | "pakkseddel";
+
+/**
+ * En materiellinje. Alt er kopiert inn i det den føres: linjen skal stå
+ * selv om katalogen endres. sale_price = cost_price × (1 + markup_pct/100)
+ * når kostprisen er kjent.
+ */
+export interface MaterialEntry {
+  id: string;
+  company_id: string;
+  order_id: string;
+  source: MaterialSource;
+  supplier_item_id: string | null;
+  item_no: string | null;
+  name: string;
+  unit: string;
+  quantity: number;
+  /** Kostpris per enhet eks. mva. Null for fritekst uten kostpris. */
+  cost_price: number | null;
+  markup_pct: number;
+  /** Salgspris per enhet eks. mva. */
+  sale_price: number;
+  note: string | null;
+  billable: boolean;
+  registered_by: string | null;
+  registered_at: string;
+  updated_at: string;
+}
