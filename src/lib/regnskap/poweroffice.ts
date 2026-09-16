@@ -151,6 +151,10 @@ export function pogoClient(kopling: PogoKopling) {
       },
     });
 
+    if (process.env.POGO_DEBUG || process.env.NODE_ENV !== "production") {
+      console.log(`[pogo] GET ${path}${q.size ? `?${q.toString()}` : ""} → ${res.status}`);
+    }
+
     // Ett nytt forsøk med friskt token på 401, og ett etter pause på 429.
     if (res.status === 401 && forsok === 0) return raw(path, query, 1);
     if (res.status === 429 && forsok < 2) {
@@ -207,7 +211,12 @@ export function pogoClient(kopling: PogoKopling) {
         PageNumber: input.pageNumber,
         PageSize: input.pageSize ?? 100,
       });
-      return liste(svar).map((o) => ({
+      const rader = liste(svar);
+      if (process.env.POGO_DEBUG || process.env.NODE_ENV !== "production") {
+        const count = svar && typeof svar === "object" ? felt(svar as Record<string, unknown>, "Count") : undefined;
+        console.log(`[pogo] IncomingInvoices side ${input.pageNumber}: ${rader.length} rader, Count=${String(count)}`);
+      }
+      return rader.map((o) => ({
         Id: String(felt(o, "Id") ?? ""),
         VoucherNo: talEllerNull(felt(o, "VoucherNo")),
         VoucherType: String(felt(o, "VoucherType") ?? "IncomingInvoice"),
