@@ -130,14 +130,16 @@ export function pogoClient(kopling: PogoKopling) {
     return data.access_token;
   }
 
-  async function raw(
-    path: string,
-    query?: Record<string, string | number | undefined>,
-    forsok = 0,
-  ): Promise<Response> {
+  type Query = Record<string, string | number | string[] | undefined>;
+
+  async function raw(path: string, query?: Query, forsok = 0): Promise<Response> {
     const q = new URLSearchParams();
     for (const [k, v] of Object.entries(query ?? {})) {
-      if (v !== undefined && v !== "") q.set(k, String(v));
+      if (v === undefined || v === "") continue;
+      // Lister sendes som gjentatte parametre (voucherTypes=A&voucherTypes=B):
+      // det er slik ASP.NET binder dem. En kommaliste blir én ukjent verdi.
+      if (Array.isArray(v)) for (const del of v) q.append(k, String(del));
+      else q.set(k, String(v));
     }
     const full = `${url.api}${path}${q.size ? `?${q.toString()}` : ""}`;
 
@@ -168,10 +170,7 @@ export function pogoClient(kopling: PogoKopling) {
    * (en demoklient uten fakturaer, for eksempel) — det er null her, ikke
    * en feil. Alt annet som ikke er JSON er en feil vi sier fra om.
    */
-  async function get<T>(
-    path: string,
-    query?: Record<string, string | number | undefined>,
-  ): Promise<T | null> {
+  async function get<T>(path: string, query?: Query): Promise<T | null> {
     const res = await raw(path, query);
     if (res.status === 204) return null;
     const tekst = await res.text();
@@ -194,8 +193,8 @@ export function pogoClient(kopling: PogoKopling) {
     /**
      * Inngående fakturaer og kreditnotaer, én side om gangen.
      *
-     * Svaret fra Go kan komme som en ren liste eller pakket i et objekt
-     * med Data/Items; vi tåler begge. Verifiser formen mot demo før prod.
+     * Svaret fra Go er { value: [...], Count } (verifisert mot demo
+     * 2026-09-16); vi tåler også en ren liste.
      */
     async hentInngaaandeFakturaer(input: {
       fromDate?: string;
@@ -204,7 +203,7 @@ export function pogoClient(kopling: PogoKopling) {
     }): Promise<PogoInngaaandeFaktura[]> {
       const svar = await get<unknown>("/IncomingInvoices", {
         fromDate: input.fromDate,
-        voucherTypes: "IncomingInvoice,IncomingCreditNote",
+        voucherTypes: ["IncomingInvoice", "IncomingCreditNote"],
         PageNumber: input.pageNumber,
         PageSize: input.pageSize ?? 100,
       });
