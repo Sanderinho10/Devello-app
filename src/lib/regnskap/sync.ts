@@ -388,6 +388,13 @@ async function matchAlle(
         if (!ordre) continue;
         await koplLinjeTilOrdre(admin, linje, faktura, ordre, paaslag);
       }
+
+      // Uten EHF finnes bare hodet. Da kobles fakturaen som helhet til
+      // ordren, uten materiell — så den ikke blir liggende som ukoblet for
+      // alltid, og så ordren viser at det finnes en faktura på den.
+      if (faktura.line_count === 0 && hovudOrdre && !faktura.order_id) {
+        await admin.from("supplier_invoices").update({ order_id: hovudOrdre.id }).eq("id", faktura.id);
+      }
     }
 
     const status = await oppdaterFakturaStatus(admin, faktura.id);
@@ -498,7 +505,7 @@ export async function oppdaterFakturaStatus(
 ): Promise<InvoiceMatchStatus> {
   const { data: faktura } = await admin
     .from("supplier_invoices")
-    .select("id, match_status")
+    .select("id, match_status, order_id")
     .eq("id", invoiceId)
     .single();
   if (!faktura) return "ukopla";
@@ -509,6 +516,16 @@ export async function oppdaterFakturaStatus(
     .select("status, order_id")
     .eq("invoice_id", invoiceId);
   const alle = linjer ?? [];
+
+  // Ingen linjer (ingen EHF): koblingen er på hodet, og order_id avgjør.
+  if (alle.length === 0) {
+    const status: InvoiceMatchStatus = faktura.order_id ? "kopla" : "ukopla";
+    await admin
+      .from("supplier_invoices")
+      .update({ match_status: status, line_count: 0, matched_line_count: 0 })
+      .eq("id", invoiceId);
+    return status;
+  }
   const kopla = alle.filter((l) => l.status === "kopla");
   const ordrar = new Set(kopla.map((l) => l.order_id).filter(Boolean));
 

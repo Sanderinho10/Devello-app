@@ -87,7 +87,8 @@ export function FakturaListe({
         const erOpen = open.has(f.id);
         const fLinjer = linjerPerFaktura.get(f.id) ?? [];
         const ordre = f.order_id ? ordreAvId.get(f.order_id) : null;
-        const kanKople = !kreditnota && f.match_status !== "kopla" && f.line_count > 0;
+        // Uten linjer (ingen EHF) kobles hele fakturaen til ordren.
+        const kanKople = !kreditnota && f.match_status !== "kopla" && f.match_status !== "ignorert";
 
         return (
           <div key={f.id} className={`faktura-rad${erOpen ? " open" : ""}`}>
@@ -152,7 +153,7 @@ export function FakturaListe({
                   >
                     Angre ignorer
                   </button>
-                ) : f.matched_line_count === 0 ? (
+                ) : f.matched_line_count === 0 && !f.order_id ? (
                   <button
                     type="button"
                     className="button ghost"
@@ -188,6 +189,7 @@ export function FakturaListe({
                 {fLinjer.length === 0 ? (
                   <p className="muted tiny">
                     {f.has_ehf ? "Ingen linjer lest." : "Fakturaen kom uten EHF — bare hodet finnes i regnskapssystemet."}
+                    {ordre && " Koblet til ordren som helhet; beløpet er ikke ført som materiell."}
                   </p>
                 ) : (
                   <table className="doc-table">

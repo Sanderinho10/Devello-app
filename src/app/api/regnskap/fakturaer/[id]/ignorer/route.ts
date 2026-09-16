@@ -17,7 +17,7 @@ export async function POST(
     const faktura = await fakturaForSkriving(admin, session, id);
     if (faktura instanceof NextResponse) return faktura;
 
-    if (faktura.matched_line_count > 0) {
+    if (faktura.matched_line_count > 0 || faktura.order_id) {
       return NextResponse.json(
         { error: "Løs linjene fra ordren før du ignorerer fakturaen." },
         { status: 400 },

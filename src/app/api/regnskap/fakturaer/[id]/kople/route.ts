@@ -78,6 +78,20 @@ export async function POST(
       .eq("invoice_id", faktura.id)
       .eq("company_id", session.companyId);
 
+    // Uten linjer (ingen EHF) kobles hodet til ordren, uten materiell.
+    if ((linjer ?? []).length === 0) {
+      const heile = oensker.find((o) => o.line_id === null);
+      if (!heile) {
+        return NextResponse.json({ error: "Fakturaen har ingen linjer — koble hele fakturaen." }, { status: 400 });
+      }
+      await admin
+        .from("supplier_invoices")
+        .update({ order_id: heile.order_id, match_status: "ukopla" })
+        .eq("id", faktura.id);
+      const status = await oppdaterFakturaStatus(admin, faktura.id);
+      return NextResponse.json({ ok: true, kopla: 0, match_status: status });
+    }
+
     let kopla = 0;
     for (const linje of (linjer ?? []) as SupplierInvoiceLine[]) {
       if (linje.material_entry_id || linje.status === "kopla") continue;

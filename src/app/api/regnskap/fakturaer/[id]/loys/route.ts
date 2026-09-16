@@ -33,6 +33,10 @@ export async function POST(
     for (const linje of (linjer ?? []) as SupplierInvoiceLine[]) {
       await loysLinje(admin, linje);
     }
+    // Hele fakturaen: også en kobling på hodenivå (faktura uten linjer) løses.
+    if (typeof body.line_id !== "string") {
+      await admin.from("supplier_invoices").update({ order_id: null }).eq("id", faktura.id);
+    }
     const status = await oppdaterFakturaStatus(admin, faktura.id);
     return NextResponse.json({ ok: true, loyst: (linjer ?? []).length, match_status: status });
   } catch (err) {
