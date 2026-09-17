@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import JSZip from "jszip";
 import { requireEnv } from "@/lib/supabase/admin";
 
@@ -99,16 +100,27 @@ export function pogoApplicationKey(miljo: PogoMiljo): string | null {
   return process.env[navn] ?? null;
 }
 
-// Token per kopling, i minnet. Gyldig 20 minutter; vi fornyer når det er
-// under ett minutt igjen, eller når Go svarer 401.
+// Token i minnet, per miljø og client key. Gyldig 20 minutter; vi fornyer
+// når det er under ett minutt igjen, eller når Go svarer 401.
+//
+// Nøkkelen er en hash av client key, ikke koplingas id: bytter kunden
+// nøkkel beholder raden id-en sin, og et token hentet med den gamle
+// nøkkelen ville ellers blitt brukt i opptil 20 minutter — mot feil
+// klient i Go, som svarer med en tom liste og ingen feil.
 const tokenCache = new Map<string, { token: string; utloeper: number }>();
+
+function cacheNokkel(kopling: PogoKopling): string {
+  const hash = createHash("sha256").update(kopling.client_key).digest("hex").slice(0, 16);
+  return `${kopling.environment}:${hash}`;
+}
 
 export function pogoClient(kopling: PogoKopling) {
   const url = base(kopling.environment);
   const { applicationKey, subscriptionKey } = noeklar(kopling.environment);
+  const nokkel = cacheNokkel(kopling);
 
   async function token(tving = false): Promise<string> {
-    const cached = tokenCache.get(kopling.id);
+    const cached = tokenCache.get(nokkel);
     if (!tving && cached && cached.utloeper - Date.now() > 60_000) return cached.token;
 
     const res = await fetch(url.token, {
@@ -126,7 +138,7 @@ export function pogoClient(kopling: PogoKopling) {
     }
     const data = (await res.json()) as { access_token: string; expires_in?: number };
     const levetid = (data.expires_in ?? 1200) * 1000;
-    tokenCache.set(kopling.id, { token: data.access_token, utloeper: Date.now() + levetid });
+    tokenCache.set(nokkel, { token: data.access_token, utloeper: Date.now() + levetid });
     return data.access_token;
   }
 
