@@ -50,6 +50,20 @@ export default async function OrdrePage({
 
   const ordrer = (rader ?? []) as Order[];
 
+  // Fakturerte ordrer viser ordrenummeret i regnskapssystemet.
+  const goNr = new Map<string, string>();
+  const fakturerte = ordrer.filter((o) => o.status === "fakturert").map((o) => o.id);
+  if (fakturerte.length) {
+    const { data: utkast } = await supabase
+      .from("invoice_drafts")
+      .select("order_id, transfer_order_no, transfer_external_id")
+      .in("order_id", fakturerte)
+      .eq("status", "overfort");
+    for (const u of utkast ?? []) {
+      if (u.transfer_order_no ?? u.transfer_external_id) goNr.set(u.order_id, u.transfer_order_no ?? "");
+    }
+  }
+
   return (
     <>
       <div className="page-header">
@@ -100,8 +114,9 @@ export default async function OrdrePage({
                       "(ingen kunde)"}
                   </div>
                 </div>
-                <span className={`pill ${ordre.status}`}>
+                <span className={`pill ${ordre.status}`} title={goNr.has(ordre.id) ? "Ordreutkast i regnskapssystemet" : undefined}>
                   {ORDER_STATUS_LABELS[ordre.status]}
+                  {goNr.get(ordre.id) && ` · Go ${goNr.get(ordre.id)}`}
                 </span>
                 <span className="ordre-sum">
                   {ordre.planned_total === null ? "—" : formatNok(Number(ordre.planned_total))}

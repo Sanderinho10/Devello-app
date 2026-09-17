@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { SignOut } from "@/components/SignOut";
 import { Merke } from "@/components/Merke";
 import { harModul } from "@/lib/moduler";
@@ -56,7 +57,12 @@ const ORDRE: NavSection = {
   label: "Ordre",
   icon: "▣",
   basePath: "/ordre",
-  tabs: [{ label: "Ordrer", href: "/ordre" }],
+  tabs: [
+    { label: "Ordrer", href: "/ordre" },
+    { label: "Leverandørfakturaer", href: "/ordre/leverandorfakturaer" },
+    { label: "Grossister", href: "/ordre/grossister" },
+    { label: "Innstillinger", href: "/ordre/innstillinger" },
+  ],
 };
 
 const DOKUMENTASJON: NavSection = {
@@ -100,8 +106,17 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
 
+  // Mobil: menyen ligger bak en knapp og lukker seg når man har valgt.
+  const [open, setOpen] = useState(false);
+  useEffect(() => setOpen(false), [pathname]);
+
   function renderSection(section: NavSection) {
     const active = pathname.startsWith(section.basePath);
+    // «/ordre» er prefiks for alle ordre-sidene; den lengste fanen som
+    // passer er den som gjelder, ellers ville Ordrer alltid stått aktiv.
+    const aktivFane = section.tabs
+      .filter((tab) => pathname === tab.href || pathname.startsWith(tab.href + "/"))
+      .sort((a, b) => b.href.length - a.href.length)[0];
     return (
       <div className="nav-agent" key={section.key}>
         {section.comingSoon ? (
@@ -126,7 +141,7 @@ export function Sidebar({
               <Link
                 key={tab.href}
                 href={tab.href}
-                className={`nav-tab${pathname.startsWith(tab.href) ? " active" : ""}`}
+                className={`nav-tab${tab === aktivFane ? " active" : ""}`}
               >
                 {tab.label}
               </Link>
@@ -144,15 +159,32 @@ export function Sidebar({
         Devello
       </div>
 
-      {agentSections(moduler).map(renderSection)}
+      <div className="sidebar-topbar">
+        <span className="brand-mobil">
+          <Merke size={22} />
+          Devello
+        </span>
+        <button
+          type="button"
+          className="button secondary"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+        >
+          {open ? "Lukk" : "Meny"}
+        </button>
+      </div>
 
-      <div className="nav-separator" />
-      {renderSection(COMPANY)}
+      <div className={`sidebar-nav${open ? " open" : ""}`}>
+        {agentSections(moduler).map(renderSection)}
 
-      <div className="sidebar-footer">
-        <div>{companyName}</div>
-        <div>{userEmail}</div>
-        <SignOut />
+        <div className="nav-separator" />
+        {renderSection(COMPANY)}
+
+        <div className="sidebar-footer">
+          <div>{companyName}</div>
+          <div>{userEmail}</div>
+          <SignOut />
+        </div>
       </div>
     </aside>
   );

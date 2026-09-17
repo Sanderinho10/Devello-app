@@ -75,6 +75,8 @@ export interface Company {
   moduler: string[];
   /** Neste ledige ordrenummer. Deles ut av neste_ordrenummer() i databasen. */
   next_order_no: number;
+  /** Standardpåslag på materiell i prosent. Kopieres inn på hver materiellinje. */
+  materials_markup_pct: number;
 }
 
 export interface Member {
@@ -458,4 +460,296 @@ export interface OrderEvent {
   note: string | null;
   created_by: string | null;
   created_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Grossistkatalog
+// ---------------------------------------------------------------------------
+
+/** En grossist selskapet handler hos: Onninen, Ahlsell, Solar … */
+export interface Supplier {
+  id: string;
+  company_id: string;
+  name: string;
+  /** Vårt kundenummer hos grossisten. */
+  customer_no: string | null;
+  /** Grossistens organisasjonsnummer, fra varefila. */
+  seller_id: string | null;
+  active: boolean;
+  last_import_at: string | null;
+  last_import_status: "ok" | "feil" | null;
+  last_import_note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * En vare i grossistkatalogen. Prisene appen bruker er per måleenhet
+ * (list_price_per_unit, net_price_per_unit); list_price og
+ * qty_per_price_unit er slik fila sa det, for sporbarhet.
+ */
+export interface SupplierItem {
+  id: string;
+  company_id: string;
+  supplier_id: string;
+  /** 0 ukjent, 1 elnr, 2 EAN, 3 fabrikant, 4 NRF, 9 tillegg. */
+  item_kind: number;
+  item_no: string;
+  name: string;
+  /** stk, m, l, kg. */
+  unit: string;
+  price_unit: string | null;
+  qty_per_price_unit: number;
+  list_price: number;
+  list_price_per_unit: number;
+  discount_group: string | null;
+  discount_pct: number | null;
+  net_price_per_unit: number | null;
+  brand: string | null;
+  product_type: string | null;
+  stocked: boolean | null;
+  sales_pack: number | null;
+  block_no: string | null;
+  gtin: string | null;
+  active: boolean;
+  price_date: string | null;
+  imported_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Timer og materiell på ordren
+// ---------------------------------------------------------------------------
+
+/** En timeføring. Navn og pris er kopiert fra timeprislista da den ble ført. */
+export interface TimeEntry {
+  id: string;
+  company_id: string;
+  order_id: string;
+  /** Montøren timene gjelder. */
+  user_id: string;
+  /** YYYY-MM-DD. */
+  work_date: string;
+  price_item_id: string | null;
+  time_type_name: string;
+  unit_price: number;
+  hours: number;
+  note: string | null;
+  billable: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  /** Satt når timene er med på et overført fakturaforslag. Låst. */
+  invoice_draft_id: string | null;
+}
+
+/** manuell = ført i appen. faktura og pakkseddel kommer fra POGO i steg 3. */
+export type MaterialSource = "manuell" | "faktura" | "pakkseddel";
+
+/**
+ * En materiellinje. Alt er kopiert inn i det den føres: linjen skal stå
+ * selv om katalogen endres. sale_price = cost_price × (1 + markup_pct/100)
+ * når kostprisen er kjent.
+ */
+export interface MaterialEntry {
+  id: string;
+  company_id: string;
+  order_id: string;
+  source: MaterialSource;
+  supplier_item_id: string | null;
+  item_no: string | null;
+  name: string;
+  unit: string;
+  quantity: number;
+  /** Kostpris per enhet eks. mva. Null for fritekst uten kostpris. */
+  cost_price: number | null;
+  markup_pct: number;
+  /** Salgspris per enhet eks. mva. */
+  sale_price: number;
+  note: string | null;
+  billable: boolean;
+  registered_by: string | null;
+  registered_at: string;
+  updated_at: string;
+  /** Satt når linjen kom fra en leverandørfaktura. Mengde og kost er låst. */
+  invoice_line_id: string | null;
+  /**
+   * En manuell linje som en fakturalinje har gjort overflødig peker hit.
+   * Linjen står igjen, men er ute av summene.
+   */
+  replaced_by: string | null;
+  /** Satt når linjen er med på et overført fakturaforslag. Låst. */
+  invoice_draft_id: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Regnskapssystem og leverandørfakturaer
+// ---------------------------------------------------------------------------
+
+export type AccountingProvider = "poweroffice" | "tripletex";
+export type AccountingEnv = "production" | "demo";
+export type ConnectionStatus = "aktiv" | "feil" | "kopla_fra";
+
+export const ACCOUNTING_PROVIDER_LABELS: Record<AccountingProvider, string> = {
+  poweroffice: "PowerOffice Go",
+  tripletex: "Tripletex",
+};
+
+/**
+ * Koplinga slik UI-et ser den — uten client_key. Kolonnerettighetene i
+ * 0035 gjør at nøkkelen aldri kan leses med brukerens sesjon.
+ */
+export interface AccountingConnectionPublic {
+  id: string;
+  company_id: string;
+  provider: AccountingProvider;
+  environment: AccountingEnv;
+  status: ConnectionStatus;
+  status_reason: string | null;
+  sync_cursor: string | null;
+  last_sync_at: string | null;
+  last_sync_note: string | null;
+  /** Produktkoder i regnskapssystemet per linjetype. Tom til noen setter dem. */
+  product_map: ProductMap;
+  settings: ConnectionSettings;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Produktene i regnskapssystemet som fakturalinjene skal gå på. Produktet
+ * bærer salgskonto og mva-kode der — derfor må hver linje ha ett.
+ */
+export type ProductMapKey = "arbeid" | "materiell" | "fastpris" | "annet";
+
+export type ProductMap = Partial<Record<ProductMapKey, string>>;
+
+export const PRODUCT_MAP_LABELS: Record<ProductMapKey, string> = {
+  arbeid: "Arbeid (timer)",
+  materiell: "Materiell",
+  fastpris: "Fastpris iht. tilbud",
+  annet: "Annet",
+};
+
+export interface ConnectionSettings {
+  /** Bruk ordrenummeret som prosjektkode på salgsordren i regnskapssystemet. */
+  project_per_order?: boolean;
+}
+
+export type InvoiceMatchStatus = "kopla" | "delvis" | "ukopla" | "ignorert";
+
+export const INVOICE_MATCH_LABELS: Record<InvoiceMatchStatus, string> = {
+  kopla: "Koblet",
+  delvis: "Delvis koblet",
+  ukopla: "Ukoblet",
+  ignorert: "Ignorert",
+};
+
+export interface SupplierInvoice {
+  id: string;
+  company_id: string;
+  connection_id: string;
+  provider: AccountingProvider;
+  external_id: string;
+  voucher_no: number | null;
+  /** IncomingInvoice | IncomingCreditNote */
+  voucher_type: string;
+  invoice_no: string | null;
+  voucher_date: string | null;
+  due_date: string | null;
+  supplier_external_id: string | null;
+  supplier_no: string | null;
+  supplier_name: string | null;
+  supplier_org_nr: string | null;
+  currency: string | null;
+  net_amount: number | null;
+  total_amount: number | null;
+  references_found: string[];
+  has_ehf: boolean;
+  ehf_storage_path: string | null;
+  ehf_parsed_at: string | null;
+  parse_error: string | null;
+  match_status: InvoiceMatchStatus;
+  order_id: string | null;
+  line_count: number;
+  matched_line_count: number;
+  fetched_at: string;
+  updated_at: string;
+}
+
+export interface SupplierInvoiceLine {
+  id: string;
+  company_id: string;
+  invoice_id: string;
+  line_no: string | null;
+  item_no: string | null;
+  gtin: string | null;
+  name: string;
+  description: string | null;
+  quantity: number;
+  unit: string;
+  unit_price: number;
+  line_total: number;
+  vat_pct: number | null;
+  order_reference: string | null;
+  supplier_item_id: string | null;
+  order_id: string | null;
+  material_entry_id: string | null;
+  status: InvoiceMatchStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Fakturaforslag
+// ---------------------------------------------------------------------------
+
+/**
+ * utkast   = laget av agenten, kan redigeres.
+ * godkjent = et menneske har sett over. Kan angres til overføring.
+ * overfort = ligger som ordreutkast i regnskapssystemet. Låst.
+ * feil     = overføringen feilet. Kan prøves igjen.
+ */
+export type InvoiceDraftStatus = "utkast" | "godkjent" | "overfort" | "feil";
+
+export const INVOICE_DRAFT_STATUS_LABELS: Record<InvoiceDraftStatus, string> = {
+  utkast: "Utkast",
+  godkjent: "Godkjent",
+  overfort: "Overført",
+  feil: "Feil ved overføring",
+};
+
+export type InvoiceStrategy = "fastpris" | "fastpris_med_tillegg" | "tid_og_materiell";
+
+export const INVOICE_STRATEGY_LABELS: Record<InvoiceStrategy, string> = {
+  fastpris: "Fastpris",
+  fastpris_med_tillegg: "Fastpris med tillegg",
+  tid_og_materiell: "Tid og materiell",
+};
+
+/** Formen på linjene og kildene ligger i lib/faktura/typar.ts. */
+export interface InvoiceDraft {
+  id: string;
+  company_id: string;
+  order_id: string;
+  status: InvoiceDraftStatus;
+  strategy: InvoiceStrategy;
+  lines: import("./faktura/typar").InvoiceLine[];
+  totals: { subtotal: number; vat: number; total: number };
+  invoice_text: string | null;
+  customer_reference: string | null;
+  notes: string[];
+  questions: string[];
+  ai_model: string | null;
+  generated_at: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  transfer_provider: AccountingProvider | null;
+  transfer_external_id: string | null;
+  transfer_order_no: string | null;
+  transfer_customer_no: string | null;
+  transferred_at: string | null;
+  transfer_error: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
 }

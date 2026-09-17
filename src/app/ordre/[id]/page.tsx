@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OrdreBeskrivelse } from "./OrdreBeskrivelse";
 import { OrdreKunde } from "./OrdreKunde";
-import { OrdreStatus } from "./OrdreStatus";
+import { hentOrdre } from "@/lib/ordre/hent";
+import { summerMateriell, summerTimar } from "@/lib/ordre/summering";
 import { supabaseServer } from "@/lib/supabase/server";
 import {
   ORDER_STATUS_LABELS,
@@ -13,15 +14,13 @@ import {
   harRabatt,
   lineDiscount,
   lineTotal,
-  type Order,
+  type MaterialEntry,
   type OrderEvent,
   type OrderStatus,
+  type TimeEntry,
 } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-
-/** Fanene ordren kommer til å samle. Bare Oversikt finnes i dette steget. */
-const FANER_SNART = ["Timer", "Materiell", "Dokumentasjon", "Faktura"];
 
 export default async function OrdreSide({
   params,
@@ -29,17 +28,36 @@ export default async function OrdreSide({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const ordre = await hentOrdre(id);
+  if (!ordre) notFound();
   const supabase = await supabaseServer();
 
-  const { data: rad } = await supabase.from("orders").select("*").eq("id", id).maybeSingle();
-  if (!rad) notFound();
-  const ordre = rad as Order;
+  const [{ data: hendelser }, { data: timar }, { data: materiell }, { count: hodeFakturaer }] = await Promise.all([
+    supabase
+      .from("order_events")
+      .select("*")
+      .eq("order_id", ordre.id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("time_entries")
+      .select("hours, unit_price, time_type_name")
+      .eq("order_id", ordre.id),
+    supabase
+      .from("material_entries")
+      .select("quantity, cost_price, sale_price, replaced_by, invoice_line_id")
+      .eq("order_id", ordre.id),
+    // Fakturaer koblet på hodenivå gir ingen linjer, men skal synes.
+    supabase
+      .from("supplier_invoices")
+      .select("id", { count: "exact", head: true })
+      .eq("order_id", ordre.id)
+      .eq("line_count", 0),
+  ]);
 
-  const { data: hendelser } = await supabase
-    .from("order_events")
-    .select("*")
-    .eq("order_id", ordre.id)
-    .order("created_at", { ascending: false });
+  // Tallgrunnlaget fakturaforslaget skal lese i steg 4. Samme funksjoner
+  // som fanene bruker, så tallene her og der aldri spriker.
+  const timesum = summerTimar((timar ?? []) as TimeEntry[]);
+  const materiellsum = summerMateriell((materiell ?? []) as MaterialEntry[]);
 
   const snapshot = ordre.quote_snapshot;
   const document = snapshot?.document ?? null;
@@ -48,42 +66,45 @@ export default async function OrdreSide({
 
   return (
     <>
-      <div className="page-header">
-        <div>
-          <Link className="button ghost" href="/ordre" style={{ marginLeft: -10 }}>
-            ← Ordrer
-          </Link>
-          <h1 style={{ marginTop: 6 }}>
-            <span className="muted">Ordre #{ordre.order_no}</span> · {ordre.title}
-          </h1>
-          <p className="page-subtitle">
-            Opprettet {formatDate(ordre.created_at)}
-            {ordre.lead_id && (
-              <>
-                {" · "}
-                <Link href={`/tilbud/leads/${ordre.lead_id}`} style={{ textDecoration: "underline" }}>
-                  Fra tilbud →
-                </Link>
-              </>
-            )}
-          </p>
-        </div>
-        <OrdreStatus orderId={ordre.id} status={ordre.status} />
-      </div>
-
-      <div className="type-switch kompakt ordre-faner" style={{ marginBottom: 20 }}>
-        <button type="button" className="type-option active">
-          Oversikt
-        </button>
-        {FANER_SNART.map((fane) => (
-          <button key={fane} type="button" className="type-option" disabled>
-            {fane}
-            <span className="nav-badge">snart</span>
-          </button>
-        ))}
-      </div>
-
       <div className="stack">
+        <div className="card card-pad">
+          <span className="label">Oppsummering</span>
+          <div className="oppsummering">
+            <div className="oppsummering-post">
+              <span className="tiny muted">Planlagt (tilbud)</span>
+              <strong>
+                {ordre.planned_total === null ? "—" : formatNok(Number(ordre.planned_total))}
+              </strong>
+              <span className="tiny muted">
+                {snapshot?.quote_type === "tid_og_materiell" ? "tid og materiell" : "eks. mva"}
+              </span>
+            </div>
+            <Link href={`/ordre/${ordre.id}/timer`} className="oppsummering-post clickable">
+              <span className="tiny muted">Timer</span>
+              <strong>{formatNok(timesum.kr)}</strong>
+              <span className="tiny muted">{formatTimar(timesum.timar)} ført →</span>
+            </Link>
+            <Link href={`/ordre/${ordre.id}/materiell`} className="oppsummering-post clickable">
+              <span className="tiny muted">Materiell</span>
+              <strong>{formatNok(materiellsum.sal)}</strong>
+              <span className="tiny muted">
+                {materiellsum.linjer} {materiellsum.linjer === 1 ? "linje" : "linjer"}
+                {materiellsum.fraFaktura > 0 && `, hvorav ${materiellsum.fraFaktura} fra faktura`}
+                {" · kost "}
+                {formatNok(materiellsum.kost)}
+                {(hodeFakturaer ?? 0) > 0 &&
+                  ` · ${hodeFakturaer} ${hodeFakturaer === 1 ? "faktura" : "fakturaer"} uten linjer`}
+                {" →"}
+              </span>
+            </Link>
+            <div className="oppsummering-post">
+              <span className="tiny muted">Timer + materiell</span>
+              <strong>{formatNok(timesum.kr + materiellsum.sal)}</strong>
+              <span className="tiny muted">salg eks. mva</span>
+            </div>
+          </div>
+        </div>
+
         <OrdreBeskrivelse
           orderId={ordre.id}
           description={ordre.description}
@@ -190,6 +211,11 @@ export default async function OrdreSide({
       </div>
     </>
   );
+}
+
+/** 7,5 timer → «7,5 t». */
+function formatTimar(t: number): string {
+  return `${t.toLocaleString("nb-NO", { maximumFractionDigits: 2 })} t`;
 }
 
 /** «opna → paagaar» i loggen blir «Åpen → Pågår» på skjermen. */

@@ -87,6 +87,10 @@ Eller lim inn migrasjonene i SQL-editoren i rekkefølge, så `seed.sql`.
 | `0009_draft_confidence.sql` | Sikkerhetsnivå per utkast, avledet av referansetilbud og treff i prisfilen |
 | `0010_onboarding.sql` | **Fjerner dev auto-join.** Roller, fakturaadresse, prøveperiode, invitasjoner og partnere |
 | `0032_ordre.sql` | Ordremodulen: `companies.moduler`, `orders` med løpenummer per selskap, `order_events` |
+| `0033_grossistkatalog.sql` | Grossister og varekatalog (EFO/NELFO 4.0), pris per måleenhet, trigramsøk, standardpåslag |
+| `0034_timar_og_materiell.sql` | `time_entries` og `material_entries` på ordren, med priser kopiert inn ved føring |
+| `0035_regnskapskopling_og_leverandorfakturaer.sql` | Kobling til regnskapssystem (client key skjult for nettleseren), leverandørfakturaer og EHF-linjer, `replaced_by` på materiell |
+| `0036_fakturaforslag.sql` | `invoice_drafts` og versjonslogg, `invoice_draft_id` på timer og materiell (låser fakturerte føringer), produktmapping og innstillinger på koplinga |
 
 ### 3. Azure
 
@@ -143,25 +147,32 @@ src/
 ├─ app/
 │  ├─ tilbud/                   Agentens faner: leads, prisfil, referansefiler, innstillinger
 │  │  └─ leads/[id]/            Utkastredigering — dokument eller tekst etter type
-│  ├─ ordre/                    Ordremodulen: ordreliste og ordreside (bak companies.moduler)
-│  │  └─ [id]/                  Status, beskrivelse, kunde, grunnlag fra tilbudet, hendelser
+│  ├─ ordre/                    Ordremodulen (bak companies.moduler): ordrer, leverandørfakturaer, grossister, innstillinger
+│  │  └─ [id]/                  Ordren som faner: Oversikt, timer/, materiell/, faktura/ — layout.tsx eier header og faner
 │  └─ api/
 │     ├─ auth/microsoft/        OAuth-flyten mot Entra ID
 │     ├─ leads/fetch            «Hent leads»
 │     ├─ drafts/generate        Klassifisering + generering
 │     ├─ drafts/[id]/           confirm (PDF + Outlook-kladd) og pdf (forhåndsvisning)
-│     └─ orders/                Opprett ordre (fra tilbud eller manuelt) og PATCH status/felt
+│     ├─ orders/                Opprett ordre, PATCH status/felt, [id]/timer, [id]/materiell, [id]/faktura (+godkjenn, overfor)
+│     ├─ grossist/sok           Søk i grossistkatalogen
+│     ├─ order-settings         Standardpåslag på materiell
+│     └─ regnskap/              connection (PUT/PATCH/DELETE), sync, fakturaer/[id]/{kople,loys,ignorer}, produkter
 ├─ lib/
 │  ├─ claude/                   motor.ts (laster agent/), generate.ts
 │  ├─ graph/                    oauth.ts, client.ts, drafts.ts
 │  ├─ pdf/                      template.ts (Devello-malen), render.ts (HTML→PDF)
 │  ├─ drafts/versions.ts        Versjonslogging
-│  ├─ ordre/                    beskrivelse.ts (AI-utkast til arbeidsbeskrivelse), status.ts
+│  ├─ ordre/                    beskrivelse.ts (AI-utkast), status.ts, summering.ts, hent.ts, api.ts
+│  ├─ grossist/nelfo4.ts        Parser for EFO/NELFO 4.0-varefiler — ren funksjon, ingen database
+│  ├─ regnskap/                 poweroffice.ts (API-klient), ehf.ts (parser), matching.ts, sync.ts
+│  ├─ faktura/                  Fakturaforslaget: kontekst.ts → generer.ts → resolver.ts (beløpene), go.ts (payload), overfor.ts
 │  ├─ moduler.ts                harModul() — hvilke moduler et selskap har
 │  └─ types.ts                  Delte typer + computeTotals()
 agent/
 ├─ v2/                          Dagens motor, frosset: ett kall fra lead til prisrader
-└─ v3/                          Omfang først, så pris. Sjekklister per fag under bransje/
+├─ v3/                          Omfang først, så pris. Sjekklister per fag under bransje/
+└─ faktura/                     Fakturaagenten: velger struktur og tekst, aldri beløp
 design/                         Mockuper, samme CSS som appen
 evaluering/                     Evalueringssuite og gullsett — se evaluering/LES_MEG.md
 supabase/migrations/            Skjema og RLS
@@ -210,6 +221,106 @@ ikke havne i et tilfeldig selskap.
 > ellers blir stengt ute. Sett opp egen SMTP etter
 > [docs/smtp-oppsett.md](docs/smtp-oppsett.md) og sett den til `true`.
 
+### Grossistkatalog
+
+Materiell på en ordre velges fra grossistens egen varefil, ikke fra fritekst.
+Grossistene (Onninen, Ahlsell, Solar …) leverer sortimentet som
+**EFO/NELFO Vareformat 4.0**: en semikolonseparert tekstfil i Windows-1252,
+med én header (`VH`), én varelinje per vare (`VL`) og tilleggsposter etter
+linja. Kundespesifikke pristilbud (`PH`/`PL`) og rabattfiler leser vi også.
+`src/lib/grossist/nelfo4.ts` er parseren; `npm run test:nelfo4` prøver den
+uten fil og uten database.
+
+Importen kjøres av Devello med et script inntil opplasting og FTP-henting er
+på plass:
+
+```sh
+npm run grossist:importer -- --selskap <company_id> --grossist "Onninen" \
+    --varefil ./V4varefil.zip [--rabattfil ./R4rabatt.txt] [--kundenr 123456]
+```
+
+Fila er hele sortimentet: varer som ikke står i den lenger blir inaktive.
+Importen er trygg å kjøre om igjen.
+
+**Prisen i appen er per måleenhet.** Grossisten priser kabel per 100 meter
+(prisenhet `HMT`); montøren fører meter. Omregningen skjer ved import, og
+`list_price`/`qty_per_price_unit` fra fila står igjen på raden for
+sporbarhet. Katalogen (`supplier_items`) er noe annet enn kundens egen
+prisfil (`price_list_items`): prisfilen er det firmaet selger for,
+katalogen det firmaet kjøper for. Tilbudsagenten ser ikke katalogen.
+
+### PowerOffice Go
+
+Grossisten sender fakturaen som EHF rett til kundens regnskapssystem. Devello
+er ikke fakturamottak — regnskapet bor i PowerOffice Go. Men fakturaen har
+linjer med elnummer, mengde og pris, og en ordrereferanse, og Go gir ut
+original-XML-en via API. Så vi **leser**: henter inngående fakturaer, laster
+ned EHF-XML-en, leser linjene, finner ordrenummeret montøren skrev på
+bestillingen, og legger linjene på ordren som materiell med
+`source = 'faktura'`. Kostprisen er fakturaens, påslaget selskapets.
+
+Det vi aldri gjør: skrive til Go. Ingen bokføring, ingen betaling, ingen
+salgsfaktura herfra. Bare `GET`.
+
+Oppsettet:
+
+1. Devello har application key og subscription key fra
+   developer.poweroffice.net, én per miljø — `POGO_APPLICATION_KEY`,
+   `POGO_SUBSCRIPTION_KEY` og `POGO_DEMO_*` i `.env.local`.
+   Produksjonstilgang krever at PowerOffice har godkjent Devello.
+2. Kunden aktiverer utvidelsen i Go: Meny → Innstillinger → Utvidelser →
+   Legg til utvidelse → «Egendefinert utvidelse», limer inn Devello sin
+   application key, gir lesetilgang til inngående faktura,
+   bilagsdokumentasjon og leverandør, og får en **client key**.
+3. Client key limes inn under Ordre → Innstillinger → Regnskapssystem.
+   Den lagres i `accounting_connections.client_key`, som ingen nettleser
+   kan lese (kolonnerettigheter, samme grep som postkasse-tokenene).
+
+«Hent fakturaer nå» kjører `synkroniserFakturaer(companyId)` i
+`src/lib/regnskap/sync.ts`. Den tar et selskap, ikke en sesjon, så en cron
+kan kalle den senere. Fakturaer uten gjenkjent ordrenummer havner under
+Ordre → Leverandørfakturaer → Ukoblet, der de kobles for hånd eller
+ignoreres. Kreditnotaer hentes og vises, men kobles aldri automatisk.
+
+Privilegiene Devello-utvidelsen trenger i Go: inngående faktura,
+bilagsdokumentasjon og leverandør (lesing), og for fakturaforslagene
+salgsordre, kunde og produkt — **uten** `sendInvoice`. Devello skal ikke
+kunne sende en faktura selv om koden prøvde.
+
+### Fakturaforslag
+
+Poenget med ordremodulen: en faktura som er rett første gang, fordi den er
+bygd av det som faktisk skjedde. Ordre → Faktura → «Lag fakturaforslag»
+kjører fakturaagenten (`agent/faktura/`) én gang over ordren: tilbudet
+kunden sa ja til, timene, materiellet — både det manuelle og det som kom
+fra grossistfakturaene.
+
+Tre prinsipper, som for tilbudsagenten:
+
+1. **Modellen priser aldri.** Den velger strategi (fastpris, fastpris med
+   tillegg, tid og materiell), hvilke kilder som skal faktureres og hvordan
+   linjene forklares. Skjemaet den svarer i har ikke ett tallfelt.
+   `src/lib/faktura/resolver.ts` slår opp beløpene fra kildene: seksjonens
+   sum, tilbudslinjen som den er, timer × sats gruppert per type, materiell
+   til salgspris. Peker planen på noe som ikke finnes, ikke er fakturerbart
+   eller alt er fakturert, får modellen problemene tilbake én gang — så
+   feiler kallet.
+2. **Utkast i Go, aldri sendt.** «Overfør til PowerOffice Go» finner kunden
+   (e-post, telefon; ellers opprettes den etter bekreftelse), og legger en
+   salgsordre med status Draft via `POST /SalesOrders/Complete`.
+   `ExternalImportReference` er utkastets id, så et nytt trykk aldri gir en
+   ny ordre. Kunden fakturerer og sender fra Go. Hver Normal-linje går på et
+   produkt fra mappingen under Innstillinger → Regnskapssystem → Produkter i
+   Go (produktet bærer salgskonto og mva-kode); «Opprett standardprodukter»
+   lager DEV-ARB/-MAT/-FAST/-ANN.
+3. **Alt versjonslogges** i `invoice_draft_versions`: agentens forslag,
+   hver redigering med diff, og det som ble overført. Ved overføring låses
+   utkastet, timene og materiellet som er med får `invoice_draft_id` og
+   kan aldri faktureres to ganger, og ordren blir `fakturert`.
+
+`npm run test:faktura` prøver resolveren, omregningen etter redigering og
+Go-payloaden uten database og uten modell.
+
 ### Navigasjonsmønsteret
 
 Sidebar er organisert **per agent**, ikke per funksjon. Alt som hører til
@@ -238,6 +349,9 @@ npm run build
 npm run preview:pdf            # eksempel-PDF uten database, havner i tmp/
 npm run preview:pdf -- fastpris
 npm run test:motor             # motor v3 og tilbakerullingen, uten database
+npm run test:nelfo4            # parseren for grossistenes varefiler, uten database
+npm run test:ehf               # EHF-parseren og ordrenummer-matchingen, uten database
+npm run test:faktura           # fakturaforslaget: resolver, redigering, Go-payload — uten database og modell
 npm run test:gullsett          # målingen bak gullsettet, uten database
 npm run evaluer                # evalueringssuiten — 15 saker med fasit, se evaluering/LES_MEG.md
 npm run evaluer -- --motor v3  # samme, mot én bestemt motor (egen baseline)

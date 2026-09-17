@@ -1509,6 +1509,292 @@ p {
   margin-left: 0;
 }
 
+/* Grossistsøk: treff som knapper på Materiell-fanen, som rader på Grossister */
+.grossist-rad {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: default;
+}
+
+.grossist-rad.clickable {
+  cursor: pointer;
+}
+
+.grossist-treff {
+  max-height: 420px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* Oppsummering på ordren: fire tall side om side, hvert med navn og note */
+.oppsummering {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.oppsummering-post {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+}
+
+.oppsummering-post strong {
+  font-size: 18px;
+  letter-spacing: -0.01em;
+}
+
+.oppsummering-post.clickable:hover {
+  background: rgba(0, 0, 0, 0.07);
+}
+
+/* Timer: dato-skille mellom gruppene, hurtigknapper under timefeltet */
+.dato-skille {
+  padding: 10px 24px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: capitalize;
+}
+
+.hurtigknappar {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.hurtigknappar .button {
+  flex: 1;
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.hurtigknappar .button.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.time-rad.redigerer {
+  background: var(--accent-soft);
+}
+
+/* Materiell: valgt vare under søket, påslaget som trykkbar prosent */
+.valgt-vare {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+}
+
+.materiell-paaslag {
+  min-width: 56px;
+  text-align: right;
+}
+
+.materiell-paaslag .linkish {
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Mobil: ordrelista, Timer og Materiell skal kunne brukes ute på jobb.
+ * Under 700 px kollapser sidemenyen til en topplinje med menyknapp, skjema
+ * går i én kolonne, og knapper får trykkflate på 44 px. Resten av appen er
+ * ikke tilpasset — bare det montøren faktisk åpner på telefonen.
+ */
+.sidebar-topbar {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .sidebar {
+    padding: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar .brand {
+    display: none;
+  }
+  .sidebar-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 16px;
+    font-weight: 600;
+  }
+  .sidebar-topbar .brand-mobil {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .sidebar-nav {
+    display: none;
+    padding: 0 14px 16px;
+  }
+  .sidebar-nav.open {
+    display: block;
+  }
+  .main {
+    padding: 18px 16px 48px;
+  }
+  .page-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .fane-mobil .grid-2 {
+    grid-template-columns: 1fr;
+  }
+  .fane-mobil .button,
+  .fane-mobil .input,
+  .fane-mobil select.input {
+    min-height: 44px;
+  }
+  .fane-mobil .lead-row,
+  .grossist-rad {
+    padding: 12px 16px;
+    gap: 8px 12px;
+  }
+  .fane-mobil .ordre-sum,
+  .grossist-rad .ordre-sum {
+    text-align: left;
+    min-width: 0;
+    flex: 0 0 100%;
+  }
+  .fane-mobil .dato-skille {
+    padding-left: 16px;
+  }
+  .ordre-faner {
+    flex-wrap: wrap;
+  }
+  .ordre-faner .type-option {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+}
+
+/* Leverandørfakturaer: referanse-chips, ekspanderte linjer, ordrevelger */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chip.faktura {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.faktura-rad {
+  border-bottom: 1px solid var(--border);
+}
+
+.faktura-rad .lead-row {
+  border-bottom: none;
+}
+
+.faktura-rad:last-child {
+  border-bottom: none;
+}
+
+.faktura-linjer {
+  padding: 4px 24px 18px 24px;
+  background: var(--surface-sunken);
+}
+
+.ordre-velger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ordre-velger .input {
+  width: 220px;
+}
+
+.ordre-velger-treff {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  min-width: 320px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+}
+
+.ordre-velger-rad {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ordre-velger-rad:hover {
+  background: var(--surface-sunken);
+}
+
+.ordre-velger-rad:last-child {
+  border-bottom: none;
+}
+
+/* Manuell linje som en faktura har erstattet: står igjen, teller ikke. */
+.materiell-rad.erstatta {
+  opacity: 0.55;
+}
+
+.materiell-rad.erstatta .lead-subject,
+.materiell-rad.erstatta .ordre-sum {
+  text-decoration: line-through;
+}
+
+.kode {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 1px 5px;
+  border-radius: 4px;
+  user-select: all;
+}
+
 /* Handlingsfelt nedst i utkastet */
 .action-bar {
   position: sticky;
@@ -1786,5 +2072,74 @@ p {
   }
   .opplaering-strek {
     display: none;
+  }
+}
+
+/* Fakturaforslag (steg 4) */
+.time-rad.fakturert,
+.materiell-rad.fakturert {
+  opacity: 0.6;
+}
+
+.chip.fakturert-merke {
+  margin-left: 8px;
+  vertical-align: 1px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.faktura-tabell {
+  overflow-x: auto;
+}
+
+.faktura-tabell .doc-table td {
+  vertical-align: top;
+}
+
+.faktura-tabell .input {
+  padding: 5px 8px;
+  font-size: 13.5px;
+}
+
+.faktura-tabell .input.num {
+  text-align: right;
+}
+
+.faktura-tabell tr.utelatt td {
+  opacity: 0.5;
+}
+
+.faktura-tabell tr.utelatt td:first-child {
+  opacity: 1;
+}
+
+.chip.kilde.tilbud {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.chip.kilde.timer,
+.chip.kilde.materiell {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.chip.kilde.manuell {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.overfor-dialog {
+  border: 1px solid var(--accent);
+}
+
+.produkt-map {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+}
+
+@media (max-width: 700px) {
+  .produkt-map {
+    grid-template-columns: 1fr;
   }
 }
