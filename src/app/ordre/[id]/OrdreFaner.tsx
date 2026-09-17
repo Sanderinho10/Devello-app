@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-/** Fanene ordren kommer til å samle. De to siste finnes ikke ennå. */
-const SNART = ["Dokumentasjon", "Faktura"];
+/** Fanene som ikke finnes ennå. Dokumentasjon kommer i steg 5. */
+const SNART = ["Dokumentasjon"];
 
 export function OrdreFaner({ orderId }: { orderId: string }) {
   const pathname = usePathname();
@@ -13,6 +13,7 @@ export function OrdreFaner({ orderId }: { orderId: string }) {
     { label: "Oversikt", href: base },
     { label: "Timer", href: `${base}/timer` },
     { label: "Materiell", href: `${base}/materiell` },
+    { label: "Faktura", href: `${base}/faktura` },
   ];
   const aktiv =
     faner

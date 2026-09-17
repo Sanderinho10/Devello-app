@@ -90,6 +90,7 @@ Eller lim inn migrasjonene i SQL-editoren i rekkefølge, så `seed.sql`.
 | `0033_grossistkatalog.sql` | Grossister og varekatalog (EFO/NELFO 4.0), pris per måleenhet, trigramsøk, standardpåslag |
 | `0034_timar_og_materiell.sql` | `time_entries` og `material_entries` på ordren, med priser kopiert inn ved føring |
 | `0035_regnskapskopling_og_leverandorfakturaer.sql` | Kobling til regnskapssystem (client key skjult for nettleseren), leverandørfakturaer og EHF-linjer, `replaced_by` på materiell |
+| `0036_fakturaforslag.sql` | `invoice_drafts` og versjonslogg, `invoice_draft_id` på timer og materiell (låser fakturerte føringer), produktmapping og innstillinger på koplinga |
 
 ### 3. Azure
 
@@ -147,16 +148,16 @@ src/
 │  ├─ tilbud/                   Agentens faner: leads, prisfil, referansefiler, innstillinger
 │  │  └─ leads/[id]/            Utkastredigering — dokument eller tekst etter type
 │  ├─ ordre/                    Ordremodulen (bak companies.moduler): ordrer, leverandørfakturaer, grossister, innstillinger
-│  │  └─ [id]/                  Ordren som faner: Oversikt, timer/, materiell/ — layout.tsx eier header og faner
+│  │  └─ [id]/                  Ordren som faner: Oversikt, timer/, materiell/, faktura/ — layout.tsx eier header og faner
 │  └─ api/
 │     ├─ auth/microsoft/        OAuth-flyten mot Entra ID
 │     ├─ leads/fetch            «Hent leads»
 │     ├─ drafts/generate        Klassifisering + generering
 │     ├─ drafts/[id]/           confirm (PDF + Outlook-kladd) og pdf (forhåndsvisning)
-│     ├─ orders/                Opprett ordre, PATCH status/felt, [id]/timer og [id]/materiell
+│     ├─ orders/                Opprett ordre, PATCH status/felt, [id]/timer, [id]/materiell, [id]/faktura (+godkjenn, overfor)
 │     ├─ grossist/sok           Søk i grossistkatalogen
 │     ├─ order-settings         Standardpåslag på materiell
-│     └─ regnskap/              connection (PUT/DELETE), sync, fakturaer/[id]/{kople,loys,ignorer}
+│     └─ regnskap/              connection (PUT/PATCH/DELETE), sync, fakturaer/[id]/{kople,loys,ignorer}, produkter
 ├─ lib/
 │  ├─ claude/                   motor.ts (laster agent/), generate.ts
 │  ├─ graph/                    oauth.ts, client.ts, drafts.ts
@@ -165,11 +166,13 @@ src/
 │  ├─ ordre/                    beskrivelse.ts (AI-utkast), status.ts, summering.ts, hent.ts, api.ts
 │  ├─ grossist/nelfo4.ts        Parser for EFO/NELFO 4.0-varefiler — ren funksjon, ingen database
 │  ├─ regnskap/                 poweroffice.ts (API-klient), ehf.ts (parser), matching.ts, sync.ts
+│  ├─ faktura/                  Fakturaforslaget: kontekst.ts → generer.ts → resolver.ts (beløpene), go.ts (payload), overfor.ts
 │  ├─ moduler.ts                harModul() — hvilke moduler et selskap har
 │  └─ types.ts                  Delte typer + computeTotals()
 agent/
 ├─ v2/                          Dagens motor, frosset: ett kall fra lead til prisrader
-└─ v3/                          Omfang først, så pris. Sjekklister per fag under bransje/
+├─ v3/                          Omfang først, så pris. Sjekklister per fag under bransje/
+└─ faktura/                     Fakturaagenten: velger struktur og tekst, aldri beløp
 design/                         Mockuper, samme CSS som appen
 evaluering/                     Evalueringssuite og gullsett — se evaluering/LES_MEG.md
 supabase/migrations/            Skjema og RLS
@@ -279,6 +282,45 @@ kan kalle den senere. Fakturaer uten gjenkjent ordrenummer havner under
 Ordre → Leverandørfakturaer → Ukoblet, der de kobles for hånd eller
 ignoreres. Kreditnotaer hentes og vises, men kobles aldri automatisk.
 
+Privilegiene Devello-utvidelsen trenger i Go: inngående faktura,
+bilagsdokumentasjon og leverandør (lesing), og for fakturaforslagene
+salgsordre, kunde og produkt — **uten** `sendInvoice`. Devello skal ikke
+kunne sende en faktura selv om koden prøvde.
+
+### Fakturaforslag
+
+Poenget med ordremodulen: en faktura som er rett første gang, fordi den er
+bygd av det som faktisk skjedde. Ordre → Faktura → «Lag fakturaforslag»
+kjører fakturaagenten (`agent/faktura/`) én gang over ordren: tilbudet
+kunden sa ja til, timene, materiellet — både det manuelle og det som kom
+fra grossistfakturaene.
+
+Tre prinsipper, som for tilbudsagenten:
+
+1. **Modellen priser aldri.** Den velger strategi (fastpris, fastpris med
+   tillegg, tid og materiell), hvilke kilder som skal faktureres og hvordan
+   linjene forklares. Skjemaet den svarer i har ikke ett tallfelt.
+   `src/lib/faktura/resolver.ts` slår opp beløpene fra kildene: seksjonens
+   sum, tilbudslinjen som den er, timer × sats gruppert per type, materiell
+   til salgspris. Peker planen på noe som ikke finnes, ikke er fakturerbart
+   eller alt er fakturert, får modellen problemene tilbake én gang — så
+   feiler kallet.
+2. **Utkast i Go, aldri sendt.** «Overfør til PowerOffice Go» finner kunden
+   (e-post, telefon; ellers opprettes den etter bekreftelse), og legger en
+   salgsordre med status Draft via `POST /SalesOrders/Complete`.
+   `ExternalImportReference` er utkastets id, så et nytt trykk aldri gir en
+   ny ordre. Kunden fakturerer og sender fra Go. Hver Normal-linje går på et
+   produkt fra mappingen under Innstillinger → Regnskapssystem → Produkter i
+   Go (produktet bærer salgskonto og mva-kode); «Opprett standardprodukter»
+   lager DEV-ARB/-MAT/-FAST/-ANN.
+3. **Alt versjonslogges** i `invoice_draft_versions`: agentens forslag,
+   hver redigering med diff, og det som ble overført. Ved overføring låses
+   utkastet, timene og materiellet som er med får `invoice_draft_id` og
+   kan aldri faktureres to ganger, og ordren blir `fakturert`.
+
+`npm run test:faktura` prøver resolveren, omregningen etter redigering og
+Go-payloaden uten database og uten modell.
+
 ### Navigasjonsmønsteret
 
 Sidebar er organisert **per agent**, ikke per funksjon. Alt som hører til
@@ -309,6 +351,7 @@ npm run preview:pdf -- fastpris
 npm run test:motor             # motor v3 og tilbakerullingen, uten database
 npm run test:nelfo4            # parseren for grossistenes varefiler, uten database
 npm run test:ehf               # EHF-parseren og ordrenummer-matchingen, uten database
+npm run test:faktura           # fakturaforslaget: resolver, redigering, Go-payload — uten database og modell
 npm run test:gullsett          # målingen bak gullsettet, uten database
 npm run evaluer                # evalueringssuiten — 15 saker med fasit, se evaluering/LES_MEG.md
 npm run evaluer -- --motor v3  # samme, mot én bestemt motor (egen baseline)

@@ -3,10 +3,12 @@ import JSZip from "jszip";
 import { requireEnv } from "@/lib/supabase/admin";
 
 /**
- * PowerOffice Go API v2 — bare lesing.
+ * PowerOffice Go API v2.
  *
- * Vi henter inngående fakturaer og laster ned EHF-XML-en. Ingenting skrives
- * til Go: regnskapet bor der, og Devello er ikke fakturamottak.
+ * Steg 3 leser: inngående fakturaer og EHF-XML-en. Steg 4 skriver tre ting,
+ * og bare de: kunder (etter bekreftelse), produkter (standardproduktene) og
+ * salgsordrer med status Draft — et fakturautkast. Aldri en bekreftet ordre,
+ * aldri CreateAndSendInvoice, aldri bokføring. Kunden fakturerer fra Go.
  *
  * Autentisering er OAuth 2.0 client credentials. Application key og
  * subscription key er Devello sine (én per miljø, i env). Client key er per
@@ -201,6 +203,44 @@ export function pogoClient(kopling: PogoKopling) {
     }
   }
 
+  /**
+   * POST med JSON. Samme token- og feilhåndtering som GET. Brukes bare av
+   * steg 4: kunde, produkt, salgsordre-utkast.
+   */
+  async function post<T>(path: string, body: unknown): Promise<T | null> {
+    const full = `${url.api}${path}`;
+    const send = async (forsok: number): Promise<Response> => {
+      const res = await fetch(full, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${await token(forsok === 1)}`,
+          "Ocp-Apim-Subscription-Key": subscriptionKey,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+      if (process.env.POGO_DEBUG || process.env.NODE_ENV !== "production") {
+        console.log(`[pogo] POST ${path} → ${res.status}`);
+      }
+      if (res.status === 401 && forsok === 0) return send(1);
+      return res;
+    };
+    const res = await send(0);
+    if (!res.ok) {
+      const tekst = await res.text().catch(() => "");
+      throw new PogoFeil(forklar(res.status, tekst, path), res.status);
+    }
+    if (res.status === 204) return null;
+    const tekst = await res.text();
+    if (!tekst.trim()) return null;
+    try {
+      return JSON.parse(tekst) as T;
+    } catch {
+      throw new PogoFeil(`PowerOffice Go svarte med noe som ikke er JSON på ${path}: ${tekst.slice(0, 120)}`, 502);
+    }
+  }
+
   return {
     /** Henter et token — «Test tilkobling» bruker denne. */
     token: () => token(true),
@@ -286,6 +326,152 @@ export function pogoClient(kopling: PogoKopling) {
         OrganizationNumber: strengEllerNull(felt(o, "OrganizationNumber")),
       };
     },
+
+    // ---- Steg 4: kunder, produkter, salgsordre --------------------------
+
+    /**
+     * Kunder som matcher ett av filtrene. Go filtrerer på lister
+     * (organizationNumbers, emailAddresses, phoneNumbers); vi sender ett
+     * filter om gangen og lar kalleren bestemme rekkefølgen.
+     */
+    async hentKundar(filter: {
+      organizationNumbers?: string[];
+      emailAddresses?: string[];
+      phoneNumbers?: string[];
+    }): Promise<PogoKunde[]> {
+      const svar = await get<unknown>("/Customers", { ...filter, PageNumber: 1, PageSize: 50 });
+      return liste(svar).map(tilKunde);
+    },
+
+    async opprettKunde(dto: PogoKundePost): Promise<PogoKunde> {
+      const o = (await post<Record<string, unknown>>("/Customers", dto)) ?? {};
+      return tilKunde(o);
+    },
+
+    async hentProdukter(): Promise<PogoProdukt[]> {
+      const alle: PogoProdukt[] = [];
+      for (let side = 1; side <= 20; side++) {
+        const svar = await get<unknown>("/Products", { PageNumber: side, PageSize: 100 });
+        const del = liste(svar).map(tilProdukt);
+        alle.push(...del);
+        if (del.length < 100) break;
+      }
+      return alle;
+    },
+
+    async opprettProdukt(dto: PogoProduktPost): Promise<PogoProdukt> {
+      const o = (await post<Record<string, unknown>>("/Products", dto)) ?? {};
+      return tilProdukt(o);
+    },
+
+    /**
+     * Salgsordren med vår importreferanse, om den finnes. Parameternavnet
+     * følger v2-mønsteret for listefiltre (voucherNos, supplierNos …); vi
+     * filtrerer også på feltet i svaret, så et ignorert filter aldri gir
+     * feil treff. Avviser Go filteret (400), svarer vi null og lar den
+     * lokale transfer_external_id være vaktens andre lag.
+     */
+    async finnSalsordreViaRef(ref: string): Promise<PogoSalsordre | null> {
+      try {
+        const svar = await get<unknown>("/SalesOrders", {
+          externalImportReferences: [ref],
+          PageNumber: 1,
+          PageSize: 20,
+        });
+        const treff = liste(svar)
+          .map(tilSalsordre)
+          .filter((o) => o.ExternalImportReference === ref);
+        return treff[0] ?? null;
+      } catch (err) {
+        if (err instanceof PogoFeil && err.status === 400) return null;
+        throw err;
+      }
+    },
+
+    async hentSalsordre(id: string): Promise<PogoSalsordre | null> {
+      const o = await get<Record<string, unknown>>(`/SalesOrders/${encodeURIComponent(id)}`);
+      return o ? tilSalsordre(o) : null;
+    },
+
+    /** Oppretter ordre med linjer i ett kall. Status er alltid Draft — kalleren setter den. */
+    async opprettSalsordre(dto: unknown): Promise<PogoSalsordre> {
+      const o = (await post<Record<string, unknown>>("/SalesOrders/Complete", dto)) ?? {};
+      return tilSalsordre(o);
+    },
+  };
+}
+
+export interface PogoKunde {
+  Id: string;
+  CustomerNo: string | null;
+  Name: string | null;
+  OrganizationNumber: string | null;
+  EmailAddress: string | null;
+  PhoneNumber: string | null;
+  IsPerson: boolean | null;
+}
+
+export interface PogoKundePost {
+  Name: string;
+  IsPerson: boolean;
+  FirstName?: string;
+  LastName?: string;
+  OrganizationNumber?: string;
+  EmailAddress?: string;
+  InvoiceEmailAddress?: string;
+  PhoneNumber?: string;
+  MailAddress?: { AddressLine1?: string; ZipCode?: string; City?: string; CountryCode?: string };
+}
+
+export interface PogoProdukt {
+  Id: string;
+  Code: string | null;
+  Name: string | null;
+  Description: string | null;
+}
+
+export interface PogoProduktPost {
+  Code: string;
+  Name: string;
+  Description?: string;
+}
+
+export interface PogoSalsordre {
+  Id: string;
+  SalesOrderNo: string | null;
+  SalesOrderStatus: string | null;
+  CustomerNo: string | null;
+  ExternalImportReference: string | null;
+}
+
+function tilKunde(o: Record<string, unknown>): PogoKunde {
+  return {
+    Id: String(felt(o, "Id") ?? ""),
+    CustomerNo: strengEllerNull(felt(o, "CustomerNo") ?? felt(o, "Number") ?? felt(o, "Code")),
+    Name: strengEllerNull(felt(o, "Name")),
+    OrganizationNumber: strengEllerNull(felt(o, "OrganizationNumber")),
+    EmailAddress: strengEllerNull(felt(o, "EmailAddress")),
+    PhoneNumber: strengEllerNull(felt(o, "PhoneNumber")),
+    IsPerson: typeof felt(o, "IsPerson") === "boolean" ? (felt(o, "IsPerson") as boolean) : null,
+  };
+}
+
+function tilProdukt(o: Record<string, unknown>): PogoProdukt {
+  return {
+    Id: String(felt(o, "Id") ?? ""),
+    Code: strengEllerNull(felt(o, "Code")),
+    Name: strengEllerNull(felt(o, "Name")),
+    Description: strengEllerNull(felt(o, "Description")),
+  };
+}
+
+function tilSalsordre(o: Record<string, unknown>): PogoSalsordre {
+  return {
+    Id: String(felt(o, "Id") ?? ""),
+    SalesOrderNo: strengEllerNull(felt(o, "SalesOrderNo") ?? felt(o, "OrderNo") ?? felt(o, "Number")),
+    SalesOrderStatus: strengEllerNull(felt(o, "SalesOrderStatus") ?? felt(o, "Status")),
+    CustomerNo: strengEllerNull(felt(o, "CustomerNo")),
+    ExternalImportReference: strengEllerNull(felt(o, "ExternalImportReference")),
   };
 }
 
@@ -306,8 +492,14 @@ function forklar(status: number, tekst: string, hvor: string): string {
         ? "Bilagsdokumentasjon (VoucherDocumentation)"
         : /Suppliers/i.test(hvor)
           ? "Leverandør (Supplier)"
-          : "denne ressursen";
-    return `Integrasjonen mangler tilgang til ${privilegium} i PowerOffice Go. Gi utvidelsen lesetilgang og prøv igjen.`;
+          : /SalesOrders/i.test(hvor)
+            ? "Salgsordre (SalesOrder)"
+            : /Customers/i.test(hvor)
+              ? "Kunde (Customer)"
+              : /Products/i.test(hvor)
+                ? "Produkt (Product)"
+                : "denne ressursen";
+    return `Integrasjonen mangler tilgang til ${privilegium} i PowerOffice Go. Gi utvidelsen tilgang og prøv igjen.`;
   }
   if (status === 429) return "PowerOffice Go begrenser antall kall akkurat nå. Prøv igjen om litt.";
   if (status === 404) return `PowerOffice Go fant ikke ${hvor}.`;

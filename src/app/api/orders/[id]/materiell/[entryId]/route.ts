@@ -36,6 +36,9 @@ async function hentLinje(
   if (!entry) {
     return NextResponse.json({ error: "Fant ikke materiellinjen" }, { status: 404 });
   }
+  if ((entry as MaterialEntry).invoice_draft_id) {
+    return NextResponse.json({ error: "Linjen er fakturert og kan ikke endres." }, { status: 400 });
+  }
   return entry as MaterialEntry;
 }
 

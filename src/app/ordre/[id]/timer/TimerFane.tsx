@@ -245,10 +245,14 @@ export function TimerFane({
               <div className="dato-skille">{formatDato(d)}</div>
               <div className="lead-list">
                 {rader.map((e) => (
-                  <div key={e.id} className={`lead-row time-rad${redigerer?.id === e.id ? " redigerer" : ""}`}>
+                  <div
+                    key={e.id}
+                    className={`lead-row time-rad${redigerer?.id === e.id ? " redigerer" : ""}${e.invoice_draft_id ? " fakturert" : ""}`}
+                  >
                     <div className="lead-main">
                       <div className="lead-subject" style={{ cursor: "default" }}>
                         {navn.get(e.user_id) ?? "Ukjent"} · {e.time_type_name}
+                        {e.invoice_draft_id && <span className="chip fakturert-merke">fakturert</span>}
                       </div>
                       {e.note && <div className="lead-meta">{e.note}</div>}
                     </div>
@@ -256,7 +260,7 @@ export function TimerFane({
                       <strong>{formatTimar(Number(e.hours))}</strong>
                       <span className="tiny muted"> · {formatNok(Number(e.hours) * Number(e.unit_price))}</span>
                     </span>
-                    {!laast && kanRoere(e) && (
+                    {!laast && !e.invoice_draft_id && kanRoere(e) && (
                       <span className="row">
                         <button type="button" className="button ghost" onClick={() => startRedigering(e)}>
                           Rediger

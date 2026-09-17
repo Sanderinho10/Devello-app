@@ -28,6 +28,12 @@ async function hentFoering(
   if (!entry) {
     return NextResponse.json({ error: "Fant ikke timeføringen" }, { status: 404 });
   }
+  if (entry.invoice_draft_id) {
+    return NextResponse.json(
+      { error: "Timene er fakturert og kan ikke endres." },
+      { status: 400 },
+    );
+  }
   if (entry.user_id !== session.userId && !(await erAdmin(admin, session))) {
     return NextResponse.json(
       { error: "Du kan bare endre dine egne timer." },

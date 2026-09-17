@@ -22,7 +22,7 @@ export default async function OrdreInnstillingerPage() {
     supabase
       .from("accounting_connections")
       .select(
-        "id, company_id, provider, environment, status, status_reason, sync_cursor, last_sync_at, last_sync_note, created_at, updated_at",
+        "id, company_id, provider, environment, status, status_reason, sync_cursor, last_sync_at, last_sync_note, product_map, settings, created_at, updated_at",
       )
       .eq("company_id", session!.companyId)
       .maybeSingle(),

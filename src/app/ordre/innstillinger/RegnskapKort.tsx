@@ -1,13 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { HentFakturaer } from "@/components/HentFakturaer";
 import {
   ACCOUNTING_PROVIDER_LABELS,
+  PRODUCT_MAP_LABELS,
   formatDate,
   type AccountingConnectionPublic,
   type AccountingEnv,
+  type ProductMap,
+  type ProductMapKey,
 } from "@/lib/types";
 
 /**
@@ -88,8 +91,9 @@ export function RegnskapKort({
         )}
       </div>
       <p className="muted tiny" style={{ marginBottom: 14 }}>
-        Leverandørfakturaer hentes fra regnskapssystemet og legges på ordren de hører til.
-        Devello leser bare — ingenting bokføres eller sendes.
+        Leverandørfakturaer hentes fra regnskapssystemet og legges på ordren de hører til, og
+        godkjente fakturaforslag legges tilbake som ordreutkast. Ingenting bokføres eller sendes
+        fra Devello — fakturaen sendes fra regnskapssystemet.
       </p>
 
       {error && <div className="banner error">{error}</div>}
@@ -126,6 +130,7 @@ export function RegnskapKort({
               </>
             )}
           </div>
+          <ProdukterIGo kopling={kopling} erAdmin={erAdmin} />
         </div>
       ) : erAdmin ? (
         <form onSubmit={kople}>
@@ -169,9 +174,10 @@ export function RegnskapKort({
               ) : (
                 " (ikke satt i dette miljøet)"
               )}
-              , gi utvidelsen lesetilgang til inngående faktura, bilagsdokumentasjon og
-              leverandør, og kopier client key hit. Produksjonstilgang krever at PowerOffice har
-              godkjent Devello.
+              , gi utvidelsen tilgang til inngående faktura, bilagsdokumentasjon og leverandør
+              (lesing) og til salgsordre, kunde og produkt (for fakturaforslagene — uten
+              «send faktura»), og kopier client key hit. Produksjonstilgang krever at PowerOffice
+              har godkjent Devello.
             </span>
           </label>
           <div className="row">
@@ -187,6 +193,156 @@ export function RegnskapKort({
         </form>
       ) : (
         <p className="muted tiny">Ikke tilkoblet. Bare administratorer kan koble til.</p>
+      )}
+    </div>
+  );
+}
+
+const NOKLAR: ProductMapKey[] = ["arbeid", "materiell", "fastpris", "annet"];
+
+/**
+ * Produktene i Go som fakturalinjene skal gå på. Produktet bærer salgskonto
+ * og mva-kode i Go — derfor må hver linjetype ha ett. «Opprett
+ * standardprodukter» lager DEV-ARB/-MAT/-FAST/-ANN og fyller mappingen;
+ * salgskonto og mva må sjekkes i Go etterpå.
+ */
+function ProdukterIGo({ kopling, erAdmin }: { kopling: AccountingConnectionPublic; erAdmin: boolean }) {
+  const router = useRouter();
+  const [produkter, setProdukter] = useState<{ code: string; name: string }[] | null>(null);
+  const [map, setMap] = useState<ProductMap>(kopling.product_map ?? {});
+  const [prosjekt, setProsjekt] = useState(Boolean(kopling.settings?.project_per_order));
+  const [busy, setBusy] = useState<null | "hent" | "standard" | "lagre">(null);
+  const [melding, setMelding] = useState<string | null>(null);
+  const [feil, setFeil] = useState<string | null>(null);
+  const dirty =
+    NOKLAR.some((k) => (map[k] ?? "") !== (kopling.product_map?.[k] ?? "")) ||
+    prosjekt !== Boolean(kopling.settings?.project_per_order);
+
+  async function hent() {
+    setBusy("hent");
+    setFeil(null);
+    try {
+      const res = await fetch("/api/regnskap/produkter");
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error ?? "Kunne ikke hente produkter");
+      setProdukter(payload.produkter ?? []);
+    } catch (err) {
+      setFeil(err instanceof Error ? err.message : String(err));
+      setProdukter([]);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  useEffect(() => {
+    void hent();
+    // Én gang når kortet vises. Knappen henter på nytt.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function standard() {
+    if (!window.confirm("Opprette produktene DEV-ARB, DEV-MAT, DEV-FAST og DEV-ANN i PowerOffice Go?")) return;
+    setBusy("standard");
+    setFeil(null);
+    setMelding(null);
+    try {
+      const res = await fetch("/api/regnskap/produkter/standard", { method: "POST" });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error ?? "Kunne ikke opprette");
+      setMap(payload.product_map ?? {});
+      setMelding(payload.melding ?? null);
+      await hent();
+      router.refresh();
+    } catch (err) {
+      setFeil(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function lagre() {
+    setBusy("lagre");
+    setFeil(null);
+    setMelding(null);
+    try {
+      const res = await fetch("/api/regnskap/connection", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ product_map: map, settings: { project_per_order: prosjekt } }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error ?? "Kunne ikke lagre");
+      setMelding("Lagret.");
+      router.refresh();
+    } catch (err) {
+      setFeil(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const manglar = NOKLAR.filter((k) => !map[k]);
+
+  return (
+    <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12, marginTop: 4 }}>
+      <div className="row-between" style={{ marginBottom: 6 }}>
+        <span className="label" style={{ marginBottom: 0 }}>
+          Produkter i Go
+        </span>
+        {manglar.length > 0 ? (
+          <span className="pill opna">{manglar.length} mangler</span>
+        ) : (
+          <span className="pill ferdig">Komplett</span>
+        )}
+      </div>
+      <p className="muted tiny" style={{ marginBottom: 10 }}>
+        Hver linje på fakturaforslaget går på et produkt i Go — produktet bærer salgskonto og
+        mva-kode. Velg fra listen, eller opprett Devellos standardprodukter.
+      </p>
+      {feil && <div className="banner error">{feil}</div>}
+      {melding && <div className="banner info">{melding}</div>}
+
+      <div className="produkt-map">
+        {NOKLAR.map((k) => (
+          <label key={k} className="field" style={{ marginBottom: 0 }}>
+            <span className="label">{PRODUCT_MAP_LABELS[k]}</span>
+            <select
+              className="input"
+              value={map[k] ?? ""}
+              disabled={!erAdmin || produkter === null}
+              onChange={(e) => setMap({ ...map, [k]: e.target.value || undefined })}
+            >
+              <option value="">{produkter === null ? "Henter…" : "— velg produkt —"}</option>
+              {map[k] && !produkter?.some((p) => p.code === map[k]) && (
+                <option value={map[k]}>{map[k]} (ikke i lista)</option>
+              )}
+              {(produkter ?? []).map((p) => (
+                <option key={p.code} value={p.code}>
+                  {p.code} · {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ))}
+      </div>
+
+      <label className="row" style={{ marginTop: 12, gap: 8, cursor: erAdmin ? "pointer" : "default" }}>
+        <input type="checkbox" checked={prosjekt} disabled={!erAdmin} onChange={(e) => setProsjekt(e.target.checked)} />
+        <span>Bruk ordrenummer som prosjekt i Go</span>
+      </label>
+
+      {erAdmin && (
+        <div className="row" style={{ flexWrap: "wrap", marginTop: 12 }}>
+          <button type="button" className="button" onClick={lagre} disabled={busy !== null || !dirty}>
+            {busy === "lagre" ? "Lagrer…" : "Lagre"}
+          </button>
+          <button type="button" className="button secondary" onClick={hent} disabled={busy !== null}>
+            {busy === "hent" ? "Henter…" : "Hent produkter fra Go"}
+          </button>
+          <button type="button" className="button ghost" onClick={standard} disabled={busy !== null}>
+            {busy === "standard" ? "Oppretter…" : "Opprett standardprodukter"}
+          </button>
+        </div>
       )}
     </div>
   );

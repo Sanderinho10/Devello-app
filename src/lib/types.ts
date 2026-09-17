@@ -538,6 +538,8 @@ export interface TimeEntry {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  /** Satt når timene er med på et overført fakturaforslag. Låst. */
+  invoice_draft_id: string | null;
 }
 
 /** manuell = ført i appen. faktura og pakkseddel kommer fra POGO i steg 3. */
@@ -575,6 +577,8 @@ export interface MaterialEntry {
    * Linjen står igjen, men er ute av summene.
    */
   replaced_by: string | null;
+  /** Satt når linjen er med på et overført fakturaforslag. Låst. */
+  invoice_draft_id: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -604,8 +608,31 @@ export interface AccountingConnectionPublic {
   sync_cursor: string | null;
   last_sync_at: string | null;
   last_sync_note: string | null;
+  /** Produktkoder i regnskapssystemet per linjetype. Tom til noen setter dem. */
+  product_map: ProductMap;
+  settings: ConnectionSettings;
   created_at: string;
   updated_at: string;
+}
+
+/**
+ * Produktene i regnskapssystemet som fakturalinjene skal gå på. Produktet
+ * bærer salgskonto og mva-kode der — derfor må hver linje ha ett.
+ */
+export type ProductMapKey = "arbeid" | "materiell" | "fastpris" | "annet";
+
+export type ProductMap = Partial<Record<ProductMapKey, string>>;
+
+export const PRODUCT_MAP_LABELS: Record<ProductMapKey, string> = {
+  arbeid: "Arbeid (timer)",
+  materiell: "Materiell",
+  fastpris: "Fastpris iht. tilbud",
+  annet: "Annet",
+};
+
+export interface ConnectionSettings {
+  /** Bruk ordrenummeret som prosjektkode på salgsordren i regnskapssystemet. */
+  project_per_order?: boolean;
 }
 
 export type InvoiceMatchStatus = "kopla" | "delvis" | "ukopla" | "ignorert";
@@ -668,6 +695,61 @@ export interface SupplierInvoiceLine {
   order_id: string | null;
   material_entry_id: string | null;
   status: InvoiceMatchStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Fakturaforslag
+// ---------------------------------------------------------------------------
+
+/**
+ * utkast   = laget av agenten, kan redigeres.
+ * godkjent = et menneske har sett over. Kan angres til overføring.
+ * overfort = ligger som ordreutkast i regnskapssystemet. Låst.
+ * feil     = overføringen feilet. Kan prøves igjen.
+ */
+export type InvoiceDraftStatus = "utkast" | "godkjent" | "overfort" | "feil";
+
+export const INVOICE_DRAFT_STATUS_LABELS: Record<InvoiceDraftStatus, string> = {
+  utkast: "Utkast",
+  godkjent: "Godkjent",
+  overfort: "Overført",
+  feil: "Feil ved overføring",
+};
+
+export type InvoiceStrategy = "fastpris" | "fastpris_med_tillegg" | "tid_og_materiell";
+
+export const INVOICE_STRATEGY_LABELS: Record<InvoiceStrategy, string> = {
+  fastpris: "Fastpris",
+  fastpris_med_tillegg: "Fastpris med tillegg",
+  tid_og_materiell: "Tid og materiell",
+};
+
+/** Formen på linjene og kildene ligger i lib/faktura/typar.ts. */
+export interface InvoiceDraft {
+  id: string;
+  company_id: string;
+  order_id: string;
+  status: InvoiceDraftStatus;
+  strategy: InvoiceStrategy;
+  lines: import("./faktura/typar").InvoiceLine[];
+  totals: { subtotal: number; vat: number; total: number };
+  invoice_text: string | null;
+  customer_reference: string | null;
+  notes: string[];
+  questions: string[];
+  ai_model: string | null;
+  generated_at: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  transfer_provider: AccountingProvider | null;
+  transfer_external_id: string | null;
+  transfer_order_no: string | null;
+  transfer_customer_no: string | null;
+  transferred_at: string | null;
+  transfer_error: string | null;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 }

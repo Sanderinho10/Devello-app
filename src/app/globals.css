@@ -2074,3 +2074,72 @@ p {
     display: none;
   }
 }
+
+/* Fakturaforslag (steg 4) */
+.time-rad.fakturert,
+.materiell-rad.fakturert {
+  opacity: 0.6;
+}
+
+.chip.fakturert-merke {
+  margin-left: 8px;
+  vertical-align: 1px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.faktura-tabell {
+  overflow-x: auto;
+}
+
+.faktura-tabell .doc-table td {
+  vertical-align: top;
+}
+
+.faktura-tabell .input {
+  padding: 5px 8px;
+  font-size: 13.5px;
+}
+
+.faktura-tabell .input.num {
+  text-align: right;
+}
+
+.faktura-tabell tr.utelatt td {
+  opacity: 0.5;
+}
+
+.faktura-tabell tr.utelatt td:first-child {
+  opacity: 1;
+}
+
+.chip.kilde.tilbud {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.chip.kilde.timer,
+.chip.kilde.materiell {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.chip.kilde.manuell {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.overfor-dialog {
+  border: 1px solid var(--accent);
+}
+
+.produkt-map {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+}
+
+@media (max-width: 700px) {
+  .produkt-map {
+    grid-template-columns: 1fr;
+  }
+}

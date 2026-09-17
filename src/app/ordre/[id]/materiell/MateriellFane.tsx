@@ -174,13 +174,15 @@ export function MateriellFane({
     const erstattaAv = e.replaced_by ? entryAvId.get(e.replaced_by) : null;
     const erstattaInfo = erstattaAv?.invoice_line_id ? fakturaInfo[erstattaAv.invoice_line_id] : null;
     const erstatta = Boolean(e.replaced_by);
+    const fakturert = Boolean(e.invoice_draft_id);
 
     return (
-      <div key={e.id} className={`lead-row materiell-rad${erstatta ? " erstatta" : ""}`}>
+      <div key={e.id} className={`lead-row materiell-rad${erstatta ? " erstatta" : ""}${fakturert ? " fakturert" : ""}`}>
         <span className="ordre-nr">{e.item_no ?? "—"}</span>
         <div className="lead-main">
           <div className="lead-subject" style={{ cursor: "default" }}>
             {e.name}
+            {fakturert && <span className="chip fakturert-merke">fakturert</span>}
           </div>
           <div className="lead-meta">
             {q.toLocaleString("nb-NO")} {e.unit} × {formatPris(sal)}
@@ -230,7 +232,7 @@ export function MateriellFane({
             <button
               type="button"
               className="linkish"
-              disabled={laast || kost === null || erstatta}
+              disabled={laast || kost === null || erstatta || fakturert}
               title={kost === null ? "Fritekstlinje uten kostpris" : "Trykk for å overstyre påslaget"}
               onClick={() => setRedigerPaaslag({ id: e.id, verdi: String(Number(e.markup_pct)) })}
             >
@@ -241,7 +243,7 @@ export function MateriellFane({
         <span className="ordre-sum">
           <strong>{formatNok(q * sal)}</strong>
         </span>
-        {!laast && !erstatta && (
+        {!laast && !erstatta && !fakturert && (
           info ? (
             <button type="button" className="button ghost" onClick={() => loys(e)}>
               Løs fra ordre

@@ -74,6 +74,70 @@ export async function PUT(request: NextRequest) {
   }
 }
 
+/**
+ * Produktmapping og innstillinger på koplinga. Bare administratorer.
+ * Body: { product_map?: { arbeid, materiell, fastpris, annet }, settings?: { project_per_order } }.
+ */
+export async function PATCH(request: NextRequest) {
+  const session = await sessionOr401();
+  if (session instanceof NextResponse) return session;
+  const denied = await requireAdmin(session);
+  if (denied) return denied;
+
+  try {
+    const admin = supabaseAdmin();
+    const avvist = await ordreModulEllers403(admin, session.companyId);
+    if (avvist) return avvist;
+
+    const { data: kopling } = await admin
+      .from("accounting_connections")
+      .select("id, product_map, settings")
+      .eq("company_id", session.companyId)
+      .maybeSingle();
+    if (!kopling) return NextResponse.json({ error: "Ingen regnskapssystem er koblet til." }, { status: 400 });
+
+    const body = (await request.json().catch(() => ({}))) as { product_map?: unknown; settings?: unknown };
+    const endringer: Record<string, unknown> = {};
+
+    if (body.product_map !== undefined) {
+      if (!body.product_map || typeof body.product_map !== "object") {
+        return NextResponse.json({ error: "product_map må være et objekt." }, { status: 400 });
+      }
+      const inn = body.product_map as Record<string, unknown>;
+      const map: Record<string, string> = {};
+      for (const key of ["arbeid", "materiell", "fastpris", "annet"] as const) {
+        const v = inn[key];
+        if (typeof v === "string" && v.trim()) map[key] = v.trim().slice(0, 60);
+      }
+      endringer.product_map = map;
+    }
+    if (body.settings !== undefined) {
+      if (!body.settings || typeof body.settings !== "object") {
+        return NextResponse.json({ error: "settings må være et objekt." }, { status: 400 });
+      }
+      const inn = body.settings as Record<string, unknown>;
+      endringer.settings = {
+        ...((kopling.settings as Record<string, unknown>) ?? {}),
+        ...(inn.project_per_order !== undefined ? { project_per_order: Boolean(inn.project_per_order) } : {}),
+      };
+    }
+    if (Object.keys(endringer).length === 0) {
+      return NextResponse.json({ ok: true, product_map: kopling.product_map, settings: kopling.settings });
+    }
+
+    const { data, error } = await admin
+      .from("accounting_connections")
+      .update(endringer)
+      .eq("id", kopling.id)
+      .select("product_map, settings")
+      .single();
+    if (error) throw new Error(error.message);
+    return NextResponse.json({ ok: true, ...data });
+  } catch (err) {
+    return errorResponse(err);
+  }
+}
+
 export async function DELETE() {
   const session = await sessionOr401();
   if (session instanceof NextResponse) return session;

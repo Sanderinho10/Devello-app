@@ -24,6 +24,7 @@
     "test:opplaering": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-opplaering.ts",
     "test:nelfo4": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-nelfo4.ts",
     "test:ehf": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-ehf.ts",
+    "test:faktura": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-faktura.ts",
     "grossist:importer": "node --env-file=.env.local --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/importer-grossist.ts"
   },
   "dependencies": {

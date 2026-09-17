@@ -24,7 +24,9 @@ export type ModellKall =
   /** Skannet PDF lest av modellen fordi den ikke hadde tekstlag. */
   | "lesing_skanna_pdf"
   /** Ordremodulen: kort arbeidsbeskrivelse ved oppretting fra tilbud. Liten modell. */
-  | "ordre_beskrivelse";
+  | "ordre_beskrivelse"
+  /** Ordremodulen: fakturaforslaget — struktur og tekst, aldri beløp. */
+  | "fakturaforslag";
 
 export interface UsageContext {
   companyId: string;
