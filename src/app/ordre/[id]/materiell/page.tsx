@@ -3,7 +3,7 @@ import { MateriellFane } from "./MateriellFane";
 import { hentOrdre, ordreErLaast } from "@/lib/ordre/hent";
 import { currentSession, supabaseServer } from "@/lib/supabase/server";
 import type { MaterialEntry } from "@/lib/types";
-import type { FakturaInfo } from "./MateriellFane";
+import type { FakturaInfo, HodeFaktura } from "./MateriellFane";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +15,7 @@ export default async function MateriellSide({ params }: { params: Promise<{ id: 
   const session = await currentSession();
   const supabase = await supabaseServer();
 
-  const [{ data: entries }, { data: company }, { count: grossistar }] = await Promise.all([
+  const [{ data: entries }, { data: company }, { count: grossistar }, { data: hodeFakturaer }] = await Promise.all([
     supabase
       .from("material_entries")
       .select("*")
@@ -31,6 +31,15 @@ export default async function MateriellSide({ params }: { params: Promise<{ id: 
       .select("id", { count: "exact", head: true })
       .eq("company_id", session!.companyId)
       .eq("active", true),
+    // Fakturaer koblet til ordren som helhet — de uten EHF, der Go bare
+    // har hodet. De gir ingen materiell-linjer, men montøren må se at
+    // de finnes, ellers ser ordren ut som om ingenting er kjøpt.
+    supabase
+      .from("supplier_invoices")
+      .select("id, invoice_no, voucher_no, voucher_type, supplier_name, voucher_date, net_amount, has_ehf, parse_error")
+      .eq("order_id", ordre.id)
+      .eq("line_count", 0)
+      .order("voucher_date", { ascending: false }),
   ]);
 
   // Linjer fra leverandørfakturaer: hvilken faktura, hvilken leverandør,
@@ -69,6 +78,7 @@ export default async function MateriellSide({ params }: { params: Promise<{ id: 
       standardPaaslag={Number(company?.materials_markup_pct ?? 25)}
       harKatalog={(grossistar ?? 0) > 0}
       fakturaInfo={fakturaInfo}
+      hodeFakturaer={(hodeFakturaer ?? []) as HodeFaktura[]}
     />
   );
 }

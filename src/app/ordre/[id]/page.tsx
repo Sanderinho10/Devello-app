@@ -32,7 +32,7 @@ export default async function OrdreSide({
   if (!ordre) notFound();
   const supabase = await supabaseServer();
 
-  const [{ data: hendelser }, { data: timar }, { data: materiell }] = await Promise.all([
+  const [{ data: hendelser }, { data: timar }, { data: materiell }, { count: hodeFakturaer }] = await Promise.all([
     supabase
       .from("order_events")
       .select("*")
@@ -46,6 +46,12 @@ export default async function OrdreSide({
       .from("material_entries")
       .select("quantity, cost_price, sale_price, replaced_by, invoice_line_id")
       .eq("order_id", ordre.id),
+    // Fakturaer koblet på hodenivå gir ingen linjer, men skal synes.
+    supabase
+      .from("supplier_invoices")
+      .select("id", { count: "exact", head: true })
+      .eq("order_id", ordre.id)
+      .eq("line_count", 0),
   ]);
 
   // Tallgrunnlaget fakturaforslaget skal lese i steg 4. Samme funksjoner
@@ -85,7 +91,10 @@ export default async function OrdreSide({
                 {materiellsum.linjer} {materiellsum.linjer === 1 ? "linje" : "linjer"}
                 {materiellsum.fraFaktura > 0 && `, hvorav ${materiellsum.fraFaktura} fra faktura`}
                 {" · kost "}
-                {formatNok(materiellsum.kost)} →
+                {formatNok(materiellsum.kost)}
+                {(hodeFakturaer ?? 0) > 0 &&
+                  ` · ${hodeFakturaer} ${hodeFakturaer === 1 ? "faktura" : "fakturaer"} uten linjer`}
+                {" →"}
               </span>
             </Link>
             <div className="oppsummering-post">

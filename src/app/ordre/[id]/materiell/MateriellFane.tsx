@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { GrossistSok, formatPris, type GrossistTreff } from "@/components/GrossistSok";
@@ -11,6 +12,19 @@ export interface FakturaInfo {
   invoice_no: string;
   supplier_name: string | null;
   voucher_date: string | null;
+}
+
+/** Faktura koblet til ordren som helhet — uten linjer å føre. */
+export interface HodeFaktura {
+  id: string;
+  invoice_no: string | null;
+  voucher_no: number | null;
+  voucher_type: string;
+  supplier_name: string | null;
+  voucher_date: string | null;
+  net_amount: number | null;
+  has_ehf: boolean;
+  parse_error: string | null;
 }
 
 /**
@@ -32,6 +46,7 @@ export function MateriellFane({
   standardPaaslag,
   harKatalog,
   fakturaInfo = {},
+  hodeFakturaer = [],
 }: {
   orderId: string;
   laast: boolean;
@@ -40,6 +55,8 @@ export function MateriellFane({
   harKatalog: boolean;
   /** Per invoice_line_id: fakturaen linja kom fra. */
   fakturaInfo?: Record<string, FakturaInfo>;
+  /** Fakturaer koblet på hodenivå (ingen EHF, ingen linjer). */
+  hodeFakturaer?: HodeFaktura[];
 }) {
   const router = useRouter();
   const [valgt, setValgt] = useState<GrossistTreff | null>(null);
@@ -109,6 +126,23 @@ export function MateriellFane({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ line_id: e.invoice_line_id }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error ?? "Kunne ikke løse");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  async function loysFaktura(f: HodeFaktura) {
+    if (!window.confirm(`Løse faktura ${f.invoice_no ?? f.voucher_no ?? ""} fra ordren? Den blir liggende som ukoblet under Leverandørfakturaer.`)) return;
+    setError(null);
+    try {
+      const res = await fetch(`/api/regnskap/fakturaer/${f.id}/loys`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
       });
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.error ?? "Kunne ikke løse");
@@ -379,6 +413,49 @@ export function MateriellFane({
               )}
             </>
           )}
+        </div>
+      )}
+
+      {hodeFakturaer.length > 0 && (
+        <div className="card">
+          <div className="card-header">
+            <span className="label" style={{ marginBottom: 0 }}>
+              Leverandørfakturaer uten linjer
+            </span>
+            <Link href="/ordre/leverandorfakturaer" className="tiny">
+              Alle leverandørfakturaer →
+            </Link>
+          </div>
+          <div className="card-pad tiny muted" style={{ paddingTop: 0 }}>
+            Regnskapssystemet har bare fakturahodet for disse — ingen EHF, så ingen linjer å føre.
+            Beløpet er ikke med i materiellsummen. Før varene manuelt under om de skal på fakturaen til kunden.
+          </div>
+          <div className="lead-list">
+            {hodeFakturaer.map((f) => (
+              <div key={f.id} className="lead-row">
+                <div className="lead-main">
+                  <div className="lead-subject" style={{ cursor: "inherit" }}>
+                    {f.supplier_name ?? "(ukjent leverandør)"}
+                    {" · "}
+                    {/credit/i.test(f.voucher_type) ? "Kreditnota" : "Faktura"} {f.invoice_no ?? f.voucher_no ?? ""}
+                  </div>
+                  <div className="lead-meta">
+                    {f.voucher_date ? formatDag(f.voucher_date) : "—"}
+                    {f.has_ehf ? (f.parse_error ? ` · kunne ikke lese EHF: ${f.parse_error}` : " · EHF uten linjer") : " · ingen EHF"}
+                  </div>
+                </div>
+                <span className="ordre-sum">
+                  <strong>{f.net_amount === null ? "—" : formatNok(Number(f.net_amount))}</strong>
+                  <span className="tiny muted"> eks. mva</span>
+                </span>
+                {!laast && (
+                  <button type="button" className="linkish" onClick={() => loysFaktura(f)}>
+                    Løs fra ordre
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
