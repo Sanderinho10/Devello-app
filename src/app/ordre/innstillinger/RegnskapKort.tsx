@@ -218,19 +218,38 @@ function ProdukterIGo({ kopling, erAdmin }: { kopling: AccountingConnectionPubli
     NOKLAR.some((k) => (map[k] ?? "") !== (kopling.product_map?.[k] ?? "")) ||
     prosjekt !== Boolean(kopling.settings?.project_per_order);
 
+  async function hentListe(): Promise<{ code: string; name: string }[]> {
+    const res = await fetch("/api/regnskap/produkter");
+    const payload = await res.json();
+    if (!res.ok) throw new Error(payload.error ?? "Kunne ikke hente produkter");
+    return payload.produkter ?? [];
+  }
+
   async function hent() {
     setBusy("hent");
     setFeil(null);
     try {
-      const res = await fetch("/api/regnskap/produkter");
-      const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error ?? "Kunne ikke hente produkter");
-      setProdukter(payload.produkter ?? []);
+      setProdukter(await hentListe());
     } catch (err) {
       setFeil(err instanceof Error ? err.message : String(err));
       setProdukter([]);
     } finally {
       setBusy(null);
+    }
+  }
+
+  /**
+   * Go bruker et par sekunder før et nyopprettet produkt dukker opp i
+   * lista. Etter «Opprett standardprodukter» henter vi til alle kodene er
+   * der, så nedtrekkene ikke sier «ikke i lista» om noe som nettopp ble laget.
+   */
+  async function hentTilAlleFinst(koder: string[]) {
+    for (let forsok = 0; forsok < 6; forsok++) {
+      const liste = await hentListe();
+      setProdukter(liste);
+      const har = new Set(liste.map((p) => p.code));
+      if (koder.every((k) => har.has(k))) return;
+      await new Promise((r) => setTimeout(r, 1500));
     }
   }
 
@@ -249,9 +268,10 @@ function ProdukterIGo({ kopling, erAdmin }: { kopling: AccountingConnectionPubli
       const res = await fetch("/api/regnskap/produkter/standard", { method: "POST" });
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.error ?? "Kunne ikke opprette");
-      setMap(payload.product_map ?? {});
+      const nyMap = (payload.product_map ?? {}) as ProductMap;
+      setMap(nyMap);
       setMelding(payload.melding ?? null);
-      await hent();
+      await hentTilAlleFinst(Object.values(nyMap).filter((v): v is string => Boolean(v)));
       router.refresh();
     } catch (err) {
       setFeil(err instanceof Error ? err.message : String(err));

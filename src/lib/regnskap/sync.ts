@@ -73,11 +73,13 @@ export async function synkroniserFakturaer(
   try {
     const pogo = pogoClient(kopling as PogoKopling);
 
-    // Vindu: én uke bakover fra vannmerket, så en faktura som ble endret
-    // sent i Go likevel blir fanget. Første gang: 60 dager.
-    const fra = kopling.sync_cursor
-      ? new Date(new Date(kopling.sync_cursor).getTime() - 7 * 86_400_000)
-      : new Date(start.getTime() - 60 * 86_400_000);
+    // Vindu: alltid 60 dager bakover på bilagsdato. fromDate filtrerer på
+    // bilagsdatoen, ikke på når fakturaen ble registrert i Go — en
+    // faktura datert for tre uker siden som regnskapsføreren legger inn i
+    // dag, ville falt utenfor et vindu som fulgte vannmerket. 60 dager à
+    // 100 per side er billig, og alt som alt er hentet og lest hoppes over
+    // lenger ned. sync_cursor står igjen som informasjon om siste endring.
+    const fra = new Date(start.getTime() - 60 * 86_400_000);
     const fromDate = fra.toISOString().slice(0, 10);
 
     const hoder: PogoInngaaandeFaktura[] = [];
