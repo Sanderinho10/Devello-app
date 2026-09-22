@@ -91,6 +91,7 @@ Eller lim inn migrasjonene i SQL-editoren i rekkefølge, så `seed.sql`.
 | `0034_timar_og_materiell.sql` | `time_entries` og `material_entries` på ordren, med priser kopiert inn ved føring |
 | `0035_regnskapskopling_og_leverandorfakturaer.sql` | Kobling til regnskapssystem (client key skjult for nettleseren), leverandørfakturaer og EHF-linjer, `replaced_by` på materiell |
 | `0036_fakturaforslag.sql` | `invoice_drafts` og versjonslogg, `invoice_draft_id` på timer og materiell (låser fakturerte føringer), produktmapping og innstillinger på koplinga |
+| `0037_dokumentasjon_og_boligmappa.sql` | `order_documents` (skjema fra mal eller opplastet fil, signatur, Boligmappa-status), `boligmappa_connections` (tokens uten policy), eiendom på ordren, `boligmappa_plants` |
 
 ### 3. Azure
 
@@ -148,13 +149,14 @@ src/
 │  ├─ tilbud/                   Agentens faner: leads, prisfil, referansefiler, innstillinger
 │  │  └─ leads/[id]/            Utkastredigering — dokument eller tekst etter type
 │  ├─ ordre/                    Ordremodulen (bak companies.moduler): ordrer, leverandørfakturaer, grossister, innstillinger
-│  │  └─ [id]/                  Ordren som faner: Oversikt, timer/, materiell/, faktura/ — layout.tsx eier header og faner
+│  │  └─ [id]/                  Ordren som faner: Oversikt, timer/, materiell/, dokumentasjon/, faktura/ — layout.tsx eier header og faner
 │  └─ api/
 │     ├─ auth/microsoft/        OAuth-flyten mot Entra ID
 │     ├─ leads/fetch            «Hent leads»
 │     ├─ drafts/generate        Klassifisering + generering
 │     ├─ drafts/[id]/           confirm (PDF + Outlook-kladd) og pdf (forhåndsvisning)
-│     ├─ orders/                Opprett ordre, PATCH status/felt, [id]/timer, [id]/materiell, [id]/faktura (+godkjenn, overfor)
+│     ├─ orders/                Opprett ordre, PATCH status/felt, [id]/timer, [id]/materiell, [id]/faktura (+godkjenn, overfor), [id]/dokumenter, [id]/boligmappa
+│     ├─ boligmappa/            auth/start + callback (OAuth), connection, sok, eigedomar
 │     ├─ grossist/sok           Søk i grossistkatalogen
 │     ├─ order-settings         Standardpåslag på materiell
 │     └─ regnskap/              connection (PUT/PATCH/DELETE), sync, fakturaer/[id]/{kople,loys,ignorer}, produkter
@@ -167,6 +169,8 @@ src/
 │  ├─ grossist/nelfo4.ts        Parser for EFO/NELFO 4.0-varefiler — ren funksjon, ingen database
 │  ├─ regnskap/                 poweroffice.ts (API-klient), ehf.ts (parser), matching.ts, sync.ts
 │  ├─ faktura/                  Fakturaforslaget: kontekst.ts → generer.ts → resolver.ts (beløpene), go.ts (payload), overfor.ts
+│  ├─ dokumentasjon/            Malmotoren: malar/<fag>/ (data, ikke JSX), motor.ts (prefill, validering), dokument.ts (PDF, Boligmappa)
+│  ├─ boligmappa/               oauth.ts, client.ts — Boligmappa Proff API
 │  ├─ moduler.ts                harModul() — hvilke moduler et selskap har
 │  └─ types.ts                  Delte typer + computeTotals()
 agent/
@@ -321,6 +325,55 @@ Tre prinsipper, som for tilbudsagenten:
 `npm run test:faktura` prøver resolveren, omregningen etter redigering og
 Go-payloaden uten database og uten modell.
 
+### Dokumentasjon og Boligmappa
+
+Dokumentasjonen er kvalitetskontrollen til elektrikeren, og den fylles ut
+av montøren — **manuelt, uten AI**. Devello tar bort friksjonen rundt: rett
+skjema klart på ordren med firma, kunde, anleggsadresse, dato og montør
+ferdig utfylt, utfylling på mobilen ute på jobb, PDF med firmaets
+merkevare, og én knapp til Boligmappa.
+
+Elektro først: «5 sikre», de fem dokumentene DSB godtar som standard
+boligdokumentasjon — risikovurdering (FEL § 16), samsvarserklæring
+(FEL § 12), sluttkontroll (FEL § 12, NEK 400), kursfortegnelse og
+utstyrsdokumentasjon (FEL § 36). Innholdet er det forskriften og NEK 400
+krever; utformingen er vår egen, ikke en kopi av bransjeforeningenes
+skjema. **Roger skal lese gjennom de fem faglig før de brukes mot kunder.**
+
+Malene er data, ikke kode: én fil per mal under
+`src/lib/dokumentasjon/malar/<fag>/`, med seksjoner, felt (tekst, dato,
+tall, avkryssing, valg, kontrollpunkt OK/Avvik/Ikke aktuelt, måleverdi med
+krav i klartekst), hva som er påkrevd, hva som forhåndsutfylles fra ordren,
+og hvordan dokumentet skal legges i Boligmappa. Motoren
+(`src/lib/dokumentasjon/motor.ts`) og PDF-malen
+(`src/lib/pdf/dokument-template.ts`) vet ingenting om elektro. En ny mal i
+et fag som finnes: lag fila, legg den i fagets `index.ts`. Et nytt fag: ny
+mappe med `index.ts`, én linje i `malar/index.ts`. Dokumentet fryser
+malnøkkel og versjon, så et gammelt skjema alltid kan vises slik det var.
+
+«Fullfør og signer» sjekker påkrevde felt, lager PDF-en (samme motor som
+tilbudet) og låser skjemaet. Signaturen er innlogget bruker + tidsstempel,
+merket «Signert i Devello av …» på arket — ingen BankID, som i fagsystemene.
+En administrator kan gjenåpne; da slettes PDF-en og Boligmappa-statusen
+nullstilles.
+
+Boligmappa: kunden kobler til under Ordre → Innstillinger med sin egen
+Boligmappa Bedrift-bruker (OAuth authorization code, `offline_access`).
+Client id og secret er Devello sine (`BOLIGMAPPA_CLIENT_ID`,
+`BOLIGMAPPA_CLIENT_SECRET`, `BOLIGMAPPA_ENV` staging/production,
+`BOLIGMAPPA_REDIRECT_URI` — må være registrert hos Boligmappa). På ordren
+slås adressen opp én gang («Finn eiendom» → adresse → enhet → bekreft), så
+sendes ferdige dokumenter til eiendommen: plant opprettes om den mangler
+(cachet i `boligmappa_plants`), kapittel, fag og dokumenttype slås opp mot
+`/types` etter navn fra malen, `orderNumber` er Devello-ordrenummeret.
+Idempotent per dokument. Uten kopling fungerer alt annet — knappene er
+bare borte. Før produksjon må integrasjonen verifiseres av Boligmappa
+(integrasjonsavtale); staging først.
+
+`npm run test:dokumentasjon` prøver at alle malene validerer, prefill,
+påkrevde felt, rensing av innsendte data og PDF-HTML-en for hver mal —
+uten database og uten Playwright.
+
 ### Navigasjonsmønsteret
 
 Sidebar er organisert **per agent**, ikke per funksjon. Alt som hører til
@@ -352,6 +405,7 @@ npm run test:motor             # motor v3 og tilbakerullingen, uten database
 npm run test:nelfo4            # parseren for grossistenes varefiler, uten database
 npm run test:ehf               # EHF-parseren og ordrenummer-matchingen, uten database
 npm run test:faktura           # fakturaforslaget: resolver, redigering, Go-payload — uten database og modell
+npm run test:dokumentasjon     # dokumentasjonsmalene: validering, prefill, påkrevde felt, PDF-HTML — uten database
 npm run test:gullsett          # målingen bak gullsettet, uten database
 npm run evaluer                # evalueringssuiten — 15 saker med fasit, se evaluering/LES_MEG.md
 npm run evaluer -- --motor v3  # samme, mot én bestemt motor (egen baseline)

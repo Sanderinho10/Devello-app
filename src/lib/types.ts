@@ -446,10 +446,22 @@ export interface Order {
   quote_snapshot: OrderQuoteSnapshot | null;
   /** Planlagt sum eks. mva fra snapshotet. Null for tid og materiell. */
   planned_total: number | null;
+  /** Eiendommen i Boligmappa, når brukeren har bekreftet den. */
+  boligmappa_number: string | null;
+  boligmappa_property: BoligmappaEigedom | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
   closed_at: string | null;
+}
+
+/** Det brukeren bekreftet: adresse, enhet og matrikkel. */
+export interface BoligmappaEigedom {
+  boligmappaNumber: string;
+  address: string | null;
+  unitNumber: string | null;
+  propertyType: string | null;
+  cadastre: { knr?: string; gnr?: string; bnr?: string; fnr?: string; snr?: string } | null;
 }
 
 export interface OrderEvent {
@@ -752,4 +764,46 @@ export interface InvoiceDraft {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Dokumentasjon og Boligmappa
+// ---------------------------------------------------------------------------
+
+export type DocumentKind = "skjema" | "fil";
+export type DocumentStatus = "utkast" | "ferdig";
+
+export interface OrderDocument {
+  id: string;
+  company_id: string;
+  order_id: string;
+  kind: DocumentKind;
+  template_key: string | null;
+  template_version: number | null;
+  title: string;
+  data: Record<string, unknown>;
+  status: DocumentStatus;
+  storage_path: string | null;
+  file_name: string | null;
+  mime_type: string | null;
+  pdf_path: string | null;
+  signed_by: string | null;
+  signed_name: string | null;
+  signed_at: string | null;
+  boligmappa_file_id: string | null;
+  boligmappa_sent_at: string | null;
+  boligmappa_error: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Boligmappa-koplinga slik UI-et ser den — uten tokens. */
+export interface BoligmappaConnectionPublic {
+  environment: "production" | "staging";
+  status: ConnectionStatus;
+  status_reason: string | null;
+  bm_user_name: string | null;
+  bm_company_name: string | null;
+  created_at: string;
 }

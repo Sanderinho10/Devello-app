@@ -2143,3 +2143,132 @@ p {
     grid-template-columns: 1fr;
   }
 }
+
+/* Dokumentasjon (steg 5) */
+.mal-liste {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.mal-valg {
+  text-align: left;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.mal-valg:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.mal-valg:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.dokument-rad .chips {
+  margin-top: 6px;
+}
+
+.boligmappa-treff .ordre-velger-rad {
+  width: 100%;
+}
+
+.skjema .card-pad h2 {
+  font-size: 20px;
+}
+
+.skjema-felt {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+}
+
+.skjema-felt .check3-felt,
+.skjema-felt .checkbox-felt {
+  grid-column: 1 / -1;
+}
+
+.skjema-rader {
+  padding: 0 24px 16px;
+}
+
+.skjema-rad {
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+
+.paakravd {
+  color: #a4271b;
+}
+
+.check3 {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.check3-knapp {
+  flex: 1 1 120px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  font: inherit;
+  font-weight: 550;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.check3-knapp.valgt.ok {
+  background: #e6f4ea;
+  border-color: #1f7a3a;
+  color: #1f7a3a;
+}
+
+.check3-knapp.valgt.avvik {
+  background: #fbe9e7;
+  border-color: #a4271b;
+  color: #a4271b;
+}
+
+.check3-knapp.valgt.ia {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: var(--text-secondary);
+  color: var(--text);
+}
+
+.check3-knapp:disabled {
+  cursor: default;
+}
+
+.hint.krav {
+  color: var(--text);
+}
+
+.fullfor .button {
+  margin-top: 10px;
+}
+
+@media (max-width: 700px) {
+  .skjema-felt {
+    grid-template-columns: 1fr;
+  }
+  .skjema-rader {
+    padding: 0 16px 16px;
+  }
+  .mal-liste {
+    grid-template-columns: 1fr;
+  }
+  .dokument-rad .row {
+    flex: 0 0 100%;
+    flex-wrap: wrap;
+  }
+}

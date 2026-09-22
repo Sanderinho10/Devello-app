@@ -32,7 +32,7 @@ export default async function OrdreSide({
   if (!ordre) notFound();
   const supabase = await supabaseServer();
 
-  const [{ data: hendelser }, { data: timar }, { data: materiell }, { count: hodeFakturaer }] = await Promise.all([
+  const [{ data: hendelser }, { data: timar }, { data: materiell }, { count: hodeFakturaer }, { data: dokument }] = await Promise.all([
     supabase
       .from("order_events")
       .select("*")
@@ -52,7 +52,13 @@ export default async function OrdreSide({
       .select("id", { count: "exact", head: true })
       .eq("order_id", ordre.id)
       .eq("line_count", 0),
+    supabase.from("order_documents").select("status, boligmappa_file_id").eq("order_id", ordre.id),
   ]);
+  const dokTal = {
+    alle: (dokument ?? []).length,
+    ferdige: (dokument ?? []).filter((d) => d.status === "ferdig").length,
+    sendt: (dokument ?? []).filter((d) => d.boligmappa_file_id).length,
+  };
 
   // Tallgrunnlaget fakturaforslaget skal lese i steg 4. Samme funksjoner
   // som fanene bruker, så tallene her og der aldri spriker.
@@ -102,6 +108,15 @@ export default async function OrdreSide({
               <strong>{formatNok(timesum.kr + materiellsum.sal)}</strong>
               <span className="tiny muted">salg eks. mva</span>
             </div>
+            <Link href={`/ordre/${ordre.id}/dokumentasjon`} className="oppsummering-post clickable">
+              <span className="tiny muted">Dokumentasjon</span>
+              <strong>
+                {dokTal.ferdige} av {dokTal.alle} ferdig
+              </strong>
+              <span className="tiny muted">
+                {dokTal.alle === 0 ? "ingen dokumenter ennå" : `${dokTal.sendt} sendt til Boligmappa`} →
+              </span>
+            </Link>
           </div>
         </div>
 
