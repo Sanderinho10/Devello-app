@@ -29,6 +29,9 @@ export async function activePriceItems(
     .select("*")
     .in("price_list_id", listIds)
     .eq("active", true)
+    // Fila sin rekkefølge, med id som stabil tiebreak mellom lister.
+    .order("price_list_id")
+    .order("position")
     .order("id");
 
   return (items ?? []) as PriceListItem[];

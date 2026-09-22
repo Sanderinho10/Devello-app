@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { sessionOr401 } from "@/lib/api";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { nestePosisjon } from "@/app/api/price-lists/route";
 
 export async function POST(request: NextRequest) {
   const session = await sessionOr401();
@@ -35,6 +36,8 @@ export async function POST(request: NextRequest) {
   const { error } = await admin.from("price_list_items").insert({
     company_id: session.companyId,
     price_list_id: list.id,
+    // En rad lagt inn for hånd havner nederst, der man leter etter den.
+    position: await nestePosisjon(admin, list.id),
     kind: list.kind,
     code: body.code?.trim() || null,
     name: body.name.trim(),

@@ -80,6 +80,7 @@ export default async function LeadPage({
         .in("price_list_id", listIds)
         .eq("active", true)
         .order("kind")
+        .order("position")
         .order("name")
     : { data: [] };
 

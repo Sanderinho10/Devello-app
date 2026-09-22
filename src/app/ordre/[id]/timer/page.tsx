@@ -36,6 +36,7 @@ export default async function TimerSide({ params }: { params: Promise<{ id: stri
         .eq("kind", "time")
         .eq("active", true)
         .eq("price_lists.active", true)
+        .order("position")
         .order("name"),
       supabase.from("users").select("role").eq("id", session!.userId).maybeSingle(),
     ]);

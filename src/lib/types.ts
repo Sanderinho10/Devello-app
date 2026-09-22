@@ -148,6 +148,8 @@ export interface PriceListItem {
   unit_price: number;
   includes_labour: boolean;
   includes_material: boolean;
+  /** Plassen i prisfila. Listen vises i denne rekkefølgen, ikke alfabetisk. */
+  position: number;
   active: boolean;
 }
 

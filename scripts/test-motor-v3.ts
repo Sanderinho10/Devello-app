@@ -141,7 +141,7 @@ function prisrad(id: string, navn: string, pris: number): PriceListItem {
   return {
     id, company_id: "c", price_list_id: "p", kind: "punktpris", code: null,
     name: navn, description: null, unit: "stk", unit_price: pris,
-    includes_labour: true, includes_material: true, active: true,
+    includes_labour: true, includes_material: true, active: true, position: 0,
   };
 }
 const prisrader = [
