@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DraftEditor } from "./DraftEditor";
 import { harModul } from "@/lib/moduler";
-import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
+import { vedleggFor, velgTilModell } from "@/lib/leads/vedlegg";
 import {
   formatDate,
   type Draft,
@@ -27,6 +28,11 @@ export default async function LeadPage({
     .maybeSingle();
 
   if (!lead) notFound();
+
+  // Leadet over er hentet med brukerens tilgang, så selskapet er sjekket.
+  // Vedleggstabellen er bare for service role.
+  const vedlegg = await vedleggFor(supabaseAdmin(), lead.id);
+  const tilModell = velgTilModell(vedlegg);
 
   const { data: draft } = await supabase
     .from("drafts")
@@ -141,6 +147,52 @@ export default async function LeadPage({
               </div>
             ) : (
               <p className="muted tiny">Denne e-posten har ingen tekst.</p>
+            )}
+
+            {vedlegg.length > 0 && (
+              <div className="inquiry-vedlegg">
+                <div className="inquiry-head" style={{ marginBottom: 8 }}>
+                  Vedlegg · {vedlegg.length}
+                </div>
+                <div className="vedlegg-grid">
+                  {vedlegg.map((v, i) => {
+                    const href = `/api/leads/${lead.id}/vedlegg/${v.id}`;
+                    const pdf = v.mime_type === "application/pdf";
+                    return (
+                      <a
+                        key={v.id}
+                        href={href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`vedlegg-kort${tilModell[i] ? "" : " ikke-lest"}`}
+                        title={
+                          tilModell[i]
+                            ? `${v.file_name} — agenten har sett denne`
+                            : `${v.file_name} — over taket, ikke sendt til agenten`
+                        }
+                      >
+                        {pdf ? (
+                          <span className="vedlegg-pdf">
+                            PDF
+                            <span className="tiny">
+                              {v.pages} {v.pages === 1 ? "side" : "sider"}
+                            </span>
+                          </span>
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={href} alt={v.file_name} loading="lazy" />
+                        )}
+                        <span className="vedlegg-navn">{v.file_name}</span>
+                      </a>
+                    );
+                  })}
+                </div>
+                {tilModell.some((m) => !m) && (
+                  <p className="muted tiny" style={{ margin: "8px 0 0" }}>
+                    Gråe vedlegg er over taket og ble ikke sendt til agenten.
+                  </p>
+                )}
+              </div>
             )}
           </aside>
         </div>

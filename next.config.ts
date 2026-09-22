@@ -14,6 +14,17 @@ const nextConfig: NextConfig = {
 
   // playwright-core laster chromium fra filsystemet — den skal ikke bundles.
   serverExternalPackages: ["playwright-core"],
+
+  experimental: {
+    /*
+     * Middleware-en (innloggingssjekken) gjør at Next bufrer hele
+     * forespørselskroppen, og standardtaket er 10 MB — det som er over, blir
+     * kuttet uten feilmelding. En manuell henvendelse med noen PDF-er som
+     * vedlegg, eller en skannet referansefil, går over det. Taket her ligger
+     * over det klienten selv tillater (se lib/leads/vedlegg-grenser).
+     */
+    proxyClientMaxBodySize: "40mb",
+  },
 };
 
 export default nextConfig;

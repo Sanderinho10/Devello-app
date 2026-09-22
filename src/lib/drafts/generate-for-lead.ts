@@ -7,6 +7,7 @@ import { assessConfidence, countUnresolvedLines } from "@/lib/drafts/confidence"
 import { forbeholdsBibliotek } from "@/lib/referanser/forbehold";
 import { findSimilarReferences } from "@/lib/referanser";
 import { registrerBruk } from "@/lib/billing/subscription";
+import { vedleggTilModell } from "@/lib/leads/vedlegg";
 import type { QuoteDocument, QuoteType } from "@/lib/types";
 
 /**
@@ -102,6 +103,11 @@ export async function generateForLead(
   // velger type og leverer utkastet i samme tur. v3: omfang først, så tilbud.
   // Har brukeren valgt type fra bryteren, sendes den inn som lås i begge.
   const motor = motorFor(company);
+
+  // Bildene og PDF-ene kunden sendte med. Lastes på nytt ved hver generering,
+  // så et nytt forsøk ser det samme som det første.
+  const vedlegg = await vedleggTilModell(admin, lead.id);
+
   const generated = await generateDraft({
     companyId: opts.companyId,
     leadId: lead.id,
@@ -121,6 +127,7 @@ export async function generateForLead(
     forbehold,
     motor,
     fag: fagFor(company),
+    vedlegg,
   });
 
   const quoteType = generated.quote_type;

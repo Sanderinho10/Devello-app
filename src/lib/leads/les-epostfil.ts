@@ -1,3 +1,5 @@
+import { kanBliVedlegg } from "./vedlegg-grenser";
+
 /**
  * En e-post dratt inn i «Manuell henvendelse», gjort om til det skjemaet trenger.
  *
@@ -7,8 +9,8 @@
  * ble hentet ut og trykket «Lag utkast».
  *
  * Agenten får det samme som fra en henvendelse hentet fra Outlook: avsender,
- * emne og brødtekst. Vedleggene leses ikke — heller ikke der — men navnene tas
- * med, så agenten kan si fra at kunden sendte bilder den ikke har sett.
+ * emne, brødtekst — og bildene og PDF-ene som lå ved. Andre vedlegg (Word,
+ * Excel) leses ikke, men navnene tas med, så agenten kan si fra om dem.
  */
 
 export interface LestEpost {
@@ -17,7 +19,10 @@ export interface LestEpost {
   emne: string | null;
   /** Emne og brødtekst, klar for beskrivelsesfeltet. */
   tekst: string;
+  /** Navnene på alle vedleggene. */
   vedlegg: string[];
+  /** Bildene og PDF-ene, klare til å følge med henvendelsen til agenten. */
+  filer: File[];
 }
 
 const MAKS_TEGN = 20_000;
@@ -40,6 +45,7 @@ interface Raa {
   tekst: string | null;
   html: string | null;
   vedlegg: string[];
+  filer: File[];
 }
 
 async function lesEml(bytes: ArrayBuffer): Promise<Raa> {
@@ -47,6 +53,8 @@ async function lesEml(bytes: ArrayBuffer): Promise<Raa> {
   const e = await PostalMime.parse(bytes);
   const fra = e.from && "address" in e.from ? e.from : null;
   const svar = e.replyTo?.find((a) => a.address)?.address ?? null;
+  // Innebygde bilder er logoen i signaturen, ikke noe kunden sendte.
+  const ekte = e.attachments.filter((a) => a.disposition !== "inline" && !a.related);
   return {
     navn: fra?.name || null,
     epost: fra?.address || null,
@@ -54,12 +62,16 @@ async function lesEml(bytes: ArrayBuffer): Promise<Raa> {
     emne: e.subject ?? null,
     tekst: e.text ?? null,
     html: e.html ?? null,
-    vedlegg: e.attachments
-      // Innebygde bilder er logoen i signaturen, ikke noe kunden sendte.
-      .filter((a) => a.disposition !== "inline" && !a.related)
-      .map((a) => a.filename)
-      .filter((n): n is string => Boolean(n)),
+    vedlegg: ekte.map((a) => a.filename).filter((n): n is string => Boolean(n)),
+    filer: ekte
+      .filter((a) => a.filename && kanBliVedlegg(a.filename, a.mimeType))
+      .map((a) => new File([somBytes(a.content)], a.filename!, { type: a.mimeType })),
   };
+}
+
+function somBytes(innhold: ArrayBuffer | Uint8Array | string): Uint8Array<ArrayBuffer> {
+  if (typeof innhold === "string") return new TextEncoder().encode(innhold) as Uint8Array<ArrayBuffer>;
+  return new Uint8Array(innhold instanceof Uint8Array ? innhold : new Uint8Array(innhold)) as Uint8Array<ArrayBuffer>;
 }
 
 async function lesMsg(bytes: ArrayBuffer): Promise<Raa> {
@@ -69,10 +81,13 @@ async function lesMsg(bytes: ArrayBuffer): Promise<Raa> {
   type Klasse = typeof mod.default;
   const MsgReader: Klasse =
     (mod.default as unknown as { default?: Klasse }).default ?? mod.default;
-  const d = new MsgReader(bytes).getFileData();
+  const leser = new MsgReader(bytes);
+  const d = leser.getFileData();
   if (d.error) throw new Error("Klarte ikke å lese e-postfila.");
   // Internt i Exchange er senderEmail ofte en X.500-sti («/O=EXCHANGELABS/…»),
   // ikke en adresse. SMTP-adressen er den som kan brukes.
+  // Skjulte vedlegg er bildene i signaturen og HTML-teksten.
+  const synlege = (d.attachments ?? []).filter((a) => !a.attachmentHidden);
   const adresse = [d.senderSmtpAddress, d.senderEmail].find((a) => a && EPOST.test(a)) ?? null;
   return {
     navn: d.senderName || null,
@@ -81,10 +96,17 @@ async function lesMsg(bytes: ArrayBuffer): Promise<Raa> {
     emne: d.subject ?? null,
     tekst: d.body ?? null,
     html: d.bodyHtml ?? (d.html ? new TextDecoder().decode(d.html) : null),
-    vedlegg: (d.attachments ?? [])
-      .filter((a) => !a.attachmentHidden)
-      .map((a) => a.fileName ?? a.name ?? "")
-      .filter(Boolean),
+    vedlegg: synlege.map((a) => a.fileName ?? a.name ?? "").filter(Boolean),
+    filer: synlege
+      .filter((a) => kanBliVedlegg(a.fileName ?? a.name ?? "", a.attachMimeTag))
+      .flatMap((a) => {
+        try {
+          const v = leser.getAttachment(a);
+          return [new File([somBytes(v.content)], v.fileName, { type: a.attachMimeTag ?? "" })];
+        } catch {
+          return [];
+        }
+      }),
   };
 }
 
@@ -115,8 +137,12 @@ function sett(r: Raa): LestEpost {
 
   const deler = [emne, brod].filter(Boolean) as string[];
   let tekst = deler.join("\n\n");
-  if (r.vedlegg.length > 0) {
-    tekst += `\n\n[Vedlegg i e-posten som ikke er lest: ${r.vedlegg.join(", ")}]`;
+  // Bilder og PDF-er følger med til agenten. Resten (Word, Excel, zip)
+  // leses ikke, men nevnes, så agenten kan si fra om dem.
+  const medFil = new Set(r.filer.map((f) => f.name));
+  const uleste = r.vedlegg.filter((n) => !medFil.has(n));
+  if (uleste.length > 0) {
+    tekst += `\n\n[Vedlegg i e-posten som ikke er lest: ${uleste.join(", ")}]`;
   }
   tekst = tekst.trim();
   if (tekst.length > MAKS_TEGN) tekst = `${tekst.slice(0, MAKS_TEGN).trimEnd()}\n\n[…]`;
@@ -127,6 +153,7 @@ function sett(r: Raa): LestEpost {
     emne,
     tekst,
     vedlegg: r.vedlegg,
+    filer: r.filer,
   };
 }
 

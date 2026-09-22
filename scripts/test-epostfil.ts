@@ -76,11 +76,14 @@ const vedlegg = await lesEpostfil(
   "e.eml",
   eml(
     'From: kunde@example.no\r\nSubject: Bilder\r\nContent-Type: multipart/mixed; boundary="X"',
-    '--X\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nSe bilder.\r\n--X\r\nContent-Type: image/jpeg\r\nContent-Disposition: attachment; filename="sikringsskap.jpg"\r\nContent-Transfer-Encoding: base64\r\n\r\n/9j/\r\n--X--',
+    '--X\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nSe bilder.\r\n--X\r\nContent-Type: image/jpeg\r\nContent-Disposition: attachment; filename="sikringsskap.jpg"\r\nContent-Transfer-Encoding: base64\r\n\r\n/9j/\r\n--X\r\nContent-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document\r\nContent-Disposition: attachment; filename="befaring.docx"\r\nContent-Transfer-Encoding: base64\r\n\r\nUEsDBA==\r\n--X--',
   ),
 );
-sjekk("vedlegg: navnet er med", vedlegg.vedlegg, ["sikringsskap.jpg"]);
-sjekk("vedlegg: nevnt i teksten", vedlegg.tekst.includes("[Vedlegg i e-posten som ikke er lest: sikringsskap.jpg]"), true);
+sjekk("vedlegg: navnet er med", vedlegg.vedlegg, ["sikringsskap.jpg", "befaring.docx"]);
+sjekk("vedlegg: bildet følger med som fil", vedlegg.filer.map((f) => f.name), ["sikringsskap.jpg"]);
+sjekk("vedlegg: bildet har innholdet", vedlegg.filer[0]?.size, 3);
+sjekk("vedlegg: bildet nevnes ikke som ulest", vedlegg.tekst.includes("sikringsskap.jpg"), false);
+sjekk("vedlegg: Word nevnes som ulest", vedlegg.tekst.includes("[Vedlegg i e-posten som ikke er lest: befaring.docx]"), true);
 
 if (feil > 0) {
   console.log(`\n${feil} feil.`);

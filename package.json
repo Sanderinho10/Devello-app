@@ -20,6 +20,7 @@
     "test:epost": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-finn-epost.ts",
     "test:popup": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-popup.ts",
     "test:epostfil": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-epostfil.ts",
+    "test:vedlegg": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-vedlegg.ts",
     "test:rabatt": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-rabatt.ts",
     "test:anonym": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-anonymiser.ts",
     "test:opplaering": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-opplaering.ts",
@@ -42,7 +43,8 @@
     "playwright-core": "^1.56.0",
     "postal-mime": "^3.0.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "sharp": "^0.35.4"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",

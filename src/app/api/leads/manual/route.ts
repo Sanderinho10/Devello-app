@@ -3,6 +3,7 @@ import { NextResponse, after, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
 import { generateForLead } from "@/lib/drafts/generate-for-lead";
 import { finnEpost } from "@/lib/leads/finn-epost";
+import { lagreVedlegg } from "@/lib/leads/vedlegg";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
 export const maxDuration = 300;
@@ -19,11 +20,21 @@ export async function POST(request: NextRequest) {
   if (session instanceof NextResponse) return session;
 
   try {
-    const body = (await request.json()) as {
-      description?: string;
-      customer_name?: string;
-      customer_email?: string;
-    };
+    // JSON når det bare er tekst; skjema med filer når det følger med bilder
+    // eller PDF-er — fra en e-post som ble dratt inn, eller lagt til direkte.
+    let body: { description?: string; customer_name?: string; customer_email?: string };
+    let filer: File[] = [];
+    if ((request.headers.get("content-type") ?? "").includes("multipart/form-data")) {
+      const form = await request.formData();
+      body = {
+        description: String(form.get("description") ?? ""),
+        customer_name: String(form.get("customer_name") ?? ""),
+        customer_email: String(form.get("customer_email") ?? ""),
+      };
+      filer = form.getAll("vedlegg").filter((f): f is File => f instanceof File && f.size > 0);
+    } else {
+      body = await request.json();
+    }
 
     const description = (body.description ?? "").trim();
     if (!description) {
@@ -63,6 +74,22 @@ export async function POST(request: NextRequest) {
 
     if (error) throw new Error(error.message);
 
+    // Vedleggene lagres FØR genereringen starter, ellers kunne agenten ha
+    // begynt uten dem. Det tar et sekund per bilde; en avvist fil (for stor,
+    // en logo) stopper ikke henvendelsen.
+    let avviste: string[] = [];
+    if (filer.length > 0) {
+      const lagra = await lagreVedlegg(admin, {
+        companyId: session.companyId,
+        leadId: lead.id,
+        kilde: "manuell",
+        filer: await Promise.all(
+          filer.map(async (f) => ({ navn: f.name, bytes: Buffer.from(await f.arrayBuffer()) })),
+        ),
+      });
+      avviste = lagra.avviste;
+    }
+
     // Genereringen tar et minutt, og ingen skal sitte og se på en spinner så
     // lenge. Svaret går ut nå; after() kjører resten etterpå, i samme prosess.
     // Brukeren ser linjen i listen med det samme og kan skrive inn neste jobb
@@ -86,7 +113,7 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    return NextResponse.json({ lead_id: lead.id });
+    return NextResponse.json({ lead_id: lead.id, avviste_vedlegg: avviste });
   } catch (err) {
     return errorResponse(err);
   }

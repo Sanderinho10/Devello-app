@@ -3,6 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { Modal } from "@/components/Modal";
+import {
+  kanBliVedlegg,
+  MAKS_FILSTORRELSE,
+  MAKS_OPPLASTING,
+  MAKS_VEDLEGG,
+} from "@/lib/leads/vedlegg-grenser";
 
 /**
  * Manuell henvendelse — for jobber som kom på telefon.
@@ -14,8 +20,9 @@ import { Modal } from "@/components/Modal";
  *
  * Kom henvendelsen på e-post til en innboks som ikke er koblet til, kan
  * e-posten dras rett inn i vinduet — eller på knappen. Da fylles tekst,
- * navn og adresse ut fra e-posten, og brukeren ser hva som ble hentet før
- * noe sendes til agenten. Se lib/leads/les-epostfil.
+ * navn og adresse ut fra e-posten, og bildene og PDF-ene i den blir med til
+ * agenten. Bilder og PDF-er kan også dras inn for seg, for eksempel et bilde
+ * kunden sendte på SMS. Brukeren ser hva som ble hentet før noe sendes.
  */
 export function ManualLead() {
   const router = useRouter();
@@ -23,6 +30,7 @@ export function ManualLead() {
   const [description, setDescription] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [vedlegg, setVedlegg] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [drar, setDrar] = useState(false);
@@ -32,59 +40,105 @@ export function ManualLead() {
   const filvelger = useRef<HTMLInputElement>(null);
 
   /**
-   * Det som ble sluppet: en e-postfil, eller tekst markert og dratt inn.
-   * Outlook på nett og Gmail gir ingen fil når man drar en e-post ut av
-   * nettleseren — da er markert tekst det man har.
+   * Det som ble sluppet: e-postfiler, bilder og PDF-er, eller tekst markert
+   * og dratt inn. Outlook på nett og Gmail gir ingen fil når man drar en
+   * e-post ut av nettleseren — da er markert tekst det man har.
    */
   async function slipp(data: DataTransfer) {
     setError(null);
     setHenta(null);
     const filer = Array.from(data.files);
     if (filer.length > 0) {
-      await lesFil(filer[0]);
+      await lesFiler(filer);
       return;
     }
     const tekst = data.getData("text/plain").trim();
     if (tekst) {
       setDescription((d) => (d.trim() ? `${d.trimEnd()}\n\n${tekst}` : tekst));
-      setHenta(null);
     }
   }
 
-  async function lesFil(fil: File) {
+  async function lesFiler(filer: File[]) {
     const { erEpostfil, lesEpostfil } = await import("@/lib/leads/les-epostfil");
-    if (!erEpostfil(fil.name)) {
-      setError(
-        "Dra inn selve e-posten — en .msg-fil fra Outlook eller .eml fra Mail. " +
-          `«${fil.name}» er ikke en e-post.`,
-      );
-      return;
-    }
+    const eposter = filer.filter((f) => erEpostfil(f.name));
+    const andre = filer.filter((f) => !erEpostfil(f.name));
+    const feil: string[] = [];
+
     setLeser(true);
     try {
-      const lest = await lesEpostfil(fil.name, await fil.arrayBuffer());
-      if (!lest.tekst) throw new Error("E-posten var tom.");
-      // En ny e-post erstatter alt fra den forrige, også feltene den ikke
-      // hadde noe til — ellers ble kunden fra forrige slipp stående igjen.
-      setDescription(lest.tekst);
-      setName(lest.navn ?? "");
-      setEmail(lest.epost ?? "");
-      setHenta(
-        [
-          `Hentet fra e-posten${lest.emne ? ` «${lest.emne}»` : ""}.`,
-          lest.vedlegg.length > 0
-            ? `${lest.vedlegg.length} vedlegg er ikke med — agenten leser bare teksten.`
-            : null,
-          "Se over før du lager utkast.",
-        ]
-          .filter(Boolean)
-          .join(" "),
+      // Én e-post er én henvendelse. Slippes flere, er det den første som
+      // gjelder — å slå sammen to kunder i ett tilbud er aldri det man vil.
+      let fraEpost: File[] = [];
+      if (eposter.length > 0) {
+        const fil = eposter[0];
+        const lest = await lesEpostfil(fil.name, await fil.arrayBuffer());
+        if (!lest.tekst) throw new Error("E-posten var tom.");
+        // En ny e-post erstatter alt fra den forrige, også feltene den ikke
+        // hadde noe til — ellers ble kunden fra forrige slipp stående igjen.
+        setDescription(lest.tekst);
+        setName(lest.navn ?? "");
+        setEmail(lest.epost ?? "");
+        fraEpost = lest.filer;
+        setHenta(
+          `Hentet fra e-posten${lest.emne ? ` «${lest.emne}»` : ""}` +
+            (lest.filer.length > 0
+              ? `, med ${lest.filer.length} vedlegg agenten ser på.`
+              : ".") +
+            " Se over før du lager utkast.",
+        );
+        if (eposter.length > 1) feil.push("Bare den første e-posten ble lest — én e-post er én henvendelse.");
+      }
+
+      for (const f of andre) {
+        if (!kanBliVedlegg(f.name, f.type)) {
+          feil.push(`«${f.name}» er ikke en e-post, et bilde eller en PDF.`);
+        }
+      }
+
+      const nye = await Promise.all(
+        [...fraEpost, ...andre.filter((f) => kanBliVedlegg(f.name, f.type))].map(krympBilde),
+      );
+      leggTilVedlegg(
+        nye.filter((f): f is File => f !== null),
+        eposter.length > 0,
+        feil,
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Klarte ikke å lese e-posten.");
+      feil.push(err instanceof Error ? err.message : "Klarte ikke å lese e-posten.");
     } finally {
       setLeser(false);
+      if (feil.length > 0) setError(feil.join(" "));
     }
+  }
+
+  /**
+   * Legger til innenfor taket. En ny e-post erstatter vedleggene fra den
+   * forrige; bilder og PDF-er dratt inn for seg kommer i tillegg.
+   */
+  function leggTilVedlegg(nye: File[], erstatt: boolean, feil: string[]) {
+    const fra = erstatt ? [] : vedlegg;
+    const finnes = new Set(fra.map((f) => `${f.name}:${f.size}`));
+    const ut = [...fra];
+    let total = ut.reduce((s, f) => s + f.size, 0);
+    for (const f of nye) {
+      if (finnes.has(`${f.name}:${f.size}`)) continue;
+      if (f.size > MAKS_FILSTORRELSE) {
+        feil.push(`«${f.name}» er større enn ${MAKS_FILSTORRELSE / 1024 / 1024} MB.`);
+        continue;
+      }
+      if (ut.length >= MAKS_VEDLEGG) {
+        feil.push(`Maks ${MAKS_VEDLEGG} vedlegg — «${f.name}» ble ikke med.`);
+        continue;
+      }
+      if (total + f.size > MAKS_OPPLASTING) {
+        feil.push(`«${f.name}» ble ikke med — vedleggene blir til sammen for store.`);
+        continue;
+      }
+      ut.push(f);
+      finnes.add(`${f.name}:${f.size}`);
+      total += f.size;
+    }
+    setVedlegg(ut);
   }
 
   const dragProps = {
@@ -113,6 +167,14 @@ export function ManualLead() {
     },
   };
 
+  function nullstill() {
+    setDescription("");
+    setName("");
+    setEmail("");
+    setVedlegg([]);
+    setHenta(null);
+  }
+
   function close() {
     if (busy) return;
     setOpen(false);
@@ -132,23 +194,30 @@ export function ManualLead() {
     setError(null);
     try {
       setBusy(true);
-      const created = await fetch("/api/leads/manual", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          description,
-          customer_name: name,
-          customer_email: email,
-        }),
-      });
+      let created: Response;
+      if (vedlegg.length > 0) {
+        const data = new FormData();
+        data.set("description", description);
+        data.set("customer_name", name);
+        data.set("customer_email", email);
+        for (const f of vedlegg) data.append("vedlegg", f);
+        created = await fetch("/api/leads/manual", { method: "POST", body: data });
+      } else {
+        created = await fetch("/api/leads/manual", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            description,
+            customer_name: name,
+            customer_email: email,
+          }),
+        });
+      }
       const lead = await created.json();
       if (!created.ok) throw new Error(lead.error ?? "Kunne ikke lagre henvendelsen");
 
       setOpen(false);
-      setDescription("");
-      setName("");
-      setEmail("");
-      setHenta(null);
+      nullstill();
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -177,7 +246,7 @@ export function ManualLead() {
         <form onSubmit={submit} className="epost-slipp" {...dragProps}>
           {drar && (
             <div className="epost-slipp-lag" aria-hidden>
-              Slipp e-posten her
+              Slipp e-posten, bildene eller PDF-ene her
             </div>
           )}
           {error && <div className="banner error">{error}</div>}
@@ -185,17 +254,17 @@ export function ManualLead() {
 
           <div className="epost-slipp-hint tiny muted">
             {leser ? (
-              "Leser e-posten…"
+              "Leser filene…"
             ) : (
               <>
                 Kom den på e-post? Dra e-posten inn her fra Outlook eller Mail,
-                eller{" "}
+                og bilder eller PDF-er kunden har sendt. Du kan også{" "}
                 <button
                   type="button"
                   className="linkish"
                   onClick={() => filvelger.current?.click()}
                 >
-                  velg en e-postfil
+                  velge filer
                 </button>
                 .
               </>
@@ -203,11 +272,16 @@ export function ManualLead() {
             <input
               ref={filvelger}
               type="file"
-              accept=".msg,.eml,message/rfc822,application/vnd.ms-outlook"
+              multiple
+              accept=".msg,.eml,message/rfc822,application/vnd.ms-outlook,.pdf,application/pdf,.jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif"
               hidden
               onChange={(e) => {
-                const fil = e.target.files?.[0];
-                if (fil) void lesFil(fil);
+                const filer = Array.from(e.target.files ?? []);
+                if (filer.length > 0) {
+                  setError(null);
+                  setHenta(null);
+                  void lesFiler(filer);
+                }
                 e.target.value = "";
               }}
             />
@@ -233,6 +307,41 @@ export function ManualLead() {
               hvilke poster jobben består av.
             </span>
           </label>
+
+          {vedlegg.length > 0 && (
+            <div className="field">
+              <span className="label">
+                Vedlegg · {vedlegg.length} av {MAKS_VEDLEGG}
+              </span>
+              <div className="stack" style={{ gap: 6 }}>
+                {vedlegg.map((f) => (
+                  <div key={`${f.name}:${f.size}`} className="file-row">
+                    <span className="drop-icon">{erPdf(f) ? "▤" : "▣"}</span>
+                    <span className="file-row-name">
+                      <strong>{f.name}</strong>
+                      <span className="tiny muted">
+                        {" "}
+                        · {erPdf(f) ? "PDF" : "bilde"} · {storleik(f.size)}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      className="button ghost"
+                      disabled={busy}
+                      onClick={() => setVedlegg((v) => v.filter((x) => x !== f))}
+                    >
+                      Fjern
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <span className="hint">
+                Agenten ser på bildene og leser PDF-ene sammen med teksten —
+                antall punkter, mål og det eksisterende anlegget kommer ofte
+                tydeligere fram der.
+              </span>
+            </div>
+          )}
 
           <div className="grid-2">
             <label className="field">
@@ -269,12 +378,64 @@ export function ManualLead() {
             >
               Avbryt
             </button>
-            <button className="button" type="submit" disabled={busy}>
-              {busy ? "Lagrer…" : "Lag utkast"}
+            <button className="button" type="submit" disabled={busy || leser}>
+              {busy
+                ? vedlegg.length > 0
+                  ? "Laster opp vedlegg…"
+                  : "Lagrer…"
+                : "Lag utkast"}
             </button>
           </div>
         </form>
       </Modal>
     </>
   );
+}
+
+function erPdf(f: File): boolean {
+  return f.type === "application/pdf" || /\.pdf$/i.test(f.name);
+}
+
+function storleik(bytes: number): string {
+  return bytes >= 1024 * 1024
+    ? `${(bytes / 1024 / 1024).toFixed(1).replace(".", ",")} MB`
+    : `${Math.max(1, Math.round(bytes / 1024))} kB`;
+}
+
+/**
+ * Skalerer ned bilder før de lastes opp. Et mobilbilde er 3–12 MB; serveren
+ * skalerer uansett til det modellen leser, og det er ingen grunn til å sende
+ * ti slike over en mobillinje først. Små bilder (logoer, ikoner) tas ikke med.
+ * Går noe galt — et format nettleseren ikke kan tegne — sendes fila som den er,
+ * og serveren avgjør.
+ */
+async function krympBilde(f: File): Promise<File | null> {
+  if (erPdf(f)) return f;
+  try {
+    const bilde = await createImageBitmap(f);
+    const { width, height } = bilde;
+    if (width < 200 && height < 200) {
+      bilde.close();
+      return null;
+    }
+    const skala = Math.min(1, 2000 / Math.max(width, height));
+    if (skala === 1 && f.size < 1.5 * 1024 * 1024) {
+      bilde.close();
+      return f;
+    }
+    const lerret = document.createElement("canvas");
+    lerret.width = Math.round(width * skala);
+    lerret.height = Math.round(height * skala);
+    const ctx = lerret.getContext("2d");
+    if (!ctx) return f;
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, lerret.width, lerret.height);
+    ctx.drawImage(bilde, 0, 0, lerret.width, lerret.height);
+    bilde.close();
+    const blob = await new Promise<Blob | null>((ok) => lerret.toBlob(ok, "image/jpeg", 0.85));
+    if (!blob) return f;
+    return new File([blob], f.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
+  } catch {
+    return f;
+  }
 }

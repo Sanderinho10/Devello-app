@@ -112,8 +112,13 @@ export async function generateDraftV3(input: GenerateInput): Promise<GeneratedDr
     // kommer sekunder etter og leser det rett ut av cachen.
     cachePrefix: prefiks,
     cacheSystem: true,
-    prompt: [referencesBlock(input.similar ?? []), leadBlokk, laastBlokk(input)].filter(Boolean).join("\n\n"),
+    prompt: [referencesBlock(input.similar ?? []), input.vedlegg?.oversikt ?? "", leadBlokk, laastBlokk(input)]
+      .filter(Boolean)
+      .join("\n\n"),
     usage: { companyId: input.companyId, kind: "omfang", leadId: input.leadId ?? null },
+    // Omfanget er der vedleggene betyr mest: det er her antall punkter og
+    // lengder leses ut. Tilbudssteget får dem også, og leser dem fra cachen.
+    vedlegg: input.vedlegg?.blokker,
   });
   const omfang = normaliserOmfang(rawOmfang, pakke);
   const jobbtype = pakke.jobbtyper.find((j) => j.id === omfang.jobbtype) ?? null;
@@ -124,6 +129,7 @@ export async function generateDraftV3(input: GenerateInput): Promise<GeneratedDr
     referencesBlock(input.similar ?? []),
     forbeholdsBlokk(input.forbehold ?? []),
     omfangBlokk(omfang, jobbtype),
+    input.vedlegg?.oversikt ?? "",
     leadBlokk,
     laastBlokk(input),
   ]
@@ -132,10 +138,11 @@ export async function generateDraftV3(input: GenerateInput): Promise<GeneratedDr
 
   const usage = { companyId: input.companyId, kind: "generering" as const, leadId: input.leadId ?? null };
 
-  let raw = await callModel(systemTilbud, prefiks, resten, usage);
+  const vedlegg = input.vedlegg?.blokker;
+  let raw = await callModel(systemTilbud, prefiks, resten, usage, vedlegg);
   let problems = [...validate(raw, input), ...omfangSjekk(raw, omfang, jobbtype)];
   if (problems.length > 0) {
-    raw = await callModel(systemTilbud, prefiks, medFeil(resten, problems), usage);
+    raw = await callModel(systemTilbud, prefiks, medFeil(resten, problems), usage, vedlegg);
     problems = [...validate(raw, input), ...omfangSjekk(raw, omfang, jobbtype)];
     if (problems.length > 0) {
       throw new Error(`Utkastet besto ikke valideringen: ${problems.join("; ")}`);
@@ -158,7 +165,7 @@ export async function generateDraftV3(input: GenerateInput): Promise<GeneratedDr
       `${avvik.lo} og ${avvik.hi} kr. Gå gjennom arbeidspostene med inkludert «ja» én for én: er hver av dem en post, ` +
       `en del av en pakkepost (sagt i beskrivelsen), eller i ikke_funnet? Stemmer mengdene med omfanget? ` +
       `Rett det som mangler og lever hele tilbudsdataen på nytt. Er summen riktig likevel, lever den uendret og forklar i merknader.`;
-    const raw2 = await callModel(systemTilbud, prefiks, medFeil(resten, [kritikk]), usage);
+    const raw2 = await callModel(systemTilbud, prefiks, medFeil(resten, [kritikk]), usage, vedlegg);
     const problems2 = [...validate(raw2, input), ...omfangSjekk(raw2, omfang, jobbtype)];
     if (problems2.length === 0) {
       raw = raw2;

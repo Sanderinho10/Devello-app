@@ -1,8 +1,18 @@
 import { NextResponse } from "next/server";
-import { fetchInboxMessages, messageToPlainText } from "@/lib/graph/client";
+import {
+  fetchInboxMessages,
+  fetchMessageAttachments,
+  messageToPlainText,
+} from "@/lib/graph/client";
+import { lagreVedlegg } from "@/lib/leads/vedlegg";
+import { kanBliVedlegg, MAKS_FILSTORRELSE, MAKS_VEDLEGG } from "@/lib/leads/vedlegg-grenser";
 import { accessTokenFor } from "@/lib/graph/oauth";
 import { sessionOr401 } from "@/lib/api";
 import { supabaseAdmin } from "@/lib/supabase/server";
+
+// Vedleggene lastes ned mens brukeren venter. Et lead uten bildene sine er
+// verre enn et lead som kommer ti sekunder senere.
+export const maxDuration = 300;
 
 /**
  * «Hent leads» — manuell knapp i v1. Fase 2 legger til automatisk polling, men
@@ -63,6 +73,7 @@ export async function POST() {
     }));
 
     let inserted = 0;
+    let nye: { id: string; external_message_id: string }[] = [];
     if (rows.length > 0) {
       // ignoreDuplicates lar alt som allerede er hentet ligge i fred.
       const { data, error } = await admin
@@ -71,9 +82,40 @@ export async function POST() {
           onConflict: "company_id,external_message_id",
           ignoreDuplicates: true,
         })
-        .select("id");
+        .select("id, external_message_id");
       if (error) throw new Error(error.message);
-      inserted = data?.length ?? 0;
+      nye = data ?? [];
+      inserted = nye.length;
+    }
+
+    // Vedleggene på de nye leadene: bilder og PDF-er kunden la ved. Bare for
+    // nye — et lead som ble hentet før, har fått sine. Feiler én melding, får
+    // den leadet sitt uten vedlegg; det skal ikke stoppe resten av hentingen.
+    const medVedlegg = new Set(
+      messages.filter((m) => m.hasAttachments).map((m) => m.id),
+    );
+    for (const lead of nye) {
+      if (!medVedlegg.has(lead.external_message_id)) continue;
+      try {
+        const filer = await fetchMessageAttachments(token, lead.external_message_id, {
+          godta: kanBliVedlegg,
+          maksBytes: MAKS_FILSTORRELSE,
+          maksAntall: MAKS_VEDLEGG,
+        });
+        if (filer.length > 0) {
+          await lagreVedlegg(admin, {
+            companyId: session.companyId,
+            leadId: lead.id,
+            kilde: "outlook",
+            filer,
+          });
+        }
+      } catch (err) {
+        console.error(
+          "Vedlegg kunne ikke hentes:",
+          err instanceof Error ? err.message : String(err),
+        );
+      }
     }
 
     // Vannmerket flyttes til den nyeste e-posten vi faktisk tok — ikke til
