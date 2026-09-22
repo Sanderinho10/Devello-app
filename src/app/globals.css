@@ -2201,3 +2201,32 @@ p {
 .editor-felt:disabled .punktliste > .button {
   display: none;
 }
+
+/* Manuell henvendelse: e-post kan slippes i vinduet. Laget dekker skjemaet
+   mens man drar, saa det er tydelig at hele flaten tar imot. */
+.epost-slipp {
+  position: relative;
+}
+.epost-slipp-lag {
+  position: absolute;
+  inset: -8px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--accent-soft) 85%, transparent);
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 15px;
+  pointer-events: none;
+}
+.epost-slipp-hint {
+  margin: -4px 0 14px;
+}
+.button.slipp-maal {
+  border-style: dashed;
+  border-color: var(--accent);
+  color: var(--accent);
+}
