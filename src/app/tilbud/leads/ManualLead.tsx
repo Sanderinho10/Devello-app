@@ -273,7 +273,7 @@ export function ManualLead() {
               ref={filvelger}
               type="file"
               multiple
-              accept=".msg,.eml,message/rfc822,application/vnd.ms-outlook,.pdf,application/pdf,.jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif"
+              accept=".msg,.eml,message/rfc822,application/vnd.ms-outlook,.pdf,application/pdf,.jpg,.jpeg,.png,.webp,.gif,.heic,.heif,.avif,image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,image/avif"
               hidden
               onChange={(e) => {
                 const filer = Array.from(e.target.files ?? []);
@@ -406,8 +406,8 @@ function storleik(bytes: number): string {
  * Skalerer ned bilder før de lastes opp. Et mobilbilde er 3–12 MB; serveren
  * skalerer uansett til det modellen leser, og det er ingen grunn til å sende
  * ti slike over en mobillinje først. Små bilder (logoer, ikoner) tas ikke med.
- * Går noe galt — et format nettleseren ikke kan tegne — sendes fila som den er,
- * og serveren avgjør.
+ * Går noe galt — et format nettleseren ikke kan tegne, som HEIC i Chrome —
+ * sendes fila som den er, og serveren gjør jobben.
  */
 async function krympBilde(f: File): Promise<File | null> {
   if (erPdf(f)) return f;

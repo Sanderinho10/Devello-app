@@ -33,7 +33,48 @@ export function gjenkjenn(bytes: Uint8Array): Vedleggstype | null {
   ) {
     return "bilde"; // WEBP
   }
+  if (heifMerker(b).length > 0) return "bilde"; // HEIC, HEIF, AVIF
   return null;
+}
+
+const HEIF_MERKER = new Set(["heic", "heix", "hevc", "hevx", "heim", "heis", "mif1", "msf1", "avif", "avis"]);
+
+/**
+ * Merkene i ftyp-boksen til en HEIF-fil (ISO-BMFF): hovedmerket og de
+ * kompatible. Tom liste når fila ikke er HEIF.
+ */
+function heifMerker(b: Uint8Array): string[] {
+  if (b.length < 16) return [];
+  const tekst = (fra: number) => String.fromCharCode(b[fra], b[fra + 1], b[fra + 2], b[fra + 3]);
+  if (tekst(4) !== "ftyp") return [];
+  const storleik = Math.min(b.length, (b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3]);
+  const merker = [tekst(8)];
+  for (let i = 16; i + 4 <= storleik; i += 4) merker.push(tekst(i));
+  return merker.some((m) => HEIF_MERKER.has(m)) ? merker : [];
+}
+
+/**
+ * HEIC er HEVC-kodet, og den kodeken er ikke med i sharp (patentene). AVIF
+ * er AV1 og er med. Derfor: AVIF går rett til sharp, HEIC dekodes først med
+ * libheif kompilert til WebAssembly. Det tar et sekund for et 12 MP
+ * iPhone-bilde — greit for ti vedlegg, og bare når noen faktisk sender HEIC.
+ */
+function erHeic(b: Uint8Array): boolean {
+  const merker = heifMerker(b);
+  return merker.length > 0 && !merker.includes("avif") && !merker.includes("avis");
+}
+
+async function tilSharp(bytes: Buffer) {
+  const { default: sharp } = await import("sharp");
+  if (!erHeic(bytes)) return sharp(bytes, { failOn: "none", animated: false });
+
+  const { default: decode } = await import("heic-decode");
+  // libheif snur bildet etter HEIC-fila sin egen rotasjon under dekoding;
+  // det er ingen EXIF igjen å rette etter.
+  const { width, height, data } = await decode({ buffer: new Uint8Array(bytes) });
+  return sharp(Buffer.from(data.buffer, data.byteOffset, data.byteLength), {
+    raw: { width, height, channels: 4 },
+  });
 }
 
 export interface Normalisert {
@@ -65,9 +106,8 @@ export async function normaliser(
     return { filnavn, bytes, mime: "application/pdf", sider };
   }
 
-  const { default: sharp } = await import("sharp");
   try {
-    const bilde = sharp(bytes, { failOn: "none", animated: false });
+    const bilde = await tilSharp(bytes);
     const meta = await bilde.metadata();
     if ((meta.width ?? 0) < 200 && (meta.height ?? 0) < 200) {
       return { avvist: `${filnavn} er for lite til å vise noe (logo eller ikon)` };
@@ -84,7 +124,7 @@ export async function normaliser(
       .jpeg({ quality: 82, mozjpeg: true })
       .toBuffer();
     return {
-      filnavn: filnavn.replace(/\.(png|gif|webp|jpe?g)$/i, "") + ".jpg",
+      filnavn: filnavn.replace(/\.(png|gif|webp|jpe?g|heic|heif|avif)$/i, "") + ".jpg",
       bytes: ut,
       mime: "image/jpeg",
       sider: null,

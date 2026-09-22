@@ -35,10 +35,16 @@ export const MAKS_PDF_SIDER_TIL_MODELL = 30;
 /** Lengste side på et lagret bilde. */
 export const BILDE_MAKS_PX = 1568;
 
-/** Filendelser som kan bli vedlegg. Typen sjekkes på innholdet, ikke navnet. */
+/**
+ * Filendelser som kan bli vedlegg. Typen sjekkes på innholdet, ikke navnet.
+ *
+ * HEIC er med fordi det er det iPhone tar bilder i. Sendes bildet på e-post,
+ * gjør telefonen det som regel om til JPEG — men et bilde som deles fra
+ * Bilder-appen, eller dras inn fra en Mac, kommer ofte som .heic.
+ */
 export function kanBliVedlegg(filnavn: string, mime?: string): boolean {
   return (
-    /\.(jpe?g|png|gif|webp|pdf)$/i.test(filnavn) ||
-    /^image\/(jpeg|png|gif|webp)$|^application\/pdf$/.test(mime ?? "")
+    /\.(jpe?g|png|gif|webp|heic|heif|avif|pdf)$/i.test(filnavn) ||
+    /^image\/(jpeg|png|gif|webp|heic|heif|heic-sequence|heif-sequence|avif)$|^application\/pdf$/.test(mime ?? "")
   );
 }

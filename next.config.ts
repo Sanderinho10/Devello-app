@@ -12,8 +12,9 @@ const nextConfig: NextConfig = {
    */
   turbopack: { root: path.resolve(process.cwd()) },
 
-  // playwright-core laster chromium fra filsystemet — den skal ikke bundles.
-  serverExternalPackages: ["playwright-core"],
+  // playwright-core laster chromium fra filsystemet, og libheif-js har en
+  // WebAssembly-modul den finner selv — ingen av dem skal bundles.
+  serverExternalPackages: ["playwright-core", "heic-decode", "libheif-js"],
 
   experimental: {
     /*

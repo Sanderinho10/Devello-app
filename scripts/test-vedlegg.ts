@@ -74,6 +74,40 @@ sjekk("PDF telles i sider", "avvist" in n4 ? n4.avvist : n4.sider, 3);
 const n5 = await normaliser("oedelagt.pdf", Buffer.from("%PDF-1.4\nsøppel søppel søppel"));
 sjekk("ødelagt PDF avvises", "avvist" in n5, true);
 
+// 3b. HEIC og AVIF — iPhone-formatet og etterfølgeren
+const ftyp = (hoved: string, ...kompatible: string[]) => {
+  const boks = Buffer.alloc(16 + 4 * kompatible.length);
+  boks.writeUInt32BE(boks.length, 0);
+  boks.write("ftyp", 4, "latin1");
+  boks.write(hoved, 8, "latin1");
+  kompatible.forEach((m, i) => boks.write(m, 16 + 4 * i, "latin1"));
+  return Buffer.concat([boks, Buffer.alloc(16)]);
+};
+sjekk("HEIC fra iPhone kjennes igjen", gjenkjenn(ftyp("heic", "mif1", "heic")), "bilde");
+sjekk("HEIF med mif1 som hovedmerke", gjenkjenn(ftyp("mif1", "mif1", "heic")), "bilde");
+sjekk("MP4-video er ikke bilde", gjenkjenn(ftyp("isom", "isom", "mp42")), null);
+
+const avif = await sharp({ create: { width: 2400, height: 1600, channels: 3, background: "#468" } }).avif().toBuffer();
+const n6 = await normaliser("bilde.avif", avif);
+if ("avvist" in n6) throw new Error(n6.avvist);
+const m6 = await sharp(n6.bytes).metadata();
+sjekk("AVIF blir JPEG, skalert", [n6.filnavn, m6.format, m6.width], ["bilde.jpg", "jpeg", 1568]);
+
+// Et ekte HEIC-bilde er ikke sjekket inn (lisens og størrelse). Pek
+// HEIC_TESTFIL på et bilde fra en iPhone for å kjøre denne delen.
+const heicFil = process.env.HEIC_TESTFIL;
+if (heicFil) {
+  const { readFileSync } = await import("node:fs");
+  const t0 = Date.now();
+  const n7 = await normaliser("IMG_2231.HEIC", readFileSync(heicFil));
+  if ("avvist" in n7) throw new Error(n7.avvist);
+  const m7 = await sharp(n7.bytes).metadata();
+  sjekk("HEIC blir JPEG innenfor 1568 px", [n7.filnavn, m7.format, Math.max(m7.width!, m7.height!) <= 1568], ["IMG_2231.jpg", "jpeg", true]);
+  console.log(`     (HEIC dekodet og skalert på ${Date.now() - t0} ms, ${Math.round(n7.bytes.length / 1024)} kB)`);
+} else {
+  console.log("hopp HEIC-fil: sett HEIC_TESTFIL for å teste et ekte iPhone-bilde");
+}
+
 // 4. Utvalget til modellen
 const bilde = { mime_type: "image/jpeg", pages: null };
 const pdfRad = (sider: number) => ({ mime_type: "application/pdf", pages: sider });
@@ -94,7 +128,8 @@ sjekk("oversikt: ber om merknad for det som ikke er lest", o.includes("IKKE send
 sjekk("kanBliVedlegg: jpg", kanBliVedlegg("bilde.JPG"), true);
 sjekk("kanBliVedlegg: pdf via mime", kanBliVedlegg("uten-endelse", "application/pdf"), true);
 sjekk("kanBliVedlegg: docx", kanBliVedlegg("befaring.docx"), false);
-sjekk("kanBliVedlegg: heic", kanBliVedlegg("IMG_1.HEIC", "image/heic"), false);
+sjekk("kanBliVedlegg: heic", kanBliVedlegg("IMG_1.HEIC", ""), true);
+sjekk("kanBliVedlegg: heic via mime", kanBliVedlegg("bilde", "image/heic"), true);
 
 if (feil > 0) {
   console.log(`\n${feil} feil.`);
