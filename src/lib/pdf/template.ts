@@ -111,10 +111,12 @@ export function renderQuoteHtml(input: {
        </table>`
     : "";
 
-  const assumptions = doc.assumptions.length
+  // Tomme punkter er halvskrevne punkter fra redigeringen, ikke innhold.
+  const forutsetninger = doc.assumptions.map((a) => a.trim()).filter(Boolean);
+  const assumptions = forutsetninger.length
     ? `<section class="assumptions">
          <h3>Forutsetninger</h3>
-         <ul>${doc.assumptions.map((a) => `<li>${escapeHtml(a)}</li>`).join("")}</ul>
+         <ul>${forutsetninger.map((a) => `<li>${escapeHtml(a)}</li>`).join("")}</ul>
        </section>`
     : "";
 

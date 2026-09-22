@@ -2143,3 +2143,61 @@ p {
     grid-template-columns: 1fr;
   }
 }
+
+/* Forutsetningene i utkastet: en punktliste der hvert punkt er et felt.
+   Feltet har ingen ramme foer man er innom det, saa lista leser som den
+   lista kunden faar. */
+.punktliste ul {
+  margin: 0 0 4px;
+  padding: 0;
+  list-style: none;
+}
+.punkt-rad {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  position: relative;
+  padding-left: 16px;
+}
+.punkt-rad::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 14px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+}
+.punkt-felt {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 5px 7px;
+  font: inherit;
+  line-height: 1.45;
+  background: transparent;
+  color: var(--text);
+}
+.punkt-felt:hover {
+  border-color: var(--border);
+}
+.punkt-felt:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
+}
+.punkt-rad .button.danger {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.punkt-rad:hover .button.danger,
+.punkt-rad:focus-within .button.danger {
+  opacity: 1;
+}
+.editor-felt:disabled .punktliste > .button {
+  display: none;
+}
