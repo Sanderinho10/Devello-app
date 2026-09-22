@@ -31,7 +31,7 @@ export default async function PriceListPage({
     .from("price_list_items")
     .select("*")
     .eq("price_list_id", id)
-    // Fila sin rekkefølge, ikke alfabetet. Se migrasjon 0037.
+    // Fila sin rekkefølge, ikke alfabetet. Se migrasjon 0038.
     .order("position")
     .order("name");
 

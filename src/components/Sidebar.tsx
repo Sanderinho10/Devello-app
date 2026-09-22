@@ -65,20 +65,13 @@ const ORDRE: NavSection = {
   ],
 };
 
-const DOKUMENTASJON: NavSection = {
-  key: "dokumentasjon",
-  label: "Dokumentasjon",
-  icon: "◇",
-  basePath: "/dokumentasjon",
-  tabs: [],
-  comingSoon: true,
-};
-
-/** Seksjonene selskapet skal se, i rekkefølgen jobben går: tilbud → ordre → dokumentasjon. */
+/**
+ * Seksjonene selskapet skal se, i rekkefølgen jobben går: tilbud → ordre.
+ * Dokumentasjonen bor på ordren (fanen Dokumentasjon), ikke som egen agent.
+ */
 function agentSections(moduler: string[]): NavSection[] {
   const sections = [TILBUD];
   if (harModul(moduler, "ordre")) sections.push(ORDRE);
-  sections.push(DOKUMENTASJON);
   return sections;
 }
 
