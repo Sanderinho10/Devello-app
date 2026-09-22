@@ -19,6 +19,8 @@
     "test:perioder": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-perioder.ts",
     "test:epost": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-finn-epost.ts",
     "test:popup": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-popup.ts",
+    "test:epostfil": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-epostfil.ts",
+    "test:vedlegg": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-vedlegg.ts",
     "test:rabatt": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-rabatt.ts",
     "test:anonym": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-anonymiser.ts",
     "test:opplaering": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-opplaering.ts",
@@ -30,17 +32,21 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.117.1",
+    "@kenjiuno/msgreader": "^1.28.0",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.58.0",
     "exceljs": "^4.4.0",
     "fast-xml-parser": "^5.11.1",
+    "heic-decode": "^2.1.0",
     "jszip": "^3.10.1",
     "mammoth": "^1.12.1",
     "next": "^16.3.1",
     "pdf-parse": "^2.4.5",
     "playwright-core": "^1.56.0",
+    "postal-mime": "^3.0.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "sharp": "^0.35.4"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",

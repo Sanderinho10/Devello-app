@@ -54,6 +54,16 @@ export async function DELETE(
       await admin.storage.from("quote-pdfs").remove([draft.pdf_path]);
     }
 
+    // Det samme gjelder vedleggene kunden sendte. Radene går med leadet
+    // (cascade), filene må fjernes for seg.
+    const { data: vedlegg } = await admin
+      .from("lead_attachments")
+      .select("storage_path")
+      .eq("lead_id", lead.id);
+    if (vedlegg && vedlegg.length > 0) {
+      await admin.storage.from("lead-attachments").remove(vedlegg.map((v) => v.storage_path));
+    }
+
     // Leadet til slutt — utkast og versjonslogg følger med på kjøpet
     // (on delete cascade). Forbruksraden i usage_events blir stående med
     // vilje: genereringen skjedde og kostet det den kostet, og en teller man

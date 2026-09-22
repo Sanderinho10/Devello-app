@@ -62,11 +62,19 @@ export async function structured<T>(options: {
   model?: string;
   /** Logger faktisk tokenforbruk på selskapet. Utelatt = ingen logging. */
   usage?: UsageContext;
+  /**
+   * Bilder og PDF-er som skal leses sammen med prompten — vedleggene på et
+   * lead. Legges etter cachePrefix og foran `prompt`: prefikset er likt for
+   * alle leads hos selskapet, vedleggene er like for alle kallene én
+   * generering gjør, og prompten varierer mellom dem. Den som bygger
+   * blokkene, setter selv bruddpunktet på den siste.
+   */
+  vedlegg?: Anthropic.ContentBlockParam[];
 }): Promise<T> {
   const model = options.model ?? MODEL;
   const liten = model !== MODEL;
 
-  const content: Anthropic.TextBlockParam[] = [];
+  const content: Anthropic.ContentBlockParam[] = [];
   if (options.cachePrefix) {
     // 5 minutter, ikke 1 time: bruddpunktet her er per selskap, og
     // skrivepremien er 1,25× mot 2×. Med 5 min går det i null allerede ved
@@ -78,6 +86,7 @@ export async function structured<T>(options: {
       cache_control: { type: "ephemeral" },
     });
   }
+  if (options.vedlegg?.length) content.push(...options.vedlegg);
   content.push({ type: "text", text: options.prompt });
 
   let response;

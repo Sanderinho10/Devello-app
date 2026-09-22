@@ -12,8 +12,20 @@ const nextConfig: NextConfig = {
    */
   turbopack: { root: path.resolve(process.cwd()) },
 
-  // playwright-core laster chromium fra filsystemet — den skal ikke bundles.
-  serverExternalPackages: ["playwright-core"],
+  // playwright-core laster chromium fra filsystemet, og libheif-js har en
+  // WebAssembly-modul den finner selv — ingen av dem skal bundles.
+  serverExternalPackages: ["playwright-core", "heic-decode", "libheif-js"],
+
+  experimental: {
+    /*
+     * Middleware-en (innloggingssjekken) gjør at Next bufrer hele
+     * forespørselskroppen, og standardtaket er 10 MB — det som er over, blir
+     * kuttet uten feilmelding. En manuell henvendelse med noen PDF-er som
+     * vedlegg, eller en skannet referansefil, går over det. Taket her ligger
+     * over det klienten selv tillater (se lib/leads/vedlegg-grenser).
+     */
+    proxyClientMaxBodySize: "40mb",
+  },
 };
 
 export default nextConfig;

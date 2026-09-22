@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SendSjolv } from "./SendSjolv";
+import { Forutsetninger } from "./Forutsetninger";
 import { OpprettOrdre } from "./OpprettOrdre";
 import Link from "next/link";
 import { PriceItemPicker } from "@/components/PriceItemPicker";
@@ -972,20 +973,13 @@ export function DraftEditor({
             </div>
           )}
 
-          <label className="field" style={{ marginTop: 26 }}>
+          <div className="field" style={{ marginTop: 26 }}>
             <span className="label">Forutsetninger</span>
-            <textarea
-              className="textarea"
-              style={{ minHeight: 90 }}
-              value={document.assumptions.join("\n")}
-              onChange={(e) =>
-                updateDocument({
-                  assumptions: e.target.value.split("\n").filter((l) => l.trim()),
-                })
-              }
+            <Forutsetninger
+              punkter={document.assumptions}
+              onChange={(assumptions) => updateDocument({ assumptions })}
             />
-            <span className="hint">Én linje per forutsetning.</span>
-          </label>
+          </div>
         </div>
       )}
 

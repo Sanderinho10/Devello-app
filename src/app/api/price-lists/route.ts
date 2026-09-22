@@ -121,9 +121,14 @@ export async function insertRows(
   kind: PriceItemKind,
   rows: ParsedRow[],
 ): Promise<void> {
+  // Radene får posisjonen de hadde i fila. Legges de til en liste som har
+  // rader fra før, kommer de etter dem — i fila sin rekkefølge.
+  const start0 = await nestePosisjon(admin, listId);
+
   const CHUNK = 500;
   for (let start = 0; start < rows.length; start += CHUNK) {
-    const chunk = rows.slice(start, start + CHUNK).map((row) => ({
+    const chunk = rows.slice(start, start + CHUNK).map((row, i) => ({
+      position: start0 + start + i,
       company_id: companyId,
       price_list_id: listId,
       kind,
@@ -138,4 +143,19 @@ export async function insertRows(
     const { error } = await admin.from("price_list_items").insert(chunk);
     if (error) throw new Error(`Import feilet på rad ${start + 1}: ${error.message}`);
   }
+}
+
+/** Første ledige posisjon i lista: én etter den bakerste raden, eller 1. */
+export async function nestePosisjon(
+  admin: SupabaseClient,
+  listId: string,
+): Promise<number> {
+  const { data } = await admin
+    .from("price_list_items")
+    .select("position")
+    .eq("price_list_id", listId)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (data?.position ?? 0) + 1;
 }

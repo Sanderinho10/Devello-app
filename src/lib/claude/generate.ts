@@ -1,4 +1,6 @@
+import type Anthropic from "@anthropic-ai/sdk";
 import { structured } from "./client";
+import type { VedleggTilModell } from "@/lib/leads/vedlegg";
 import type { UsageContext } from "@/lib/billing/usage";
 import { loadMotor, type MotorVersjon } from "./motor";
 import { generateDraftV3, type Omfang } from "./generate-v3";
@@ -251,6 +253,8 @@ export interface GenerateInput {
   motor?: MotorVersjon;
   /** Faget, for bransjepakken i v3. Utelatt = elektro. */
   fag?: string;
+  /** Bildene og PDF-ene kunden sendte med, klare for modellen. */
+  vedlegg?: VedleggTilModell | null;
 }
 
 /** Velger motor. v2 er stien under, uendret; v3 ligger i generate-v3.ts. */
@@ -268,7 +272,8 @@ export async function generateDraftV2(input: GenerateInput): Promise<GeneratedDr
     leadId: input.leadId ?? null,
   };
 
-  let raw = await callModel(system, prefiks, resten, usage);
+  const vedlegg = input.vedlegg?.blokker;
+  let raw = await callModel(system, prefiks, resten, usage, vedlegg);
 
   // Kodevalidering — koden er dommeren, agenten førstelinjen. Feiler den,
   // får agenten feilene tilbake og ett forsøk til (som plattform-verktoy.md
@@ -286,6 +291,7 @@ export async function generateDraftV2(input: GenerateInput): Promise<GeneratedDr
         .map((p) => `- ${p}`)
         .join("\n")}`,
       usage,
+      vedlegg,
     );
     problems = validate(raw, input);
     if (problems.length > 0) {
@@ -303,6 +309,7 @@ export async function callModel(
   prefiks: string,
   resten: string,
   usage: UsageContext,
+  vedlegg?: Anthropic.ContentBlockParam[],
 ): Promise<RawTilbudsdata> {
   return structured<RawTilbudsdata>({
     system,
@@ -311,6 +318,7 @@ export async function callModel(
     cacheSystem: true,
     prompt: resten,
     usage,
+    vedlegg,
   });
 }
 
@@ -389,6 +397,10 @@ export function buildPrompt(input: GenerateInput): PromptDeler {
   // Lærdommene veier tyngre enn mønsteret i referansene, så de kommer etter —
   // det siste modellen leser før selve leadet.
   blocks.push(forbeholdsBlokk(input.forbehold ?? []));
+
+  // Hva som ligger ved, rett foran leadet: så modellen vet hva bildene over
+  // er, og hvilke den ikke har fått se.
+  if (input.vedlegg) blocks.push(input.vedlegg.oversikt);
 
   blocks.push(
     `# Leadet\n\nFra: ${input.lead.from_name ?? "(ukjent)"} <${

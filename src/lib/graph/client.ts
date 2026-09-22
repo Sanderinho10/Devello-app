@@ -31,6 +31,7 @@ export interface GraphMessage {
   receivedDateTime: string;
   from?: { emailAddress?: { name?: string; address?: string } };
   body?: { contentType: "text" | "html"; content: string };
+  hasAttachments?: boolean;
 }
 
 export interface GraphUser {
@@ -68,7 +69,7 @@ export async function fetchInboxMessages(
     // henting kom noen gang tilbake til dem. Eldste først lar knappen i
     // stedet gå gjennom køen bit for bit.
     $orderby: options.since ? "receivedDateTime asc" : "receivedDateTime desc",
-    $select: "id,conversationId,subject,bodyPreview,receivedDateTime,from,body",
+    $select: "id,conversationId,subject,bodyPreview,receivedDateTime,from,body,hasAttachments",
   });
   if (options.since) {
     params.set("$filter", `receivedDateTime ge ${options.since}`);
@@ -101,4 +102,50 @@ export function messageToPlainText(message: GraphMessage): string {
     .replace(/&#39;/g, "'")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+interface GraphAttachment {
+  "@odata.type": string;
+  id: string;
+  name: string | null;
+  contentType: string | null;
+  size: number;
+  isInline: boolean;
+}
+
+/**
+ * Filvedleggene på en melding som kan bli vedlegg på leadet: bilder og PDF-er
+ * kunden la ved. Innebygde bilder (logoen i signaturen) og vedlagte
+ * e-poster/kalenderinvitasjoner hoppes over.
+ *
+ * Bytes hentes med $value, ikke contentBytes i listen: da slipper vi
+ * base64-omveien, og store filer kommer også med.
+ */
+export async function fetchMessageAttachments(
+  accessToken: string,
+  messageId: string,
+  options: { godta: (navn: string, mime: string) => boolean; maksBytes: number; maksAntall: number },
+): Promise<{ navn: string; bytes: Buffer }[]> {
+  const liste = await graphFetch<{ value: GraphAttachment[] }>(
+    accessToken,
+    `/me/messages/${encodeURIComponent(messageId)}/attachments?$select=id,name,contentType,size,isInline`,
+  );
+
+  const aktuelle = (liste.value ?? [])
+    .filter((a) => a["@odata.type"] === "#microsoft.graph.fileAttachment")
+    .filter((a) => !a.isInline)
+    .filter((a) => a.size <= options.maksBytes)
+    .filter((a) => options.godta(a.name ?? "", a.contentType ?? ""))
+    .slice(0, options.maksAntall);
+
+  const filer: { navn: string; bytes: Buffer }[] = [];
+  for (const a of aktuelle) {
+    const res = await fetch(
+      `${GRAPH_BASE}/me/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(a.id)}/$value`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+    if (!res.ok) continue;
+    filer.push({ navn: a.name ?? "vedlegg", bytes: Buffer.from(await res.arrayBuffer()) });
+  }
+  return filer;
 }
