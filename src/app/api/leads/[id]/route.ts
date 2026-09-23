@@ -25,7 +25,7 @@ export async function DELETE(
     // Tilgangssjekken ligger i spørringen, ikke i en etterkontroll.
     const { data: lead } = await admin
       .from("leads")
-      .select("id, status, drafts(id, pdf_path, sent_at)")
+      .select("id, status, drafts(id, pdf_path, sent_at, revisjon)")
       .eq("id", id)
       .eq("company_id", session.companyId)
       .maybeSingle();
@@ -34,9 +34,17 @@ export async function DELETE(
       return NextResponse.json({ error: "Fant ikke leadet" }, { status: 404 });
     }
 
-    const draft = (lead.drafts as unknown as { id: string; pdf_path: string | null; sent_at: string | null }[])?.[0];
+    const draft = (
+      lead.drafts as unknown as {
+        id: string;
+        pdf_path: string | null;
+        sent_at: string | null;
+        revisjon: number;
+      }[]
+    )?.[0];
 
-    if (draft?.sent_at) {
+    // En ny versjon under arbeid er ikke sendt, men den forrige er det.
+    if (draft?.sent_at || (draft?.revisjon ?? 1) > 1) {
       return NextResponse.json(
         { error: "Tilbudet er sendt og kan ikke slettes. Arkivet er historikken." },
         { status: 409 },

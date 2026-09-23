@@ -121,6 +121,7 @@ export async function POST(
           postalCode: company!.billing_postal_code,
           city: company!.billing_city,
         },
+        versjon: { nr: draft.revisjon, erstatter: draft.forrige_sendt_at },
       });
       pdf = await htmlToPdf(html);
 
@@ -165,7 +166,12 @@ export async function POST(
         });
 
         if (pdf) {
-          await attachPdf(token, outlook.id, pdfFileName(payload.document!), pdf);
+          await attachPdf(
+            token,
+            outlook.id,
+            pdfFileName(payload.document!, draft.revisjon),
+            pdf,
+          );
         }
       } catch (err) {
         // En utløpt kobling skal ikke koste dem tilbudet. Vi lagrer som før og
@@ -181,11 +187,18 @@ export async function POST(
     // siste lagring. Redigeringer lagres fortløpende underveis, så på dette
     // tidspunktet er drafts-raden allerede full av brukerens endringer — en
     // diff mot den ville sagt «ingenting endret» om alt som ble rettet.
-    const { data: aiVersjon } = await admin
+    //
+    // Unntaket er en ny versjon av et sendt tilbud. Der er det ikke agenten
+    // som bommet — det er kunden som har ombestemt seg — så diffen måles mot
+    // det som faktisk ble sendt sist.
+    const revidert = draft.revisjon > 1;
+    let forrigeSporring = admin
       .from("draft_versions")
       .select("quote_type, email_subject, email_body, document")
       .eq("draft_id", draft.id)
-      .eq("source", "ai")
+      .eq("source", revidert ? "endelig" : "ai");
+    if (revidert) forrigeSporring = forrigeSporring.lt("revisjon", draft.revisjon);
+    const { data: aiVersjon } = await forrigeSporring
       .order("version", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -220,6 +233,8 @@ export async function POST(
       snapshot: final,
       previous,
       userId: session.userId,
+      revisjon: draft.revisjon,
+      pdfPath,
     });
 
     // Uten kladd i Outlook har ingenting forlatt huset ennå. Da er tilbudet
@@ -237,8 +252,13 @@ export async function POST(
     const endringer = diffSnapshots(previous, final);
     const bleRedigert = Object.keys(endringer).length > 0;
 
+    //
+    // Bare versjon 1. En ny versjon bygger på det kunden sa ETTER tilbudet —
+    // «én stikk mindre» — og det står ikke i henvendelsen. Lagret som
+    // referanse ville den lært agenten at den samme henvendelsen gir færre
+    // poster, og det er feil.
     try {
-      if (!isClarification) await saveQuoteReference(admin, {
+      if (!isClarification && !revidert) await saveQuoteReference(admin, {
         companyId: session.companyId,
         draftId: draft.id,
         leadId: lead.id,
@@ -285,7 +305,7 @@ export async function POST(
   }
 }
 
-function pdfFileName(document: QuoteDocument): string {
+function pdfFileName(document: QuoteDocument, revisjon: number): string {
   const slug = document.title
     .toLowerCase()
     .replace(/[æå]/g, "a")
@@ -293,7 +313,8 @@ function pdfFileName(document: QuoteDocument): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 50);
-  return `tilbud-${slug || "dokument"}.pdf`;
+  const versjon = revisjon > 1 ? `-v${revisjon}` : "";
+  return `tilbud-${slug || "dokument"}${versjon}.pdf`;
 }
 
 /** Selskapets aktive postkasse — brukt når leadet ikke bærer en selv. */

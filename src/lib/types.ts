@@ -292,6 +292,10 @@ export interface Draft {
   confirmed_at: string | null;
   /** Satt når tilbudet er sendt. Låser utkastet for redigering. */
   sent_at: string | null;
+  /** Hvilken versjon av tilbudet. Øker når et sendt tilbud åpnes igjen. */
+  revisjon: number;
+  /** Når forrige versjon ble sendt. null for versjon 1. */
+  forrige_sendt_at: string | null;
   /** Motoren som laget utkastet. null for utkast fra før v3. */
   motor_versjon: "v2" | "v3" | null;
   /**

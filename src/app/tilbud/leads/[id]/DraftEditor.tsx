@@ -13,6 +13,7 @@ import {
   QUOTE_TYPE_LABELS,
   type QuoteConfidence,
   computeTotals,
+  formatDate,
   formatNok,
   lineTotal,
   hasDocument,
@@ -91,6 +92,8 @@ export function DraftEditor({
   const [confirmed, setConfirmed] = useState(draft.confirmed_at !== null);
   const [webLink, setWebLink] = useState(draft.outlook_web_link);
   const [sendt, setSendt] = useState(draft.sent_at !== null);
+  const [revisjon, setRevisjon] = useState(draft.revisjon ?? 1);
+  const [forrigeSendtAt, setForrigeSendtAt] = useState(draft.forrige_sendt_at);
 
   /**
    * Vinduet for manuell sending. Satt når bekreft ikke fikk lagt kladden i
@@ -501,6 +504,40 @@ export function DraftEditor({
     return JSON.stringify({ quoteType, subject, body, document });
   }
 
+  /**
+   * Åpner et sendt tilbud som en ny versjon, når kunden kommer tilbake med
+   * en justering. Det som ble sendt, blir liggende i historikken; det som står
+   * her, blir versjon 2 og går gjennom bekreft og sending på nytt.
+   */
+  async function nyVersjon() {
+    if (
+      !window.confirm(
+        `Åpne tilbudet som versjon ${revisjon + 1}? Versjon ${revisjon} blir liggende som sendt, og du kan endre og sende det på nytt.`,
+      )
+    ) {
+      return;
+    }
+    setBusy("lagrer");
+    setError(null);
+    try {
+      const res = await fetch(`/api/drafts/${draft.id}/ny-versjon`, { method: "POST" });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error ?? "Kunne ikke åpne en ny versjon");
+      setForrigeSendtAt(payload.forrige_sendt_at);
+      setRevisjon(payload.revisjon);
+      setSubject(payload.email_subject);
+      setSendt(false);
+      setConfirmed(false);
+      setWebLink(null);
+      setSisteSending(null);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function markerSendt() {
     setBusy("bekrefter");
     setError(null);
@@ -525,13 +562,46 @@ export function DraftEditor({
     <div style={{ minWidth: 0 }}>
       {sendt && (
         <div className="banner success" style={{ marginBottom: 18 }}>
-          <strong>Tilbudet er sendt.</strong> Utkastet er låst, så det som ligger
-          her er det kunden fikk.{" "}
+          <strong>
+            {revisjon > 1 ? `Versjon ${revisjon} er sendt.` : "Tilbudet er sendt."}
+          </strong>{" "}
+          Utkastet er låst, så det som ligger her er det kunden fikk.{" "}
           {wantsDocument && (
             <button className="linkish" onClick={previewPdf}>
               Åpne PDF-en
             </button>
           )}
+          {/*
+            Kunden kommer ofte tilbake med en justering — «vi skal ha én stikk
+            mindre». Da åpnes tilbudet som en ny versjon i stedet for at noen
+            må skrive det på nytt. Ikke etter en ordre: da er det sagt ja til.
+          */}
+          {!ordre.eksisterande && (
+            <div className="banner-handling">
+              <button
+                type="button"
+                className="button secondary"
+                onClick={nyVersjon}
+                disabled={busy !== null}
+              >
+                {busy === "lagrer" ? "Åpner…" : `Lag versjon ${revisjon + 1}`}
+              </button>
+              <span className="tiny muted">
+                Når kunden vil ha endringer. Denne versjonen blir liggende som sendt.
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!sendt && revisjon > 1 && (
+        <div className="banner info" style={{ marginBottom: 18 }}>
+          <strong>Versjon {revisjon}.</strong>{" "}
+          {forrigeSendtAt
+            ? `Erstatter tilbudet som ble sendt ${formatDate(forrigeSendtAt)}.`
+            : "Erstatter tilbudet som ble sendt."}{" "}
+          Gjør endringene kunden ba om og send på nytt — PDF-en viser at dette er
+          versjon {revisjon}.
         </div>
       )}
 
@@ -562,13 +632,19 @@ export function DraftEditor({
               type="button"
               className={`type-option${type === quoteType ? " active" : ""}`}
               onClick={() => changeType(type)}
-              disabled={locked}
+              // En ny versjon bygger videre på det som ble sendt. Et annet
+              // tilbudstype ville betydd å generere fra henvendelsen igjen.
+              disabled={locked || (revisjon > 1 && type !== quoteType)}
             >
               {QUOTE_TYPE_LABELS[type]}
             </button>
           ))}
         </div>
-        <span className="hint">{QUOTE_TYPE_HELP[quoteType]}</span>
+        <span className="hint">
+          {revisjon > 1
+            ? "Typen står fast i en ny versjon. Den bygger videre på det som ble sendt."
+            : QUOTE_TYPE_HELP[quoteType]}
+        </span>
       </div>
 
       {error && <div className="banner error">{error}</div>}

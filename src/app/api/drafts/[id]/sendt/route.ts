@@ -55,6 +55,20 @@ export async function POST(
 
     await admin.from("leads").update({ status: "sendt" }).eq("id", draft.lead_id);
 
+    // Den siste endelige versjonen er den som gikk ut. Merket, så historikken
+    // viser hva kunden fikk når tilbudet senere åpnes som en ny versjon.
+    const { data: endelig } = await admin
+      .from("draft_versions")
+      .select("id")
+      .eq("draft_id", draft.id)
+      .eq("source", "endelig")
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (endelig) {
+      await admin.from("draft_versions").update({ sendt_at: naa }).eq("id", endelig.id);
+    }
+
     return NextResponse.json({ ok: true, sent_at: naa });
   } catch (err) {
     return errorResponse(err);

@@ -25,8 +25,15 @@ export function renderQuoteHtml(input: {
   logoSrc?: string | null;
   /** Avsenderadressen, hentet fra selskapet. */
   address?: { line: string | null; postalCode: string | null; city: string | null };
+  /**
+   * Tilbudsversjonen. Fra versjon 2 står det under tittelen, og kunden ser
+   * hvilket tilbud dette erstatter — ellers ligger det to PDF-er i innboksen
+   * deres som ser like ut.
+   */
+  versjon?: { nr: number; erstatter: string | null };
 }): string {
-  const { document: doc, brand, companyName, quoteType, logoSrc, address } = input;
+  const { document: doc, brand, companyName, quoteType, logoSrc, address, versjon } = input;
+  const revidert = versjon && versjon.nr > 1 ? versjon : null;
   const totals = computeTotals(doc);
   const accent = brand.primary_color || "#1d1d1f";
 
@@ -322,7 +329,15 @@ export function renderQuoteHtml(input: {
   </header>
 
   <h1>${escapeHtml(doc.title)}</h1>
-  <div class="subtitle">${quoteTypeLabel(quoteType)}</div>
+  <div class="subtitle">${quoteTypeLabel(quoteType)}${
+    revidert
+      ? ` · Versjon ${revidert.nr}${
+          revidert.erstatter
+            ? ` – erstatter tilbud av ${formatDateNo(revidert.erstatter)}`
+            : ""
+        }`
+      : ""
+  }</div>
 
   <div class="meta">
     <div>

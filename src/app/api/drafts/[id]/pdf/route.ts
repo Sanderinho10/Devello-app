@@ -22,7 +22,7 @@ export async function GET(
   // Utkastet arver company via leadet, så vi må slå det opp for å sjekke tilgang.
   const { data: draft } = await admin
     .from("drafts")
-    .select("id, quote_type, document, lead_id, leads!inner(company_id)")
+    .select("id, quote_type, document, lead_id, revisjon, forrige_sendt_at, leads!inner(company_id)")
     .eq("id", id)
     .eq("leads.company_id", session.companyId)
     .maybeSingle();
@@ -67,6 +67,7 @@ export async function GET(
           postalCode: company!.billing_postal_code,
           city: company!.billing_city,
         },
+        versjon: { nr: draft.revisjon, erstatter: draft.forrige_sendt_at },
       }),
     );
 
