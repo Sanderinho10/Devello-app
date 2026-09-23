@@ -2,17 +2,17 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { kategoriForSeksjon, kategorierAv, prefiksAv } from "@/lib/pricelist/koder";
 import {
-  kategoriForSeksjon,
-  kategorierAv,
-  kodeFinnes,
-  nesteKode,
-  normaliserKode,
-  prefiksAv,
-} from "@/lib/pricelist/koder";
+  KodeVelger,
+  kategorinavnFor,
+  kodeFor,
+  kodevalgFor,
+  prefiksFor,
+  validerKodevalg,
+  type KodeValg,
+} from "@/components/KodeVelger";
 import { PRICE_KIND_LABELS, type PriceItemKind, type PriceListItem, type QuoteLine } from "@/lib/types";
-
-const NY_KATEGORI = "__ny";
 
 /**
  * En post som ikke finnes i prisfilen.
@@ -51,49 +51,19 @@ export function NyPost({
   const kategorier = useMemo(() => kategorierAv(rader), [rader]);
   const listerAvTypen = lister.filter((liste) => liste.kind === kind);
 
-  const foreslatt = kategoriForSeksjon(seksjonstittel, kategorier);
 
   const [navn, setNavn] = useState(startNavn);
   const [enhet, setEnhet] = useState("stk");
   const [pris, setPris] = useState("");
   const [beskrivelse, setBeskrivelse] = useState("");
   const [lagre, setLagre] = useState(false);
-  const [kategori, setKategori] = useState(foreslatt?.prefiks ?? "");
-  const [kode, setKode] = useState(foreslatt ? nesteKode(foreslatt.prefiks, rader) : "");
-  const [nyttPrefiks, setNyttPrefiks] = useState("");
-  const [nyttKategorinavn, setNyttKategorinavn] = useState("");
+  const [kodevalg, setKodevalg] = useState<KodeValg>(() =>
+    kodevalgFor(kategoriForSeksjon(seksjonstittel, kategorier), rader),
+  );
   const [lagrer, setLagrer] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
 
-  const prefiks = kategori === NY_KATEGORI ? nyttPrefiks : kategori;
-
-  function velgKategori(verdi: string) {
-    setKategori(verdi);
-    if (verdi === NY_KATEGORI) {
-      setKode(nyttPrefiks ? nesteKode(nyttPrefiks, rader) : "");
-    } else {
-      setKode(verdi ? nesteKode(verdi, rader) : "");
-    }
-  }
-
-  function endreNyttPrefiks(verdi: string) {
-    const rent = verdi.replace(/[^A-Za-zÆØÅæøå]/g, "").toUpperCase();
-    setNyttPrefiks(rent);
-    setKode(rent ? nesteKode(rent, rader) : "");
-  }
-
-  /** Koden styrer kategorien: skriver man «el040», er kategorien EL. */
-  function endreKode(verdi: string) {
-    setKode(verdi.toUpperCase());
-    const p = prefiksAv(verdi);
-    if (!p) return;
-    if (kategorier.some((k) => k.prefiks === p)) {
-      setKategori(p);
-    } else {
-      setKategori(NY_KATEGORI);
-      setNyttPrefiks(p);
-    }
-  }
+  const prefiks = prefiksFor(kodevalg);
 
   // Listen posten havner i: den som alt har kategorien, ellers den største.
   // Et firma har som regel én aktiv liste per type, men ikke alltid.
@@ -111,7 +81,6 @@ export function NyPost({
   }, [listerAvTypen, rader, prefiks]);
 
   const prisTall = Number(pris.replace(",", "."));
-  const kodeNorm = kode.trim() ? normaliserKode(kode) : "";
 
   function valider(): string | null {
     if (!navn.trim()) return "Posten trenger et navn.";
@@ -120,19 +89,7 @@ export function NyPost({
     }
     if (!lagre) return null;
     if (!liste) return "Det finnes ingen aktiv prisliste å lagre i.";
-    if (!prefiks) return "Velg en kategori, så posten havner riktig i prisfilen.";
-    if (kategori === NY_KATEGORI) {
-      if (kategorier.some((k) => k.prefiks === nyttPrefiks)) {
-        return `Kategorien ${nyttPrefiks} finnes allerede — velg den i listen.`;
-      }
-      if (!nyttKategorinavn.trim()) return "Gi den nye kategorien et navn, for eksempel «Bad».";
-    }
-    if (!kodeNorm) return "Posten trenger en kode.";
-    if (prefiksAv(kodeNorm) !== prefiks) {
-      return `Koden må starte med ${prefiks} for å høre til kategorien.`;
-    }
-    if (kodeFinnes(kodeNorm, rader)) return `Koden ${kodeNorm} finnes allerede.`;
-    return null;
+    return validerKodevalg(kodevalg, rader, true);
   }
 
   async function leggTil() {
@@ -164,12 +121,12 @@ export function NyPost({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           price_list_id: liste!.id,
-          code: kodeNorm,
+          code: kodeFor(kodevalg),
           name: navn.trim(),
           description: beskrivelse.trim() || null,
           unit: enhet.trim() || "stk",
           unit_price: prisTall,
-          kategori_navn: kategori === NY_KATEGORI ? nyttKategorinavn.trim() : undefined,
+          kategori_navn: kategorinavnFor(kodevalg),
         }),
       });
       const payload = await res.json();
@@ -265,67 +222,7 @@ export function NyPost({
 
       {lagre && liste && (
         <>
-          <div className="ny-post-rad">
-            <label className="field" style={{ flex: 2 }}>
-              <span className="label">Kategori</span>
-              <select
-                className="input"
-                value={kategori}
-                onChange={(e) => velgKategori(e.target.value)}
-              >
-                <option value="">Velg kategori…</option>
-                {kategorier.map((k) => (
-                  <option key={k.prefiks} value={k.prefiks}>
-                    {k.prefiks} – {k.navn ?? "(uten overskrift)"}
-                  </option>
-                ))}
-                <option value={NY_KATEGORI}>+ Ny kategori…</option>
-              </select>
-            </label>
-            <label className="field" style={{ flex: 1 }}>
-              <span className="label">Kode</span>
-              <input
-                className="input"
-                value={kode}
-                onChange={(e) => endreKode(e.target.value)}
-                placeholder="B023"
-                spellCheck={false}
-              />
-            </label>
-          </div>
-
-          {kategori === NY_KATEGORI && (
-            <div className="ny-post-rad">
-              <label className="field" style={{ flex: 1 }}>
-                <span className="label">Prefiks</span>
-                <input
-                  className="input"
-                  value={nyttPrefiks}
-                  maxLength={4}
-                  onChange={(e) => endreNyttPrefiks(e.target.value)}
-                  placeholder="GV"
-                  spellCheck={false}
-                />
-              </label>
-              <label className="field" style={{ flex: 3 }}>
-                <span className="label">Navn på kategorien</span>
-                <input
-                  className="input"
-                  value={nyttKategorinavn}
-                  onChange={(e) => setNyttKategorinavn(e.target.value)}
-                  placeholder="Gulvvarme"
-                />
-              </label>
-            </div>
-          )}
-
-          <span className="hint" style={{ marginTop: 0 }}>
-            {kategori === NY_KATEGORI
-              ? "En ny kategori får en overskriftsrad i prisfilen, som de andre, med posten under."
-              : prefiks
-                ? `Havner under de andre ${prefiks}-postene i prisfilen. Neste ledige kode er foreslått.`
-                : "Koden bestemmer hvor posten havner i prisfilen. Skriver du koden, velges kategorien."}
-          </span>
+          <KodeVelger rader={rader} verdi={kodevalg} onChange={setKodevalg} paakrevd />
 
           <label className="field" style={{ marginTop: 10 }}>
             <span className="label">Beskrivelse (valgfritt)</span>

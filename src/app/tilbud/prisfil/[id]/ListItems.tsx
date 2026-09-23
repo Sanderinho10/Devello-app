@@ -6,6 +6,14 @@ import { ExcelDrop } from "@/components/ExcelDrop";
 import { Vaskepanel } from "./Vaskepanel";
 import { PrisCelle } from "@/components/PrisCelle";
 import {
+  KodeVelger,
+  TOMT_KODEVALG,
+  kategorinavnFor,
+  kodeFor,
+  validerKodevalg,
+  type KodeValg,
+} from "@/components/KodeVelger";
+import {
   type PriceItemKind,
   type PriceList,
   type PriceListItem,
@@ -27,12 +35,12 @@ export function ListItems({
 }) {
   const router = useRouter();
   const [form, setForm] = useState({
-    code: "",
     name: "",
     description: "",
     unit: DEFAULT_UNIT[list.kind],
     unit_price: "",
   });
+  const [kodevalg, setKodevalg] = useState<KodeValg>(TOMT_KODEVALG);
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +64,12 @@ export function ListItems({
 
   async function save(event: React.FormEvent) {
     event.preventDefault();
+    setDetails([]);
+    const problem = validerKodevalg(kodevalg, items, false);
+    if (problem) {
+      setError(problem);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -65,13 +79,15 @@ export function ListItems({
         body: JSON.stringify({
           price_list_id: list.id,
           ...form,
+          code: kodeFor(kodevalg),
+          kategori_navn: kategorinavnFor(kodevalg),
           unit_price: Number(form.unit_price),
         }),
       });
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.error ?? "Kunne ikke lagre");
+      setKodevalg(TOMT_KODEVALG);
       setForm({
-        code: "",
         name: "",
         description: "",
         unit: DEFAULT_UNIT[list.kind],
@@ -207,26 +223,21 @@ export function ListItems({
             </div>
           )}
 
-          <div className="grid-2">
-            <label className="field">
-              <span className="label">Navn</span>
-              <input
-                className="input"
-                required
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Montering stikkontakt, dobbel"
-              />
-            </label>
-            <label className="field">
-              <span className="label">Kode (valgfritt)</span>
-              <input
-                className="input"
-                value={form.code}
-                onChange={(e) => setForm({ ...form, code: e.target.value })}
-                placeholder="EL-104"
-              />
-            </label>
+          <label className="field">
+            <span className="label">Navn</span>
+            <input
+              className="input"
+              required
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="Montering stikkontakt, dobbel"
+            />
+          </label>
+
+          {/* Kodene er kategorier — B er bad, EL er elbillader. Raden legges
+              inn under de andre i kategorien sin, ikke nederst. */}
+          <div style={{ marginBottom: 14 }}>
+            <KodeVelger rader={items} verdi={kodevalg} onChange={setKodevalg} paakrevd={false} />
           </div>
 
           <label className="field">
