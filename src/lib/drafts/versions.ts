@@ -30,6 +30,10 @@ export async function logDraftVersion(
     snapshot: DraftSnapshot;
     previous?: DraftSnapshot | null;
     userId?: string | null;
+    /** Tilbudsversjonen. 1 med mindre et sendt tilbud er åpnet igjen. */
+    revisjon?: number;
+    /** Bare «endelig»: PDF-en som ble laget for denne versjonen. */
+    pdfPath?: string | null;
   },
 ): Promise<boolean> {
   const { data: latest } = await supabase
@@ -52,6 +56,8 @@ export async function logDraftVersion(
     document: input.snapshot.document,
     diff: input.previous ? diffSnapshots(input.previous, input.snapshot) : null,
     created_by: input.userId ?? null,
+    revisjon: input.revisjon ?? 1,
+    pdf_path: input.pdfPath ?? null,
   });
 
   if (error) {

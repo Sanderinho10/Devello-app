@@ -42,11 +42,19 @@ export async function generateForLead(
   // lead_id, så en ny generering ville skrevet over det kunden faktisk fikk.
   const { data: eksisterande } = await admin
     .from("drafts")
-    .select("sent_at")
+    .select("sent_at, revisjon")
     .eq("lead_id", lead.id)
     .maybeSingle();
   if (eksisterande?.sent_at) {
     throw new Error("Tilbudet er sendt og kan ikke genereres på nytt.");
+  }
+  // En ny versjon er en justering av det kunden allerede har fått. Genererer
+  // agenten fra henvendelsen, er justeringen borte — og det kunden ba om
+  // etterpå, står ikke i henvendelsen.
+  if ((eksisterande?.revisjon ?? 1) > 1) {
+    throw new Error(
+      "Dette er en ny versjon av et sendt tilbud. Rediger det i stedet for å generere på nytt.",
+    );
   }
 
   // Har vi generert denne typen for dette leadet før, bruker vi den lagrede

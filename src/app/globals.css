@@ -505,6 +505,15 @@ p {
   color: #fff;
 }
 
+/* Tilbudsversjon: «v2» ved siden av statusen når et sendt tilbud er åpnet
+   igjen. Nøytral kant, så den ikke konkurrerer med statusfargen. */
+.pill.versjon {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Ordrestatus. Åpen er blå som «ny», pågår gul som «utkast klart», ferdig
    grønn, fakturert fylt grønn som endestasjonen «sendt», avbrutt grå. */
 .pill.opna {
@@ -1341,6 +1350,75 @@ p {
   color: var(--text-secondary);
 }
 
+/* «+ Lag ny post» når søket ikke finner noe. */
+.picker-create {
+  display: block;
+  margin-top: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 550;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.picker-create:hover {
+  text-decoration: underline;
+}
+
+/* Skjemaet for en post som ikke finnes i prisfilen. */
+.ny-post {
+  margin-top: 10px;
+  padding: 14px;
+  max-width: 620px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+}
+
+.ny-post-valg {
+  margin-bottom: 6px;
+}
+
+.ny-post-rad {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.ny-post-rad .field {
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.ny-post-knapper {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.add-line-rad {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.add-line-rad .picker {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 700px) {
+  .ny-post-rad {
+    flex-wrap: wrap;
+  }
+  .ny-post-rad .field {
+    flex: 1 1 100% !important;
+  }
+}
+
 .doc-totals {
   margin: 22px 0 0 auto;
   width: 300px;
@@ -1433,6 +1511,15 @@ p {
 .banner.success {
   background: var(--positive-soft);
   color: var(--positive);
+}
+
+/* En handling inni et banner — «Lag versjon 2» under «Tilbudet er sendt». */
+.banner-handling {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
 }
 
 .grid-2 {
@@ -1889,8 +1976,15 @@ p {
   margin-bottom: 6px;
 }
 
-.seksjon-topp .button {
+.seksjon-knapper {
+  display: flex;
+  gap: 4px;
   margin-left: auto;
+}
+
+.seksjon-knapper .button:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .seksjon-tittel {

@@ -32,7 +32,9 @@ export default async function LeadsPage({
   ] = await Promise.all([
     supabase
       .from("leads")
-      .select("*")
+      // Versjonen står på utkastet. Med den ser man i listen at et tilbud er
+      // åpnet igjen etter at det ble sendt.
+      .select("*, drafts(revisjon)")
       [arkiv ? "eq" : "neq"]("status", "sendt")
       .order("received_at", { ascending: false, nullsFirst: false })
       .limit(100),
@@ -63,7 +65,7 @@ export default async function LeadsPage({
       .maybeSingle(),
   ]);
 
-  const rows = (leads ?? []) as Lead[];
+  const rows = (leads ?? []) as (Lead & { drafts: DraftRevisjon })[];
   const skjulte: string[] = meg?.skjulte_varsel ?? [];
 
   return (
@@ -144,7 +146,7 @@ export default async function LeadsPage({
         ) : (
           <div className="lead-list">
             {rows.map((lead) => (
-              <LeadRow key={lead.id} lead={lead} />
+              <LeadRow key={lead.id} lead={lead} revisjon={revisjonAv(lead.drafts)} />
             ))}
           </div>
         )}
@@ -153,4 +155,15 @@ export default async function LeadsPage({
       <AutoRefresh aktiv={rows.some((lead) => lead.status === "genererer")} />
     </>
   );
+}
+
+/**
+ * drafts har ett utkast per lead, så PostgREST gir et objekt — men uten
+ * kjent én-til-én-kobling blir det en liste. Vi tåler begge.
+ */
+type DraftRevisjon = { revisjon: number } | { revisjon: number }[] | null;
+
+function revisjonAv(drafts: DraftRevisjon): number {
+  const draft = Array.isArray(drafts) ? drafts[0] : drafts;
+  return draft?.revisjon ?? 1;
 }

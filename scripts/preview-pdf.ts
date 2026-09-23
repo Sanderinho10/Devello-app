@@ -13,6 +13,9 @@ import { renderQuoteHtml } from "@/lib/pdf/template";
 import type { QuoteDocument, QuoteType } from "@/lib/types";
 
 const quoteType = (process.argv[2] as QuoteType) || "punktpris";
+// Valgfritt versjonsnummer: `npm run preview:pdf punktpris 2` viser en ny
+// versjon av et sendt tilbud.
+const versjonNr = Number(process.argv[3]) || 1;
 
 const punktpris: QuoteDocument = {
   customer: {
@@ -124,6 +127,7 @@ const html = renderQuoteHtml({
     footer_note: "Org.nr 912 345 678 MVA · Alle priser er oppgitt eks. mva.",
   },
   address: { line: "Storgata 14", postalCode: "6800", city: "Førde" },
+  versjon: { nr: versjonNr, erstatter: versjonNr > 1 ? "2026-09-12T10:00:00Z" : null },
 });
 
 const pdf = await htmlToPdf(html);

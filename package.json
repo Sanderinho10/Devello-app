@@ -21,6 +21,7 @@
     "test:popup": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-popup.ts",
     "test:epostfil": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-epostfil.ts",
     "test:vedlegg": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-vedlegg.ts",
+    "test:koder": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-koder.ts",
     "test:rabatt": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-rabatt.ts",
     "test:anonym": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-anonymiser.ts",
     "test:opplaering": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-opplaering.ts",

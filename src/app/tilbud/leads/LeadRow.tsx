@@ -26,7 +26,14 @@ const STATUS_LABEL: Record<LeadStatus, string> = {
  * En hel rad med role="button" ville pakket «Åpne»-knappen inn i en annen
  * knapp — her er det ett kontrollelement, og raden er bare et større treffområde.
  */
-export function LeadRow({ lead }: { lead: Lead }) {
+export function LeadRow({
+  lead,
+  revisjon = 1,
+}: {
+  lead: Lead;
+  /** Tilbudsversjonen. Over 1 når et sendt tilbud er åpnet igjen. */
+  revisjon?: number;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [sletter, setSletter] = useState(false);
@@ -91,6 +98,14 @@ export function LeadRow({ lead }: { lead: Lead }) {
           )}
         </div>
         <span className={`pill ${lead.status}`}>{STATUS_LABEL[lead.status]}</span>
+        {revisjon > 1 && (
+          <span
+            className="pill versjon"
+            title={`Versjon ${revisjon} — tilbudet er åpnet igjen etter at det ble sendt`}
+          >
+            v{revisjon}
+          </span>
+        )}
         <span className="lead-time">{formatDate(lead.received_at)}</span>
 
         {/* Handlingene har sin egen mening — de skal ikke åpne popupen. */}
@@ -129,7 +144,7 @@ export function LeadRow({ lead }: { lead: Lead }) {
         {sletteFeil && <div className="banner error">{sletteFeil}</div>}
 
         <div className="modal-actions">
-          {lead.status !== "genererer" && lead.status !== "sendt" && (
+          {lead.status !== "genererer" && lead.status !== "sendt" && revisjon === 1 && (
             <button
               type="button"
               className="button danger"

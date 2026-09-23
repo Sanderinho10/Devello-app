@@ -84,7 +84,7 @@ for (const lead of leads ?? []) {
 
   const { data: versjoner } = await admin
     .from("draft_versions")
-    .select("source, version, quote_type, email_subject, email_body, document")
+    .select("source, version, revisjon, quote_type, email_subject, email_body, document")
     .eq("draft_id", draft.id)
     .order("version", { ascending: true });
 
@@ -94,7 +94,12 @@ for (const lead of leads ?? []) {
   // Den endelige versjonen skal ligge i loggen. Gjør den ikke det (se
   // migrasjon 0030), er drafts-raden det nærmeste vi kommer: bekreft skriver
   // brukerens versjon dit før den logger.
-  const endeligLogget = [...(versjoner ?? [])].reverse().find((v) => v.source === "endelig") as
+  //
+  // Bare versjon 1. En senere versjon er kundens justering, ikke fasiten for
+  // henvendelsen agenten fikk.
+  const endeligLogget = [...(versjoner ?? [])]
+    .reverse()
+    .find((v) => v.source === "endelig" && (v.revisjon ?? 1) === 1) as
     | Snapshot
     | undefined;
   if (!endeligLogget) utenEndeligLogg += 1;
