@@ -15,10 +15,16 @@ export function PriceItemPicker({
   items,
   onSelect,
   placeholder = "Legg til post fra prisfilen…",
+  onCreate,
 }: {
   items: PriceListItem[];
   onSelect: (item: PriceListItem) => void;
   placeholder?: string;
+  /**
+   * Finnes ikke posten, kan man lage den herfra. Får med det man har søkt
+   * på, så man slipper å skrive navnet to ganger.
+   */
+  onCreate?: (query: string) => void;
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -68,6 +74,11 @@ export function PriceItemPicker({
       if (open && visible[highlight]) {
         event.preventDefault();
         choose(visible[highlight]);
+      } else if (open && visible.length === 0 && query.trim() && onCreate) {
+        event.preventDefault();
+        setOpen(false);
+        onCreate(query.trim());
+        setQuery("");
       }
       return;
     }
@@ -111,6 +122,20 @@ export function PriceItemPicker({
           {visible.length === 0 ? (
             <div className="picker-empty">
               Ingen prisrader matcher «{query}».
+              {onCreate && (
+                <button
+                  type="button"
+                  className="picker-create"
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    setOpen(false);
+                    onCreate(query.trim());
+                    setQuery("");
+                  }}
+                >
+                  + Lag ny post «{query.trim()}»
+                </button>
+              )}
             </div>
           ) : (
             <>

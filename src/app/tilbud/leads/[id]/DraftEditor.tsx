@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { SendSjolv } from "./SendSjolv";
 import { Forutsetninger } from "./Forutsetninger";
 import { OpprettOrdre } from "./OpprettOrdre";
+import { NyPost } from "./NyPost";
+import { erOverskrift } from "@/lib/pricelist/koder";
 import Link from "next/link";
 import { PriceItemPicker } from "@/components/PriceItemPicker";
 import { ConfidenceBadge } from "@/components/ConfidenceBadge";
@@ -58,6 +60,7 @@ export function DraftEditor({
   brand,
   address,
   priceItems,
+  prislister,
   harPostkasse,
   ordre,
 }: {
@@ -67,6 +70,8 @@ export function DraftEditor({
   /** Avsenderadressen, fra selskapet — samme kilde som PDF-en bruker. */
   address: { line: string | null; postalCode: string | null; city: string | null };
   priceItems: PriceListItem[];
+  /** De aktive prislistene. En ny post som skal lagres, går inn i en av dem. */
+  prislister: { id: string; kind: PriceItemKind }[];
   /** Har selskapet en Microsoft 365-postkasse koblet til? */
   harPostkasse: boolean;
   /**
@@ -107,6 +112,23 @@ export function DraftEditor({
   } | null>(null);
 
   const [sendSjolv, setSendSjolv] = useState<SendSjolvData | null>(null);
+
+  /** Seksjonen der skjemaet for en ny post står åpent, og navnet det startet med. */
+  const [nyPost, setNyPost] = useState<{ section: number; navn: string } | null>(null);
+
+  /**
+   * Poster lagret i prisfilen herfra. Siden henter prisfilen på nytt, men til
+   * det er gjort skal posten allerede finnes — ellers ser den ut som en
+   * overstyrt pris.
+   */
+  const [lagredePrisrader, setLagredePrisrader] = useState<PriceListItem[]>([]);
+  const allePrisrader = useMemo(
+    () => [
+      ...priceItems,
+      ...lagredePrisrader.filter((ny) => !priceItems.some((item) => item.id === ny.id)),
+    ],
+    [priceItems, lagredePrisrader],
+  );
 
   const [dragging, setDragging] = useState<DragRef | null>(null);
   const [dragOver, setDragOver] = useState<DragRef | null>(null);
@@ -421,7 +443,7 @@ export function DraftEditor({
 
   /** Prisen raden ville hatt fra prisfilen, hvis den peker på en rad der. */
   function katalogpris(line: QuoteLine): number | null {
-    const rad = priceItems.find((item) => item.id === line.price_item_id);
+    const rad = allePrisrader.find((item) => item.id === line.price_item_id);
     return rad ? Number(rad.unit_price) : null;
   }
 
@@ -456,7 +478,7 @@ export function DraftEditor({
    * skal en pris endres, endrer man prisfilen — da gjelder den for alle tilbud.
    */
   function addLine(sectionIndex: number, priceItemId: string) {
-    const item = priceItems.find((candidate) => candidate.id === priceItemId);
+    const item = allePrisrader.find((candidate) => candidate.id === priceItemId);
     if (!item) return;
     updateSectionLines(sectionIndex, (lines) => [
       ...lines,
@@ -802,11 +824,11 @@ export function DraftEditor({
           </div>
 
           {document.sections.map((section, sectionIndex) => {
-            const available = itemsForSection(
-              quoteType,
-              sectionIndex,
-              section.title,
-              priceItems,
+            const kind = kindForSection(quoteType, sectionIndex, section.title);
+            // Overskriftsradene deler inn prisfilen — «B = Bad», 0 kr — og er
+            // ingen post man legger i et tilbud.
+            const available = allePrisrader.filter(
+              (item) => item.kind === kind && !erOverskrift(item),
             );
 
             return (
@@ -943,6 +965,9 @@ export function DraftEditor({
                                 })
                               }
                             />
+                            {!line.price_item_id && (
+                              <div className="tiny muted">Egen post · ikke i prisfilen</div>
+                            )}
                           </td>
                           <td className="num">
                             <input
@@ -974,9 +999,12 @@ export function DraftEditor({
                               value={line.unit_price}
                               onChange={(e) => {
                                 const pris = Number(e.target.value);
+                                const fraFil = katalogpris(line);
                                 updateLine(sectionIndex, lineIndex, {
                                   unit_price: pris,
-                                  unit_price_manual: pris !== katalogpris(line),
+                                  // En egen post har ingen pris i prisfilen å
+                                  // avvike fra — prisen er bare prisen.
+                                  unit_price_manual: fraFil !== null && pris !== fraFil,
                                 });
                               }}
                             />
@@ -1050,12 +1078,41 @@ export function DraftEditor({
                   </tbody>
                 </table>
 
-                {available.length > 0 ? (
+                {nyPost?.section === sectionIndex ? (
+                  <NyPost
+                    kind={kind}
+                    priceItems={allePrisrader}
+                    lister={prislister}
+                    seksjonstittel={section.title}
+                    startNavn={nyPost.navn}
+                    onAvbryt={() => setNyPost(null)}
+                    onLeggTil={(line, nyRad) => {
+                      if (nyRad) {
+                        setLagredePrisrader((current) => [...current, nyRad]);
+                        // Prisfilen på siden hentes på nytt, så posten er med
+                        // i søket også etter en oppdatering.
+                        router.refresh();
+                      }
+                      updateSectionLines(sectionIndex, (lines) => [...lines, line]);
+                      setNyPost(null);
+                    }}
+                  />
+                ) : available.length > 0 ? (
                   <div className="add-line">
-                    <PriceItemPicker
-                      items={available}
-                      onSelect={(item) => addLine(sectionIndex, item.id)}
-                    />
+                    <div className="add-line-rad">
+                      <PriceItemPicker
+                        items={available}
+                        onSelect={(item) => addLine(sectionIndex, item.id)}
+                        onCreate={(navn) => setNyPost({ section: sectionIndex, navn })}
+                      />
+                      <button
+                        type="button"
+                        className="button ghost"
+                        onClick={() => setNyPost({ section: sectionIndex, navn: "" })}
+                      >
+                        + Ny post
+                      </button>
+                    </div>
                     {quoteType === "fastpris" && (
                       // På fastpris avgjør overskriften hvilken prisliste
                       // seksjonen henter fra — «arbeid» og «timer» gir
@@ -1063,7 +1120,7 @@ export function DraftEditor({
                       // ellers avgjør rekkefølgen. Det er en regel man ikke
                       // kan se, så den står her i stedet for å overraske.
                       <span className="hint">
-                        Henter fra {available[0].kind === "time" ? "timeprislisten" : "materiellisten"}.
+                        Henter fra {kind === "time" ? "timeprislisten" : "materiellisten"}.
                         Skriv «arbeid» eller «materiell» i overskriften for å styre det.
                       </span>
                     )}
@@ -1071,10 +1128,18 @@ export function DraftEditor({
                 ) : (
                   <p className="hint">
                     Ingen passende prisrader.{" "}
+                    <button
+                      type="button"
+                      className="linkish"
+                      onClick={() => setNyPost({ section: sectionIndex, navn: "" })}
+                    >
+                      Legg til en ny post
+                    </button>
+                    , eller{" "}
                     <Link href="/tilbud/prisfil" style={{ textDecoration: "underline" }}>
-                      Legg dem inn under Prisfil
-                    </Link>{" "}
-                    for å kunne bruke dem her.
+                      importer prisfilen
+                    </Link>
+                    .
                   </p>
                 )}
               </div>
@@ -1240,24 +1305,13 @@ export function DraftEditor({
  * hver for seg — vi leser seksjonstittelen først, og faller tilbake på rekkefølgen
  * hvis modellen har kalt seksjonene noe annet enn ventet.
  */
-function itemsForSection(
+function kindForSection(
   quoteType: QuoteType,
   sectionIndex: number,
   sectionTitle: string,
-  items: PriceListItem[],
-): PriceListItem[] {
-  if (quoteType === "punktpris") {
-    return items.filter((item) => item.kind === "punktpris");
-  }
-
-  let wanted: PriceItemKind;
-  if (/arbeid|time|timer/i.test(sectionTitle)) {
-    wanted = "time";
-  } else if (/materiell|material|utstyr/i.test(sectionTitle)) {
-    wanted = "materiell";
-  } else {
-    wanted = sectionIndex === 0 ? "materiell" : "time";
-  }
-
-  return items.filter((item) => item.kind === wanted);
+): PriceItemKind {
+  if (quoteType === "punktpris") return "punktpris";
+  if (/arbeid|time|timer/i.test(sectionTitle)) return "time";
+  if (/materiell|material|utstyr/i.test(sectionTitle)) return "materiell";
+  return sectionIndex === 0 ? "materiell" : "time";
 }

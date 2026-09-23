@@ -8,6 +8,7 @@ import {
   formatDate,
   type Draft,
   type Lead,
+  type PriceItemKind,
   type PriceListItem,
 } from "@/lib/types";
 
@@ -62,7 +63,7 @@ export default async function LeadPage({
       .single(),
     supabase
       .from("price_lists")
-      .select("id")
+      .select("id, kind")
       .eq("company_id", lead.company_id)
       .eq("active", true),
     // Uten postkasse handler bekreft om PDF-en, ikke om en kladd i Outlook.
@@ -118,6 +119,7 @@ export default async function LeadPage({
               city: company?.billing_city ?? null,
             }}
             priceItems={(priceItems ?? []) as PriceListItem[]}
+            prislister={(activeLists ?? []) as { id: string; kind: PriceItemKind }[]}
             harPostkasse={Boolean(mailbox)}
             ordre={{
               aktiv: harModul(company?.moduler, "ordre"),
