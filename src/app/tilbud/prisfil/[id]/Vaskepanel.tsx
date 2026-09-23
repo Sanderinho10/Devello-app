@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { vaskPrisliste, vaskSamandrag, type Funn } from "@/lib/pricelist/vask";
+import { erOverskrift } from "@/lib/pricelist/koder";
 import type { PriceListItem } from "@/lib/types";
 
 /**
@@ -36,7 +37,10 @@ export function Vaskepanel({
     () =>
       vaskPrisliste(
         items
-          .filter((i) => i.active)
+          // Overskriftsradene — «B = Bad», 0 kr — deler inn lista og skal
+          // stå uten pris. Tatt med ville hver kategori blitt en falsk
+          // «rad uten pris».
+          .filter((i) => i.active && !erOverskrift(i))
           .map((i) => ({
             id: i.id,
             name: i.name,
