@@ -505,6 +505,15 @@ p {
   color: #fff;
 }
 
+/* Tilbudsversjon: «v2» ved siden av statusen når et sendt tilbud er åpnet
+   igjen. Nøytral kant, så den ikke konkurrerer med statusfargen. */
+.pill.versjon {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Ordrestatus. Åpen er blå som «ny», pågår gul som «utkast klart», ferdig
    grønn, fakturert fylt grønn som endestasjonen «sendt», avbrutt grå. */
 .pill.opna {
