@@ -360,6 +360,35 @@ export function DraftEditor({
     );
   }
 
+  /**
+   * Flytter hele seksjonen — overskrift og poster — ett hakk opp eller ned.
+   * Rekkefølgen her er rekkefølgen på PDF-en.
+   */
+  function moveSection(sectionIndex: number, direction: -1 | 1) {
+    const to = sectionIndex + direction;
+    if (!document || to < 0 || to >= document.sections.length) return;
+
+    setDocument((current) => {
+      if (!current) return current;
+      const sections = [...current.sections];
+      const [moved] = sections.splice(sectionIndex, 1);
+      sections.splice(to, 0, moved);
+      return { ...current, sections };
+    });
+
+    // Seksjonene har indeks som nøkkel, så fokus ville blitt stående igjen på
+    // plassen og ikke fulgt med seksjonen. Flytt det etter, så man kan trykke
+    // flere ganger på rad. Står den nå øverst eller nederst, er knappen i den
+    // retningen skrudd av — da tar vi den andre.
+    requestAnimationFrame(() => {
+      const atEdge = to === 0 || to === document.sections.length - 1;
+      const knapp = atEdge ? -direction : direction;
+      window.document
+        .querySelector<HTMLButtonElement>(`[data-seksjon-flytt="${to}:${knapp}"]`)
+        ?.focus();
+    });
+  }
+
   function removeSection(sectionIndex: number) {
     if (!document) return;
     const section = document.sections[sectionIndex];
@@ -715,13 +744,37 @@ export function DraftEditor({
                     onChange={(e) => updateSectionTitle(sectionIndex, e.target.value)}
                   />
                   {document.sections.length > 1 && (
-                    <button
-                      type="button"
-                      className="button ghost"
-                      onClick={() => removeSection(sectionIndex)}
-                    >
-                      Fjern
-                    </button>
+                    <div className="seksjon-knapper">
+                      <button
+                        type="button"
+                        className="button ghost"
+                        data-seksjon-flytt={`${sectionIndex}:-1`}
+                        title="Flytt seksjonen opp"
+                        aria-label={`Flytt «${section.title || "seksjonen"}» opp`}
+                        disabled={sectionIndex === 0}
+                        onClick={() => moveSection(sectionIndex, -1)}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        className="button ghost"
+                        data-seksjon-flytt={`${sectionIndex}:1`}
+                        title="Flytt seksjonen ned"
+                        aria-label={`Flytt «${section.title || "seksjonen"}» ned`}
+                        disabled={sectionIndex === document.sections.length - 1}
+                        onClick={() => moveSection(sectionIndex, 1)}
+                      >
+                        ↓
+                      </button>
+                      <button
+                        type="button"
+                        className="button ghost"
+                        onClick={() => removeSection(sectionIndex)}
+                      >
+                        Fjern
+                      </button>
+                    </div>
                   )}
                 </div>
 

@@ -1889,8 +1889,15 @@ p {
   margin-bottom: 6px;
 }
 
-.seksjon-topp .button {
+.seksjon-knapper {
+  display: flex;
+  gap: 4px;
   margin-left: auto;
+}
+
+.seksjon-knapper .button:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .seksjon-tittel {
