@@ -4,6 +4,21 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { FileDrop } from "@/components/FileDrop";
 import { supabaseBrowser } from "@/lib/supabase/client";
+
+/**
+ * Leser JSON fra et svar, og gir en lesbar feil når serveren svarte med
+ * HTML (innloggingsside, dev-server-feil) i stedet for data.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function lesJson(res: Response): Promise<any> {
+  const tekst = await res.text();
+  try {
+    return JSON.parse(tekst);
+  } catch {
+    const kort = tekst.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160);
+    throw new Error(`Serveren svarte ${res.status} med en side i stedet for data. ${res.status === 401 || /logg inn/i.test(kort) ? "Du er trolig logget ut — last siden på nytt." : `Se terminalen der dev-serveren kjører. ${kort}`}`);
+  }
+}
 import {
   IMPORT_JOB_SOURCE_LABELS,
   IMPORT_JOB_STATUS_LABELS,
@@ -217,7 +232,7 @@ function FtpDel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      const payload = await res.json();
+      const payload = await lesJson(res);
       if (!res.ok) throw new Error(payload.error ?? "Kunne ikke lagre");
       setForm((f) => ({ ...f, password: "" }));
       setMelding("Lagret.");
@@ -239,7 +254,7 @@ function FtpDel({
     setListe(null);
     try {
       const res = await fetch(`/api/grossist/${grossist.id}/ftp/test`, { method: "POST" });
-      const payload = await res.json();
+      const payload = await lesJson(res);
       if (!res.ok) throw new Error(payload.error ?? "Tilkoblingen feilet");
       setListe(payload);
     } catch (err) {
@@ -258,7 +273,7 @@ function FtpDel({
     setMelding(null);
     try {
       const res = await fetch(`/api/grossist/${grossist.id}/hent`, { method: "POST" });
-      const payload = await res.json();
+      const payload = await lesJson(res);
       if (!res.ok) throw new Error(payload.error ?? "Kunne ikke starte");
       onJobb(payload as ImportJob);
     } catch (err) {
@@ -396,7 +411,7 @@ function OpplastingDel({ grossist, live, onJobb }: { grossist: Supplier; live: I
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ varefil_name: varefil.name, rabattfil_name: rabattfil?.name ?? null }),
       });
-      const s = await start.json();
+      const s = await lesJson(start);
       if (!start.ok) throw new Error(s.error ?? "Kunne ikke starte opplastingen");
 
       const supabase = supabaseBrowser();
@@ -416,7 +431,7 @@ function OpplastingDel({ grossist, live, onJobb }: { grossist: Supplier; live: I
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jobId: s.jobId }),
       });
-      const j = await ferdig.json();
+      const j = await lesJson(ferdig);
       if (!ferdig.ok) throw new Error(j.error ?? "Kunne ikke starte importen");
       onJobb(j as ImportJob);
       setVarefil(null);
