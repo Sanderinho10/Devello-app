@@ -92,7 +92,7 @@ Eller lim inn migrasjonene i SQL-editoren i rekkefølge, så `seed.sql`.
 | `0035_regnskapskopling_og_leverandorfakturaer.sql` | Kobling til regnskapssystem (client key skjult for nettleseren), leverandørfakturaer og EHF-linjer, `replaced_by` på materiell |
 | `0036_fakturaforslag.sql` | `invoice_drafts` og versjonslogg, `invoice_draft_id` på timer og materiell (låser fakturerte føringer), produktmapping og innstillinger på koplinga |
 | `0037_dokumentasjon_og_boligmappa.sql` | `order_documents` (skjema fra mal eller opplastet fil, signatur, Boligmappa-status), `boligmappa_connections` (tokens uten policy), eiendom på ordren, `boligmappa_plants` |
-| `0038_grossist_ftp_og_importjobbar.sql` | `supplier_ftp` (FTP-oppsett per grossist, passord uten policy), `import_jobs` (kø → henter → importerer → ferdig/feil), bucket `supplier-files` |
+| `0042_grossist_ftp_og_importjobbar.sql` | `supplier_ftp` (FTP-oppsett per grossist, passord uten policy), `import_jobs` (kø → henter → importerer → ferdig/feil), bucket `supplier-files` |
 
 ### 3. Azure
 
