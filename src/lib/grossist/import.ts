@@ -58,7 +58,9 @@ export async function importerVarefil(
     .maybeSingle();
   if (!grossist) throw new Error("Fant ikke grossisten.");
   const felt: Record<string, string> = {};
-  if (!grossist.customer_no && fil.header.customerNo) felt.customer_no = fil.header.customerNo;
+  // Onninen har kundenummeret bare i rabattfilas header.
+  const kundenr = fil.header.customerNo || rabatter?.customerNo || "";
+  if (!grossist.customer_no && kundenr) felt.customer_no = kundenr;
   if (!grossist.seller_id && fil.header.sellerId) felt.seller_id = fil.header.sellerId;
   if (Object.keys(felt).length) await admin.from("suppliers").update(felt).eq("id", grossist.id);
 
@@ -129,17 +131,40 @@ export async function importerVarefil(
   if (rabatter) {
     // Én oppdatering per 500 grupper — ikke én per gruppe. Onninen har
     // rundt 3 000 grupper, og hvert kall skannet før alle varene.
-    const alle = [...rabatter];
-    const GRUPPER = 500;
-    for (let i = 0; i < alle.length; i += GRUPPER) {
-      const del = Object.fromEntries(alle.slice(i, i + GRUPPER));
+    const DEL = 500;
+    const grupper = [...rabatter.grupper];
+    for (let i = 0; i < grupper.length; i += DEL) {
+      const del = Object.fromEntries(grupper.slice(i, i + DEL));
       const { data, error } = await admin.rpc("sett_rabattar", {
         p_supplier: input.supplierId,
         p_rabattar: del,
       });
-      if (error) throw new Error(`Rabatt for gruppene fra ${alle[i][0]} feilet: ${error.message}`);
+      if (error) throw new Error(`Rabatt for gruppene fra ${grupper[i][0]} feilet: ${error.message}`);
       medRabatt += Number(data ?? 0);
     }
+    // Avtalt pris per vare overstyrer gruppens rabatt — derfor etterpå.
+    const varer = [...rabatter.varer];
+    let medAvtale = 0;
+    for (let i = 0; i < varer.length; i += DEL) {
+      const del = Object.fromEntries(varer.slice(i, i + DEL).map(([nr, v]) => [nr, { n: v.nettopris, p: v.rabattPct }]));
+      const { data, error } = await admin.rpc("sett_nettoprisar", {
+        p_supplier: input.supplierId,
+        p_varer: del,
+      });
+      if (error) throw new Error(`Avtalt pris for varene fra ${varer[i][0]} feilet: ${error.message}`);
+      medAvtale += Number(data ?? 0);
+    }
+    if (varer.length > 0) {
+      fil.warnings.push(`${medAvtale} av ${varer.length} varer med avtalt pris finnes i varefila.`);
+    }
+    // Tell alt med nettopris — ikke sum av oppdateringer, som teller varer to ganger.
+    const { count } = await admin
+      .from("supplier_items")
+      .select("id", { count: "exact", head: true })
+      .eq("supplier_id", input.supplierId)
+      .eq("active", true)
+      .not("net_price_per_unit", "is", null);
+    medRabatt = count ?? medRabatt;
   } else if (!erPristilbud) {
     const { data, error } = await admin.rpc("rekn_om_nettoprisar", { p_supplier: input.supplierId });
     if (error) throw new Error(`Kunne ikke regne om nettopriser: ${error.message}`);

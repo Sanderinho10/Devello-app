@@ -93,6 +93,8 @@ Eller lim inn migrasjonene i SQL-editoren i rekkefølge, så `seed.sql`.
 | `0036_fakturaforslag.sql` | `invoice_drafts` og versjonslogg, `invoice_draft_id` på timer og materiell (låser fakturerte føringer), produktmapping og innstillinger på koplinga |
 | `0037_dokumentasjon_og_boligmappa.sql` | `order_documents` (skjema fra mal eller opplastet fil, signatur, Boligmappa-status), `boligmappa_connections` (tokens uten policy), eiendom på ordren, `boligmappa_plants` |
 | `0042_grossist_ftp_og_importjobbar.sql` | `supplier_ftp` (FTP-oppsett per grossist, passord uten policy), `import_jobs` (kø → henter → importerer → ferdig/feil), bucket `supplier-files` |
+| `0043_rabatt_i_eitt_kall.sql` | indeks på rabattgruppe, `sett_rabattar(jsonb)` — rabatt for 500 grupper per kall |
+| `0044_avtalt_pris_per_vare.sql` | `sett_nettoprisar(jsonb)` — avtalt nettopris/rabatt per varenummer fra rabattfila |
 
 ### 3. Azure
 
@@ -236,6 +238,14 @@ linja. Kundespesifikke pristilbud (`PH`/`PL`) og rabattfiler leser vi også.
 `src/lib/grossist/nelfo4.ts` er parseren; `npm run test:nelfo4` prøver den
 uten fil og uten database.
 
+Lært av Onninens ekte filer: `V4priser.all` er listeprisene med
+rabattgruppe (`F4S`), `V4priser.kost` er kundens nettopriser med en
+kode (`&10`) i samme felt — bruk `.all` + `R4rabatt.txt`, så finnes både
+liste og netto. Rabattfila er NELFO 4.0 med to linjetyper: rabattype 5 er
+rabatt per gruppe, rabattype 1 er avtalt nettopris per varenummer og
+overstyrer gruppa. Kundenummeret står bare i rabattfilas header.
+Varenavn klippes ved 30 tegn midt i ordet og limes sammen igjen.
+
 Katalogen holdes oppdatert på tre måter, alle gjennom den samme importen
 i `src/lib/grossist/import.ts`:
 
@@ -248,7 +258,7 @@ i `src/lib/grossist/import.ts`:
    aldri leses fra nettleseren. Nyeste fil som matcher mønsteret hentes;
    samme fil som sist (navn + mtime) hoppes over. `npm run test:ftp-monster`
    prøver mønster-matchingen uten nettverk. `npm run ftp:hent -- Onninen
-   V4priser.kost sti\til\fil` henter én fil med det lagrede oppsettet og
+   V4priser.all sti\til\fil` henter én fil med det lagrede oppsettet og
    lagrer den lokalt — til å se på formatet.
 2. **Opplasting i nettleseren.** Dra inn fila; den går rett til Storage
    (`supplier-files`) med signert lenke, aldri gjennom Next, og importen
