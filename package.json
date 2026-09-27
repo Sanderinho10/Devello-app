@@ -29,13 +29,17 @@
     "test:ehf": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-ehf.ts",
     "test:faktura": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-faktura.ts",
     "test:dokumentasjon": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-dokumentasjon.ts",
-    "grossist:importer": "node --env-file=.env.local --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/importer-grossist.ts"
+    "grossist:importer": "node --env-file=.env.local --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/importer-grossist.ts",
+    "test:ftp-monster": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-ftp-monster.ts",
+    "nattjobb": "node --env-file-if-exists=.env.local --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/nattjobb.ts",
+    "ftp:hent": "node --env-file=.env.local --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/hent-fra-ftp.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.117.1",
     "@kenjiuno/msgreader": "^1.28.0",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.58.0",
+    "basic-ftp": "^6.2.1",
     "exceljs": "^4.4.0",
     "fast-xml-parser": "^5.11.1",
     "heic-decode": "^2.1.0",
@@ -47,12 +51,14 @@
     "postal-mime": "^3.0.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "sharp": "^0.35.4"
+    "sharp": "^0.35.4",
+    "ssh2-sftp-client": "^12.1.1"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "@types/ssh2-sftp-client": "^9.0.6",
     "typescript": "^5.9.0"
   }
 }

@@ -2506,3 +2506,68 @@ p {
     flex-wrap: wrap;
   }
 }
+
+/* Grossister: FTP, opplasting og importjobber (steg 2b) */
+.grossist-del {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.framdrift {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.framdrift-fyll {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.4s ease;
+}
+
+.filliste {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.fil-rad {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.fil-rad:last-child {
+  border-bottom: none;
+}
+
+.fil-rad.vald {
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+.jobb-rad {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 7px 0;
+  border-top: 1px solid var(--border);
+}
+
+.jobb-rad:first-of-type {
+  border-top: none;
+}
+
+@media (max-width: 700px) {
+  .grossist-kort .grid-2 {
+    grid-template-columns: 1fr;
+  }
+}

@@ -250,6 +250,55 @@ Vil du ha en «Prøv gratis»-knapp også, peker den på
 
 ---
 
+## Nattjobb — prisfiler og leverandørfakturaer hver natt
+
+`npm run nattjobb` henter prisfiler fra grossistenes FTP for alle
+grossister med «Hent automatisk hver natt» på, og synkroniserer
+leverandørfakturaer fra PowerOffice Go for alle selskap med aktiv kopling.
+Den skriver én logglinje per selskap og grossist og avslutter med exit 1 om
+noe feilet, så Railway viser kjøringen rød.
+
+Railway kjører den som en **egen service med cron-plan** i samme prosjekt —
+samme repo og Dockerfile som appen, men en annen startkommando. Ingen
+ekstern cron-tjeneste. Slik:
+
+1. I Railway-prosjektet: **New** → **GitHub Repo** → velg **Devello-app**
+   igjen. Du får en service nummer to. Gi den navnet `nattjobb`
+   (Settings → Service Name).
+2. **Settings → Source**: samme gren som appen. **Build**: Builder
+   «Dockerfile».
+3. **Settings → Deploy → Cron Schedule**: `0 3 * * *`. Railway evaluerer
+   cron i UTC — `0 3` er 05:00 norsk sommertid, 04:00 vintertid.
+4. **Settings → Deploy → Custom Start Command**: `npm run nattjobb`.
+   Dockerfilens `CMD` (`npm run start`) blir overstyrt; bildet er det samme.
+5. **Variables**: de samme som appen. Enkleste: åpne appens Variables →
+   Raw Editor → kopier alt → lim inn i nattjobb-servicen. (Railway kan også
+   dele variabler via «Shared Variables» på prosjektnivå, med referanser
+   `${{shared.NAVN}}` i hver service — velg det om du orker å sette det opp
+   én gang.) Nattjobben trenger `NEXT_PUBLIC_SUPABASE_URL`,
+   `SUPABASE_SERVICE_ROLE_KEY` og `POGO_*`; resten skader ikke.
+6. Ikke gi servicen noe domene — den har ingen server å svare på.
+7. Test uten å vente på natta: **Deployments → ⋮ → Run now** (eller trykk
+   på cron-ikonet). Loggen skal ende med `[nattjobb] Ferdig på … s`.
+
+Det jeg fant i Railways dokumentasjon om cron (docs.railway.com/cron-jobs,
+lest via søk 2026-09-27 — siden var ikke tilgjengelig direkte):
+
+- Cron-tjenester er en egenskap på servicen (Cron Schedule i Settings) og
+  finnes på betalte planer, Hobby inkludert. Servicen teller mot forbruket
+  bare mens den kjører.
+- Startkommandoen kjøres på planen; prosessen **må avslutte** når jobben
+  er gjort. En prosess som blir stående, gjør at neste kjøring hoppes over.
+  Nattjobben kaller `process.exit` eksplisitt av den grunn.
+- Tidene er UTC, minste intervall 5 minutter, og kjøringen kan starte noen
+  minutter etter planlagt tid. På Hobby kan første kjøring ha 5–20 sekunder
+  kaldstart.
+- Kjører forrige kjøring fortsatt når neste er planlagt, hoppes den nye over.
+
+Lokalt: `npm run nattjobb` leser `.env.local` og gjør det samme mot
+databasen din. Kjør den én gang mot Star Elektro sin Onninen-FTP før du
+skrur på cron-planen.
+
 ## Sjekkliste før Star Elektro slipper til
 
 Gå gjennom denne på `https://app.devello.no` — ikke på localhost:
@@ -263,6 +312,7 @@ Gå gjennom denne på `https://app.devello.no` — ikke på localhost:
 - [ ] SMTP er satt opp og `AUTH_REQUIRE_EMAIL_CONFIRMATION=true`
 - [ ] Prisene i `src/lib/billing/plans.ts` og kickback-prosenten i databasen
       er de reelle, ikke plassholderne
+- [ ] Nattjobb-servicen er satt opp med cron-plan, og «Run now» gir grønn logg
 
 ## Når noe er galt
 

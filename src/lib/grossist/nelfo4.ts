@@ -153,6 +153,20 @@ export function parseNelfo4Tekst(tekst: string): Nelfo4Fil {
   return { header, lines: [...linjerPerNokkel.values()], warnings };
 }
 
+/**
+ * Varebetegnelse 1 + 2. Onninen klipper navnet ved 30 tegn midt i ordet
+ * («BRANNALARMKABEL 2X1MM GRØNN TA» + «LEVASLING»), så når første del er
+ * fylt helt opp og andre del ikke selv begynner med mellomrom, limes de
+ * rett sammen. Ellers er del 2 en egen beskrivelse og får mellomrom foran.
+ */
+export function slaaSamanNamn(del1: string, del2: string): string {
+  const a = del1.trimEnd();
+  if (!del2.trim()) return a.trim();
+  if (!a.trim()) return del2.trim();
+  const klipt = del1.length >= 30 && !/\s$/.test(del1) && !/^\s/.test(del2);
+  return (klipt ? a + del2 : `${a} ${del2.trimStart()}`).replace(/\s+/g, " ").trim();
+}
+
 function lesVarelinje(
   f: string[],
   radnr: number,
@@ -166,7 +180,7 @@ function lesVarelinje(
   }
 
   const itemKind = heiltal(f[1]) ?? 0;
-  const name = [f[3], f[4]].map((s) => (s ?? "").trim()).filter(Boolean).join(" ");
+  const name = slaaSamanNamn(f[3] ?? "", f[4] ?? "");
   if (!name) advar(`Rad ${radnr}: ${itemNo} har ikke navn.`);
 
   let unit = ENHET[(f[5] ?? "").trim()];
@@ -233,14 +247,27 @@ function lesVarelinje(
 // Rabattfil
 // ---------------------------------------------------------------------------
 
+export interface Rabattfil {
+  /** Rabatt i prosent per rabattgruppe. */
+  grupper: Map<string, number>;
+  /** Avtalt pris per varenummer: nettopris (per prisenhet, som i varefila) eller rabatt. */
+  varer: Map<string, { nettopris: number | null; rabattPct: number | null }>;
+  /** Kundenummer hos grossisten, fra RH-headeren. Onninen har det bare her. */
+  customerNo: string | null;
+}
+
 /**
- * Rabatt per rabattgruppe.
+ * To layouter er støttet:
  *
- * Formatet er ikke publisert i samme spesifikasjon som varefila, og
- * grossistene varierer litt. Det vi vet: semikolonseparert, en header-linje
- * øverst, så «RabattGruppe;Rabatt» per linje — eventuelt med en posttype
- * først. Rabatten kan stå med to implisitte desimaler («2500» = 25 %) eller
- * med desimalkomma («25,00»).
+ * 1. NELFO 4.0 rabattfil, slik Onninen leverer den (R4rabatt.txt):
+ *    «RH;EFONELFO;4.0;…;kundenr;…» øverst, så RL-linjer med feltene
+ *    posttype; rabattype; kode; nettopris; rabatt; beskrivelse.
+ *    Rabattype 5 = rabatt per rabattgruppe: «RL;5;F11;;6575;…» er 65,75 %
+ *    på gruppe F11. Rabattype 1 = avtale per varenummer:
+ *    «RL;1;1600954;91981;0;…» er nettopris 919,81 på vare 1600954.
+ *    Nettopris og rabatt har to implisitte desimaler.
+ * 2. Enkel liste: «RabattGruppe;Rabatt» per linje, eventuelt med en
+ *    posttype først. Rabatten kan stå som «2500» (= 25 %) eller «25,00».
  *
  * Kjenner vi ikke igjen fila, kaster vi en feil som siterer de tre første
  * linjene, så formatet kan tilpasses uten å gjette.
@@ -248,43 +275,81 @@ function lesVarelinje(
 export async function parseRabattfil(
   bytes: Uint8Array | ArrayBuffer,
   filnavn = "",
-): Promise<Map<string, number>> {
-  return parseRabattfilTekst(await dekod(bytes, filnavn));
+  advar?: (melding: string) => void,
+): Promise<Rabattfil> {
+  return parseRabattfilTekst(await dekod(bytes, filnavn), advar);
 }
 
-export function parseRabattfilTekst(tekst: string): Map<string, number> {
+export function parseRabattfilTekst(
+  tekst: string,
+  advar: (melding: string) => void = () => {},
+): Rabattfil {
   const linjer = tekst.split(/\r\n|\n|\r/).filter((l) => l.trim().length > 0);
-  const rabatter = new Map<string, number>();
+  const grupper = new Map<string, number>();
+  const varer = new Map<string, { nettopris: number | null; rabattPct: number | null }>();
+  let customerNo: string | null = null;
   let ulesbare = 0;
 
   for (const linje of linjer) {
     const f = felt(linje);
+    const posttype = (f[0] ?? "").trim().toUpperCase();
+
     // Header-linjer: RH/PH/VH, eller en tekstoverskrift uten tall.
-    if (/^(RH|PH|VH)$/i.test(f[0] ?? "")) continue;
+    if (/^(RH|PH|VH)$/.test(posttype)) {
+      if (posttype === "RH" && (f[5] ?? "").trim()) customerNo = (f[5] ?? "").trim();
+      continue;
+    }
 
-    // Med posttype først (RL;gruppe;rabatt) eller uten (gruppe;rabatt).
-    const harPosttype = /^[A-Z]{2}$/.test(f[0] ?? "") && f.length >= 3;
+    // NELFO 4.0: RL;rabattype;kode;nettopris;rabatt;beskrivelse
+    const erNelfoRl =
+      posttype === "RL" &&
+      f.length >= 5 &&
+      /^\d+$/.test((f[1] ?? "").trim()) &&
+      lesProsent((f[4] ?? "").trim()) !== null;
+
+    if (erNelfoRl) {
+      const type = (f[1] ?? "").trim();
+      const kode = (f[2] ?? "").trim();
+      const nettoRaa = heiltal(f[3]);
+      const pct = lesProsent((f[4] ?? "").trim()) ?? 0;
+      if (!kode) {
+        ulesbare += 1;
+        continue;
+      }
+      if (type === "1") {
+        const nettopris = nettoRaa !== null && nettoRaa > 0 ? nettoRaa / 100 : null;
+        varer.set(kode, { nettopris, rabattPct: nettopris === null ? pct : null });
+      } else {
+        grupper.set(kode, pct);
+      }
+      continue;
+    }
+
+    // Enkel liste: med posttype først (RL;gruppe;rabatt) eller uten (gruppe;rabatt).
+    const harPosttype = /^[A-Z]{2}$/.test(posttype) && f.length >= 3;
     const gruppe = (harPosttype ? f[1] : f[0])?.trim();
-    const rabattTekst = (harPosttype ? f[2] : f[1])?.trim();
-    const pct = lesProsent(rabattTekst);
-
+    const pct = lesProsent((harPosttype ? f[2] : f[1])?.trim());
     if (!gruppe || pct === null) {
       ulesbare += 1;
       continue;
     }
-    rabatter.set(gruppe, pct);
+    grupper.set(gruppe, pct);
   }
 
   // Én tekstoverskrift er greit; en fil der halvparten ikke gir mening, er
   // et annet format.
-  if (rabatter.size === 0 || ulesbare > Math.max(1, rabatter.size)) {
+  const lest = grupper.size + varer.size;
+  if (lest === 0 || ulesbare > Math.max(1, lest)) {
     throw new Error(
-      "Kjenner ikke igjen rabattfila — venter «RabattGruppe;Rabatt» per linje. " +
+      "Kjenner ikke igjen rabattfila — venter NELFO 4.0 (RL-linjer) eller «RabattGruppe;Rabatt» per linje. " +
         "De tre første linjene:\n" +
         linjer.slice(0, 3).join("\n"),
     );
   }
-  return rabatter;
+  if (varer.size > 0) {
+    advar(`Rabattfila har avtalt pris på ${varer.size} enkeltvarer i tillegg til ${grupper.size} rabattgrupper.`);
+  }
+  return { grupper, varer, customerNo };
 }
 
 /** «25,5» → 25.5 (desimaltegn); «2550» → 25.5 (heltall = to implisitte desimaler). */

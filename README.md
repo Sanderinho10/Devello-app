@@ -92,6 +92,9 @@ Eller lim inn migrasjonene i SQL-editoren i rekkefølge, så `seed.sql`.
 | `0035_regnskapskopling_og_leverandorfakturaer.sql` | Kobling til regnskapssystem (client key skjult for nettleseren), leverandørfakturaer og EHF-linjer, `replaced_by` på materiell |
 | `0036_fakturaforslag.sql` | `invoice_drafts` og versjonslogg, `invoice_draft_id` på timer og materiell (låser fakturerte føringer), produktmapping og innstillinger på koplinga |
 | `0037_dokumentasjon_og_boligmappa.sql` | `order_documents` (skjema fra mal eller opplastet fil, signatur, Boligmappa-status), `boligmappa_connections` (tokens uten policy), eiendom på ordren, `boligmappa_plants` |
+| `0042_grossist_ftp_og_importjobbar.sql` | `supplier_ftp` (FTP-oppsett per grossist, passord uten policy), `import_jobs` (kø → henter → importerer → ferdig/feil), bucket `supplier-files` |
+| `0043_rabatt_i_eitt_kall.sql` | indeks på rabattgruppe, `sett_rabattar(jsonb)` — rabatt for 500 grupper per kall |
+| `0044_avtalt_pris_per_vare.sql` | `sett_nettoprisar(jsonb)` — avtalt nettopris/rabatt per varenummer fra rabattfila |
 
 ### 3. Azure
 
@@ -157,7 +160,7 @@ src/
 │     ├─ drafts/[id]/           confirm (PDF + Outlook-kladd) og pdf (forhåndsvisning)
 │     ├─ orders/                Opprett ordre, PATCH status/felt, [id]/timer, [id]/materiell, [id]/faktura (+godkjenn, overfor), [id]/dokumenter, [id]/boligmappa
 │     ├─ boligmappa/            auth/start + callback (OAuth), connection, sok, eigedomar
-│     ├─ grossist/sok           Søk i grossistkatalogen
+│     ├─ grossist/              sok, POST (ny grossist), [supplierId]/{ftp, ftp/test, hent, opplasting/start, opplasting/ferdig}, jobbar/[jobId]
 │     ├─ order-settings         Standardpåslag på materiell
 │     └─ regnskap/              connection (PUT/PATCH/DELETE), sync, fakturaer/[id]/{kople,loys,ignorer}, produkter
 ├─ lib/
@@ -166,7 +169,7 @@ src/
 │  ├─ pdf/                      template.ts (Devello-malen), render.ts (HTML→PDF)
 │  ├─ drafts/versions.ts        Versjonslogging
 │  ├─ ordre/                    beskrivelse.ts (AI-utkast), status.ts, summering.ts, hent.ts, api.ts
-│  ├─ grossist/nelfo4.ts        Parser for EFO/NELFO 4.0-varefiler — ren funksjon, ingen database
+│  ├─ grossist/                 nelfo4.ts (parser), import.ts (én import for alle kilder), ftp.ts (henting), jobb.ts (arbeideren)
 │  ├─ regnskap/                 poweroffice.ts (API-klient), ehf.ts (parser), matching.ts, sync.ts
 │  ├─ faktura/                  Fakturaforslaget: kontekst.ts → generer.ts → resolver.ts (beløpene), go.ts (payload), overfor.ts
 │  ├─ dokumentasjon/            Malmotoren: malar/<fag>/ (data, ikke JSX), motor.ts (prefill, validering), dokument.ts (PDF, Boligmappa)
@@ -235,13 +238,48 @@ linja. Kundespesifikke pristilbud (`PH`/`PL`) og rabattfiler leser vi også.
 `src/lib/grossist/nelfo4.ts` er parseren; `npm run test:nelfo4` prøver den
 uten fil og uten database.
 
-Importen kjøres av Devello med et script inntil opplasting og FTP-henting er
-på plass:
+Lært av Onninens ekte filer: `V4priser.all` er listeprisene med
+rabattgruppe (`F4S`), `V4priser.kost` er kundens nettopriser med en
+kode (`&10`) i samme felt — bruk `.all` + `R4rabatt.txt`, så finnes både
+liste og netto. Rabattfila er NELFO 4.0 med to linjetyper: rabattype 5 er
+rabatt per gruppe, rabattype 1 er avtalt nettopris per varenummer og
+overstyrer gruppa. Kundenummeret står bare i rabattfilas header.
+Varenavn klippes ved 30 tegn midt i ordet og limes sammen igjen.
 
-```sh
-npm run grossist:importer -- --selskap <company_id> --grossist "Onninen" \
-    --varefil ./V4varefil.zip [--rabattfil ./R4rabatt.txt] [--kundenr 123456]
-```
+Katalogen holdes oppdatert på tre måter, alle gjennom den samme importen
+i `src/lib/grossist/import.ts`:
+
+1. **FTP-henting hver natt.** Grossisten legger prisfil (`V4…`) og
+   rabattfil (`R4…`) på et FTP-område per kunde. Admin legger inn
+   protokoll, vert, brukernavn, passord, katalog og filmønster under
+   Ordre → Grossister → Automatisk henting, tester tilkoblingen (fillista
+   vises, og hvilken fil som ville blitt hentet) og kan trykke «Hent nå».
+   Passordet ligger i `supplier_ftp`, som ikke har noen policy — det kan
+   aldri leses fra nettleseren. Nyeste fil som matcher mønsteret hentes;
+   samme fil som sist (navn + mtime) hoppes over. `npm run test:ftp-monster`
+   prøver mønster-matchingen uten nettverk. `npm run ftp:hent -- Onninen
+   V4priser.all sti\til\fil` henter én fil med det lagrede oppsettet og
+   lagrer den lokalt — til å se på formatet.
+2. **Opplasting i nettleseren.** Dra inn fila; den går rett til Storage
+   (`supplier-files`) med signert lenke, aldri gjennom Next, og importen
+   kjører som jobb etterpå.
+3. **Script**, for Devello selv:
+
+   ```sh
+   npm run grossist:importer -- --selskap <company_id> --grossist "Onninen" \
+       --varefil ./V4varefil.zip [--rabattfil ./R4rabatt.txt] [--kundenr 123456]
+   ```
+
+Hver import er en rad i `import_jobs` (kø → henter → importerer → ferdig
+eller feil) med framdrift og resultat, og Grossister-sida viser de fem
+siste per grossist. Én jobb om gangen per grossist. Arbeideren
+(`src/lib/grossist/jobb.ts`) startes i bakgrunnen fra API-et — prosessen
+lever lenge på Railway — og kalles direkte av nattjobben.
+
+`npm run nattjobb` henter for alle grossister med automatisk henting på og
+synkroniserer leverandørfakturaer fra PowerOffice Go for alle selskap med
+aktiv kopling. Den kjører som egen Railway-service med cron-plan — se
+[docs/produksjonsoppsett.md](docs/produksjonsoppsett.md#nattjobb--prisfiler-og-leverandørfakturaer-hver-natt).
 
 Fila er hele sortimentet: varer som ikke står i den lenger blir inaktive.
 Importen er trygg å kjøre om igjen.
@@ -406,6 +444,8 @@ npm run test:nelfo4            # parseren for grossistenes varefiler, uten datab
 npm run test:ehf               # EHF-parseren og ordrenummer-matchingen, uten database
 npm run test:faktura           # fakturaforslaget: resolver, redigering, Go-payload — uten database og modell
 npm run test:dokumentasjon     # dokumentasjonsmalene: validering, prefill, påkrevde felt, PDF-HTML — uten database
+npm run test:ftp-monster       # filmønster og «nyeste fil» for FTP-henting, uten nettverk
+npm run nattjobb               # prisfiler fra FTP + leverandørfakturaer fra Go, for alle selskap — det Railway kjører hver natt
 npm run test:gullsett          # målingen bak gullsettet, uten database
 npm run evaluer                # evalueringssuiten — 15 saker med fasit, se evaluering/LES_MEG.md
 npm run evaluer -- --motor v3  # samme, mot én bestemt motor (egen baseline)

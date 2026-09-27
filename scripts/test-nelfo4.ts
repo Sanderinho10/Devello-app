@@ -9,7 +9,7 @@
  * nettopris. Bytesene er Windows-1252 med vilje — «ø» er én byte (0xF8), og
  * det er akkurat det som går galt om noen dekoder fila som UTF-8.
  */
-import { parseNelfo4, parseNelfo4Tekst, parseRabattfilTekst } from "@/lib/grossist/nelfo4";
+import { parseNelfo4, parseNelfo4Tekst, parseRabattfilTekst, slaaSamanNamn } from "@/lib/grossist/nelfo4";
 
 let feil = 0;
 function sjekk(navn: string, ok: boolean, detalj?: string) {
@@ -89,10 +89,34 @@ try {
 }
 
 // Rabattfil -------------------------------------------------------------------
-const rabatt = parseRabattfilTekst("RH;EFONELFO;4.0\r\nR10;2500\r\nR20;35,5\r\nRL;R30;1000\r\n");
+const rabatt = parseRabattfilTekst("RH;EFONELFO;4.0\r\nR10;2500\r\nR20;35,5\r\nRL;R30;1000\r\n").grupper;
 sjekk("rabattfil: to implisitte desimaler", rabatt.get("R10") === 25);
 sjekk("rabattfil: desimalkomma", rabatt.get("R20") === 35.5);
 sjekk("rabattfil: linje med posttype først", rabatt.get("R30") === 10);
+const onninenAdvarslar: string[] = [];
+const onninen = parseRabattfilTekst(
+  "RH;EFONELFO;4.0;NO979692900MVA;NO984447647MVA;42827;1;20260928;;NOK;H;Onninen AS;ONNINEN AS - HØGSLUNDVEIEN 55;;2020;SKEDSMOKORSET;NO\r\n" +
+    "RL;5;F11;;6575;GR10 BRANNALARMKABEL ELIS\r\n" +
+    "RL;5;F12;;2225;GR15 SCHN BILLADER TILBEHØR (RG 8A)\r\n" +
+    "RL;1;1600954;91981;0;JORDFEILAUTOMAT ACTI9 IC60 RCBO 4P 16A 30MA C 6KA  A\r\n" +
+    "RL;1;1600957;;1500;VARE MED RABATT I STEDET FOR PRIS\r\n",
+  (m) => onninenAdvarslar.push(m),
+);
+sjekk("rabattfil NELFO 4.0 (Onninen): gruppe F11 = 65,75 %", onninen.grupper.get("F11") === 65.75, `${onninen.grupper.get("F11")}`);
+sjekk("rabattfil NELFO 4.0 (Onninen): gruppe F12 = 22,25 %", onninen.grupper.get("F12") === 22.25);
+sjekk("rabattfil NELFO 4.0 (Onninen): bare to grupper", onninen.grupper.size === 2 && !onninen.grupper.has("5"));
+sjekk("rabattfil NELFO 4.0 (Onninen): type 1 = nettopris per vare", onninen.varer.get("1600954")?.nettopris === 919.81 && onninen.varer.get("1600954")?.rabattPct === null);
+sjekk("rabattfil NELFO 4.0 (Onninen): type 1 uten pris = rabatt per vare", onninen.varer.get("1600957")?.nettopris === null && onninen.varer.get("1600957")?.rabattPct === 15);
+sjekk("rabattfil NELFO 4.0 (Onninen): kundenummer fra RH-header", onninen.customerNo === "42827");
+sjekk("rabattfil NELFO 4.0 (Onninen): enkeltvarer gir advarsel", onninenAdvarslar.length === 1 && onninenAdvarslar[0].includes("2 enkeltvarer"));
+
+// Varenavn klippet ved 30 tegn (Onninen) --------------------------------------
+sjekk("navn: klippet midt i ordet limes sammen", slaaSamanNamn("BRANNALARMKABEL 2X1MM GRØNN TA", "LEVASLING J-H(ST)H") === "BRANNALARMKABEL 2X1MM GRØNN TALEVASLING J-H(ST)H");
+sjekk("navn: klippet rett før parentes", slaaSamanNamn("BRANNALARMKABEL 2X1MM HVIT J-H", "(ST)H") === "BRANNALARMKABEL 2X1MM HVIT J-H(ST)H");
+sjekk("navn: del 2 som begynner med mellomrom er egen beskrivelse", slaaSamanNamn("ØLFLEX® 2YSLCYK-JB3X1,5+3G0,25", " EMC/VFD FREKVENSOMFORMER KABE") === "ØLFLEX® 2YSLCYK-JB3X1,5+3G0,25 EMC/VFD FREKVENSOMFORMER KABE");
+sjekk("navn: kort del 1 + del 2 får mellomrom", slaaSamanNamn("STIKK 2P+J", "ELKO HVIT") === "STIKK 2P+J ELKO HVIT");
+sjekk("navn: bare del 1", slaaSamanNamn("PFXP-EX 500V 3G1,5MM²", "") === "PFXP-EX 500V 3G1,5MM²");
+
 try {
   parseRabattfilTekst("Dette er ikke en rabattfil\r\nBare tekst\r\nOg mer tekst\r\n");
   sjekk("ukjent rabattfil kaster", false);
