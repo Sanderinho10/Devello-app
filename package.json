@@ -31,7 +31,8 @@
     "test:dokumentasjon": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-dokumentasjon.ts",
     "grossist:importer": "node --env-file=.env.local --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/importer-grossist.ts",
     "test:ftp-monster": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-ftp-monster.ts",
-    "nattjobb": "node --env-file-if-exists=.env.local --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/nattjobb.ts"
+    "nattjobb": "node --env-file-if-exists=.env.local --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/nattjobb.ts",
+    "ftp:hent": "node --env-file=.env.local --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/hent-fra-ftp.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.117.1",

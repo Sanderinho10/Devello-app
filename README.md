@@ -247,7 +247,9 @@ i `src/lib/grossist/import.ts`:
    Passordet ligger i `supplier_ftp`, som ikke har noen policy — det kan
    aldri leses fra nettleseren. Nyeste fil som matcher mønsteret hentes;
    samme fil som sist (navn + mtime) hoppes over. `npm run test:ftp-monster`
-   prøver mønster-matchingen uten nettverk.
+   prøver mønster-matchingen uten nettverk. `npm run ftp:hent -- Onninen
+   V4priser.kost sti\til\fil` henter én fil med det lagrede oppsettet og
+   lagrer den lokalt — til å se på formatet.
 2. **Opplasting i nettleseren.** Dra inn fila; den går rett til Storage
    (`supplier-files`) med signert lenke, aldri gjennom Next, og importen
    kjører som jobb etterpå.
