@@ -6,6 +6,8 @@ import { logDraftVersion } from "@/lib/drafts/versions";
 import { assessConfidence, countUnresolvedLines } from "@/lib/drafts/confidence";
 import { forbeholdsBibliotek } from "@/lib/referanser/forbehold";
 import { findSimilarReferences } from "@/lib/referanser";
+import { hentStruktur } from "@/lib/referanser/struktur";
+import { hentBrukshistorikk } from "@/lib/pricelist/bruk";
 import { registrerBruk } from "@/lib/billing/subscription";
 import { vedleggTilModell } from "@/lib/leads/vedlegg";
 import type { QuoteDocument, QuoteType } from "@/lib/types";
@@ -107,6 +109,15 @@ export async function generateForLead(
     leadId: lead.id,
   });
 
+  // Oppdelingen firmaet pleier å bruke. Leses av HELE historikken, ikke av de
+  // like — en vane som går igjen på tvers av jobbtyper skal ikke forsvinne
+  // fordi dette ene leadet ligner mest på et tilbud der vanen manglet.
+  const struktur = await hentStruktur(admin, opts.companyId);
+
+  // Hvor ofte hver prisrad faktisk er brukt. Svarer på spørsmålet navnet ikke
+  // svarer på: hvilken av fire plausible rader mener firmaet er den riktige.
+  const bruk = await hentBrukshistorikk(admin, opts.companyId);
+
   // Motoren er selskapets valg (eller standarden). v2: ett kall, agenten
   // velger type og leverer utkastet i samme tur. v3: omfang først, så tilbud.
   // Har brukeren valgt type fra bryteren, sendes den inn som lås i begge.
@@ -132,6 +143,8 @@ export async function generateForLead(
     },
     priceItems,
     similar,
+    struktur,
+    bruk,
     forbehold,
     motor,
     fag: fagFor(company),

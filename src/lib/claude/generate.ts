@@ -6,6 +6,8 @@ import { loadMotor, type MotorVersjon } from "./motor";
 import { generateDraftV3, type Omfang } from "./generate-v3";
 import { forbeholdsBlokk, type Forbehold } from "@/lib/referanser/forbehold";
 import { referencesBlock, type QuoteReference } from "@/lib/referanser";
+import { strukturBlokk, type Struktur } from "@/lib/referanser/struktur";
+import { bruksforklaring, bruksnotat, type Brukshistorikk } from "@/lib/pricelist/bruk";
 import {
   kindsForQuoteType,
   type Company,
@@ -249,6 +251,10 @@ export interface GenerateInput {
   similar?: QuoteReference[];
   /** Forbeholdene firmaet har brukt før. Agenten velger fra disse, aldri fritt. */
   forbehold?: Forbehold[];
+  /** Oppdelingen firmaet pleier å bruke, utledet av alle bekreftede tilbud. */
+  struktur?: Struktur | null;
+  /** Hvor ofte hver prisrad har stått i et sendt tilbud. */
+  bruk?: Brukshistorikk;
   /** Motoren som skal kjøre. Utelatt = v2, slik produksjon kjørte før v3. */
   motor?: MotorVersjon;
   /** Faget, for bransjepakken i v3. Utelatt = elektro. */
@@ -379,6 +385,13 @@ export function buildPrompt(input: GenerateInput): PromptDeler {
       ];
       if (item.code) parts.push(`  kode: ${item.code}`);
       if (item.description) parts.push(`  beskrivelse: ${item.description}`);
+      // Hvor ofte firmaet har brukt raden. Flere rader er ofte plausible svar
+      // på samme forespørsel, og navnet skiller dem ikke — men firmaet har
+      // allerede svart på spørsmålet i praksis. Bare brukte rader merkes: hos
+      // Star Elektro er 223 av 241 aldri brukt, og «brukt: 0» på hver av dem
+      // ville doblet blokka uten å si noe.
+      const merke = bruksnotat(input.bruk?.[item.id]);
+      if (merke) parts.push(merke);
       // En rad uten pris betyr enten «inkludert uten tillegg»
       // (samsvarserklæring, dokumentasjon) eller en kategorioverskrift som
       // ble importert som prisrad. Modellen ser forskjellen fra navnet; den
@@ -389,10 +402,16 @@ export function buildPrompt(input: GenerateInput): PromptDeler {
       return parts.join("\n");
     })
     .join("\n");
-  stabile.push(`# Aktive prislister\n\n${rows || "(ingen prisrader lagt inn)"}`);
+  stabile.push(
+    `# Aktive prislister${bruksforklaring(input.bruk ?? {})}\n\n${rows || "(ingen prisrader lagt inn)"}`,
+  );
 
   // Herfra og ned varierer det per lead — utenfor bruddpunktet.
   blocks.push(referencesBlock(input.similar ?? []));
+
+  // Oppdelingen firmaet pleier å bruke. Står etter referansene og før
+  // forbeholdene: det er en oppsummering av mønsteret over, ikke en ny kilde.
+  blocks.push(strukturBlokk(input.struktur ?? null));
 
   // Lærdommene veier tyngre enn mønsteret i referansene, så de kommer etter —
   // det siste modellen leser før selve leadet.
