@@ -17,6 +17,19 @@ import { computeTotals, type QuoteDocument, type QuoteType } from "@/lib/types";
  */
 
 export interface ReferenceLine {
+  /**
+   * Seksjonen posten sto i da tilbudet gikk ut.
+   *
+   * Denne manglet fram til 22.09.2026, og det var en reell feil: referansene
+   * ble bygget med flatMap over seksjonene, så oppdelingen firmaet faktisk
+   * bruker ble kastet før agenten fikk se den. Star Elektro har «Elbillader»
+   * → «Dokumentasjon» → «Diverse» i alle seks sendte tilbud, med
+   * samsvarserklæring og NEK400-dokumentasjon fast i midten. Agenten fant
+   * aldri på det selv, for ingenting fortalte den at det var slik de gjør det.
+   *
+   * null på gamle rader som ble skrevet før feltet fantes.
+   */
+  seksjon: string | null;
   beskrivelse: string;
   antall: number | null;
   enhet: string;
@@ -158,6 +171,7 @@ export async function saveQuoteReference(
   const lines: ReferenceLine[] = input.document
     ? input.document.sections.flatMap((s) =>
         s.lines.map((l) => ({
+          seksjon: skjul(s.title) || null,
           beskrivelse: skjul(l.description),
           antall: l.quantity,
           enhet: l.unit,
@@ -313,13 +327,20 @@ export function referencesBlock(refs: QuoteReference[]): string {
       // igjen. Prisen slås opp i prisfilen hver gang, og et gammelt beløp i
       // konteksten er bare en invitasjon til å gjenbruke det. Særlig når
       // beløpet kan være en manuell overstyring for én jobb.
+      // Gruppert på seksjon, i den rekkefølgen postene sto. Oppdelingen er
+      // en del av mønsteret: hvilke poster som hører sammen, og hvilken bolk
+      // firmaet alltid har med, sier like mye som postene selv.
+      const bolker: { tittel: string | null; linjer: string[] }[] = [];
+      for (const l of r.lines) {
+        const tekst = `  - ${l.beskrivelse}${l.antall != null ? ` × ${l.antall} ${l.enhet}` : ""}`;
+        const siste = bolker[bolker.length - 1];
+        if (siste && siste.tittel === (l.seksjon ?? null)) siste.linjer.push(tekst);
+        else bolker.push({ tittel: l.seksjon ?? null, linjer: [tekst] });
+      }
       parts.push(
-        "Poster:\n" +
-          r.lines
-            .map(
-              (l) =>
-                `- ${l.beskrivelse}${l.antall != null ? ` × ${l.antall} ${l.enhet}` : ""}`,
-            )
+        "Poster, slik de sto i tilbudet:\n" +
+          bolker
+            .map((b) => (b.tittel ? `${b.tittel}:\n${b.linjer.join("\n")}` : b.linjer.join("\n")))
             .join("\n"),
       );
     }
@@ -338,9 +359,10 @@ export function referencesBlock(refs: QuoteReference[]): string {
     // mellom hver setning.
     [
       "Bruk disse som mønster for hvilke poster som hører med, hvilke mengder",
-      "som er vanlige, og hvilken ordlyd og tone firmaet bruker — det er slik",
-      "de faktisk sender tilbud. Beløp står ikke her: prisen slås opp i",
-      "prisfilen hver gang, aldri hentet fra et tidligere tilbud.",
+      "som er vanlige, HVORDAN TILBUDET ER DELT OPP I SEKSJONER, og hvilken",
+      "ordlyd og tone firmaet bruker — det er slik de faktisk sender tilbud.",
+      "Beløp står ikke her: prisen slås opp i prisfilen hver gang, aldri",
+      "hentet fra et tidligere tilbud.",
     ].join("\n"),
     ...items,
   ].join("\n\n");
