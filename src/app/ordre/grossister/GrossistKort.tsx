@@ -173,9 +173,11 @@ function JobbStatus({ jobb }: { jobb: ImportJob }) {
       ? "I kø …"
       : jobb.status === "hentar"
         ? "Henter fila …"
-        : jobb.progress_total
-          ? `Importerer ${jobb.progress_done.toLocaleString("nb-NO")} av ${jobb.progress_total.toLocaleString("nb-NO")} …`
-          : "Leser fila …";
+        : jobb.progress_total && jobb.progress_done >= jobb.progress_total
+          ? "Setter rabatter og rydder opp …"
+          : jobb.progress_total
+            ? `Importerer ${jobb.progress_done.toLocaleString("nb-NO")} av ${jobb.progress_total.toLocaleString("nb-NO")} …`
+            : "Leser fila …";
   const pct = jobb.status === "importerer" && jobb.progress_total ? Math.round((jobb.progress_done / jobb.progress_total) * 100) : null;
   return (
     <div className="banner info" style={{ marginTop: 12, marginBottom: 0 }}>

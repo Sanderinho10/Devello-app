@@ -157,7 +157,17 @@ export async function koeyrImportJobb(admin: SupabaseClient, jobId: string): Pro
   }
 }
 
-/** Lever det en jobb for grossisten? Da avvises en ny. */
+/** En jobb uten livstegn på så lenge regnes som død (serveren startet på nytt). */
+const DOED_ETTER_MS = 15 * 60 * 1000;
+
+/**
+ * Lever det en jobb for grossisten? Da avvises en ny.
+ *
+ * Jobben kjører i serverprosessen. Dør prosessen midt i, blir raden stående
+ * som «importerer» for alltid og ville sperret alle nye kjøringer. Derfor:
+ * ingen skriving på 15 minutter (framdriften skriver hvert sekund) = død,
+ * og raden settes til feil før vi svarer.
+ */
 export async function paagaaandeJobb(admin: SupabaseClient, supplierId: string): Promise<ImportJob | null> {
   const { data } = await admin
     .from("import_jobs")
@@ -167,7 +177,19 @@ export async function paagaaandeJobb(admin: SupabaseClient, supplierId: string):
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  return (data as ImportJob | null) ?? null;
+  const jobb = (data as ImportJob | null) ?? null;
+  if (!jobb) return null;
+
+  if (Date.now() - new Date(jobb.updated_at).getTime() > DOED_ETTER_MS) {
+    const melding = "Jobben stoppet uten å bli ferdig — serveren ble trolig startet på nytt. Prøv igjen.";
+    await admin
+      .from("import_jobs")
+      .update({ status: "feil", finished_at: new Date().toISOString(), error: melding })
+      .eq("id", jobb.id)
+      .in("status", ["koe", "hentar", "importerer"]);
+    return null;
+  }
+  return jobb;
 }
 
 /**

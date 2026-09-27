@@ -127,13 +127,17 @@ export async function importerVarefil(
   // Rabatt.
   let medRabatt = 0;
   if (rabatter) {
-    for (const [gruppe, pct] of rabatter) {
-      const { data, error } = await admin.rpc("sett_rabatt", {
+    // Én oppdatering per 500 grupper — ikke én per gruppe. Onninen har
+    // rundt 3 000 grupper, og hvert kall skannet før alle varene.
+    const alle = [...rabatter];
+    const GRUPPER = 500;
+    for (let i = 0; i < alle.length; i += GRUPPER) {
+      const del = Object.fromEntries(alle.slice(i, i + GRUPPER));
+      const { data, error } = await admin.rpc("sett_rabattar", {
         p_supplier: input.supplierId,
-        p_gruppe: gruppe,
-        p_pct: pct,
+        p_rabattar: del,
       });
-      if (error) throw new Error(`Rabatt for gruppe ${gruppe} feilet: ${error.message}`);
+      if (error) throw new Error(`Rabatt for gruppene fra ${alle[i][0]} feilet: ${error.message}`);
       medRabatt += Number(data ?? 0);
     }
   } else if (!erPristilbud) {
