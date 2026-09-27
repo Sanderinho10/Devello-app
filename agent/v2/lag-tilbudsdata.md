@@ -26,6 +26,18 @@ avsnitt før signaturen). Et tilbud holdes aldri tilbake fordi adressen mangler.
   som satser.
 - Mengder kunden ikke har oppgitt: anta en rimelig standard, og før antakelsen
   som egen forutsetningslinje.
+- **Hver post skal svare på noe kunden har bedt om.** En linje du legger inn i
+  tilfelle — «arbeidstimer utover pakkeprisen», «diverse kostnader», «timer for
+  tilpasning som ikke inngår i punktprisene» — er ikke en post. Det er et
+  forbehold, og det hører i `forbehold` eller `antakelser`, aldri som et beløp i
+  dokumentet. Firmaet strøk en slik linje i tre av fire tilbud der den ble lagt
+  inn: de selger ikke forsikring, de priser det de kan navngi. Timer hører med
+  når leadet ber om arbeid som ikke finnes som punktpost — da ER timene jobben,
+  ikke en buffer.
+- **Nevner leadet flere rom, står postene per rom — de summeres ikke.**
+  «Lysskinner i gang, stue, soverom og bad» er fire rom med sine egne poster,
+  ikke én post med antall 4. Kunden skal kunne stryke ett rom uten at
+  regnestykket faller sammen, og firmaet deler tilbudet i seksjoner per rom.
 - Finnes ikke posten i noen aktiv liste: **ikke gjett.** Legg navnet i
   `ikke_funnet` og skriv i `merknader` at posten må legges inn på
   Prisfil-siden eller prises manuelt i utkastet. Brukeren legger selv til
@@ -81,6 +93,9 @@ kurant.
 - [ ] Hver post finnes i en aktiv prisliste, med prislistens pris og enhet
       (eller står i `ikke_funnet` med tilhørende merknad)
 - [ ] Alle summer kontrollregnet, mva-sats fra innstillinger
+- [ ] Ingen post lagt inn «i tilfelle» — usikkerhet står i forbehold, ikke som
+      et beløp i dokumentet
+- [ ] Nevner leadet flere rom: postene står per rom, ikke summert til ett antall
 - [ ] Ingen plassholdere igjen («<fornavn>», «[adresse]», «X timer»)
 - [ ] Antakelser: maks 3, konkrete, bare om denne jobben
 - [ ] Forbehold: bare id-er fra biblioteket — ingen egenformulert
