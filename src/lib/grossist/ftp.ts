@@ -91,7 +91,13 @@ async function medTidsavbrot<T>(p: Promise<T>, hva: string): Promise<T> {
 }
 
 async function kopleTil(o: FtpOppsett): Promise<Tilkobling> {
-  const sti = o.remote_path?.trim() || "/";
+  // «/» eller tomt = mappa brukeren lander i etter innlogging. Mange
+  // grossist-servere låser brukeren til sin egen mappe og avviser
+  // absolutte stier som «LIST /» med 550 — så da sender vi ingen sti.
+  const raaSti = o.remote_path?.trim() ?? "";
+  const rot = raaSti === "" || raaSti === "/" || raaSti === ".";
+  const sti = rot ? "" : raaSti.replace(/\/$/, "");
+  const fullSti = (name: string) => (sti ? `${sti}/${name}` : name);
 
   if (o.protocol === "sftp") {
     const sftp = new SftpClient();
@@ -107,13 +113,13 @@ async function kopleTil(o: FtpOppsett): Promise<Tilkobling> {
     );
     return {
       async list() {
-        const liste = await medTidsavbrot(sftp.list(sti), "Listingen");
+        const liste = await medTidsavbrot(sftp.list(sti || "."), "Listingen");
         return liste
           .filter((f) => f.type !== "d")
           .map((f) => ({ name: f.name, size: Number(f.size) || 0, mtime: f.modifyTime ? new Date(f.modifyTime).toISOString() : null }));
       },
       async hent(name) {
-        const data = await medTidsavbrot(sftp.get(`${sti.replace(/\/$/, "")}/${name}`), "Nedlastingen");
+        const data = await medTidsavbrot(sftp.get(fullSti(name)), "Nedlastingen");
         return Buffer.isBuffer(data) ? data : Buffer.from(String(data));
       },
       async lukk() {
@@ -134,7 +140,7 @@ async function kopleTil(o: FtpOppsett): Promise<Tilkobling> {
   });
   return {
     async list() {
-      const liste = await ftp.list(sti);
+      const liste = sti ? await ftp.list(sti) : await ftp.list();
       return liste
         .filter((f) => f.isFile)
         .map((f) => ({ name: f.name, size: f.size, mtime: f.modifiedAt ? f.modifiedAt.toISOString() : rawTilIso(f.rawModifiedAt) }));
@@ -147,7 +153,7 @@ async function kopleTil(o: FtpOppsett): Promise<Tilkobling> {
           cb();
         },
       });
-      await ftp.downloadTo(sink, `${sti.replace(/\/$/, "")}/${name}`);
+      await ftp.downloadTo(sink, fullSti(name));
       return Buffer.concat(deler);
     },
     async lukk() {
@@ -219,7 +225,7 @@ export function forklar(err: unknown, o: FtpOppsett): FtpFeil {
     return new FtpFeil("TLS-feil — prøv protokoll FTP eller SFTP, eller port 990 for implisitt FTPS.");
   }
   if (/550|No such file|not found|ENOENT/i.test(m)) {
-    return new FtpFeil(`Fant ikke katalogen ${o.remote_path || "/"} på serveren.`);
+    return new FtpFeil(`Fant ikke katalogen ${o.remote_path || "/"} på serveren. Serveren sa: ${m.slice(0, 160)}`);
   }
   return new FtpFeil(`Feil mot ${o.host}: ${m.slice(0, 200)}`);
 }
