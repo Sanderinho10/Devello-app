@@ -44,7 +44,9 @@ export async function importerVarefil(
   // 1. Les og parse — før noe skrives.
   const fil: Nelfo4Fil = await parseNelfo4(input.varefil, input.varefilNamn);
   const rabatter = input.rabattfil
-    ? await parseRabattfil(input.rabattfil, input.rabattfilNamn ?? "rabattfil.txt")
+    ? await parseRabattfil(input.rabattfil, input.rabattfilNamn ?? "rabattfil.txt", (m) =>
+        fil.warnings.push(m),
+      )
     : null;
 
   // Kundenummer og selger fra fila, når grossisten mangler dem.

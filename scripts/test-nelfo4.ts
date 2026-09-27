@@ -93,6 +93,18 @@ const rabatt = parseRabattfilTekst("RH;EFONELFO;4.0\r\nR10;2500\r\nR20;35,5\r\nR
 sjekk("rabattfil: to implisitte desimaler", rabatt.get("R10") === 25);
 sjekk("rabattfil: desimalkomma", rabatt.get("R20") === 35.5);
 sjekk("rabattfil: linje med posttype først", rabatt.get("R30") === 10);
+const onninenAdvarslar: string[] = [];
+const onninen = parseRabattfilTekst(
+  "RH;EFONELFO;4.0;NO979692900MVA;NO984447647MVA;42827;1;20260928;;NOK;H;Onninen AS;ONNINEN AS - HØGSLUNDVEIEN 55;;2020;SKEDSMOKORSET;NO\r\n" +
+    "RL;5;F11;;6575;GR10 BRANNALARMKABEL ELIS\r\n" +
+    "RL;5;F12;;2225;GR15 SCHN BILLADER TILBEHØR (RG 8A)\r\n" +
+    "RL;1;;1234567;5000;ENKELTVARE\r\n",
+  (m) => onninenAdvarslar.push(m),
+);
+sjekk("rabattfil NELFO 4.0 (Onninen): gruppe F11 = 65,75 %", onninen.get("F11") === 65.75, `${onninen.get("F11")}`);
+sjekk("rabattfil NELFO 4.0 (Onninen): gruppe F12 = 22,25 %", onninen.get("F12") === 22.25);
+sjekk("rabattfil NELFO 4.0 (Onninen): rabattype og varenummer blir ikke grupper", !onninen.has("5") && !onninen.has("1234567") && onninen.size === 2);
+sjekk("rabattfil NELFO 4.0 (Onninen): enkeltvare-linje gir advarsel", onninenAdvarslar.length === 1 && onninenAdvarslar[0].includes("1 linjer"));
 try {
   parseRabattfilTekst("Dette er ikke en rabattfil\r\nBare tekst\r\nOg mer tekst\r\n");
   sjekk("ukjent rabattfil kaster", false);

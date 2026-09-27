@@ -236,11 +236,17 @@ function lesVarelinje(
 /**
  * Rabatt per rabattgruppe.
  *
- * Formatet er ikke publisert i samme spesifikasjon som varefila, og
- * grossistene varierer litt. Det vi vet: semikolonseparert, en header-linje
- * øverst, så «RabattGruppe;Rabatt» per linje — eventuelt med en posttype
- * først. Rabatten kan stå med to implisitte desimaler («2500» = 25 %) eller
- * med desimalkomma («25,00»).
+ * To layouter er støttet:
+ *
+ * 1. NELFO 4.0 rabattfil, slik Onninen leverer den (R4rabatt.txt):
+ *    «RH;EFONELFO;4.0;…» øverst, så en RL-linje per rabatt med feltene
+ *    posttype; rabattype; rabattgruppe; varenummer; rabatt; beskrivelse —
+ *    «RL;5;F11;;6575;GR10 BRANNALARMKABEL» = 65,75 % på gruppe F11.
+ *    Rabatten har to implisitte desimaler. Linjer med rabatt på et enkelt
+ *    varenummer (tom gruppe, utfylt varenummer) telles og rapporteres, men
+ *    tas ikke i bruk ennå.
+ * 2. Enkel liste: «RabattGruppe;Rabatt» per linje, eventuelt med en
+ *    posttype først. Rabatten kan stå som «2500» (= 25 %) eller «25,00».
  *
  * Kjenner vi ikke igjen fila, kaster vi en feil som siterer de tre første
  * linjene, så formatet kan tilpasses uten å gjette.
@@ -248,31 +254,60 @@ function lesVarelinje(
 export async function parseRabattfil(
   bytes: Uint8Array | ArrayBuffer,
   filnavn = "",
+  advar?: (melding: string) => void,
 ): Promise<Map<string, number>> {
-  return parseRabattfilTekst(await dekod(bytes, filnavn));
+  return parseRabattfilTekst(await dekod(bytes, filnavn), advar);
 }
 
-export function parseRabattfilTekst(tekst: string): Map<string, number> {
+export function parseRabattfilTekst(
+  tekst: string,
+  advar: (melding: string) => void = () => {},
+): Map<string, number> {
   const linjer = tekst.split(/\r\n|\n|\r/).filter((l) => l.trim().length > 0);
   const rabatter = new Map<string, number>();
   let ulesbare = 0;
+  let perVarenummer = 0;
 
   for (const linje of linjer) {
     const f = felt(linje);
     // Header-linjer: RH/PH/VH, eller en tekstoverskrift uten tall.
     if (/^(RH|PH|VH)$/i.test(f[0] ?? "")) continue;
 
-    // Med posttype først (RL;gruppe;rabatt) eller uten (gruppe;rabatt).
-    const harPosttype = /^[A-Z]{2}$/.test(f[0] ?? "") && f.length >= 3;
-    const gruppe = (harPosttype ? f[1] : f[0])?.trim();
-    const rabattTekst = (harPosttype ? f[2] : f[1])?.trim();
-    const pct = lesProsent(rabattTekst);
+    // NELFO 4.0: RL;rabattype;gruppe;varenummer;rabatt;beskrivelse
+    const erNelfoRl =
+      (f[0] ?? "").trim().toUpperCase() === "RL" &&
+      f.length >= 5 &&
+      /^\d+$/.test((f[1] ?? "").trim()) &&
+      lesProsent((f[4] ?? "").trim()) !== null;
+
+    let gruppe: string | undefined;
+    let pct: number | null;
+    if (erNelfoRl) {
+      gruppe = (f[2] ?? "").trim();
+      pct = lesProsent((f[4] ?? "").trim());
+      if (!gruppe && (f[3] ?? "").trim()) {
+        perVarenummer += 1;
+        continue;
+      }
+    } else {
+      // Med posttype først (RL;gruppe;rabatt) eller uten (gruppe;rabatt).
+      const harPosttype = /^[A-Z]{2}$/.test(f[0] ?? "") && f.length >= 3;
+      gruppe = (harPosttype ? f[1] : f[0])?.trim();
+      pct = lesProsent((harPosttype ? f[2] : f[1])?.trim());
+    }
 
     if (!gruppe || pct === null) {
       ulesbare += 1;
       continue;
     }
     rabatter.set(gruppe, pct);
+  }
+
+  if (perVarenummer > 0) {
+    advar(
+      `Rabattfila har ${perVarenummer} linjer med rabatt på enkeltvarer — ` +
+        "de er ikke tatt i bruk, bare rabatt per rabattgruppe.",
+    );
   }
 
   // Én tekstoverskrift er greit; en fil der halvparten ikke gir mening, er
