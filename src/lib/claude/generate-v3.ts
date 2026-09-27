@@ -10,6 +10,7 @@ import {
 import { loadBransjepakke, loadMotorV3, type Bransjepakke } from "./motor";
 import { bandAvvik, omfangBlokk, omfangSjekk, type Omfang } from "./omfang";
 import { referencesBlock } from "@/lib/referanser";
+import { strukturBlokk } from "@/lib/referanser/struktur";
 import { forbeholdsBlokk } from "@/lib/referanser/forbehold";
 
 export type { Arbeidspost, Omfang } from "./omfang";
@@ -127,6 +128,9 @@ export async function generateDraftV3(input: GenerateInput): Promise<GeneratedDr
   const systemTilbud = await loadMotorV3("tilbud", fag);
   const resten = [
     referencesBlock(input.similar ?? []),
+    // Oppdelingen hører til steg 2: steg 1 finner ut HVA jobben består av,
+    // steg 2 setter det sammen slik firmaet pleier å sette det sammen.
+    strukturBlokk(input.struktur ?? null),
     forbeholdsBlokk(input.forbehold ?? []),
     omfangBlokk(omfang, jobbtype),
     input.vedlegg?.oversikt ?? "",

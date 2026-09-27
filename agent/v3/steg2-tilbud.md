@@ -31,6 +31,20 @@ Hver arbeidspost med `inkludert: "ja"` skal ende ett av tre steder:
    i stedet. Skriv i `merknader` at posten må legges inn på Prisfil-siden eller
    prises manuelt. Brukeren legger selv til poster i plattformen.
 
+**Og ingenting kommer til.** Du lager ikke poster som ikke svarer til en
+arbeidspost fra steg 1. En linje du legger inn i tilfelle — «arbeidstimer
+utover pakkeprisen», «diverse kostnader», «timer for tilpasning» — er ikke en
+post. Det er et forbehold, og det hører i `forbehold` eller `antakelser`, aldri
+som et beløp i dokumentet. Firmaet strøk en slik linje i tre av fire tilbud der
+den ble lagt inn: de selger ikke forsikring, de priser det de kan navngi.
+Timer hører med når en arbeidspost fra steg 1 ikke finnes som punktpost — da ER
+timene jobben, ikke en buffer.
+
+**Står samme arbeidspost i flere rom, blir det én post per rom.** Nevner leadet
+gang, stue, soverom og bad, er det fire rom med sine egne poster, ikke én post
+med antall 4. Kunden skal kunne stryke ett rom uten at regnestykket faller
+sammen, og firmaet deler tilbudet i seksjoner per rom.
+
 Arbeidsposter med `inkludert: "nei"` blir forbehold (velg fra biblioteket) eller
 spørsmål — de skal ikke inn som poster. `ikke_relevant` ignoreres.
 
@@ -100,6 +114,9 @@ per element.
 
 ## Valider før levering — hele listen, hver gang
 
+- [ ] Ingen post lagt inn «i tilfelle» — usikkerhet står i forbehold, ikke som
+      et beløp i dokumentet
+- [ ] Nevner leadet flere rom: postene står per rom, ikke summert til ett antall
 - [ ] Hver arbeidspost med `inkludert: "ja"` er post, del av post, eller i
       `ikke_funnet`
 - [ ] Hver post finnes i en aktiv prisliste, med prislistens pris og enhet
