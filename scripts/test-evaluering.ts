@@ -33,6 +33,8 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { generateDraft, harNettadresse, sluttarMedSignatur, type GeneratedDraft } from "@/lib/claude/generate";
 import { erMotorVersjon, fagFor, motorFor } from "@/lib/claude/motor-versjon";
 import { findSimilarReferences } from "@/lib/referanser";
+import { hentStruktur } from "@/lib/referanser/struktur";
+import { hentBrukshistorikk } from "@/lib/pricelist/bruk";
 import { forbeholdsBibliotek } from "@/lib/referanser/forbehold";
 import { activePriceItems } from "@/lib/pricelist/active";
 import { computeTotals, type PriceListItem, type QuoteType } from "@/lib/types";
@@ -69,6 +71,14 @@ interface Fasit {
   estimat_timer?: boolean;
   ikke_funnet_tom?: boolean;
   ikke_funnet_inneheld?: string[];
+  /**
+   * Ord som IKKJE skal stå i nokon postbeskrivelse.
+   *
+   * Finst fordi agenten la inn ei «arbeidstimer utover pakkeprisen»-linje som
+   * forsikring mot å ha gløymt noko, og Roger strauk ho i tre av fire tilbod.
+   * Usikkerheit hører i forbehold, ikkje som eit beløp i dokumentet.
+   */
+  post_inneheld_ikkje?: string[];
   merknad_inneheld?: string[];
   epost_inneheld?: string[];
 }
@@ -371,6 +381,14 @@ function fasitSjekkar(g: GeneratedDraft, f: Fasit, k: Kontekst): string[] {
       feil.push(`ikke_funnet manglar «${ord}» (fann: ${g.ikke_funnet.join(", ") || "ingenting"})`);
     }
   }
+  for (const ord of f.post_inneheld_ikkje ?? []) {
+    const treff = (g.document?.sections ?? [])
+      .flatMap((s) => s.lines)
+      .filter((l) => l.description.toLowerCase().includes(ord.toLowerCase()));
+    if (treff.length > 0) {
+      feil.push(`posten «${treff[0].description.slice(0, 58)}» skulle ikkje vere der (${ord})`);
+    }
+  }
   for (const ord of f.merknad_inneheld ?? []) {
     if (!g.merknader.join(" ").toLowerCase().includes(ord.toLowerCase())) {
       feil.push(`merknader manglar «${ord}»`);
@@ -529,6 +547,14 @@ for (const sak of saker) {
           leadText: [sak.lead.subject, sak.lead.body_text].filter(Boolean).join("\n\n"),
         });
 
+    // Oppdelingen firmaet pleier å bruke er også historikk: en ny kunde har
+    // den ikke. Kaldstart kjører derfor uten, slik at differansen mellom de to
+    // køyringane framleis er det historikken er verdt.
+    const struktur = kaldstart ? null : await hentStruktur(admin, STAR);
+
+    // Bruksfrekvensen er òg historikk: ein ny kunde har ingen.
+    const bruk = kaldstart ? {} : await hentBrukshistorikk(admin, STAR);
+
     const generert = await generateDraft({
       companyId: STAR,
       leadId: null,
@@ -536,6 +562,8 @@ for (const sak of saker) {
       company: { name: company!.name, tone_settings: company!.tone_settings ?? {} },
       priceItems,
       similar,
+      struktur,
+      bruk,
       forbehold,
       motor,
       fag,
