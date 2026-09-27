@@ -123,6 +123,25 @@ const elkontroll = pakke.jobbtyper.find((j) => j.id === "elkontroll_utbedring")!
 sjekk("elkontroll_utbedring krev ein rapport — elles er det feilsoking",
   /FORUTSETNING/.test(elkontroll.sjekkliste[0]) && /feilsoking/.test(elkontroll.sjekkliste[0]));
 
+// 3b. Dei to reglane frå produksjon 23.-25.09 ------------------------------
+//
+// Begge må stå i BEGGE motorane: v2 er det som kjører i produksjon i dag, og
+// ein regel som berre står i v3 rettar ingenting. v2-filene er framleis
+// frosne i den forstand som betyr noko — greina
+// frys/tilbudsagent-v2-2026-09-12 er tilbakerullingspunktet, ikkje filene.
+
+const v2Tekst = v2;
+for (const [namn, motor] of [["v2", v2Tekst], ["v3 steg 2", tilbudPrompt]] as const) {
+  sjekk(`${namn}: ei linje lagt inn «i tilfelle» er eit forbehold, ikkje ein post`,
+    /ikke en\s+post/.test(motor) && /forbehold/.test(motor) && /utover pakkeprisen/.test(motor));
+  sjekk(`${namn}: timar er lov når dei ER jobben`,
+    /ER\s+timene jobben/.test(motor) && /ikke en\s+buffer/.test(motor));
+  sjekk(`${namn}: fleire rom gir ein post per rom, ikkje eitt antal`,
+    /per rom/.test(motor) && /antall 4/.test(motor));
+  sjekk(`${namn}: grunngjevinga står der — kunden skal kunne stryke eitt rom`,
+    /stryke ett\s+rom/.test(motor));
+}
+
 // 4. E-postvaktene ---------------------------------------------------------
 
 const signatur = "Med vennlig hilsen\nKari Nordmann\nDaglig leder\n\n \nStorgata 1\n5000 Bergen\nTlf.:      55 00 00 00  \nwww.eksempel-elektro.no\n";
