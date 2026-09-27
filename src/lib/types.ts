@@ -501,6 +501,81 @@ export interface Supplier {
   updated_at: string;
 }
 
+export type FtpProtocol = "ftp" | "ftps" | "sftp";
+
+/** FTP-oppsettet slik UI-et ser det — uten passord. `har_passord` sier om det finnes. */
+export interface SupplierFtpPublic {
+  supplier_id: string;
+  protocol: FtpProtocol;
+  host: string;
+  port: number | null;
+  username: string;
+  har_passord: boolean;
+  remote_path: string;
+  varefil_pattern: string;
+  rabattfil_pattern: string | null;
+  auto_import: boolean;
+  last_listing: { name: string; size: number; mtime: string | null }[] | null;
+  last_fetch_at: string | null;
+  last_fetch_status: "ok" | "feil" | "ingen_ny_fil" | null;
+  last_fetch_note: string | null;
+  last_varefil_name: string | null;
+  last_varefil_mtime: string | null;
+  last_rabattfil_name: string | null;
+  last_rabattfil_mtime: string | null;
+}
+
+export type ImportJobStatus = "koe" | "hentar" | "importerer" | "ferdig" | "feil";
+export type ImportJobSource = "ftp" | "opplasting" | "script" | "nattjobb";
+
+export const IMPORT_JOB_STATUS_LABELS: Record<ImportJobStatus, string> = {
+  koe: "I kø",
+  hentar: "Henter",
+  importerer: "Importerer",
+  ferdig: "Ferdig",
+  feil: "Feil",
+};
+
+export const IMPORT_JOB_SOURCE_LABELS: Record<ImportJobSource, string> = {
+  ftp: "FTP",
+  opplasting: "Opplasting",
+  script: "Script",
+  nattjobb: "Nattjobb",
+};
+
+export interface ImportJob {
+  id: string;
+  company_id: string;
+  supplier_id: string;
+  source: ImportJobSource;
+  status: ImportJobStatus;
+  varefil_path: string | null;
+  rabattfil_path: string | null;
+  varefil_name: string | null;
+  rabattfil_name: string | null;
+  progress_done: number;
+  progress_total: number | null;
+  result: {
+    linjer: number;
+    nye: number;
+    endra: number;
+    utgaatte: number;
+    ikkjeIFila: number;
+    medRabatt: number;
+    aktive: number;
+    aatvaringar: string[];
+    selger: string | null;
+    prisdato: string | null;
+    hoppaOver?: boolean;
+  } | null;
+  error: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 /**
  * En vare i grossistkatalogen. Prisene appen bruker er per måleenhet
  * (list_price_per_unit, net_price_per_unit); list_price og

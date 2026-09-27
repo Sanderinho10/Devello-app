@@ -14,7 +14,10 @@ const nextConfig: NextConfig = {
 
   // playwright-core laster chromium fra filsystemet, og libheif-js har en
   // WebAssembly-modul den finner selv — ingen av dem skal bundles.
-  serverExternalPackages: ["playwright-core", "heic-decode", "libheif-js"],
+  // ssh2 (bak ssh2-sftp-client) har en valgfri native modul og CommonJS-
+  // kryptokode Turbopack ikke kan legge i ESM-chunks; basic-ftp bruker
+  // net/tls direkte. Begge kjører bare på serveren og lastes derfra.
+  serverExternalPackages: ["playwright-core", "heic-decode", "libheif-js", "ssh2-sftp-client", "ssh2", "basic-ftp"],
 
   experimental: {
     /*
