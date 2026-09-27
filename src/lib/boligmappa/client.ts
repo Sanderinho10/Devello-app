@@ -16,12 +16,15 @@ import { boligmappaUrlar, refreshBoligmappaTokens, type BoligmappaMiljo } from "
  */
 
 export class BoligmappaFeil extends Error {
-  constructor(
-    message: string,
-    public status: number,
-  ) {
+  // Egen feltdeklarasjon, ikke «public status» i konstruktøren: Node sin
+  // strip-only TypeScript (scripts/nattjobb.ts) støtter ikke parameter
+  // properties, og denne modulen lastes derfra.
+  status: number;
+
+  constructor(message: string, status: number) {
     super(message);
     this.name = "BoligmappaFeil";
+    this.status = status;
   }
 }
 
