@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import type { FakturaDokument, FakturaEnhet, FakturaLinje } from "./faktura-dokument";
 
 /**
  * EHF / Peppol BIS Billing 3.0 (UBL 2.1) — det vi leser fra en faktura.
@@ -14,49 +15,10 @@ import { XMLParser } from "fast-xml-parser";
  * og prisen per meter — samme regel som grossistkatalogen.
  */
 
-export type EhfEnhet = "stk" | "m" | "kg" | "l";
-
-export interface EhfLinje {
-  lineNo: string | null;
-  name: string;
-  description: string | null;
-  note: string | null;
-  /** SellersItemIdentification/ID, slik den står. */
-  sellerItemId: string | null;
-  /** Elnummer: sju siffer fra sellerItemId, ellers fra navn/beskrivelse. */
-  elnr: string | null;
-  gtin: string | null;
-  quantity: number;
-  unit: EhfEnhet;
-  /** unitCode slik fakturaen sa det, for feilsøking. */
-  unitCode: string | null;
-  /** Netto per enhet eks. mva = lineTotal / quantity. */
-  unitPrice: number;
-  /** LineExtensionAmount — linjesum eks. mva etter linjerabatt. */
-  lineTotal: number;
-  vatPct: number | null;
-  /** Linjenivå-ordrereferanse (samlefaktura), ellers null. */
-  orderReference: string | null;
-}
-
-export interface EhfFaktura {
-  type: "faktura" | "kreditnota";
-  invoiceNo: string | null;
-  issueDate: string | null;
-  dueDate: string | null;
-  currency: string | null;
-  note: string | null;
-  buyerReference: string | null;
-  orderReference: string | null;
-  supplierName: string | null;
-  supplierOrgNr: string | null;
-  /** AccountingCustomerParty/Party/Contact/Name — «Deres ref» havner ofte her. */
-  customerContactName: string | null;
-  deliveryAddress: string | null;
-  taxExclusiveAmount: number | null;
-  payableAmount: number | null;
-  lines: EhfLinje[];
-}
+/** Typane bur i faktura-dokument.ts — same struktur for alle kjelder. */
+export type EhfEnhet = FakturaEnhet;
+export type EhfLinje = FakturaLinje;
+export type EhfFaktura = FakturaDokument;
 
 const UNIT: Record<string, EhfEnhet> = {
   C62: "stk",

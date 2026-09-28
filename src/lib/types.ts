@@ -523,6 +523,12 @@ export interface SupplierFtpPublic {
   last_varefil_mtime: string | null;
   last_rabattfil_name: string | null;
   last_rabattfil_mtime: string | null;
+  /** Fakturafiler («autofakt»). Tomt mønster = av. */
+  fakturafil_pattern: string | null;
+  fakturafil_path: string | null;
+  last_invoice_fetch_at: string | null;
+  last_invoice_fetch_status: "ok" | "feil" | "ingen_ny_fil" | null;
+  last_invoice_fetch_note: string | null;
 }
 
 export type ImportJobStatus = "koe" | "hentar" | "importerer" | "ferdig" | "feil";
@@ -737,11 +743,20 @@ export const INVOICE_MATCH_LABELS: Record<InvoiceMatchStatus, string> = {
   ignorert: "Ignorert",
 };
 
+export type InvoiceSource = "regnskap" | "ftp";
+
 export interface SupplierInvoice {
   id: string;
   company_id: string;
-  connection_id: string;
-  provider: AccountingProvider;
+  /** Kjelda: rekneskapssystemet (POGO) eller fakturafil frå grossisten (FTP). */
+  source: InvoiceSource;
+  connection_id: string | null;
+  provider: AccountingProvider | null;
+  /** FTP: grossisten fila kom frå. */
+  supplier_id: string | null;
+  file_id: string | null;
+  /** Same faktura sett frå to kjelder: denne peikar på den fyrste og blir ikkje matcha. */
+  duplicate_of: string | null;
   external_id: string;
   voucher_no: number | null;
   /** IncomingInvoice | IncomingCreditNote */
@@ -766,6 +781,25 @@ export interface SupplierInvoice {
   line_count: number;
   matched_line_count: number;
   fetched_at: string;
+  updated_at: string;
+}
+
+export type SupplierInvoiceFileStatus = "henta" | "lest" | "duplikat" | "feil";
+
+export interface SupplierInvoiceFile {
+  id: string;
+  company_id: string;
+  supplier_id: string;
+  file_name: string;
+  file_mtime: string | null;
+  file_size: number | null;
+  storage_path: string;
+  format: "ehf" | "nelfo4" | null;
+  status: SupplierInvoiceFileStatus;
+  error: string | null;
+  invoice_count: number;
+  fetched_at: string;
+  parsed_at: string | null;
   updated_at: string;
 }
 

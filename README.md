@@ -95,6 +95,7 @@ Eller lim inn migrasjonene i SQL-editoren i rekkefølge, så `seed.sql`.
 | `0042_grossist_ftp_og_importjobbar.sql` | `supplier_ftp` (FTP-oppsett per grossist, passord uten policy), `import_jobs` (kø → henter → importerer → ferdig/feil), bucket `supplier-files` |
 | `0043_rabatt_i_eitt_kall.sql` | indeks på rabattgruppe, `sett_rabattar(jsonb)` — rabatt for 500 grupper per kall |
 | `0044_avtalt_pris_per_vare.sql` | `sett_nettoprisar(jsonb)` — avtalt nettopris/rabatt per varenummer fra rabattfila |
+| `0045_fakturafiler_fra_grossist.sql` | `supplier_invoice_files` (fakturafiler fra FTP), `supplier_invoices.source/supplier_id/file_id/duplicate_of`, fakturafil-mønster på `supplier_ftp` |
 
 ### 3. Azure
 
@@ -329,6 +330,37 @@ bilagsdokumentasjon og leverandør (lesing), og for fakturaforslagene
 salgsordre, kunde og produkt — **uten** `sendInvoice`. Devello skal ikke
 kunne sende en faktura selv om koden prøvde.
 
+#### Fakturafiler fra grossisten («autofakt»)
+
+Kunder som ikke bokfører i Go ennå (Star Elektro er på Cordel) får
+grossistvarene inn likevel: grossisten legger fakturafiler på samme
+FTP-område som prisfilene — i formatet EFO/NELFO Fakturaformat 4.0, noen
+også som EHF-XML — og det er slik Cordel «Autofakt», Tripletex og Elinn
+får varene inn. Admin setter filmønster (og eventuelt egen katalog) under
+Ordre → Grossister → Automatisk henting → Fakturafiler; nattjobben og
+«Hent fakturaer nå» lister området, henter **alle** nye filer som matcher
+(hver fil er én faktura eller én bunt), legger dem i Storage
+(`supplier-invoices/{company}/ftp/{supplier}/`), leser dem og skriver
+fakturaer og linjer. Samme fil (navn + mtime) hoppes over; samme faktura
+(grossist + fakturanummer) fra en annen fil hoppes over.
+
+Fra `supplier_invoices` og utover er alt felles med Go-løypa:
+`behandleFaktura()` i `sync.ts` tar et `FakturaDokument` uansett kilde,
+matcher mot ordrer og lager materiell. Parserne er adaptere bak ett
+grensesnitt (`src/lib/regnskap/faktura-dokument.ts`): EHF finnes
+(`adapter-ehf.ts`); **NELFO 4.0 er en stubb** som kjenner igjen fila og
+feiler tydelig («Formatet er ikke støttet ennå») til spesifikasjonen ligger
+i `docs/efo-nelfo-faktura-4.0.md` og en ekte fil i `prover/`. Layouten
+skal aldri gjettes.
+
+Samme faktura fra to kilder (FTP først, Go senere når kunden flytter) gir
+ikke dobbelt materiell: den som kommer sist får `duplicate_of` mot den
+første, står som ignorert, og matches aldri. Kilden vises i lista som
+«PowerOffice Go» eller «Onninen (FTP)».
+
+`npm run nattjobb -- --berre-fakturaer` henter bare fakturafiler — til en
+ekstra kjøring midt på dagen uten å dra prisfilene to ganger.
+
 ### Fakturaforslag
 
 Poenget med ordremodulen: en faktura som er rett første gang, fordi den er
@@ -445,6 +477,7 @@ npm run test:ehf               # EHF-parseren og ordrenummer-matchingen, uten da
 npm run test:faktura           # fakturaforslaget: resolver, redigering, Go-payload — uten database og modell
 npm run test:dokumentasjon     # dokumentasjonsmalene: validering, prefill, påkrevde felt, PDF-HTML — uten database
 npm run test:ftp-monster       # filmønster og «nyeste fil» for FTP-henting, uten nettverk
+npm run test:fakturafil        # fakturafil-adaptere, FTP-henting mot stubb (idempotens, duplikat), prøvefiler i prover/
 npm run nattjobb               # prisfiler fra FTP + leverandørfakturaer fra Go, for alle selskap — det Railway kjører hver natt
 npm run test:gullsett          # målingen bak gullsettet, uten database
 npm run evaluer                # evalueringssuiten — 15 saker med fasit, se evaluering/LES_MEG.md

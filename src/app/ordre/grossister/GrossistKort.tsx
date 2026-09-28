@@ -27,6 +27,7 @@ import {
   type ImportJob,
   type Supplier,
   type SupplierFtpPublic,
+  type SupplierInvoiceFile,
 } from "@/lib/types";
 
 /**
@@ -39,12 +40,14 @@ export function GrossistKort({
   aktiveVarer,
   ftp,
   jobbar,
+  fakturafiler,
   erAdmin,
 }: {
   grossist: Supplier;
   aktiveVarer: number;
   ftp: SupplierFtpPublic | null;
   jobbar: ImportJob[];
+  fakturafiler: SupplierInvoiceFile[];
   erAdmin: boolean;
 }) {
   const router = useRouter();
@@ -115,7 +118,7 @@ export function GrossistKort({
       {live && lever(live) && <JobbStatus jobb={live} />}
 
       {fane === "ftp" && erAdmin && (
-        <FtpDel grossist={grossist} ftp={ftp} live={live && lever(live) ? live : null} onJobb={(j) => setLive(j)} />
+        <FtpDel grossist={grossist} ftp={ftp} fakturafiler={fakturafiler} live={live && lever(live) ? live : null} onJobb={(j) => setLive(j)} />
       )}
       {fane === "opplasting" && erAdmin && (
         <OpplastingDel grossist={grossist} live={live && lever(live) ? live : null} onJobb={(j) => setLive(j)} />
@@ -199,11 +202,13 @@ function JobbStatus({ jobb }: { jobb: ImportJob }) {
 function FtpDel({
   grossist,
   ftp,
+  fakturafiler,
   live,
   onJobb,
 }: {
   grossist: Supplier;
   ftp: SupplierFtpPublic | null;
+  fakturafiler: SupplierInvoiceFile[];
   live: ImportJob | null;
   onJobb: (j: ImportJob) => void;
 }) {
@@ -218,8 +223,11 @@ function FtpDel({
     varefil_pattern: ftp?.varefil_pattern ?? "V4*",
     rabattfil_pattern: ftp?.rabattfil_pattern ?? "R4*",
     auto_import: ftp?.auto_import ?? true,
+    fakturafil_pattern: ftp?.fakturafil_pattern ?? "",
+    fakturafil_path: ftp?.fakturafil_path ?? "",
   });
-  const [busy, setBusy] = useState<null | "lagre" | "test" | "hent">(null);
+  const [busy, setBusy] = useState<null | "lagre" | "test" | "hent" | "fakturaer">(null);
+  const [fakturaMelding, setFakturaMelding] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [melding, setMelding] = useState<string | null>(null);
   const [liste, setListe] = useState<{ filer: { name: string; size: number; mtime: string | null }[]; villeHenta: { varefil: string | null; rabattfil: string | null } } | null>(null);
@@ -278,6 +286,31 @@ function FtpDel({
       const payload = await lesJson(res);
       if (!res.ok) throw new Error(payload.error ?? "Kunne ikke starte");
       onJobb(payload as ImportJob);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function hentFakturaer() {
+    if (form.password || !ftp) {
+      if (!(await lagre())) return;
+    }
+    setBusy("fakturaer");
+    setError(null);
+    setFakturaMelding(null);
+    try {
+      const res = await fetch(`/api/grossist/${grossist.id}/fakturaer/hent`, { method: "POST" });
+      const payload = await lesJson(res);
+      if (!res.ok) throw new Error(payload.error ?? "Kunne ikke hente fakturaer");
+      const r = payload as { filer: number; nye: number; fakturaer: number; kopla: number; ukopla: number; duplikat: number; feil: string[] };
+      setFakturaMelding(
+        `${r.filer} filer på serveren, ${r.nye} nye, ${r.fakturaer} fakturaer, ${r.kopla} koblet, ${r.ukopla} ukoblet` +
+          (r.duplikat ? `, ${r.duplikat} duplikat` : "") +
+          (r.feil.length ? ` — ${r.feil.length} feil: ${r.feil[0]}` : ""),
+      );
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -384,6 +417,60 @@ function FtpDel({
             ))}
             {liste.filer.length > 30 && <div className="tiny muted" style={{ padding: 6 }}>… og {liste.filer.length - 30} til</div>}
           </div>
+        </div>
+      )}
+
+      <div className="label" style={{ marginTop: 20 }}>Fakturafiler</div>
+      <p className="tiny muted" style={{ marginBottom: 10 }}>
+        Grossisten kan legge fakturaene som filer på samme FTP-konto («autofakt»). Alle nye filer som matcher
+        mønsteret hentes, leses, og linjene legges på ordren montøren skrev på bestillingen — samme som fra
+        regnskapssystemet.
+      </p>
+      {ftp?.last_invoice_fetch_at && (
+        <div className="tiny muted" style={{ marginBottom: 8 }}>
+          Sist hentet {formatDate(ftp.last_invoice_fetch_at)}
+          {ftp.last_invoice_fetch_status && ` · ${ftp.last_invoice_fetch_status === "ok" ? "ok" : ftp.last_invoice_fetch_status === "ingen_ny_fil" ? "ingen ny fil" : "feil"}`}
+          {ftp.last_invoice_fetch_note && ` — ${ftp.last_invoice_fetch_note}`}
+        </div>
+      )}
+      {fakturaMelding && <div className="banner info" style={{ marginBottom: 8 }}>{fakturaMelding}</div>}
+      <div className="grid-2">
+        <label className="field">
+          <span className="label">Filmønster fakturafil (tom = av)</span>
+          <input className="input" value={form.fakturafil_pattern} onChange={(e) => sett("fakturafil_pattern", e.target.value)} placeholder="" />
+          <span className="hint">
+            Be grossisten om autofakt i formatet EFO/NELFO 4.0 på samme FTP-konto, og spør hva filene heter.
+          </span>
+        </label>
+        <label className="field">
+          <span className="label">Katalog for fakturafiler (tom = samme som over)</span>
+          <input className="input" value={form.fakturafil_path} onChange={(e) => sett("fakturafil_path", e.target.value)} placeholder={form.remote_path || "/"} />
+        </label>
+      </div>
+      <div className="row" style={{ flexWrap: "wrap" }}>
+        <button type="button" className="button secondary" onClick={hentFakturaer} disabled={busy !== null || !form.fakturafil_pattern.trim() || (!ftp && !form.password)}>
+          {busy === "fakturaer" ? "Henter…" : "Hent fakturaer nå"}
+        </button>
+        <span className="tiny muted">Lagre først om du har endret mønsteret.</span>
+      </div>
+      {fakturafiler.length > 0 && (
+        <div className="filliste" style={{ marginTop: 10 }}>
+          {fakturafiler.map((f) => (
+            <div key={f.id} className="fil-rad" title={f.error ?? undefined}>
+              <span>
+                <span className={`pill ${f.status === "lest" ? "ferdig" : f.status === "feil" ? "avbrutt" : f.status === "duplikat" ? "opna" : "paagaar"}`} style={{ marginRight: 8 }}>
+                  {f.status === "lest" ? "Lest" : f.status === "feil" ? "Feil" : f.status === "duplikat" ? "Duplikat" : "Hentet"}
+                </span>
+                {f.file_name}
+                {f.status === "lest" && ` · ${f.invoice_count} ${f.invoice_count === 1 ? "faktura" : "fakturaer"}`}
+                {f.error && <span className="tiny" style={{ color: "var(--danger, #b00)" }}> · {f.error}</span>}
+              </span>
+              <span className="tiny muted">
+                {f.file_size !== null && formatStorleik(f.file_size)}
+                {` · ${formatDate(f.fetched_at)}`}
+              </span>
+            </div>
+          ))}
         </div>
       )}
     </div>
