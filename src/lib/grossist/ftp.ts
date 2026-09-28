@@ -210,6 +210,24 @@ export async function hentNyaste(
   });
 }
 
+/** Én navngitt fil, lastet ned. */
+export async function hentFil(o: FtpOppsett, name: string): Promise<Buffer> {
+  return medForsok(o, (t) => t.hent(name));
+}
+
+/**
+ * Flere navngitte filer i én økt — fakturafiler er små og mange, og én
+ * innlogging per fil er unødig. Rekkefølgen er den gitte.
+ */
+export async function hentFiler(o: FtpOppsett, names: string[]): Promise<Map<string, Buffer>> {
+  if (names.length === 0) return new Map();
+  return medForsok(o, async (t) => {
+    const ut = new Map<string, Buffer>();
+    for (const name of names) ut.set(name, await t.hent(name));
+    return ut;
+  });
+}
+
 /** Feilene oversatt til noe kunden kan handle på. Passordet er aldri med. */
 export function forklar(err: unknown, o: FtpOppsett): FtpFeil {
   if (err instanceof FtpFeil) return err;

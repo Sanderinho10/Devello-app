@@ -3,7 +3,7 @@ import { NyGrossist } from "./NyGrossist";
 import { GrossistSok } from "@/components/GrossistSok";
 import { utanPassord } from "@/lib/grossist/api";
 import { currentSession, supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
-import type { ImportJob, Supplier, SupplierFtpPublic } from "@/lib/types";
+import type { ImportJob, Supplier, SupplierFtpPublic, SupplierInvoiceFile } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +18,7 @@ export default async function GrossisterPage() {
   const supabase = await supabaseServer();
   const admin = supabaseAdmin();
 
-  const [{ data: rader }, { data: meg }, { data: ftpRader }, { data: jobbar }] = await Promise.all([
+  const [{ data: rader }, { data: meg }, { data: ftpRader }, { data: jobbar }, { data: fakturafiler }] = await Promise.all([
     supabase.from("suppliers").select("*").eq("company_id", session!.companyId).order("name"),
     supabase.from("users").select("role").eq("id", session!.userId).maybeSingle(),
     admin.from("supplier_ftp").select("*").eq("company_id", session!.companyId),
@@ -28,6 +28,12 @@ export default async function GrossisterPage() {
       .eq("company_id", session!.companyId)
       .order("created_at", { ascending: false })
       .limit(100),
+    supabase
+      .from("supplier_invoice_files")
+      .select("*")
+      .eq("company_id", session!.companyId)
+      .order("fetched_at", { ascending: false })
+      .limit(100),
   ]);
   const grossistar = (rader ?? []) as Supplier[];
   const erAdmin = meg?.role === "admin";
@@ -35,6 +41,12 @@ export default async function GrossisterPage() {
   for (const r of ftpRader ?? []) {
     const p = utanPassord(r as Record<string, unknown>);
     if (p) ftpAv.set(p.supplier_id, p);
+  }
+  const fakturafilerAv = new Map<string, SupplierInvoiceFile[]>();
+  for (const f of (fakturafiler ?? []) as SupplierInvoiceFile[]) {
+    const liste = fakturafilerAv.get(f.supplier_id) ?? [];
+    if (liste.length < 10) liste.push(f);
+    fakturafilerAv.set(f.supplier_id, liste);
   }
   const jobbarAv = new Map<string, ImportJob[]>();
   for (const j of (jobbar ?? []) as ImportJob[]) {
@@ -84,6 +96,7 @@ export default async function GrossisterPage() {
               aktiveVarer={antall[i]}
               ftp={ftpAv.get(g.id) ?? null}
               jobbar={jobbarAv.get(g.id) ?? []}
+              fakturafiler={fakturafilerAv.get(g.id) ?? []}
               erAdmin={erAdmin}
             />
           ))}

@@ -74,6 +74,8 @@ export default async function LeverandorfakturaerPage({
   ]);
 
   const harKopling = Boolean(kopling && kopling.status !== "kopla_fra");
+  // Fakturafiler fra grossistens FTP kommer uten regnskapskopling.
+  const harFakturaer = (alle ?? 0) > 0;
 
   return (
     <>
@@ -81,19 +83,23 @@ export default async function LeverandorfakturaerPage({
         <div>
           <h1>Leverandørfakturaer</h1>
           <p className="page-subtitle">
-            Fra regnskapssystemet, koblet til ordren grossisten skrev på fakturaen.
+            Fra regnskapssystemet eller grossistens fakturafiler, koblet til ordren grossisten skrev på fakturaen.
           </p>
         </div>
         {harKopling && <HentFakturaer />}
       </div>
 
-      {!harKopling ? (
+      {!harKopling && !harFakturaer ? (
         <div className="card empty">
-          <div className="empty-title">Ikke tilkoblet noe regnskapssystem</div>
+          <div className="empty-title">Ingen fakturakilde ennå</div>
           <div>
             Koble til PowerOffice Go under{" "}
             <Link href="/ordre/innstillinger" style={{ textDecoration: "underline" }}>
               Innstillinger
+            </Link>
+            , eller sett opp fakturafiler fra grossisten under{" "}
+            <Link href="/ordre/grossister" style={{ textDecoration: "underline" }}>
+              Grossister
             </Link>
             , så hentes fakturaene hit.
           </div>
@@ -129,7 +135,9 @@ export default async function LeverandorfakturaerPage({
               <div>
                 {vis === "ukopla"
                   ? "Alt som er hentet har funnet ordren sin."
-                  : "Trykk «Hent fakturaer nå» for å lese inn fra regnskapssystemet."}
+                  : harKopling
+                    ? "Trykk «Hent fakturaer nå» for å lese inn fra regnskapssystemet."
+                    : "Fakturafilene hentes fra grossisten hver natt, eller med «Hent fakturaer nå» under Grossister."}
               </div>
             </div>
           ) : (

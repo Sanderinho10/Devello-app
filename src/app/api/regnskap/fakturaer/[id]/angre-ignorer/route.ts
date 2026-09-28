@@ -16,6 +16,9 @@ export async function POST(
     const admin = supabaseAdmin();
     const faktura = await fakturaForSkriving(admin, session, id);
     if (faktura instanceof NextResponse) return faktura;
+    if (faktura.duplicate_of) {
+      return NextResponse.json({ error: "Et duplikat kan ikke tas i bruk — originalen har linjene." }, { status: 400 });
+    }
 
     await admin.from("supplier_invoices").update({ match_status: "ukopla" }).eq("id", faktura.id);
     const status = await oppdaterFakturaStatus(admin, faktura.id);

@@ -87,8 +87,9 @@ export function FakturaListe({
         const erOpen = open.has(f.id);
         const fLinjer = linjerPerFaktura.get(f.id) ?? [];
         const ordre = f.order_id ? ordreAvId.get(f.order_id) : null;
+        const duplikat = Boolean(f.duplicate_of);
         // Uten linjer (ingen EHF) kobles hele fakturaen til ordren.
-        const kanKople = !kreditnota && f.match_status !== "kopla" && f.match_status !== "ignorert";
+        const kanKople = !kreditnota && !duplikat && f.match_status !== "kopla" && f.match_status !== "ignorert";
 
         return (
           <div key={f.id} className={`faktura-rad${erOpen ? " open" : ""}`}>
@@ -104,8 +105,16 @@ export function FakturaListe({
                 </div>
                 <div className="lead-meta">
                   {formatDag(f.voucher_date)}
-                  {f.line_count > 0 ? ` · ${f.line_count} linjer` : f.has_ehf ? "" : " · ingen EHF"}
-                  {f.parse_error && ` · kunne ikke lese EHF: ${f.parse_error}`}
+                  {" · "}
+                  <span title="Hvor fakturaen ble hentet fra">{kjelde(f)}</span>
+                  {duplikat
+                    ? " · duplikat — samme faktura er alt lest fra " + (f.source === "regnskap" ? "grossistens fakturafil" : "regnskapssystemet")
+                    : f.line_count > 0
+                      ? ` · ${f.line_count} linjer`
+                      : f.has_ehf
+                        ? ""
+                        : " · ingen EHF"}
+                  {f.parse_error && ` · kunne ikke lese fakturaen: ${f.parse_error}`}
                 </div>
                 {f.references_found.length > 0 && (
                   <div className="chips">
@@ -126,10 +135,10 @@ export function FakturaListe({
                   f.match_status === "kopla" ? "ferdig" : f.match_status === "delvis" ? "paagaar" : f.match_status === "ignorert" ? "avbrutt" : "opna"
                 }`}
               >
-                {kreditnota && f.match_status === "ukopla" ? "Håndteres manuelt" : INVOICE_MATCH_LABELS[f.match_status]}
+                {duplikat ? "Duplikat" : kreditnota && f.match_status === "ukopla" ? "Håndteres manuelt" : INVOICE_MATCH_LABELS[f.match_status]}
               </span>
               <span onClick={(e) => e.stopPropagation()} className="row" style={{ flexWrap: "wrap" }}>
-                {ordre ? (
+                {duplikat ? null : ordre ? (
                   <Link className="button secondary" href={`/ordre/${ordre.id}`}>
                     #{ordre.order_no} →
                   </Link>
@@ -144,7 +153,7 @@ export function FakturaListe({
                     />
                   )
                 )}
-                {f.match_status === "ignorert" ? (
+                {duplikat ? null : f.match_status === "ignorert" ? (
                   <button
                     type="button"
                     className="button ghost"
@@ -188,7 +197,11 @@ export function FakturaListe({
                 )}
                 {fLinjer.length === 0 ? (
                   <p className="muted tiny">
-                    {f.has_ehf ? "Ingen linjer lest." : "Fakturaen kom uten EHF — bare hodet finnes i regnskapssystemet."}
+                    {duplikat
+                      ? "Linjene ligger på originalen — denne er bare registrert, så den ikke gir dobbelt materiell."
+                      : f.has_ehf
+                        ? "Ingen linjer lest."
+                        : "Fakturaen kom uten EHF — bare hodet finnes i regnskapssystemet."}
                     {ordre && " Koblet til ordren som helhet; beløpet er ikke ført som materiell."}
                   </p>
                 ) : (
@@ -354,6 +367,12 @@ function OrdreVelger({
       </button>
     </span>
   );
+}
+
+/** «PowerOffice Go» eller «Onninen (FTP)». */
+function kjelde(f: SupplierInvoice): string {
+  if (f.source === "ftp") return `${f.supplier_name ?? "Grossist"} (FTP)`;
+  return f.provider === "tripletex" ? "Tripletex" : "PowerOffice Go";
 }
 
 /** «2026-09-12» → «12.09». */

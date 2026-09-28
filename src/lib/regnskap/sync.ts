@@ -8,7 +8,8 @@ import type {
   SupplierInvoice,
   SupplierInvoiceLine,
 } from "@/lib/types";
-import { parseEhf, type EhfFaktura } from "./ehf";
+import { parseEhf } from "./ehf";
+import { referansarFraDokument, type FakturaDokument } from "./faktura-dokument";
 import { finnOrdrenummer } from "./matching";
 import { pogoClient, type PogoInngaaandeFaktura, type PogoKopling } from "./poweroffice";
 
@@ -24,6 +25,12 @@ import { pogoClient, type PogoInngaaandeFaktura, type PogoKopling } from "./powe
  * Rekkefølgen er valgt så en feil midt i aldri koster oss det som alt er
  * hentet: hodene lagres først, så dokumentasjon og linjer per faktura, så
  * matching. Feiler én faktura, går vi videre til neste og noterer feilen.
+ *
+ * Alt fra og med linjene er felles med fakturafiler fra grossistens FTP
+ * (ftp-faktura.ts): behandleFaktura() tar et FakturaDokument uansett
+ * kilde, og matchAlle() jobber på supplier_invoices.id. Det som er
+ * PowerOffice-spesifikt her er hodene, leverandøroppslaget og
+ * EHF-nedlastingen.
  */
 
 export const BUCKET = "supplier-invoices";
@@ -141,8 +148,10 @@ export async function synkroniserFakturaer(
       .in("external_id", hoder.map((h) => h.Id));
 
     const leverandoerCache = new Map<string, { name: string | null; no: string | null; org: string | null }>();
+    const fakturaIds: string[] = [];
 
     for (const faktura of (fakturaer ?? []) as SupplierInvoice[]) {
+      fakturaIds.push(faktura.id);
       const hode = hoder.find((h) => h.Id === faktura.external_id);
       try {
         const oppdatering: Record<string, unknown> = {};
@@ -164,11 +173,11 @@ export async function synkroniserFakturaer(
           if (lev.org) oppdatering.supplier_org_nr = lev.org;
         }
 
-        let ehf: EhfFaktura | null = null;
+        let dok: FakturaDokument | null = null;
         if (!faktura.ehf_parsed_at && !faktura.parse_error) {
-          const dok = await pogo.hentDokumentasjonsstatus(faktura.external_id);
-          oppdatering.has_ehf = dok.HasEhf;
-          if (dok.HasEhf) {
+          const status = await pogo.hentDokumentasjonsstatus(faktura.external_id);
+          oppdatering.has_ehf = status.HasEhf;
+          if (status.HasEhf) {
             const xml = await pogo.lastNedEhf(faktura.external_id);
             const sti = `${companyId}/${faktura.external_id}.xml`;
             const { error: lagreFeil } = await admin.storage
@@ -176,40 +185,56 @@ export async function synkroniserFakturaer(
               .upload(sti, Buffer.from(xml, "utf-8"), { contentType: "application/xml", upsert: true });
             if (lagreFeil) throw new Error(`Kunne ikke lagre XML: ${lagreFeil.message}`);
             oppdatering.ehf_storage_path = sti;
-
             try {
-              ehf = parseEhf(xml);
+              dok = parseEhf(xml);
             } catch (err) {
               oppdatering.parse_error = melding(err);
-            }
-
-            if (ehf) {
-              await skrivLinjer(admin, faktura, ehf);
-              oppdatering.ehf_parsed_at = new Date().toISOString();
-              oppdatering.parse_error = null;
-              oppdatering.line_count = ehf.lines.length;
-              if (!faktura.supplier_name && !oppdatering.supplier_name && ehf.supplierName) {
-                oppdatering.supplier_name = ehf.supplierName;
-              }
-              if (ehf.supplierOrgNr && !faktura.supplier_org_nr) oppdatering.supplier_org_nr = ehf.supplierOrgNr;
-              if (!faktura.invoice_no && ehf.invoiceNo) oppdatering.invoice_no = ehf.invoiceNo;
             }
           }
         }
 
-        oppdatering.references_found = referansar(hode, ehf, faktura.references_found);
+        // Referansene fra Go-hodet legges til de fra dokumentet.
+        oppdatering.references_found = referansarFraDokument(dok, [
+          ...faktura.references_found,
+          ...[hode?.PurchaseOrderReference, hode?.CustomMatchingReference, hode?.ProjectCode]
+            .filter((r): r is string => typeof r === "string" && r.trim().length > 0)
+            .map((r) => r.trim().slice(0, 120)),
+        ]);
+
+        // Samme faktura kan alt være lest fra grossistens fakturafil (FTP).
+        // Da får denne ingen linjer og ingen matching — ellers dobbelt
+        // materiell på ordren.
+        const orgNr = (oppdatering.supplier_org_nr as string | undefined) ?? faktura.supplier_org_nr ?? dok?.supplierOrgNr ?? null;
+        const fakturaNr = faktura.invoice_no ?? dok?.invoiceNo ?? null;
+        if (!faktura.duplicate_of && orgNr && fakturaNr) {
+          const original = await finnDuplikat(admin, companyId, orgNr, fakturaNr, "ftp", faktura.id);
+          if (original) {
+            oppdatering.duplicate_of = original;
+            oppdatering.match_status = "ignorert";
+            if (dok) {
+              oppdatering.ehf_parsed_at = new Date().toISOString();
+              oppdatering.line_count = 0;
+            }
+            dok = null;
+          }
+        }
 
         if (Object.keys(oppdatering).length) {
           const { error } = await admin.from("supplier_invoices").update(oppdatering).eq("id", faktura.id);
           if (error) throw new Error(error.message);
+        }
+
+        if (dok) {
+          await behandleFaktura(admin, { ...faktura, ...oppdatering } as SupplierInvoice, dok);
         }
       } catch (err) {
         resultat.feil.push(`Faktura ${faktura.invoice_no ?? faktura.voucher_no ?? faktura.external_id}: ${melding(err)}`);
       }
     }
 
-    // 3. Matching og materiell.
-    const tal = await matchAlle(admin, companyId, hoder.map((h) => h.Id));
+    // 3. Matching og materiell — også for fakturaer uten EHF (bare hodet),
+    //    og en gang til for dem behandleFaktura alt har matchet: idempotent.
+    const tal = await matchAlle(admin, companyId, fakturaIds);
     resultat.kopla = tal.kopla;
     resultat.delvis = tal.delvis;
     resultat.ukopla = tal.ukopla;
@@ -245,14 +270,75 @@ export async function synkroniserFakturaer(
 }
 
 // ---------------------------------------------------------------------------
-// Linjer
+// Linjer — felles for alle kilder
 // ---------------------------------------------------------------------------
 
 /**
- * Skriver linjene fra EHF-en. Linjer som alt er koblet til materiell står
- * urørt; resten slettes og skrives om, så en ny parse aldri gir dubletter.
+ * Skriver linjene fra dokumentet, oppdaterer hodet med det dokumentet vet
+ * (leverandør, fakturanummer, referanser), matcher mot ordrer og lager
+ * materiell. Idempotent per faktura: linjer som alt er koblet til
+ * materiell står urørt, resten skrives om; materiell lages bare for linjer
+ * som ikke har det.
  */
-async function skrivLinjer(admin: SupabaseClient, faktura: SupplierInvoice, ehf: EhfFaktura) {
+export async function behandleFaktura(
+  admin: SupabaseClient,
+  faktura: SupplierInvoice,
+  dok: FakturaDokument,
+): Promise<{ status: InvoiceMatchStatus }> {
+  await skrivLinjer(admin, faktura, dok);
+
+  const oppdatering: Record<string, unknown> = {
+    ehf_parsed_at: new Date().toISOString(),
+    parse_error: null,
+    line_count: dok.lines.length,
+    references_found: referansarFraDokument(dok, faktura.references_found),
+  };
+  if (!faktura.supplier_name && dok.supplierName) oppdatering.supplier_name = dok.supplierName;
+  if (!faktura.supplier_org_nr && dok.supplierOrgNr) oppdatering.supplier_org_nr = dok.supplierOrgNr;
+  if (!faktura.invoice_no && dok.invoiceNo) oppdatering.invoice_no = dok.invoiceNo;
+  const { error } = await admin.from("supplier_invoices").update(oppdatering).eq("id", faktura.id);
+  if (error) throw new Error(`Kunne ikke oppdatere fakturaen: ${error.message}`);
+
+  const tal = await matchAlle(admin, faktura.company_id, [faktura.id]);
+  const status: InvoiceMatchStatus = tal.kopla ? "kopla" : tal.delvis ? "delvis" : tal.ukopla ? "ukopla" : "ignorert";
+  return { status };
+}
+
+/**
+ * Finnes den samme fakturaen fra en annen kilde? Samme leverandør (org.nr)
+ * og fakturanummer. Den som kom først er originalen; en som selv er
+ * duplikat teller ikke.
+ */
+export async function finnDuplikat(
+  admin: SupabaseClient,
+  companyId: string,
+  supplierOrgNr: string,
+  invoiceNo: string,
+  kjelde: "ftp" | "regnskap",
+  ikkjeId: string | null,
+): Promise<string | null> {
+  let q = admin
+    .from("supplier_invoices")
+    .select("id")
+    .eq("company_id", companyId)
+    .eq("supplier_org_nr", supplierOrgNr)
+    .eq("invoice_no", invoiceNo)
+    .eq("source", kjelde)
+    .is("duplicate_of", null)
+    .order("fetched_at", { ascending: true })
+    .limit(1);
+  if (ikkjeId) q = q.neq("id", ikkjeId);
+  const { data } = await q;
+  const rad = (data ?? [])[0] as { id: string } | undefined;
+  return rad?.id ?? null;
+}
+
+/**
+ * Skriver linjene fra dokumentet. Linjer som alt er koblet til materiell
+ * står urørt; resten slettes og skrives om, så en ny parse aldri gir
+ * dubletter.
+ */
+async function skrivLinjer(admin: SupabaseClient, faktura: SupplierInvoice, dok: FakturaDokument) {
   await admin
     .from("supplier_invoice_lines")
     .delete()
@@ -266,7 +352,7 @@ async function skrivLinjer(admin: SupabaseClient, faktura: SupplierInvoice, ehf:
   const alleredeKopla = new Set((att ?? []).map((l) => l.line_no as string | null));
 
   // Elnummer → katalogvare, for sporbarhet. Kostprisen kommer fra fakturaen.
-  const elnr = [...new Set(ehf.lines.map((l) => l.elnr).filter(Boolean))] as string[];
+  const elnr = [...new Set(dok.lines.map((l) => l.elnr).filter(Boolean))] as string[];
   const katalog = new Map<string, string>();
   if (elnr.length) {
     const { data: varer } = await admin
@@ -278,7 +364,7 @@ async function skrivLinjer(admin: SupabaseClient, faktura: SupplierInvoice, ehf:
     for (const v of varer ?? []) if (!katalog.has(v.item_no)) katalog.set(v.item_no, v.id);
   }
 
-  const rader = ehf.lines
+  const rader = dok.lines
     .filter((l) => !alleredeKopla.has(l.lineNo))
     .map((l) => ({
       company_id: faktura.company_id,
@@ -293,34 +379,13 @@ async function skrivLinjer(admin: SupabaseClient, faktura: SupplierInvoice, ehf:
       unit_price: l.unitPrice,
       line_total: l.lineTotal,
       vat_pct: l.vatPct,
-      order_reference: l.orderReference ?? ehf.orderReference ?? null,
+      order_reference: l.orderReference ?? dok.orderReference ?? null,
       supplier_item_id: l.elnr ? (katalog.get(l.elnr) ?? null) : null,
     }));
   if (rader.length) {
     const { error } = await admin.from("supplier_invoice_lines").insert(rader);
     if (error) throw new Error(`Kunne ikke lagre linjer: ${error.message}`);
   }
-}
-
-function referansar(
-  hode: PogoInngaaandeFaktura | undefined,
-  ehf: EhfFaktura | null,
-  fraFoer: string[],
-): string[] {
-  const ut = new Set<string>(fraFoer ?? []);
-  for (const r of [
-    hode?.PurchaseOrderReference,
-    hode?.CustomMatchingReference,
-    hode?.ProjectCode,
-    ehf?.orderReference,
-    ehf?.buyerReference,
-    ehf?.customerContactName,
-    ehf?.note,
-    ...(ehf?.lines.map((l) => l.orderReference) ?? []),
-  ]) {
-    if (r && r.trim()) ut.add(r.trim().slice(0, 120));
-  }
-  return [...ut];
 }
 
 // ---------------------------------------------------------------------------
@@ -337,13 +402,14 @@ async function gyldigeOrdrar(admin: SupabaseClient, companyId: string): Promise<
   return new Map(((data ?? []) as Order[]).map((o) => [o.order_no, o]));
 }
 
-async function matchAlle(
+/** Matcher fakturaene (supplier_invoices.id) mot ordrer og lager materiell. Felles for alle kilder. */
+export async function matchAlle(
   admin: SupabaseClient,
   companyId: string,
-  externalIds: string[],
+  invoiceIds: string[],
 ): Promise<{ kopla: number; delvis: number; ukopla: number }> {
   const tal = { kopla: 0, delvis: 0, ukopla: 0 };
-  if (!externalIds.length) return tal;
+  if (!invoiceIds.length) return tal;
 
   const ordrar = await gyldigeOrdrar(admin, companyId);
   const gyldige = new Set(ordrar.keys());
@@ -352,7 +418,7 @@ async function matchAlle(
     .from("supplier_invoices")
     .select("*")
     .eq("company_id", companyId)
-    .in("external_id", externalIds);
+    .in("id", invoiceIds);
 
   const { data: company } = await admin
     .from("companies")
@@ -362,7 +428,7 @@ async function matchAlle(
   const paaslag = Number(company?.materials_markup_pct ?? 25);
 
   for (const faktura of (fakturaer ?? []) as SupplierInvoice[]) {
-    if (faktura.match_status === "ignorert") continue;
+    if (faktura.match_status === "ignorert" || faktura.duplicate_of) continue;
 
     // Kreditnota: vises, aldri koblet automatisk. Håndteres manuelt.
     const kreditnota = /credit/i.test(faktura.voucher_type);

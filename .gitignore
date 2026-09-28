@@ -15,3 +15,8 @@ evaluering/resultat/siste*.json
 evaluering/resultat/utkast*/
 # Gullsettet er kundens sende tilbod (anonymisert) — aldri i eit offentleg repo
 evaluering/gullsett/
+
+# Ekte fakturafiler til test:fakturafil er kundedata — aldri i git
+prover/*
+!prover/.gitkeep
+!prover/README.md
