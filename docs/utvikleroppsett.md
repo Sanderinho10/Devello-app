@@ -125,6 +125,36 @@ npm run typecheck
 npm run build
 ```
 
+## Testbruker for montørapp-API-et
+
+`npm run test:app-api` kjører mot en lokal server (`npm run dev`) som en ekte
+bruker, og skriver timer, materiell, notat og et bilde på en ordre. Den
+trenger derfor en **testbruker i et testselskap** — aldri en ekte kunde.
+
+1. Registrer et selskap i nettappen (`/signup`) med en e-post du styrer,
+   f.eks. `test+app@dittdomene.no`, og gi selskapet navnet «Testselskap».
+   Legg inn et fullt oppsett i onboardingen, eller hopp over.
+2. Slå på ordre-modulen for selskapet (Supabase → `companies.moduler` skal
+   inneholde `ordre`), og legg inn minst én timetype: Tilbud → Prislister →
+   en aktiv liste med en rad av typen «time».
+3. I `.env.local`:
+
+   ```
+   TEST_EMAIL=test+app@dittdomene.no
+   TEST_PASSWORD=<passordet>
+   # valgfritt, standard http://localhost:3000
+   APP_URL=http://localhost:3000
+   ```
+
+4. `npm run dev` i ett vindu, `npm run test:app-api` i et annet. Testen
+   lager en ordre «Test montørapp» om selskapet ikke har noen aktiv, og
+   rydder ikke opp etter seg — det er et testselskap.
+
+Strekkodetesten hopper over seg selv om selskapet ikke har noen katalogvare
+med GTIN. Testen for «andres notat» trenger en bruker til med `role =
+'standard'` i samme selskap (`TEST_EMAIL_2`/`TEST_PASSWORD_2`) og hoppes over
+uten.
+
 ## Delt database — vær varsom
 
 Alle jobber i dag mot samme Supabase-prosjekt. Det betyr at en migrasjon eller en

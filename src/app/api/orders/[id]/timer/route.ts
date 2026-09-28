@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
-import { dato, erAdmin, hentTimetype, ordreForSkriving, tal } from "@/lib/ordre/api";
+import { dato, erAdmin, erUnikBrot, finstMedClientId, hentTimetype, ordreForSkriving, tal, uuid } from "@/lib/ordre/api";
+import { ordreModulEllers403 } from "@/lib/ordre/tilgang";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
 /**
@@ -9,6 +10,10 @@ import { supabaseAdmin } from "@/lib/supabase/server";
  * Timetypen kommer fra selskapets timeprisliste, og navn og pris kopieres
  * inn på føringen: prislista kan endre seg, føringen skal ikke. Montøren er
  * den innloggede — bare en administrator kan føre på vegne av andre.
+ *
+ * Montørappen sender client_id (UUID laget i appen). Samme client_id igjen
+ * → 200 med raden som alt finnes, selv om ordren i mellomtida er
+ * avsluttet: appen sender kanskje om igjen etter en natt uten dekning.
  */
 export async function POST(
   request: NextRequest,
@@ -20,16 +25,25 @@ export async function POST(
   try {
     const { id } = await params;
     const admin = supabaseAdmin();
-    const order = await ordreForSkriving(admin, session, id);
-    if (order instanceof NextResponse) return order;
-
     const body = (await request.json().catch(() => ({}))) as {
       work_date?: unknown;
       price_item_id?: unknown;
       hours?: unknown;
       note?: unknown;
       user_id?: unknown;
+      client_id?: unknown;
     };
+
+    const clientId = uuid(body.client_id);
+    if (clientId) {
+      const avvist = await ordreModulEllers403(admin, session.companyId);
+      if (avvist) return avvist;
+      const finst = await finstMedClientId<{ order_id: string }>(admin, "time_entries", session.companyId, clientId);
+      if (finst && finst.order_id === id) return NextResponse.json(finst, { status: 200 });
+    }
+
+    const order = await ordreForSkriving(admin, session, id);
+    if (order instanceof NextResponse) return order;
 
     const workDate = dato(body.work_date);
     if (!workDate) {
@@ -83,10 +97,18 @@ export async function POST(
         hours: Math.round(hours * 100) / 100,
         note: typeof body.note === "string" && body.note.trim() ? body.note.trim() : null,
         created_by: session.userId,
+        client_id: clientId,
       })
       .select("*")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) {
+      // To samtidige kall med samme client_id: den andre finner raden.
+      if (erUnikBrot(error) && clientId) {
+        const finst = await finstMedClientId(admin, "time_entries", session.companyId, clientId);
+        if (finst) return NextResponse.json(finst, { status: 200 });
+      }
+      throw new Error(error.message);
+    }
 
     return NextResponse.json(data, { status: 201 });
   } catch (err) {
