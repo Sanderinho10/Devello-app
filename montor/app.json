@@ -1,0 +1,67 @@
+{
+  "expo": {
+    "name": "Devello Montør",
+    "slug": "devello-montor",
+    "version": "0.1.0",
+    "scheme": "devello-montor",
+    "orientation": "portrait",
+    "icon": "./assets/ikon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "bundleIdentifier": "no.devello.montor",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Kameraet brukes til å skanne strekkoder og ta bilder til notater på ordren.",
+        "NSPhotoLibraryUsageDescription": "For å legge ved bilder fra bildebiblioteket i notater.",
+        "CFBundleAllowMixedLocalizations": true,
+        "CFBundleDevelopmentRegion": "nb"
+      }
+    },
+    "android": {
+      "package": "no.devello.montor",
+      "permissions": ["CAMERA"],
+      "adaptiveIcon": {
+        "backgroundColor": "#0071e3",
+        "foregroundImage": "./assets/android-ikon-forgrunn.png"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Kameraet brukes til å skanne strekkoder og ta bilder til notater på ordren.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "For å legge ved bilder fra bildebiblioteket i notater.",
+          "cameraPermission": "Kameraet brukes til å ta bilder til notater på ordren.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "imageWidth": 160,
+          "backgroundColor": "#f5f5f7",
+          "resizeMode": "contain"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": ""
+      }
+    }
+  }
+}
