@@ -41,10 +41,18 @@ starter i simulator (krever Xcode / Android Studio).
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Samme som nettappens `NEXT_PUBLIC_SUPABASE_ANON_KEY` (offentlig nøkkel) |
 | `EXPO_PUBLIC_API_URL` | Nettappen: `https://app.devello.no` i drift, `http://<maskin-ip>:3000` lokalt |
 
-Lokalt leses de fra `.env`. I EAS-builds settes de per profil i `eas.json`
-(`preview` og `production` peker på `https://app.devello.no`; Supabase-verdiene
-fylles inn der, eller som EAS-miljøvariabler med
-`npx eas-cli@latest env:create`). Mangler de, sier innloggingsskjermen fra.
+Lokalt leses de fra `.env` — også i en development-build, som henter JS fra
+`npx expo start` på maskinen. `preview`- og `production`-builds bygger JS-en
+inn i appen, og da må verdiene finnes hos EAS: `EXPO_PUBLIC_API_URL` står i
+`eas.json`, Supabase-verdiene legges inn én gang som EAS-miljøvariabler
+(repoet er offentlig, så de skal ikke inn i `eas.json`):
+
+```sh
+npx eas-cli@latest env:create --scope project --environment preview --environment production   --visibility plaintext --name EXPO_PUBLIC_SUPABASE_URL --value https://<prosjekt>.supabase.co
+npx eas-cli@latest env:create --scope project --environment preview --environment production   --visibility plaintext --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value <anon-nøkkel>
+```
+
+Mangler de, sier innloggingsskjermen fra.
 
 ## Preview-build (installerbar, uten butikk)
 
@@ -73,7 +81,7 @@ Alternativt TestFlight: `--profile production` og `npx eas-cli@latest submit`.
    `assets/android-ikon-forgrunn.png` (1024×1024, gjennomsiktig bakgrunn) og
    `assets/splash.png` byttes ut med Devello-logoen. Plassholderne som ligger
    der nå er nøytrale.
-5. **Supabase-verdiene** inn i `eas.json` eller som EAS-miljøvariabler.
+5. **Supabase-verdiene** som EAS-miljøvariabler (se over) før første preview-build.
 
 ## Kommandoer
 
