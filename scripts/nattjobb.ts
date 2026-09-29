@@ -5,8 +5,12 @@
  *
  * 1. Henter prisfiler for alle grossister med automatisk henting på, og
  *    importerer dem (samme fil som sist → hopp over).
+ * 1b. Henter fakturafiler («autofakt») fra FTP for alle grossister med
+ *    fakturafil-mønster satt, og legger linjene på ordrene.
  * 2. Synkroniserer leverandørfakturaer fra PowerOffice Go for alle selskap
  *    med aktiv kopling.
+ *
+ *   npm run nattjobb -- --berre-fakturaer   → bare 1b
  *
  * Én logglinje per selskap og grossist. Feil stopper ikke resten, men gir
  * exit 1 til slutt så Railway viser kjøringen rød. Kjører som egen
@@ -14,7 +18,12 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import { koeyrImportJobb } from "@/lib/grossist/jobb";
+import { hentFakturafiler } from "@/lib/regnskap/ftp-faktura";
 import { synkroniserFakturaer } from "@/lib/regnskap/sync";
+
+// --berre-fakturaer: bare fakturafiler fra FTP — til en ekstra kjøring midt
+// på dagen, uten å dra 50 MB prisfil to ganger.
+const berreFakturaer = process.argv.includes("--berre-fakturaer");
 
 for (const key of ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"]) {
   if (!process.env[key]) {
@@ -29,17 +38,20 @@ const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SU
 
 let feil = 0;
 const start = Date.now();
-console.log(`[nattjobb] Start ${new Date().toISOString()}`);
+console.log(`[nattjobb] Start ${new Date().toISOString()}${berreFakturaer ? " (bare fakturafiler)" : ""}`);
+
+type Rad = { supplier_id: string; company_id: string; suppliers: { name: string }; companies: { name: string } };
 
 // ---------------------------------------------------------------------------
 // 1. Prisfiler
 // ---------------------------------------------------------------------------
-const { data: ftpRader } = await admin
-  .from("supplier_ftp")
-  .select("supplier_id, company_id, suppliers!inner(name), companies!inner(name)")
-  .eq("auto_import", true);
+const { data: ftpRader } = berreFakturaer
+  ? { data: [] }
+  : await admin
+      .from("supplier_ftp")
+      .select("supplier_id, company_id, suppliers!inner(name), companies!inner(name)")
+      .eq("auto_import", true);
 
-type Rad = { supplier_id: string; company_id: string; suppliers: { name: string }; companies: { name: string } };
 const perSelskap = new Map<string, Rad[]>();
 for (const r of (ftpRader ?? []) as unknown as Rad[]) {
   const liste = perSelskap.get(r.company_id) ?? [];
@@ -84,12 +96,39 @@ async function arbeidar() {
 await Promise.all([arbeidar(), arbeidar()]);
 
 // ---------------------------------------------------------------------------
+// 1b. Fakturafiler fra FTP («autofakt»)
+// ---------------------------------------------------------------------------
+const { data: fakturaRader } = await admin
+  .from("supplier_ftp")
+  .select("supplier_id, company_id, suppliers!inner(name), companies!inner(name)")
+  .not("fakturafil_pattern", "is", null);
+
+for (const r of (fakturaRader ?? []) as unknown as Rad[]) {
+  const namn = `${r.companies.name} / ${r.suppliers.name} fakturaer`;
+  try {
+    const res = await hentFakturafiler(admin, r.supplier_id, { trigger: "nattjobb" });
+    const linje = `${res.filer} filer, ${res.nye} nye, ${res.fakturaer} fakturaer, ${res.kopla} koblet, ${res.ukopla} ukoblet${res.duplikat ? `, ${res.duplikat} duplikat` : ""}`;
+    if (res.feil.length) {
+      feil += 1;
+      console.log(`[nattjobb] ${namn}: ${linje} — FEIL: ${res.feil[0]}`);
+    } else {
+      console.log(`[nattjobb] ${namn}: ${linje}`);
+    }
+  } catch (err) {
+    feil += 1;
+    console.log(`[nattjobb] ${namn}: FEIL — ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // 2. Leverandørfakturaer
 // ---------------------------------------------------------------------------
-const { data: koplingar } = await admin
-  .from("accounting_connections")
-  .select("company_id, provider, companies!inner(name)")
-  .eq("status", "aktiv");
+const { data: koplingar } = berreFakturaer
+  ? { data: [] }
+  : await admin
+      .from("accounting_connections")
+      .select("company_id, provider, companies!inner(name)")
+      .eq("status", "aktiv");
 
 for (const k of (koplingar ?? []) as unknown as { company_id: string; provider: string; companies: { name: string } }[]) {
   try {

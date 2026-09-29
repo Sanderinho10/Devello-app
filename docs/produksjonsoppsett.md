@@ -253,10 +253,18 @@ Vil du ha en «Prøv gratis»-knapp også, peker den på
 ## Nattjobb — prisfiler og leverandørfakturaer hver natt
 
 `npm run nattjobb` henter prisfiler fra grossistenes FTP for alle
-grossister med «Hent automatisk hver natt» på, og synkroniserer
-leverandørfakturaer fra PowerOffice Go for alle selskap med aktiv kopling.
-Den skriver én logglinje per selskap og grossist og avslutter med exit 1 om
-noe feilet, så Railway viser kjøringen rød.
+grossister med «Hent automatisk hver natt» på, henter fakturafiler
+(«autofakt») for alle grossister med fakturafil-mønster satt, og
+synkroniserer leverandørfakturaer fra PowerOffice Go for alle selskap med
+aktiv kopling. Den skriver én logglinje per selskap og grossist og
+avslutter med exit 1 om noe feilet, så Railway viser kjøringen rød.
+
+Fakturafilene kommer gjennom dagen, og montøren vil ha varene på ordren
+samme dag. Derfor kan du sette opp en **valgfri tredje service** som bare
+henter fakturafiler: samme oppskrift som under, men Cron Schedule
+`0 12 * * 1-5` (14:00 norsk sommertid, hverdager) og Custom Start Command
+`npm run nattjobb -- --berre-fakturaer`. Den rører verken prisfiler eller
+Go, så den er ferdig på sekunder.
 
 Railway kjører den som en **egen service med cron-plan** i samme prosjekt —
 samme repo og Dockerfile som appen, men en annen startkommando. Ingen
@@ -313,6 +321,7 @@ Gå gjennom denne på `https://app.devello.no` — ikke på localhost:
 - [ ] Prisene i `src/lib/billing/plans.ts` og kickback-prosenten i databasen
       er de reelle, ikke plassholderne
 - [ ] Nattjobb-servicen er satt opp med cron-plan, og «Run now» gir grønn logg
+- [ ] (Valgfritt) Fakturafil-servicen `0 12 * * 1-5` med `--berre-fakturaer`
 
 ## Når noe er galt
 

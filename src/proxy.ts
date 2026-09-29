@@ -5,7 +5,7 @@ import { NextResponse, type NextRequest } from "next/server";
  * Fornyer Supabase-sesjonen ved hver navigasjon. Uten dette blir server
  * components stående med et utgått token.
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(

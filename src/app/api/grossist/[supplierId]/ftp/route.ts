@@ -35,6 +35,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const varefil = typeof body.varefil_pattern === "string" && body.varefil_pattern.trim() ? body.varefil_pattern.trim().slice(0, 100) : "V4*";
     const rabattfil = typeof body.rabattfil_pattern === "string" ? body.rabattfil_pattern.trim().slice(0, 100) || null : "R4*";
     const autoImport = body.auto_import === undefined ? true : Boolean(body.auto_import);
+    // Fakturafiler («autofakt»): tomt mønster = av. Ikke gjett på navnet —
+    // grossisten sier hva filene heter.
+    const fakturafil = typeof body.fakturafil_pattern === "string" ? body.fakturafil_pattern.trim().slice(0, 100) || null : undefined;
+    const fakturafilSti = typeof body.fakturafil_path === "string" ? body.fakturafil_path.trim().slice(0, 300) || null : undefined;
 
     const { data: finst } = await admin.from("supplier_ftp").select("supplier_id").eq("supplier_id", g.id).maybeSingle();
     if (!finst && !password) return NextResponse.json({ error: "Passord mangler." }, { status: 400 });
@@ -52,6 +56,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       auto_import: autoImport,
     };
     if (password) felt.password = password;
+    if (fakturafil !== undefined) felt.fakturafil_pattern = fakturafil;
+    if (fakturafilSti !== undefined) felt.fakturafil_path = fakturafilSti;
 
     const { data, error } = finst
       ? await admin.from("supplier_ftp").update(felt).eq("supplier_id", g.id).select("*").single()

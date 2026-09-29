@@ -23,6 +23,12 @@ export async function POST(
     const faktura = await fakturaForSkriving(admin, session, id);
     if (faktura instanceof NextResponse) return faktura;
 
+    if (faktura.duplicate_of) {
+      return NextResponse.json(
+        { error: "Dette er et duplikat — linjene ligger på originalen. Koble den i stedet." },
+        { status: 400 },
+      );
+    }
     if (erKreditnota(faktura)) {
       return NextResponse.json(
         { error: "Kreditnotaer håndteres manuelt — de kobles ikke til ordrer." },
