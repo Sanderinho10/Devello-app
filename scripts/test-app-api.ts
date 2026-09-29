@@ -77,15 +77,19 @@ sjekk("med utgått-liknende JWT → 401", (await kall("eyJhbGciOiJIUzI1NiJ9.eyJz
 // ordreliste ---------------------------------------------------------------
 const liste = await kall(token, "GET", "/api/app/ordrar?status=aktive");
 sjekk("GET /api/app/ordrar → 200", liste.status === 200, JSON.stringify(liste.body).slice(0, 200));
-let ordrar = (liste.body.ordrar as { id: string; order_no: number; status: string }[] | undefined) ?? [];
-if (ordrar.length === 0) {
-  const ny = await kall(token, "POST", "/api/orders", { title: "Test montørapp", customer_name: "Testkunde" });
-  sjekk("ingen aktive ordrer: POST /api/orders → 201", ny.status === 201, JSON.stringify(ny.body));
+// Testen fører på sin egen ordre «Test montørapp», aldri på en ekte.
+type OrdreRad = { id: string; order_no: number; status: string; title: string };
+const TEST_TITTEL = "Test montørapp";
+let ordrar = (liste.body.ordrar as OrdreRad[] | undefined) ?? [];
+let ordre = ordrar.find((o) => o.title === TEST_TITTEL);
+if (!ordre) {
+  const ny = await kall(token, "POST", "/api/orders", { title: TEST_TITTEL, customer_name: "Testkunde" });
+  sjekk("POST /api/orders (testordre) → 201", ny.status === 201, JSON.stringify(ny.body));
   const igjen = await kall(token, "GET", "/api/app/ordrar?status=aktive");
-  ordrar = (igjen.body.ordrar as typeof ordrar) ?? [];
+  ordrar = (igjen.body.ordrar as OrdreRad[]) ?? [];
+  ordre = ordrar.find((o) => o.id === ny.body.id);
 }
-const ordre = ordrar[0];
-sjekk("lista har en aktiv ordre å føre på", Boolean(ordre));
+sjekk(`testordren «${TEST_TITTEL}» finnes i lista`, Boolean(ordre));
 if (!ordre) {
   console.log(`\n${feil} feil.`);
   process.exit(1);

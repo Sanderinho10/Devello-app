@@ -147,8 +147,12 @@ trenger derfor en **testbruker i et testselskap** — aldri en ekte kunde.
    ```
 
 4. `npm run dev` i ett vindu, `npm run test:app-api` i et annet. Testen
-   lager en ordre «Test montørapp» om selskapet ikke har noen aktiv, og
-   rydder ikke opp etter seg — det er et testselskap.
+   fører bare på sin egen ordre «Test montørapp» (lages første gang) og
+   rører aldri andre ordrer. Timer og materiell fra testen blir liggende
+   på den ordren; notatet slettes på slutten.
+
+Har du ikke et testselskap ennå, kan du kjøre med din egen bruker: det
+eneste sporet er ordren «Test montørapp» i ditt selskap.
 
 Strekkodetesten hopper over seg selv om selskapet ikke har noen katalogvare
 med GTIN. Testen for «andres notat» trenger en bruker til med `role =
