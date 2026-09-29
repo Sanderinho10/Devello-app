@@ -89,6 +89,8 @@ export interface SessionContext {
   userId: string;
   companyId: string;
   email: string;
+  /** Hvordan kallet var innlogget: nettappen (cookie) eller montørappen (bearer). */
+  via: "cookie" | "bearer";
 }
 
 /** Innlogget bruker + hvilket selskap de hører til. Null om ikke innlogget. */
@@ -115,6 +117,7 @@ export async function currentSession(): Promise<SessionContext | null> {
     userId: user.id,
     companyId: profile.company_id,
     email: profile.email ?? user.email ?? "",
+    via: bearer ? "bearer" : "cookie",
   };
 }
 

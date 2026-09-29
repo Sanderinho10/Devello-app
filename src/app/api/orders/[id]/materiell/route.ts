@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
+import { registrerAppBrukar } from "@/lib/billing/subscription";
 import { erUnikBrot, finstMedClientId, ordreForSkriving, tal, uuid } from "@/lib/ordre/api";
 import { round2, salspris } from "@/lib/ordre/summering";
 import { ordreModulEllers403 } from "@/lib/ordre/tilgang";
@@ -144,6 +145,8 @@ export async function POST(
       throw new Error(error.message);
     }
 
+    // Aktiv montør i appen: telles første gang i måneden, bare fra appen.
+    if (session.via === "bearer") await registrerAppBrukar(admin, { companyId: session.companyId, userId: session.userId });
     return NextResponse.json(data, { status: 201 });
   } catch (err) {
     return errorResponse(err);

@@ -5,6 +5,8 @@
  *
  * 1. Henter prisfiler for alle grossister med automatisk henting på, og
  *    importerer dem (samme fil som sist → hopp over).
+ * 0. Avsluttar oppsagde abonnement ved periodeslutt og speglar modulane frå
+ *    pakke og prøvetid for alle selskap.
  * 1b. Henter fakturafiler («autofakt») fra FTP for alle grossister med
  *    fakturafil-mønster satt, og legger linjene på ordrene.
  * 2. Synkroniserer leverandørfakturaer fra PowerOffice Go for alle selskap
@@ -18,6 +20,8 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import { koeyrImportJobb } from "@/lib/grossist/jobb";
+import { avsluttOppsagde } from "@/lib/billing/subscription";
+import { oppdaterModular } from "@/lib/moduler";
 import { hentFakturafiler } from "@/lib/regnskap/ftp-faktura";
 import { synkroniserFakturaer } from "@/lib/regnskap/sync";
 
@@ -41,6 +45,30 @@ const start = Date.now();
 console.log(`[nattjobb] Start ${new Date().toISOString()}${berreFakturaer ? " (bare fakturafiler)" : ""}`);
 
 type Rad = { supplier_id: string; company_id: string; suppliers: { name: string }; companies: { name: string } };
+
+// ---------------------------------------------------------------------------
+// 0. Abonnement og modular: oppseiingar som trer i kraft, prøvetid som går ut
+// ---------------------------------------------------------------------------
+if (!berreFakturaer) {
+  try {
+    const avslutta = await avsluttOppsagde(admin);
+    if (avslutta.length) console.log(`[nattjobb] ${avslutta.length} abonnement avslutta ved periodeslutt`);
+    const { data: selskap } = await admin.from("companies").select("id, name, moduler");
+    let endra = 0;
+    for (const c of selskap ?? []) {
+      const foer = ((c.moduler as string[]) ?? []).slice().sort().join(",");
+      const etter = ((await oppdaterModular(admin, c.id)) ?? []).slice().sort().join(",");
+      if (foer !== etter) {
+        endra += 1;
+        console.log(`[nattjobb] ${c.name}: modular ${foer || "(ingen)"} → ${etter || "(ingen)"}`);
+      }
+    }
+    console.log(`[nattjobb] modular sjekka for ${(selskap ?? []).length} selskap, ${endra} endra`);
+  } catch (err) {
+    feil += 1;
+    console.log(`[nattjobb] abonnement/modular: FEIL — ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // 1. Prisfiler

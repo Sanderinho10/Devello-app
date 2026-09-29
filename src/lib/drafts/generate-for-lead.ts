@@ -209,7 +209,7 @@ export async function generateForLead(
   // sørger for at den ikke telles på nytt. Vi vil at de skal iterere.
   await registrerBruk(admin, {
     companyId: opts.companyId,
-    agentId: "tilbud",
+    kind: "tilbud",
     referenceId: lead.id,
   });
 

@@ -1,16 +1,19 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
 import { requireAdmin } from "@/lib/api-admin";
-import { findAgent } from "@/lib/billing/agents";
+import { finnPakke } from "@/lib/billing/katalog";
 import { seiOppPakke, velgPakke } from "@/lib/billing/subscription";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
 /**
- * Velger, bytter eller sier opp pakke på én agent.
+ * Velger, bytter eller sier opp pakken.
+ *
+ *   { pakke: "plattform" }                       → velg / bytt
+ *   { handling: "si_opp" | "angre_oppseiing" }   → oppsigelse fra periodeslutt
  *
  * Ingen betaling er koblet på: dette skriver avtalen og ikke noe mer. Kommer
- * det en betalingsleverandør, er det her den hektes inn — abonnementsraden har
- * allerede pris, kvote og sats den trenger.
+ * det en betalingsleverandør, er det her den hektes inn — abonnementsraden
+ * har allerede pris, inkluderte enheter og enhetspriser den trenger.
  */
 export async function POST(request: NextRequest) {
   const session = await sessionOr401();
@@ -20,30 +23,21 @@ export async function POST(request: NextRequest) {
   if (denied) return denied;
 
   try {
-    const body = (await request.json()) as {
-      plan?: string;
-      agent?: string;
+    const body = (await request.json().catch(() => ({}))) as {
+      pakke?: string;
       handling?: "velg" | "si_opp" | "angre_oppseiing";
     };
     const admin = supabaseAdmin();
     const handling = body.handling ?? "velg";
 
     if (handling === "velg") {
-      const { agentId } = await velgPakke(admin, session.companyId, body.plan ?? "");
-      return NextResponse.json({ ok: true, agent: agentId, plan: body.plan });
+      if (!finnPakke(body.pakke)) return NextResponse.json({ error: "Ukjent pakke." }, { status: 400 });
+      const { pakke } = await velgPakke(admin, session.companyId, body.pakke ?? "");
+      return NextResponse.json({ ok: true, pakke: pakke.id });
     }
 
-    const agent = findAgent(body.agent);
-    if (!agent) {
-      return NextResponse.json({ error: "Ukjent agent." }, { status: 400 });
-    }
-    await seiOppPakke(
-      admin,
-      session.companyId,
-      agent.id,
-      handling === "angre_oppseiing",
-    );
-    return NextResponse.json({ ok: true, agent: agent.id });
+    await seiOppPakke(admin, session.companyId, handling === "angre_oppseiing");
+    return NextResponse.json({ ok: true });
   } catch (err) {
     return errorResponse(err);
   }

@@ -17,6 +17,7 @@
     "test:prisvask": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-prisvask.ts",
     "test:motor": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-motor-v3.ts",
     "test:perioder": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-perioder.ts",
+    "test:prismodell": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-prismodell.ts",
     "test:epost": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-finn-epost.ts",
     "test:popup": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-popup.ts",
     "test:epostfil": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-epostfil.ts",

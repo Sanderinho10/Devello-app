@@ -258,10 +258,9 @@ p {
   margin-bottom: 5px;
 }
 
-/* Abonnement per agent: én seksjon per agent, pakkene som kort inni. */
-.agent-abo-head {
-  align-items: flex-start;
-  gap: 16px;
+/* Fire pakker på rad der det er plass, som POGO viser sine. */
+.plan-grid.pakkar {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 /* «Større behov» står i pakkeraden, men er ikke en pakke man velger.

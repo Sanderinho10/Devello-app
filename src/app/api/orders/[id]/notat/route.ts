@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
+import { registrerAppBrukar } from "@/lib/billing/subscription";
 import { erUnikBrot, finstMedClientId, ordreForSkriving, uuid } from "@/lib/ordre/api";
 import { ordreModulEllers403 } from "@/lib/ordre/tilgang";
 import { supabaseAdmin } from "@/lib/supabase/server";
@@ -47,6 +48,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }
       throw new Error(error.message);
     }
+    // Aktiv montør i appen: telles første gang i måneden, bare fra appen.
+    if (session.via === "bearer") await registrerAppBrukar(admin, { companyId: session.companyId, userId: session.userId });
     return NextResponse.json(data, { status: 201 });
   } catch (err) {
     return errorResponse(err);

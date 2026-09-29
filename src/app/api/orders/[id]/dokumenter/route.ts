@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
+import { registrerAppBrukar } from "@/lib/billing/subscription";
 import { BUCKET, ordreOgDokument, prefillKontekst } from "@/lib/dokumentasjon/dokument";
 import { finnMal, malarForFag } from "@/lib/dokumentasjon/malar";
 import { prefillData } from "@/lib/dokumentasjon/motor";
@@ -88,6 +89,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         throw new Error(`Opplasting feilet: ${uploadError.message}`);
       }
       const { data: ferdig } = await admin.from("order_documents").update({ storage_path: sti }).eq("id", rad.id).select("*").single();
+      if (session.via === "bearer") await registrerAppBrukar(admin, { companyId: session.companyId, userId: session.userId });
       return NextResponse.json(ferdig, { status: 201 });
     }
 
