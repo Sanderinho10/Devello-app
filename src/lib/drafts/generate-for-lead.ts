@@ -153,6 +153,7 @@ export async function generateForLead(
     .upsert(
       {
         lead_id: lead.id,
+        company_id: opts.companyId,
         quote_type: quoteType,
         typebegrunnelse: generated.typebegrunnelse,
         agent_status: generated.status,
@@ -177,6 +178,14 @@ export async function generateForLead(
     .single();
 
   if (error) throw new Error(error.message);
+
+  // Løpenummeret settes første gang og står siden: regenerering og nye
+  // versjoner er samme tilbud. Deles ut atomisk i databasen.
+  if (draft.quote_no == null) {
+    const { data: nr, error: nrFeil } = await admin.rpc("tildel_tilbudsnummer", { p_draft: draft.id });
+    if (nrFeil) throw new Error(`Fikk ikke tilbudsnummer: ${nrFeil.message}`);
+    draft.quote_no = nr;
+  }
 
   // Logg den originale AI-versjonen før brukeren rører noe.
   await logDraftVersion(admin, {

@@ -29,10 +29,13 @@ const STATUS_LABEL: Record<LeadStatus, string> = {
 export function LeadRow({
   lead,
   revisjon = 1,
+  tilbudsnr = null,
 }: {
   lead: Lead;
   /** Tilbudsversjonen. Over 1 når et sendt tilbud er åpnet igjen. */
   revisjon?: number;
+  /** Løpenummeret, når agenten har laget et utkast. */
+  tilbudsnr?: number | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -88,6 +91,7 @@ export function LeadRow({
               setOpen(true);
             }}
           >
+            {tilbudsnr ? <span className="muted">{tilbudsnr} · </span> : null}
             {lead.subject || "(uten emne)"}
           </button>
           <div className="lead-meta">{sender}</div>

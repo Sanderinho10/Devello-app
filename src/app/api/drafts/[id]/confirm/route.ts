@@ -122,6 +122,7 @@ export async function POST(
           city: company!.billing_city,
         },
         versjon: { nr: draft.revisjon, erstatter: draft.forrige_sendt_at },
+        tilbudsnr: draft.quote_no,
       });
       pdf = await htmlToPdf(html);
 
@@ -169,7 +170,7 @@ export async function POST(
           await attachPdf(
             token,
             outlook.id,
-            pdfFileName(payload.document!, draft.revisjon),
+            pdfFileName(payload.document!, draft.revisjon, draft.quote_no),
             pdf,
           );
         }
@@ -305,7 +306,8 @@ export async function POST(
   }
 }
 
-function pdfFileName(document: QuoteDocument, revisjon: number): string {
+function pdfFileName(document: QuoteDocument, revisjon: number, tilbudsnr?: number | null): string {
+  const nr = tilbudsnr ? `${tilbudsnr}-` : "";
   const slug = document.title
     .toLowerCase()
     .replace(/[æå]/g, "a")
@@ -314,7 +316,7 @@ function pdfFileName(document: QuoteDocument, revisjon: number): string {
     .replace(/^-|-$/g, "")
     .slice(0, 50);
   const versjon = revisjon > 1 ? `-v${revisjon}` : "";
-  return `tilbud-${slug || "dokument"}${versjon}.pdf`;
+  return `tilbud-${nr}${slug || "dokument"}${versjon}.pdf`;
 }
 
 /** Selskapets aktive postkasse — brukt når leadet ikke bærer en selv. */
