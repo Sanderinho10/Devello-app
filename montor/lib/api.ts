@@ -76,11 +76,14 @@ export async function kall(
   }
 
   let res: Response;
+  console.log("[api]", init.method ?? "GET", `${API_URL}${sti}`, token ? "med token" : "uten token");
   try {
     res = await fetch(`${API_URL}${sti}`, { method: init.method ?? "GET", headers, body });
-  } catch {
+  } catch (e) {
+    console.log("[api] nettfeil", String(e));
     throw new NettFeil();
   }
+  console.log("[api] svar", res.status);
 
   if (res.status === 401 && !proevdRefresh && (await fornySesjon())) {
     return kall(sti, init, true);

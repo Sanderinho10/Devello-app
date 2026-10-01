@@ -56,8 +56,9 @@ function Navigasjon() {
   const { sesjon, klar } = useSesjon();
 
   useEffect(() => {
+    console.log("[sesjon]", { klar, innlogget: !!sesjon, bruker: sesjon?.user.email ?? null, api: process.env.EXPO_PUBLIC_API_URL });
     if (klar) SplashScreen.hideAsync().catch(() => {});
-  }, [klar]);
+  }, [klar, sesjon]);
 
   useEffect(() => {
     if (!sesjon) return;

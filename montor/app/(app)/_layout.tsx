@@ -1,4 +1,5 @@
 import { Tabs } from "expo-router";
+import { useEffect } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Banner, Knapp, Laster } from "@/components/ui";
@@ -14,6 +15,10 @@ import { farge, skrift } from "@/lib/tema";
 export default function AppLayout() {
   const meg = useMeg();
   const inn = useSafeAreaInsets();
+
+  useEffect(() => {
+    console.log("[meg]", { status: meg.status, henting: meg.fetchStatus, data: !!meg.data, feil: meg.error ? String(meg.error) : null });
+  }, [meg.status, meg.fetchStatus, meg.data, meg.error]);
 
   if (meg.error instanceof ApiFeil && meg.error.status === 403) {
     return (
