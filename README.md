@@ -96,6 +96,8 @@ Eller lim inn migrasjonene i SQL-editoren i rekkefølge, så `seed.sql`.
 | `0043_rabatt_i_eitt_kall.sql` | indeks på rabattgruppe, `sett_rabattar(jsonb)` — rabatt for 500 grupper per kall |
 | `0044_avtalt_pris_per_vare.sql` | `sett_nettoprisar(jsonb)` — avtalt nettopris/rabatt per varenummer fra rabattfila |
 | `0045_fakturafiler_fra_grossist.sql` | `supplier_invoice_files` (fakturafiler fra FTP), `supplier_invoices.source/supplier_id/file_id/duplicate_of`, fakturafil-mønster på `supplier_ftp` |
+| `0046_montorapp.sql` | `client_id` på timer/materiell/dokument (idempotens), `order_notes`, `order_documents.note_id`, GTIN-treff i `sok_grossistvarer` |
+| `0047_prismodell.sql` | éi pakke per selskap (`package_id`, `billing_interval`, `included_units`, `unit_prices`, app-brukarar), `usage_events.kind/user_id/period_start`, `companies.moduler_overstyrt` |
 
 ### 3. Azure
 
@@ -444,6 +446,18 @@ bare borte. Før produksjon må integrasjonen verifiseres av Boligmappa
 påkrevde felt, rensing av innsendte data og PDF-HTML-en for hver mal —
 uten database og uten Playwright.
 
+### Montørapp-API-et
+
+Montørappen (eget repo, Expo) bruker nettappens API med
+`Authorization: Bearer <supabase-jwt>` i stedet for cookies —
+`currentSession()` leser begge. Lese-endepunktene ligger under
+`/api/app/*` (`meg`, `ordrar`, `ordrar/[id]`), skrive-rutene er de samme
+som nettappen bruker, med `client_id` for idempotens: samme `client_id`
+igjen gir 200 med raden som finnes, aldri to rader. Notat på ordren
+(`order_notes`) og bilder knyttet til notat (`order_documents.note_id`)
+kom med appen; nettappen viser dem under Ordre → Notater. Kontrakten står
+i [docs/montorapp-api.md](docs/montorapp-api.md).
+
 ### Navigasjonsmønsteret
 
 Sidebar er organisert **per agent**, ikke per funksjon. Alt som hører til
@@ -478,6 +492,8 @@ npm run test:faktura           # fakturaforslaget: resolver, redigering, Go-payl
 npm run test:dokumentasjon     # dokumentasjonsmalene: validering, prefill, påkrevde felt, PDF-HTML — uten database
 npm run test:ftp-monster       # filmønster og «nyeste fil» for FTP-henting, uten nettverk
 npm run test:fakturafil        # fakturafil-adaptere, FTP-henting mot stubb (idempotens, duplikat), prøvefiler i prover/
+npm run test:app-api           # montørapp-API-et mot lokal server, som en ekte bruker (TEST_EMAIL/TEST_PASSWORD)
+npm run test:prismodell        # prismodellen: periodekostnad per pakke, bedre pakke, årsperiode, konvertering av gamle rader
 npm run nattjobb               # prisfiler fra FTP + leverandørfakturaer fra Go, for alle selskap — det Railway kjører hver natt
 npm run test:gullsett          # målingen bak gullsettet, uten database
 npm run evaluer                # evalueringssuiten — 15 saker med fasit, se evaluering/LES_MEG.md

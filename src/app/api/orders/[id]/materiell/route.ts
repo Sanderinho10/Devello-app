@@ -1,7 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
-import { ordreForSkriving, tal } from "@/lib/ordre/api";
+import { registrerAppBrukar } from "@/lib/billing/subscription";
+import { erUnikBrot, finstMedClientId, ordreForSkriving, tal, uuid } from "@/lib/ordre/api";
 import { round2, salspris } from "@/lib/ordre/summering";
+import { ordreModulEllers403 } from "@/lib/ordre/tilgang";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
 /**
@@ -25,9 +27,6 @@ export async function POST(
   try {
     const { id } = await params;
     const admin = supabaseAdmin();
-    const order = await ordreForSkriving(admin, session, id);
-    if (order instanceof NextResponse) return order;
-
     const body = (await request.json().catch(() => ({}))) as {
       supplier_item_id?: unknown;
       name?: unknown;
@@ -37,7 +36,20 @@ export async function POST(
       markup_pct?: unknown;
       sale_price?: unknown;
       note?: unknown;
+      client_id?: unknown;
     };
+
+    // Montørappen: samme client_id igjen → samme rad, 200.
+    const clientId = uuid(body.client_id);
+    if (clientId) {
+      const avvist = await ordreModulEllers403(admin, session.companyId);
+      if (avvist) return avvist;
+      const finst = await finstMedClientId<{ order_id: string }>(admin, "material_entries", session.companyId, clientId);
+      if (finst && finst.order_id === id) return NextResponse.json(finst, { status: 200 });
+    }
+
+    const order = await ordreForSkriving(admin, session, id);
+    if (order instanceof NextResponse) return order;
 
     const quantity = tal(body.quantity);
     if (quantity === null || quantity <= 0) {
@@ -121,11 +133,20 @@ export async function POST(
         quantity: Math.round(quantity * 1000) / 1000,
         note: typeof body.note === "string" && body.note.trim() ? body.note.trim() : null,
         registered_by: session.userId,
+        client_id: clientId,
       })
       .select("*")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (erUnikBrot(error) && clientId) {
+        const finst = await finstMedClientId(admin, "material_entries", session.companyId, clientId);
+        if (finst) return NextResponse.json(finst, { status: 200 });
+      }
+      throw new Error(error.message);
+    }
 
+    // Aktiv montør i appen: telles første gang i måneden, bare fra appen.
+    if (session.via === "bearer") await registrerAppBrukar(admin, { companyId: session.companyId, userId: session.userId });
     return NextResponse.json(data, { status: 201 });
   } catch (err) {
     return errorResponse(err);

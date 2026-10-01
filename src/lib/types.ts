@@ -639,6 +639,8 @@ export interface TimeEntry {
   updated_at: string;
   /** Satt når timene er med på et overført fakturaforslag. Låst. */
   invoice_draft_id: string | null;
+  /** UUID laget i montørappen — samme client_id igjen gir samme rad. */
+  client_id: string | null;
 }
 
 /** manuell = ført i appen. faktura og pakkseddel kommer fra POGO i steg 3. */
@@ -678,6 +680,8 @@ export interface MaterialEntry {
   replaced_by: string | null;
   /** Satt når linjen er med på et overført fakturaforslag. Låst. */
   invoice_draft_id: string | null;
+  /** UUID laget i montørappen — samme client_id igjen gir samme rad. */
+  client_id: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -909,6 +913,21 @@ export interface OrderDocument {
   boligmappa_sent_at: string | null;
   boligmappa_error: string | null;
   created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  /** Bildet hører til et notat på ordren (montørappen). */
+  note_id: string | null;
+  client_id: string | null;
+}
+
+/** Notat på ordren — fritekst fra montøren, ofte med bilder knyttet til. */
+export interface OrderNote {
+  id: string;
+  company_id: string;
+  order_id: string;
+  user_id: string;
+  text: string;
+  client_id: string | null;
   created_at: string;
   updated_at: string;
 }

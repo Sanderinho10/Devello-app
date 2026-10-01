@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
-import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { cookies, headers } from "next/headers";
 import { requireEnv, supabaseAdmin } from "./admin";
 
 // Admin-klienten ligger i admin.ts så scriptene utenfor Next kan bruke den
@@ -52,18 +52,57 @@ export function supabaseAnon() {
   );
 }
 
+/**
+ * RLS-klienten for et API-kall: bearer-token fra montørappen om det finnes,
+ * ellers cookie-sesjonen fra nettleseren.
+ *
+ * Appen logger inn med Supabase Auth direkte og sender
+ * `Authorization: Bearer <access_token>`. Tokenet er Supabase sitt eget
+ * JWT — ingen egen auth-ordning. Klienten under går med anon key og
+ * tokenet i headeren, så RLS gjelder som for cookie-klienten.
+ *
+ * Feil header (ikke «Bearer », tomt token) behandles som ikke innlogget,
+ * ikke som feil — og tokenet logges aldri.
+ */
+export async function supabaseForRequest(): Promise<{ client: SupabaseClient; bearer: string | null }> {
+  let bearer: string | null = null;
+  try {
+    const auth = (await headers()).get("authorization") ?? "";
+    if (/^Bearer\s+\S+$/i.test(auth)) bearer = auth.replace(/^Bearer\s+/i, "").trim();
+  } catch {
+    // Utenfor en request (build, script) finnes ingen headers.
+  }
+  if (!bearer) return { client: await supabaseServer(), bearer: null };
+
+  const client = createClient(
+    requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
+    requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
+    {
+      global: { headers: { Authorization: `Bearer ${bearer}` } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    },
+  );
+  return { client, bearer };
+}
+
 export interface SessionContext {
   userId: string;
   companyId: string;
   email: string;
+  /** Hvordan kallet var innlogget: nettappen (cookie) eller montørappen (bearer). */
+  via: "cookie" | "bearer";
 }
 
 /** Innlogget bruker + hvilket selskap de hører til. Null om ikke innlogget. */
 export async function currentSession(): Promise<SessionContext | null> {
-  const supabase = await supabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { client: supabase, bearer } = await supabaseForRequest();
+  let user: { id: string; email?: string } | null = null;
+  try {
+    const { data } = bearer ? await supabase.auth.getUser(bearer) : await supabase.auth.getUser();
+    user = data.user;
+  } catch {
+    user = null;
+  }
   if (!user) return null;
 
   const { data: profile } = await supabase
@@ -78,6 +117,7 @@ export async function currentSession(): Promise<SessionContext | null> {
     userId: user.id,
     companyId: profile.company_id,
     email: profile.email ?? user.email ?? "",
+    via: bearer ? "bearer" : "cookie",
   };
 }
 

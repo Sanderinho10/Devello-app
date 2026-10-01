@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
 import { ordreOgUtkast } from "@/lib/faktura/api";
+import { registrerBruk } from "@/lib/billing/subscription";
 import { overforTilRegnskap } from "@/lib/faktura/overfor";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
@@ -40,7 +41,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       customerNo: typeof body.customerNo === "string" ? body.customerNo : null,
     });
 
-    if (resultat.ok) return NextResponse.json(resultat);
+    if (resultat.ok) {
+      // Én faktura per ordre, talt første gang den overføres. Ny overføring
+      // av samme ordre er gratis — den unike indeksen holder styr på det.
+      await registrerBruk(admin, { companyId: session.companyId, kind: "faktura", referenceId: r.ordre.id });
+      return NextResponse.json(resultat);
+    }
     const { ok: _ok, status, ...rest } = resultat;
     void _ok;
     return NextResponse.json(rest, { status });
