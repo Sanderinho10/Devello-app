@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
         lead_id: lead.id,
         draft_id: draft.id,
         quote_type: draft.quote_type,
-        quote_snapshot: { quote_type: draft.quote_type, document, totals },
+        quote_snapshot: { quote_type: draft.quote_type, quote_no: draft.quote_no ?? null, document, totals },
         planned_total: totals?.subtotal ?? null,
       };
     } else {

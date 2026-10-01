@@ -41,7 +41,7 @@ export default async function OrdreLayout({
               <>
                 {" · "}
                 <Link href={`/tilbud/leads/${ordre.lead_id}`} style={{ textDecoration: "underline" }}>
-                  Fra tilbud →
+                  Fra tilbud{ordre.quote_snapshot?.quote_no ? ` ${ordre.quote_snapshot.quote_no}` : ""} →
                 </Link>
               </>
             )}

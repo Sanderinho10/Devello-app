@@ -270,6 +270,9 @@ export type DraftAgentStatus = "utkast" | "trenger_avklaring";
 export interface Draft {
   id: string;
   lead_id: string;
+  company_id: string | null;
+  /** Løpenummer per selskap, fra 1000. Satt første gang agenten lager utkastet; står gjennom nye versjoner. */
+  quote_no: number | null;
   quote_type: QuoteType;
   /** Agentens begrunnelse for typevalget, forankret i referansene. */
   typebegrunnelse: string | null;
@@ -424,6 +427,8 @@ export const ORDER_ACTIVE_STATUSES: OrderStatus[] = ["opna", "paagaar"];
  */
 export interface OrderQuoteSnapshot {
   quote_type: QuoteType;
+  /** Tilbudsnummeret ordren kom fra. */
+  quote_no?: number | null;
   document: QuoteDocument | null;
   totals: QuoteTotals | null;
 }
