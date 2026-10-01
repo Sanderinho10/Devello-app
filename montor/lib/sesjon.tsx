@@ -22,9 +22,16 @@ export function SesjonProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let aktiv = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (aktiv) setStatus({ sesjon: data.session, klar: true });
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (aktiv) setStatus({ sesjon: data.session, klar: true });
+      })
+      .catch((feil: unknown) => {
+        // Lagret sesjon kunne ikke leses — vis innloggingen i stedet for å henge.
+        console.warn("Kunne ikke lese sesjonen:", feil);
+        if (aktiv) setStatus({ sesjon: null, klar: true });
+      });
     const { data: lytter } = supabase.auth.onAuthStateChange((_hending, sesjon) => {
       if (aktiv) setStatus({ sesjon, klar: true });
     });

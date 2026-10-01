@@ -2,7 +2,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
 import { QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import { SplashScreen, Stack } from "expo-router";
+import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -12,7 +13,8 @@ import { settQueryClient, startMotor } from "@/lib/utboks/motor";
 
 /**
  * Root: react-query med persister (ordreliste og ordre vises offline),
- * Supabase-sesjon, og utboks-motoren. Innlogget → (app), ellers innlogging.
+ * Supabase-sesjon, og utboks-motoren. Innlogget → (app), ellers index
+ * (innloggingen). Guardene bytter selv når sesjonen kommer eller går.
  */
 
 const SJU_DAGAR = 7 * 24 * 60 * 60 * 1000;
@@ -32,7 +34,10 @@ settQueryClient(queryClient);
 
 const persister = createAsyncStoragePersister({ storage: AsyncStorage, key: "devello-montor-cache", throttleTime: 1000 });
 
+// Hold splashen til sesjonen er lest, så innloggingen ikke blinker forbi
+// for en som alt er innlogget. Aldri lenger enn to sekunder.
 SplashScreen.preventAutoHideAsync().catch(() => {});
+setTimeout(() => SplashScreen.hideAsync().catch(() => {}), 2000);
 
 export default function RotLayout() {
   return (
@@ -67,7 +72,7 @@ function Navigasjon() {
         <Stack.Screen name="(app)" />
       </Stack.Protected>
       <Stack.Protected guard={!sesjon}>
-        <Stack.Screen name="(auth)/logg-inn" />
+        <Stack.Screen name="index" />
       </Stack.Protected>
     </Stack>
   );

@@ -96,7 +96,7 @@ npm start           # expo start
 ```
 app/                    expo-router — hver fil er en skjerm
   _layout.tsx           react-query + persister, sesjon, utboks-motor
-  (auth)/logg-inn.tsx
+  index.tsx             innlogging (rotsiden når ingen er innlogget)
   (app)/_layout.tsx     Tabs: Ordrer · Meg (+ skjerm for selskap uten ordre-modul)
   (app)/ordrer/         liste og én ordre (hode + faner Timer · Materiell · Notater)
   (app)/ordrer/[id]/    ny-time, ny-materiell, nytt-notat (modaler), bilete/[docId]
