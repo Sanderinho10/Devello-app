@@ -20,7 +20,9 @@
     },
     "android": {
       "package": "no.devello.montor",
-      "permissions": ["CAMERA"],
+      "permissions": [
+        "android.permission.CAMERA"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#0071e3",
         "foregroundImage": "./assets/android-ikon-forgrunn.png"
@@ -60,8 +62,10 @@
     ],
     "extra": {
       "eas": {
-        "projectId": ""
-      }
-    }
+        "projectId": "6964d6ce-fb5a-41ef-9adf-90092a7a6139"
+      },
+      "router": {}
+    },
+    "owner": "sandersol"
   }
 }
