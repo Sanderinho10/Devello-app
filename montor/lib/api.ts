@@ -12,6 +12,9 @@ import { supabase } from "./supabase";
 
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
 
+/** En server som ikke svarer skal gi «Ingen dekning», ikke en evig spinner. */
+const TIDSGRENSE_MS = 20_000;
+
 export class ApiFeil extends Error {
   status: number;
   melding: string;
@@ -76,14 +79,15 @@ export async function kall(
   }
 
   let res: Response;
-  console.log("[api]", init.method ?? "GET", `${API_URL}${sti}`, token ? "med token" : "uten token");
+  const avbryt = new AbortController();
+  const tidsur = setTimeout(() => avbryt.abort(), TIDSGRENSE_MS);
   try {
-    res = await fetch(`${API_URL}${sti}`, { method: init.method ?? "GET", headers, body });
-  } catch (e) {
-    console.log("[api] nettfeil", String(e));
+    res = await fetch(`${API_URL}${sti}`, { method: init.method ?? "GET", headers, body, signal: avbryt.signal });
+  } catch {
     throw new NettFeil();
+  } finally {
+    clearTimeout(tidsur);
   }
-  console.log("[api] svar", res.status);
 
   if (res.status === 401 && !proevdRefresh && (await fornySesjon())) {
     return kall(sti, init, true);
