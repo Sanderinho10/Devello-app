@@ -1,4 +1,5 @@
 import { useLocalSearchParams } from "expo-router";
+import { useOrdreId } from "@/lib/useOrdreId";
 import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
 import { feilTekst } from "@/lib/api";
 import { useFilLenke } from "@/lib/sporringar";
@@ -6,7 +7,8 @@ import { farge, skrift } from "@/lib/tema";
 
 /** Bildet i fullskjerm. Lokal fil fra utboksen (uri) eller signert lenke fra serveren. */
 export default function Bilete() {
-  const { id, docId, uri } = useLocalSearchParams<{ id: string; docId: string; uri?: string }>();
+  const id = useOrdreId();
+  const { docId, uri } = useLocalSearchParams<{ docId: string; uri?: string }>();
   const lenke = useFilLenke(id, uri ? null : docId);
   const kilde = uri || lenke.data;
 

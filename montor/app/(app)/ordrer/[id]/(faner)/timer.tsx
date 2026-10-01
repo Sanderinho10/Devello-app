@@ -1,4 +1,5 @@
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter } from "expo-router";
+import { useOrdreId } from "@/lib/useOrdreId";
 import { useState } from "react";
 import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { BUNN_PLASS, FaneBunn } from "@/components/FaneBunn";
@@ -11,7 +12,7 @@ import { slett as slettUtboks } from "@/lib/utboks/db";
 
 /** Timer på ordren, nyeste først. Egne kan slettes med langt trykk. */
 export default function TimerFane() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const id = useOrdreId();
   const router = useRouter();
   const meg = useMeg().data;
   const { sammenslaatt, isPending, isRefetching, refetch, data } = useOrdreMedUtboks(id);

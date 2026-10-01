@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Knapp, Kort } from "@/components/ui";
-import { tid } from "@/lib/format";
+import { mengde, tid, timer } from "@/lib/format";
 import { useMeg, useOrdrar } from "@/lib/sporringar";
 import { supabase } from "@/lib/supabase";
 import { farge, skrift, tabellTall } from "@/lib/tema";
@@ -86,11 +86,11 @@ function beskrivelse(r: UtboksRad): string {
   switch (r.type) {
     case "time": {
       const p = JSON.parse(r.payload) as TimePayload;
-      return `${p.hours} t ${p.time_type_name}`;
+      return `${timer(p.hours)} ${p.time_type_name}`;
     }
     case "materiell": {
       const p = JSON.parse(r.payload) as MateriellPayload;
-      return `${p.quantity} ${p.unit} ${p.name}`;
+      return `${mengde(p.quantity, p.unit)} ${p.name}`;
     }
     case "notat":
       return (JSON.parse(r.payload) as NotatPayload).text.slice(0, 60);

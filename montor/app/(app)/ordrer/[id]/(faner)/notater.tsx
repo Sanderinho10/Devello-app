@@ -1,4 +1,5 @@
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter } from "expo-router";
+import { useOrdreId } from "@/lib/useOrdreId";
 import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { Miniatyr } from "@/components/Bilde";
 import { BUNN_PLASS, FaneBunn } from "@/components/FaneBunn";
@@ -9,7 +10,7 @@ import { farge, skrift } from "@/lib/tema";
 
 /** Notater med bilder, nyeste først. Trykk på et bilde → fullskjerm. */
 export default function NotaterFane() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const id = useOrdreId();
   const router = useRouter();
   const { sammenslaatt, isPending, isRefetching, refetch, data } = useOrdreMedUtboks(id);
 

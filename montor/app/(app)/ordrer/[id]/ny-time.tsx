@@ -1,4 +1,5 @@
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter } from "expo-router";
+import { useOrdreId } from "@/lib/useOrdreId";
 import { useEffect, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -18,7 +19,7 @@ const UKEDAG = ["søn", "man", "tir", "ons", "tor", "fre", "lør"];
  * Alt havner i utboksen; raden vises i lista med en gang.
  */
 export default function NyTime() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const id = useOrdreId();
   const router = useRouter();
   const inn = useSafeAreaInsets();
   const meg = useMeg().data;

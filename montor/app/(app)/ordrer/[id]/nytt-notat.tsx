@@ -1,5 +1,6 @@
 import * as ImagePicker from "expo-image-picker";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter } from "expo-router";
+import { useOrdreId } from "@/lib/useOrdreId";
 import { useState } from "react";
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,7 +17,7 @@ const MAKS_BILDER = 5;
  * per bilde (som venter til notatet er sendt).
  */
 export default function NyttNotat() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const id = useOrdreId();
   const router = useRouter();
   const inn = useSafeAreaInsets();
   const [tekst, setTekst] = useState("");

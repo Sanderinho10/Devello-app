@@ -1,5 +1,6 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter } from "expo-router";
+import { useOrdreId } from "@/lib/useOrdreId";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -20,7 +21,7 @@ const ENHETER = ["stk", "m", "kg", "l"];
  * Søket krever nett; fritekst virker alltid.
  */
 export default function NyMateriell() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const id = useOrdreId();
   const router = useRouter();
   const inn = useSafeAreaInsets();
   const meg = useMeg().data;

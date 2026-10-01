@@ -1,4 +1,5 @@
-import { Stack, Tabs, useLocalSearchParams } from "expo-router";
+import { Stack, Tabs } from "expo-router";
+import { useOrdreId } from "@/lib/useOrdreId";
 import { StyleSheet, View } from "react-native";
 import { OrdreHode } from "@/components/OrdreHode";
 import { Segment } from "@/components/ui";
@@ -19,7 +20,7 @@ type Fane = (typeof FANER)[number]["verdi"];
  * erstattet av vår egen i «layout».
  */
 export default function FaneLayout() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const id = useOrdreId();
   const { sammenslaatt } = useOrdreMedUtboks(id);
   const tittel = sammenslaatt.ordre ? `#${sammenslaatt.ordre.order_no}` : "Ordre";
 
@@ -35,7 +36,7 @@ export default function FaneLayout() {
             <View style={s.fyll}>
               <View style={s.hode}>
                 <OrdreHode id={id} />
-                <Segment valg={[...FANER]} verdi={aktiv} onChange={(navn) => navigation.navigate(navn)} />
+                <Segment valg={[...FANER]} verdi={aktiv} onChange={(navn) => navigation.navigate(navn, { id })} />
               </View>
               <View style={s.fyll}>{children}</View>
             </View>
