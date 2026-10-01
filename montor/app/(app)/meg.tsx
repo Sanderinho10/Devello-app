@@ -30,7 +30,7 @@ export default function Meg() {
 
   const ordreNr = (id: string) => {
     const o = ordrar.find((x) => x.id === id);
-    return o ? `#${o.order_no}` : "ordre";
+    return o ? `#${o.order_no}` : `ordre ${id.slice(0, 8)}`;
   };
 
   const loggUt = async () => {

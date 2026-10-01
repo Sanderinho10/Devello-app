@@ -110,6 +110,7 @@ export async function leggTil(ny: NyRad): Promise<UtboksRad> {
   const d = await db();
   const clientId = ny.client_id ?? nyClientId();
   const lagaKl = new Date().toISOString();
+  console.log("[utboks] ny rad", ny.type, "ordre_id =", JSON.stringify(ny.ordre_id));
   const res = await d.runAsync(
     "INSERT INTO utboks (client_id, ordre_id, type, payload, fil_sti, avhengig_av, status, laga_kl) VALUES (?, ?, ?, ?, ?, ?, 'venter', ?)",
     clientId,
