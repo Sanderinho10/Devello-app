@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { KundeSok, type KundeForslag } from "@/components/KundeSok";
 import { Modal } from "@/components/Modal";
 
 /**
@@ -24,9 +25,24 @@ export function NyOrdre() {
     customer_phone: "",
     site_address: "",
   });
+  // Kunden valgt fra registeret. Slippes når navnet skrives om.
+  const [kunde, setKunde] = useState<KundeForslag | null>(null);
 
   function sett(navn: keyof typeof felt, verdi: string) {
     setFelt((f) => ({ ...f, [navn]: verdi }));
+    if (navn === "customer_name" && kunde && verdi !== kunde.name) setKunde(null);
+  }
+
+  function velgKunde(k: KundeForslag) {
+    setKunde(k);
+    setFelt((f) => ({
+      ...f,
+      customer_name: k.name,
+      customer_contact: k.contact ?? f.customer_contact,
+      customer_email: k.email ?? f.customer_email,
+      customer_phone: k.phone ?? f.customer_phone,
+      site_address: f.site_address || (k.address ?? ""),
+    }));
   }
 
   function close() {
@@ -44,7 +60,7 @@ export function NyOrdre() {
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(felt),
+        body: JSON.stringify({ ...felt, customer_id: kunde?.id }),
       });
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.error ?? "Kunne ikke opprette ordren");
@@ -78,15 +94,16 @@ export function NyOrdre() {
           </label>
 
           <div className="grid-2">
-            <label className="field">
+            <div className="field">
               <span className="label">Kunde</span>
-              <input
-                className="input"
+              <KundeSok
                 value={felt.customer_name}
-                onChange={(e) => sett("customer_name", e.target.value)}
+                onChange={(v) => sett("customer_name", v)}
+                onVelg={velgKunde}
                 placeholder="Marit Aasen"
               />
-            </label>
+              {kunde && <span className="hint">Fra kunderegisteret — resten er fylt ut.</span>}
+            </div>
             <label className="field">
               <span className="label">Kontaktperson</span>
               <input

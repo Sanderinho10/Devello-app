@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import { KundeSok, type KundeForslag } from "@/components/KundeSok";
 import { Modal } from "@/components/Modal";
 import {
   kanBliVedlegg,
@@ -30,6 +31,8 @@ export function ManualLead() {
   const [description, setDescription] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  // Kunden valgt fra registeret. Slippes når navnet skrives om.
+  const [kunde, setKunde] = useState<KundeForslag | null>(null);
   const [vedlegg, setVedlegg] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +81,7 @@ export function ManualLead() {
         setDescription(lest.tekst);
         setName(lest.navn ?? "");
         setEmail(lest.epost ?? "");
+        setKunde(null);
         fraEpost = lest.filer;
         setHenta(
           `Hentet fra e-posten${lest.emne ? ` «${lest.emne}»` : ""}` +
@@ -167,10 +171,17 @@ export function ManualLead() {
     },
   };
 
+  function velgKunde(k: KundeForslag) {
+    setKunde(k);
+    setName(k.name);
+    if (k.email) setEmail(k.email);
+  }
+
   function nullstill() {
     setDescription("");
     setName("");
     setEmail("");
+    setKunde(null);
     setVedlegg([]);
     setHenta(null);
   }
@@ -200,6 +211,7 @@ export function ManualLead() {
         data.set("description", description);
         data.set("customer_name", name);
         data.set("customer_email", email);
+        if (kunde) data.set("customer_id", kunde.id);
         for (const f of vedlegg) data.append("vedlegg", f);
         created = await fetch("/api/leads/manual", { method: "POST", body: data });
       } else {
@@ -210,6 +222,7 @@ export function ManualLead() {
             description,
             customer_name: name,
             customer_email: email,
+            customer_id: kunde?.id,
           }),
         });
       }
@@ -344,15 +357,19 @@ export function ManualLead() {
           )}
 
           <div className="grid-2">
-            <label className="field">
+            <div className="field">
               <span className="label">Kunde (valgfritt)</span>
-              <input
-                className="input"
+              <KundeSok
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(v) => {
+                  setName(v);
+                  if (kunde && v !== kunde.name) setKunde(null);
+                }}
+                onVelg={velgKunde}
                 placeholder="Marit Aasen"
               />
-            </label>
+              {kunde && <span className="hint">Fra kunderegisteret.</span>}
+            </div>
             <label className="field">
               <span className="label">E-post (valgfritt)</span>
               <input
