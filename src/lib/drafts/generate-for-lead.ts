@@ -7,6 +7,8 @@ import { assessConfidence, countUnresolvedLines } from "@/lib/drafts/confidence"
 import { forbeholdsBibliotek } from "@/lib/referanser/forbehold";
 import { findSimilarReferences } from "@/lib/referanser";
 import { registrerBruk } from "@/lib/billing/subscription";
+import { medTilbudsnr, medTilbudsnrIKropp } from "@/lib/drafts/tilbudsnr";
+import { kobleLeadTilKunde } from "@/lib/kunder/koble";
 import { vedleggTilModell } from "@/lib/leads/vedlegg";
 import type { QuoteDocument, QuoteType } from "@/lib/types";
 
@@ -153,6 +155,7 @@ export async function generateForLead(
     .upsert(
       {
         lead_id: lead.id,
+        company_id: opts.companyId,
         quote_type: quoteType,
         typebegrunnelse: generated.typebegrunnelse,
         agent_status: generated.status,
@@ -178,14 +181,44 @@ export async function generateForLead(
 
   if (error) throw new Error(error.message);
 
+  // Løpenummeret settes første gang og står siden: regenerering og nye
+  // versjoner er samme tilbud. Deles ut atomisk i databasen.
+  if (draft.quote_no == null) {
+    const { data: nr, error: nrFeil } = await admin.rpc("tildel_tilbudsnummer", { p_draft: draft.id });
+    if (nrFeil) throw new Error(`Fikk ikke tilbudsnummer: ${nrFeil.message}`);
+    draft.quote_no = nr;
+  }
+
+  // Nummeret inn i e-posten: « – Tilbud 1004» i emnet og en linje nederst
+  // i brødteksten. Lagres på utkastet, så det brukeren ser i editoren er
+  // det som sendes.
+  let emne = generated.email_subject;
+  let kropp = generated.email_body;
+  if (draft.quote_no != null) {
+    emne = medTilbudsnr(emne, draft.quote_no);
+    kropp = medTilbudsnrIKropp(kropp, draft.quote_no);
+    if (emne !== generated.email_subject || kropp !== generated.email_body) {
+      await admin.from("drafts").update({ email_subject: emne, email_body: kropp }).eq("id", draft.id);
+      draft.email_subject = emne;
+      draft.email_body = kropp;
+    }
+  }
+
+  // Kunderegisteret: leadet kobles til kunden første gang det får et utkast.
+  // Dokumentet står over avsenderen — agenten har allerede lest hvem kunden
+  // er. Feiler koblingen, står tilbudet like fullt.
+  if (!lead.customer_id) {
+    await kobleLeadTilKunde(admin, opts.companyId, lead, generated.document);
+  }
+
   // Logg den originale AI-versjonen før brukeren rører noe.
   await logDraftVersion(admin, {
     draftId: draft.id,
     source: "ai",
     snapshot: {
       quote_type: quoteType,
-      email_subject: generated.email_subject,
-      email_body: generated.email_body,
+      email_subject: emne,
+      email_body: kropp,
       document: generated.document,
     },
     userId: opts.userId,

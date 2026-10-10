@@ -31,8 +31,10 @@ export function renderQuoteHtml(input: {
    * deres som ser like ut.
    */
   versjon?: { nr: number; erstatter: string | null };
+  /** Løpenummeret. Står øverst blant datoene, så kunden kan vise til det. */
+  tilbudsnr?: number | null;
 }): string {
-  const { document: doc, brand, companyName, quoteType, logoSrc, address, versjon } = input;
+  const { document: doc, brand, companyName, quoteType, logoSrc, address, versjon, tilbudsnr } = input;
   const revidert = versjon && versjon.nr > 1 ? versjon : null;
   const totals = computeTotals(doc);
   const accent = brand.primary_color || "#1d1d1f";
@@ -349,6 +351,14 @@ export function renderQuoteHtml(input: {
       ${doc.customer.phone ? `<div>${escapeHtml(doc.customer.phone)}</div>` : ""}
     </div>
     <div class="rows">
+      ${
+        tilbudsnr
+          ? `<div>
+        <div class="label">Tilbudsnr.</div>
+        <div class="strong">${tilbudsnr}</div>
+      </div>`
+          : ""
+      }
       <div>
         <div class="label">Dato</div>
         <div>${formatDateNo(new Date().toISOString())}</div>

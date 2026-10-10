@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { attachPdf, createDraft } from "@/lib/graph/drafts";
 import { accessTokenFor } from "@/lib/graph/oauth";
 import { htmlToPdf } from "@/lib/pdf/render";
+import { medTilbudsnr, medTilbudsnrIKropp } from "@/lib/drafts/tilbudsnr";
 import { brandImageBytes } from "@/lib/brand/image-bytes";
 import { logoDataUri } from "@/lib/pdf/logo";
 import { renderQuoteHtml } from "@/lib/pdf/template";
@@ -105,6 +106,14 @@ export async function POST(
         .maybeSingle(),
     ]);
 
+    // Tilbud laget før løpenummeret fantes har det ikke i teksten. Da legges
+    // det på her, så det som sendes alltid bærer nummeret. Står det der
+    // alt — fra genereringen eller skrevet av brukeren — røres ingenting.
+    if (draft.quote_no != null) {
+      payload.email_subject = medTilbudsnr(payload.email_subject, draft.quote_no);
+      payload.email_body = medTilbudsnrIKropp(payload.email_body, draft.quote_no);
+    }
+
     // 1. PDF — bare for punktpris og fastpris.
     let pdf: Buffer | null = null;
     let pdfPath: string | null = null;
@@ -122,6 +131,7 @@ export async function POST(
           city: company!.billing_city,
         },
         versjon: { nr: draft.revisjon, erstatter: draft.forrige_sendt_at },
+        tilbudsnr: draft.quote_no,
       });
       pdf = await htmlToPdf(html);
 
@@ -169,7 +179,7 @@ export async function POST(
           await attachPdf(
             token,
             outlook.id,
-            pdfFileName(payload.document!, draft.revisjon),
+            pdfFileName(payload.document!, draft.revisjon, draft.quote_no),
             pdf,
           );
         }
@@ -305,7 +315,8 @@ export async function POST(
   }
 }
 
-function pdfFileName(document: QuoteDocument, revisjon: number): string {
+function pdfFileName(document: QuoteDocument, revisjon: number, tilbudsnr?: number | null): string {
+  const nr = tilbudsnr ? `${tilbudsnr}-` : "";
   const slug = document.title
     .toLowerCase()
     .replace(/[æå]/g, "a")
@@ -314,7 +325,7 @@ function pdfFileName(document: QuoteDocument, revisjon: number): string {
     .replace(/^-|-$/g, "")
     .slice(0, 50);
   const versjon = revisjon > 1 ? `-v${revisjon}` : "";
-  return `tilbud-${slug || "dokument"}${versjon}.pdf`;
+  return `tilbud-${nr}${slug || "dokument"}${versjon}.pdf`;
 }
 
 /** Selskapets aktive postkasse — brukt når leadet ikke bærer en selv. */

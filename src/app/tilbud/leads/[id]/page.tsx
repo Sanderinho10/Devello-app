@@ -98,7 +98,10 @@ export default async function LeadPage({
           <Link className="button ghost" href="/tilbud/leads" style={{ marginLeft: -10 }}>
             ← Leads
           </Link>
-          <h1 style={{ marginTop: 6 }}>{lead.subject || "(uten emne)"}</h1>
+          <h1 style={{ marginTop: 6 }}>
+            {draft?.quote_no ? <span className="muted">Tilbud {draft.quote_no} · </span> : null}
+            {lead.subject || "(uten emne)"}
+          </h1>
           <p className="page-subtitle">
             {[lead.from_name, lead.from_email, formatDate(lead.received_at)]
               .filter(Boolean)

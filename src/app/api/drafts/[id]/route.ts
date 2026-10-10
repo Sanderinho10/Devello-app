@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
+import { kobleLeadTilKunde } from "@/lib/kunder/koble";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import type { QuoteDocument, QuoteType } from "@/lib/types";
 
@@ -81,6 +82,23 @@ export async function PATCH(
       })
       .eq("id", draft.id);
     if (error) throw new Error(error.message);
+
+    // Endret kunde i dokumentet → ny kobling i registeret. Nøkkelen er navn
+    // og e-post; en rettet telefon flytter ikke tilbudet til en annen kunde.
+    const forKunde = before.document?.customer;
+    const etterKunde = after.document?.customer;
+    if (
+      etterKunde &&
+      ((forKunde?.name ?? "").trim() !== (etterKunde.name ?? "").trim() ||
+        (forKunde?.email ?? "").trim() !== (etterKunde.email ?? "").trim())
+    ) {
+      await kobleLeadTilKunde(
+        admin,
+        session.companyId,
+        { id: draft.lead_id, from_name: null, from_email: null },
+        after.document,
+      );
+    }
 
     // Med vilje ingen versjonslogg her. To versjoner er nok per tilbud:
     // AI-ens originale utkast (kilden) og det som faktisk gikk ut (fasiten).

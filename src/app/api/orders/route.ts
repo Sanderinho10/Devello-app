@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
+import { finnEllerOpprettKunde } from "@/lib/kunder/koble";
 import { harModul } from "@/lib/moduler";
 import { lagOrdreBeskrivelse } from "@/lib/ordre/beskrivelse";
 import { supabaseAdmin } from "@/lib/supabase/server";
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
         lead_id: lead.id,
         draft_id: draft.id,
         quote_type: draft.quote_type,
-        quote_snapshot: { quote_type: draft.quote_type, document, totals },
+        quote_snapshot: { quote_type: draft.quote_type, quote_no: draft.quote_no ?? null, document, totals },
         planned_total: totals?.subtotal ?? null,
       };
     } else {
@@ -147,10 +148,23 @@ export async function POST(request: NextRequest) {
       throw new Error(nrFeil?.message ?? "Fikk ikke ordrenummer.");
     }
 
+    // Kunderegisteret: samme kunde som på tilbudet når det finnes, ellers
+    // den vi finner eller oppretter ut fra kundefeltene.
+    const customerId =
+      lead?.customer_id ??
+      (await finnEllerOpprettKunde(admin, session.companyId, {
+        name: felt.customer_name,
+        email: felt.customer_email,
+        phone: felt.customer_phone,
+        contact: felt.customer_contact,
+        address: felt.site_address,
+      }));
+
     const { data: order, error: insertFeil } = await admin
       .from("orders")
       .insert({
         ...felt,
+        customer_id: customerId,
         company_id: session.companyId,
         order_no: orderNo,
         created_by: session.userId,

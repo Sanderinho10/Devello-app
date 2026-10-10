@@ -34,7 +34,7 @@ export default async function LeadsPage({
       .from("leads")
       // Versjonen står på utkastet. Med den ser man i listen at et tilbud er
       // åpnet igjen etter at det ble sendt.
-      .select("*, drafts(revisjon)")
+      .select("*, drafts(revisjon, quote_no)")
       [arkiv ? "eq" : "neq"]("status", "sendt")
       .order("received_at", { ascending: false, nullsFirst: false })
       .limit(100),
@@ -146,7 +146,7 @@ export default async function LeadsPage({
         ) : (
           <div className="lead-list">
             {rows.map((lead) => (
-              <LeadRow key={lead.id} lead={lead} revisjon={revisjonAv(lead.drafts)} />
+              <LeadRow key={lead.id} lead={lead} revisjon={revisjonAv(lead.drafts)} tilbudsnr={tilbudsnrAv(lead.drafts)} />
             ))}
           </div>
         )}
@@ -161,9 +161,14 @@ export default async function LeadsPage({
  * drafts har ett utkast per lead, så PostgREST gir et objekt — men uten
  * kjent én-til-én-kobling blir det en liste. Vi tåler begge.
  */
-type DraftRevisjon = { revisjon: number } | { revisjon: number }[] | null;
+type DraftRevisjon = { revisjon: number; quote_no: number | null } | { revisjon: number; quote_no: number | null }[] | null;
 
 function revisjonAv(drafts: DraftRevisjon): number {
   const draft = Array.isArray(drafts) ? drafts[0] : drafts;
   return draft?.revisjon ?? 1;
+}
+
+function tilbudsnrAv(drafts: DraftRevisjon): number | null {
+  const draft = Array.isArray(drafts) ? drafts[0] : drafts;
+  return draft?.quote_no ?? null;
 }

@@ -5,15 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { LeadActions } from "./LeadActions";
 import { Modal } from "@/components/Modal";
-import { formatDate, type Lead, type LeadStatus } from "@/lib/types";
-
-const STATUS_LABEL: Record<LeadStatus, string> = {
-  ny: "Ny",
-  genererer: "Genererer…",
-  utkast_klar: "Utkast klart",
-  bekrefta: "Bekreftet",
-  sendt: "Sendt",
-};
+import { LEAD_STATUS_LABELS, formatDate, type Lead } from "@/lib/types";
 
 /**
  * En rad i leads-listen, med hele henvendelsen bak et klikk.
@@ -29,10 +21,13 @@ const STATUS_LABEL: Record<LeadStatus, string> = {
 export function LeadRow({
   lead,
   revisjon = 1,
+  tilbudsnr = null,
 }: {
   lead: Lead;
   /** Tilbudsversjonen. Over 1 når et sendt tilbud er åpnet igjen. */
   revisjon?: number;
+  /** Løpenummeret, når agenten har laget et utkast. */
+  tilbudsnr?: number | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -88,6 +83,7 @@ export function LeadRow({
               setOpen(true);
             }}
           >
+            {tilbudsnr ? <span className="muted">{tilbudsnr} · </span> : null}
             {lead.subject || "(uten emne)"}
           </button>
           <div className="lead-meta">{sender}</div>
@@ -97,7 +93,7 @@ export function LeadRow({
             </div>
           )}
         </div>
-        <span className={`pill ${lead.status}`}>{STATUS_LABEL[lead.status]}</span>
+        <span className={`pill ${lead.status}`}>{LEAD_STATUS_LABELS[lead.status]}</span>
         {revisjon > 1 && (
           <span
             className="pill versjon"
