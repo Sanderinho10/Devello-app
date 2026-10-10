@@ -180,7 +180,7 @@ p {
   padding: 1px 7px;
 }
 
-/* Agent-faner: leads / prisfil / referansefiler / innstillinger */
+/* Faner under en seksjon: leads / ordrer / abonnement … */
 .nav-tabs {
   display: flex;
   flex-direction: column;
@@ -188,6 +188,20 @@ p {
   margin: 2px 0 10px 20px;
   padding-left: 12px;
   border-left: 1px solid var(--border);
+}
+
+.nav-tab-wrap {
+  display: contents;
+}
+
+/* Gruppeoverskrift i Selskap: «Tilbud», «Ordre» — oppsettet per agent. */
+.nav-group {
+  margin: 10px 0 2px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
 }
 
 .nav-tab {

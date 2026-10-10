@@ -135,7 +135,7 @@ trenger derfor en **testbruker i et testselskap** — aldri en ekte kunde.
    f.eks. `test+app@dittdomene.no`, og gi selskapet navnet «Testselskap».
    Legg inn et fullt oppsett i onboardingen, eller hopp over.
 2. Slå på ordre-modulen for selskapet (Supabase → `companies.moduler` skal
-   inneholde `ordre`), og legg inn minst én timetype: Tilbud → Prislister →
+   inneholde `ordre`), og legg inn minst én timetype: Selskap → Tilbud → Prisfil →
    en aktiv liste med en rad av typen «time».
 3. I `.env.local`:
 

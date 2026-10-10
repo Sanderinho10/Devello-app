@@ -78,7 +78,7 @@ export async function boligmappaClient(admin: SupabaseClient, companyId: string)
     .select("id, company_id, environment, access_token, refresh_token, expires_at, status")
     .eq("company_id", companyId)
     .maybeSingle();
-  if (!data) throw new BoligmappaFeil("Boligmappa er ikke koblet til. Koble til under Ordre → Innstillinger.", 400);
+  if (!data) throw new BoligmappaFeil("Boligmappa er ikke koblet til. Koble til under Selskap → Ordre → Innstillinger.", 400);
   const kopling = data as Kopling;
   const urls = boligmappaUrlar((kopling.environment as BoligmappaMiljo) ?? "production");
 
@@ -102,7 +102,7 @@ export async function boligmappaClient(admin: SupabaseClient, companyId: string)
         .eq("id", kopling.id);
       return kopling.access_token;
     } catch (err) {
-      const m = "Logg inn i Boligmappa på nytt under Ordre → Innstillinger.";
+      const m = "Logg inn i Boligmappa på nytt under Selskap → Ordre → Innstillinger.";
       await admin.from("boligmappa_connections").update({ status: "feil", status_reason: m }).eq("id", kopling.id);
       throw new BoligmappaFeil(`${m} (${err instanceof Error ? err.message : String(err)})`, 401);
     }
@@ -137,7 +137,7 @@ export async function boligmappaClient(admin: SupabaseClient, companyId: string)
       return kall(method, path, body, 1);
     }
     if (res.status === 401) {
-      const m = "Logg inn i Boligmappa på nytt under Ordre → Innstillinger.";
+      const m = "Logg inn i Boligmappa på nytt under Selskap → Ordre → Innstillinger.";
       await admin.from("boligmappa_connections").update({ status: "feil", status_reason: m }).eq("id", kopling.id);
       throw new BoligmappaFeil(m, 401);
     }

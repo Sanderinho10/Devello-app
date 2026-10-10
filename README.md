@@ -195,8 +195,8 @@ supabase/migrations/            Skjema og RLS
 Tilbudsagenten finnes i to versjoner side om side (`src/lib/claude/motor.ts`).
 Hvilken et selskap kjører er en innstilling, ikke en utrulling:
 
-1. `companies.motor_versjon` — selskapets eget valg, satt under Tilbud →
-   Innstillinger → Motor.
+1. `companies.motor_versjon` — selskapets eget valg, satt under Selskap →
+   Tilbud → Innstillinger → Motor.
 2. `MOTOR_DEFAULT` i miljøet — standarden for selskaper uten eget valg.
 3. Ingen av delene → `v2`.
 
@@ -257,7 +257,7 @@ i `src/lib/grossist/import.ts`:
 1. **FTP-henting hver natt.** Grossisten legger prisfil (`V4…`) og
    rabattfil (`R4…`) på et FTP-område per kunde. Admin legger inn
    protokoll, vert, brukernavn, passord, katalog og filmønster under
-   Ordre → Grossister → Automatisk henting, tester tilkoblingen (fillista
+   Selskap → Ordre → Grossister → Automatisk henting, tester tilkoblingen (fillista
    vises, og hvilken fil som ville blitt hentet) og kan trykke «Hent nå».
    Passordet ligger i `supplier_ftp`, som ikke har noen policy — det kan
    aldri leses fra nettleseren. Nyeste fil som matcher mønsteret hentes;
@@ -319,7 +319,7 @@ Oppsettet:
    Legg til utvidelse → «Egendefinert utvidelse», limer inn Devello sin
    application key, gir lesetilgang til inngående faktura,
    bilagsdokumentasjon og leverandør, og får en **client key**.
-3. Client key limes inn under Ordre → Innstillinger → Regnskapssystem.
+3. Client key limes inn under Selskap → Ordre → Innstillinger → Regnskapssystem.
    Den lagres i `accounting_connections.client_key`, som ingen nettleser
    kan lese (kolonnerettigheter, samme grep som postkasse-tokenene).
 
@@ -341,7 +341,7 @@ grossistvarene inn likevel: grossisten legger fakturafiler på samme
 FTP-område som prisfilene — i formatet EFO/NELFO Fakturaformat 4.0, noen
 også som EHF-XML — og det er slik Cordel «Autofakt», Tripletex og Elinn
 får varene inn. Admin setter filmønster (og eventuelt egen katalog) under
-Ordre → Grossister → Automatisk henting → Fakturafiler; nattjobben og
+Selskap → Ordre → Grossister → Automatisk henting → Fakturafiler; nattjobben og
 «Hent fakturaer nå» lister området, henter **alle** nye filer som matcher
 (hver fil er én faktura eller én bunt), legger dem i Storage
 (`supplier-invoices/{company}/ftp/{supplier}/`), leser dem og skriver
@@ -431,7 +431,7 @@ merket «Signert i Devello av …» på arket — ingen BankID, som i fagsysteme
 En administrator kan gjenåpne; da slettes PDF-en og Boligmappa-statusen
 nullstilles.
 
-Boligmappa: kunden kobler til under Ordre → Innstillinger med sin egen
+Boligmappa: kunden kobler til under Selskap → Ordre → Innstillinger med sin egen
 Boligmappa Bedrift-bruker (OAuth authorization code, `offline_access`).
 Client id og secret er Devello sine (`BOLIGMAPPA_CLIENT_ID`,
 `BOLIGMAPPA_CLIENT_SECRET`, `BOLIGMAPPA_ENV` staging/production,

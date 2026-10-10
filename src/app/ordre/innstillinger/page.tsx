@@ -44,8 +44,8 @@ export default async function OrdreInnstillingerPage({
     <>
       <div className="page-header">
         <div>
-          <h1>Innstillinger</h1>
-          <p className="page-subtitle">Det som gjelder alle ordrer. Prisfilen ligger under Tilbud.</p>
+          <h1>Innstillinger for ordre</h1>
+          <p className="page-subtitle">Det som gjelder alle ordrer. Prisfilen ligger under Selskap → Tilbud.</p>
         </div>
       </div>
 

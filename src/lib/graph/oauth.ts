@@ -161,7 +161,7 @@ export async function accessTokenFor(mailboxId: string): Promise<string> {
       })
       .eq("id", mailboxId);
     throw new Error(
-      "Postkassen har ikke et gyldig refresh token. Koble til på nytt under Innstillinger.",
+      "Postkassen har ikke et gyldig refresh token. Koble til på nytt under Selskap → Tilbud → Innstillinger.",
     );
   }
 

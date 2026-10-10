@@ -58,7 +58,7 @@ export async function overforTilRegnskap(
     .eq("company_id", ordre.company_id)
     .neq("status", "kopla_fra")
     .maybeSingle();
-  if (!rad) return { ok: false, status: 400, error: "Ingen regnskapssystem er koblet til. Sett det opp under Ordre → Innstillinger." };
+  if (!rad) return { ok: false, status: 400, error: "Ingen regnskapssystem er koblet til. Sett det opp under Selskap → Ordre → Innstillinger." };
   const kopling = rad as Kopling;
   if (kopling.provider !== "poweroffice") {
     return { ok: false, status: 400, error: `${ACCOUNTING_PROVIDER_LABELS[kopling.provider]} er ikke støttet ennå.` };
@@ -69,7 +69,7 @@ export async function overforTilRegnskap(
     return {
       ok: false,
       status: 400,
-      error: `Produktmappingen mangler for ${manglar.map((k) => PRODUCT_MAP_LABELS[k].toLowerCase()).join(", ")}. Sett den under Ordre → Innstillinger → Regnskapssystem.`,
+      error: `Produktmappingen mangler for ${manglar.map((k) => PRODUCT_MAP_LABELS[k].toLowerCase()).join(", ")}. Sett den under Selskap → Ordre → Innstillinger → Regnskapssystem.`,
     };
   }
   if (!draft.lines.some((l) => l.included && l.unit_price !== null)) {

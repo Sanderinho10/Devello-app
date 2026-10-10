@@ -357,7 +357,7 @@ export function FakturaFane({
           <div className="banner info" style={{ marginTop: 12, marginBottom: 0 }}>
             Ingen regnskapssystem er koblet til. Sett det opp under{" "}
             <Link href="/ordre/innstillinger" style={{ textDecoration: "underline" }}>
-              Ordre → Innstillinger
+              Selskap → Ordre → Innstillinger
             </Link>
             .
           </div>
@@ -366,7 +366,7 @@ export function FakturaFane({
           <div className="banner warning" style={{ marginTop: 12, marginBottom: 0 }}>
             Produktmappingen mangler for {kopling.manglandeProdukt.map((k) => PRODUCT_MAP_LABELS[k].toLowerCase()).join(", ")}.{" "}
             <Link href="/ordre/innstillinger" style={{ textDecoration: "underline" }}>
-              Sett den under Innstillinger → Regnskapssystem
+              Sett den under Selskap → Ordre → Innstillinger → Regnskapssystem
             </Link>
             .
           </div>
