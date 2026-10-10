@@ -101,7 +101,7 @@ passordet er skrevet inn, med en feilmelding som ikke forklarer hvorfor.
 
 ## 5. Test
 
-Start appen, gå til **Tilbud → Innstillinger** og trykk **Koble til Microsoft
+Start appen, gå til **Selskap → Tilbud → Innstillinger** og trykk **Koble til Microsoft
 365**. Etter samtykke skal postkassen dukke opp med status «Aktiv», og **Hent
 leads** skal lese innboksen.
 

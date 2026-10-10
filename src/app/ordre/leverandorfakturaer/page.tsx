@@ -95,11 +95,11 @@ export default async function LeverandorfakturaerPage({
           <div>
             Koble til PowerOffice Go under{" "}
             <Link href="/ordre/innstillinger" style={{ textDecoration: "underline" }}>
-              Innstillinger
+              Selskap → Ordre → Innstillinger
             </Link>
             , eller sett opp fakturafiler fra grossisten under{" "}
             <Link href="/ordre/grossister" style={{ textDecoration: "underline" }}>
-              Grossister
+              Selskap → Ordre → Grossister
             </Link>
             , så hentes fakturaene hit.
           </div>

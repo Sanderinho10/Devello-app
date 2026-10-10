@@ -66,7 +66,7 @@ export function byggSalsordre(input: {
 }): GoSalsordre {
   const manglar = manglandeProdukt(input.draft.lines, input.productMap);
   if (manglar.length) {
-    throw new Error(`Produktmappingen mangler for: ${manglar.join(", ")}. Sett den under Ordre → Innstillinger → Regnskapssystem.`);
+    throw new Error(`Produktmappingen mangler for: ${manglar.join(", ")}. Sett den under Selskap → Ordre → Innstillinger → Regnskapssystem.`);
   }
 
   const linjer: GoSalsordreLinje[] = [];

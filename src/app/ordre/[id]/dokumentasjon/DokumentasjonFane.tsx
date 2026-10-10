@@ -337,7 +337,7 @@ function BoligmappaKort({
         <p className="muted tiny" style={{ margin: 0 }}>
           Ikke koblet til.{" "}
           <Link href="/ordre/innstillinger" style={{ textDecoration: "underline" }}>
-            Koble til Boligmappa under Innstillinger
+            Koble til Boligmappa under Selskap → Ordre → Innstillinger
           </Link>{" "}
           for å sende dokumentasjonen dit. Alt annet fungerer uten.
         </p>

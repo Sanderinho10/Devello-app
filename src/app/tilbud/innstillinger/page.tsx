@@ -37,7 +37,7 @@ export default async function InnstillingerPage({
     <>
       <div className="page-header">
         <div>
-          <h1>Innstillinger</h1>
+          <h1>Innstillinger for tilbud</h1>
           <p className="page-subtitle">
             Postkassen tilbudene svarer fra, og teksten agenten skriver.
             Logo, farge og adresse ligger under Selskap.
