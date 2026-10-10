@@ -2570,3 +2570,22 @@ p {
     grid-template-columns: 1fr;
   }
 }
+
+/* Kunderegisteret */
+.kunde-tall {
+  font-size: 13px;
+  white-space: nowrap;
+}
+.kunde-kort-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px 20px;
+  font-size: 14px;
+}
+.kunde-kort-info dt {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.kunde-kort-info dd {
+  margin: 0;
+}

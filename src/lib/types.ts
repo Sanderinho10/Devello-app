@@ -9,6 +9,14 @@ export type PriceItemKind = "punktpris" | "materiell" | "time";
  */
 export type LeadStatus = "ny" | "genererer" | "utkast_klar" | "bekrefta" | "sendt";
 
+export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
+  ny: "Ny",
+  genererer: "Genererer…",
+  utkast_klar: "Utkast klart",
+  bekrefta: "Bekreftet",
+  sendt: "Sendt",
+};
+
 /** Hvor henvendelsen kom fra. Manuelle er skrevet inn etter en telefon. */
 export type LeadSource = "epost" | "manuell";
 
@@ -202,6 +210,8 @@ export interface Lead {
   status: LeadStatus;
   /** Hvorfor en bakgrunnsgenerering feilet. Null når alt gikk bra. */
   generation_error: string | null;
+  /** Kunden i registeret. Settes når utkastet genereres; null for leads uten navn og e-post. */
+  customer_id: string | null;
   created_at: string;
 }
 
@@ -450,6 +460,8 @@ export interface Order {
   customer_phone: string | null;
   /** Adressen der jobben gjøres. */
   site_address: string | null;
+  /** Kunden i registeret. Kundefeltene over er ordrens egne og står selv om kunden endres. */
+  customer_id: string | null;
   /** Hvor ordren kom fra. Begge null for en ordre uten tilbud. */
   lead_id: string | null;
   draft_id: string | null;
@@ -464,6 +476,25 @@ export interface Order {
   created_at: string;
   updated_at: string;
   closed_at: string | null;
+}
+
+/**
+ * En kunde i registeret. Én rad per kunde per selskap; leads og ordrer peker
+ * hit via customer_id. Opprettes automatisk første gang et tilbud eller en
+ * ordre har et navn eller en e-post vi ikke har sett før (lib/kunder/koble.ts).
+ */
+export interface Customer {
+  id: string;
+  company_id: string;
+  name: string;
+  contact: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  org_nr: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 /** Det brukeren bekreftet: adresse, enhet og matrikkel. */

@@ -66,12 +66,26 @@ const ORDRE: NavSection = {
 };
 
 /**
- * Seksjonene selskapet skal se, i rekkefølgen jobben går: tilbud → ordre.
- * Dokumentasjonen bor på ordren (fanen Dokumentasjon), ikke som egen agent.
+ * Kunderegisteret går på tvers av agentene: en kunde har tilbud, ordrer og
+ * fakturaforslag. Én knapp, ingen faner — kundesiden er listen.
+ */
+const KUNDER: NavSection = {
+  key: "kunder",
+  label: "Kunder",
+  icon: "◎",
+  basePath: "/kunder",
+  tabs: [],
+};
+
+/**
+ * Seksjonene selskapet skal se, i rekkefølgen jobben går: tilbud → ordre →
+ * kunder. Dokumentasjonen bor på ordren (fanen Dokumentasjon), ikke som egen
+ * agent.
  */
 function agentSections(moduler: string[]): NavSection[] {
   const sections = [TILBUD];
   if (harModul(moduler, "ordre")) sections.push(ORDRE);
+  sections.push(KUNDER);
   return sections;
 }
 

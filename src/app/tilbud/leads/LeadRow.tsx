@@ -5,15 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { LeadActions } from "./LeadActions";
 import { Modal } from "@/components/Modal";
-import { formatDate, type Lead, type LeadStatus } from "@/lib/types";
-
-const STATUS_LABEL: Record<LeadStatus, string> = {
-  ny: "Ny",
-  genererer: "Genererer…",
-  utkast_klar: "Utkast klart",
-  bekrefta: "Bekreftet",
-  sendt: "Sendt",
-};
+import { LEAD_STATUS_LABELS, formatDate, type Lead } from "@/lib/types";
 
 /**
  * En rad i leads-listen, med hele henvendelsen bak et klikk.
@@ -101,7 +93,7 @@ export function LeadRow({
             </div>
           )}
         </div>
-        <span className={`pill ${lead.status}`}>{STATUS_LABEL[lead.status]}</span>
+        <span className={`pill ${lead.status}`}>{LEAD_STATUS_LABELS[lead.status]}</span>
         {revisjon > 1 && (
           <span
             className="pill versjon"

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
+import { finnEllerOpprettKunde } from "@/lib/kunder/koble";
 import { lovligeOverganger } from "@/lib/ordre/status";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { ORDER_STATUS_LABELS, type Order, type OrderStatus } from "@/lib/types";
@@ -101,6 +102,19 @@ export async function PATCH(
 
     if (Object.keys(endringer).length === 0) {
       return NextResponse.json(naa);
+    }
+
+    // Ny kunde på ordren → ny kobling i registeret. Navn eller e-post må
+    // ha endret seg; en ny kontaktperson på samme kunde flytter ikke ordren.
+    if (endringer.customer_name !== undefined || endringer.customer_email !== undefined) {
+      const kundeId = await finnEllerOpprettKunde(admin, session.companyId, {
+        name: (endringer.customer_name as string | undefined) ?? naa.customer_name,
+        email: (endringer.customer_email as string | null | undefined) ?? naa.customer_email,
+        phone: (endringer.customer_phone as string | null | undefined) ?? naa.customer_phone,
+        contact: (endringer.customer_contact as string | null | undefined) ?? naa.customer_contact,
+        address: (endringer.site_address as string | null | undefined) ?? naa.site_address,
+      });
+      if (kundeId !== naa.customer_id) endringer.customer_id = kundeId;
     }
 
     const { data: oppdatert, error } = await admin

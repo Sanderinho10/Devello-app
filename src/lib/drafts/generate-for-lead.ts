@@ -8,6 +8,7 @@ import { forbeholdsBibliotek } from "@/lib/referanser/forbehold";
 import { findSimilarReferences } from "@/lib/referanser";
 import { registrerBruk } from "@/lib/billing/subscription";
 import { medTilbudsnr, medTilbudsnrIKropp } from "@/lib/drafts/tilbudsnr";
+import { kobleLeadTilKunde } from "@/lib/kunder/koble";
 import { vedleggTilModell } from "@/lib/leads/vedlegg";
 import type { QuoteDocument, QuoteType } from "@/lib/types";
 
@@ -201,6 +202,13 @@ export async function generateForLead(
       draft.email_subject = emne;
       draft.email_body = kropp;
     }
+  }
+
+  // Kunderegisteret: leadet kobles til kunden første gang det får et utkast.
+  // Dokumentet står over avsenderen — agenten har allerede lest hvem kunden
+  // er. Feiler koblingen, står tilbudet like fullt.
+  if (!lead.customer_id) {
+    await kobleLeadTilKunde(admin, opts.companyId, lead, generated.document);
   }
 
   // Logg den originale AI-versjonen før brukeren rører noe.
