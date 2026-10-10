@@ -57,6 +57,8 @@ export async function POST(request: NextRequest) {
       customer_email?: string;
       customer_phone?: string;
       site_address?: string;
+      /** Valgt fra kunderegisteret i skjemaet. Må tilhøre selskapet. */
+      customer_id?: string;
     };
 
     let felt: {
@@ -148,9 +150,10 @@ export async function POST(request: NextRequest) {
       throw new Error(nrFeil?.message ?? "Fikk ikke ordrenummer.");
     }
 
-    // Kunderegisteret: samme kunde som på tilbudet når det finnes, ellers
-    // den vi finner eller oppretter ut fra kundefeltene.
+    // Kunderegisteret: kunden brukeren valgte i skjemaet, ellers samme kunde
+    // som på tilbudet, ellers den vi finner eller oppretter ut fra feltene.
     const customerId =
+      (await kundeISelskapet(admin, session.companyId, body.customer_id)) ??
       lead?.customer_id ??
       (await finnEllerOpprettKunde(admin, session.companyId, {
         name: felt.customer_name,
@@ -212,6 +215,22 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     return errorResponse(err);
   }
+}
+
+/** Id-en fra skjemaet er bare gyldig når kunden er selskapets egen. */
+async function kundeISelskapet(
+  admin: ReturnType<typeof supabaseAdmin>,
+  companyId: string,
+  customerId: string | undefined,
+): Promise<string | null> {
+  if (!customerId) return null;
+  const { data } = await admin
+    .from("customers")
+    .select("id")
+    .eq("id", customerId)
+    .eq("company_id", companyId)
+    .maybeSingle();
+  return data?.id ?? null;
 }
 
 async function finnOrdreForUtkast(

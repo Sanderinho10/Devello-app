@@ -4,6 +4,39 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { KUNDEFELT, lesKundefelt } from "@/lib/kunder/felt";
 
 /**
+ * Søk i kunderegisteret, til forslagene i skjemaene. Treff på navn, e-post,
+ * kontaktperson og telefon; de åtte beste. Uten søkeord: ingen treff — en
+ * liste over alle kunder er /kunder, ikke dette.
+ */
+export async function GET(request: NextRequest) {
+  const session = await sessionOr401();
+  if (session instanceof NextResponse) return session;
+
+  try {
+    const q = (request.nextUrl.searchParams.get("q") ?? "").trim();
+    if (q.length < 2) return NextResponse.json({ kunder: [] });
+
+    // PostgREST-filteret skiller på komma og parenteser; de har ingen plass
+    // i et søkeord uansett.
+    const monster = `%${q.replace(/[%_,()]/g, " ")}%`;
+    const admin = supabaseAdmin();
+    const { data, error } = await admin
+      .from("customers")
+      .select("id, name, contact, email, phone, address")
+      .eq("company_id", session.companyId)
+      .or(
+        `name.ilike.${monster},email.ilike.${monster},contact.ilike.${monster},phone.ilike.${monster}`,
+      )
+      .order("name")
+      .limit(8);
+    if (error) throw new Error(error.message);
+    return NextResponse.json({ kunder: data ?? [] });
+  } catch (err) {
+    return errorResponse(err);
+  }
+}
+
+/**
  * Oppretter en kunde for hånd.
  *
  * De fleste kundene oppstår av seg selv fra tilbud og ordrer; dette er for
