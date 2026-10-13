@@ -1,9 +1,12 @@
 import { GrossistKort } from "./GrossistKort";
 import { NyGrossist } from "./NyGrossist";
 import { GrossistSok } from "@/components/GrossistSok";
+import { ModulMangler } from "@/components/ModulMangler";
+import { harModul } from "@/lib/moduler";
 import { utanPassord } from "@/lib/grossist/api";
 import { currentSession, supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import type { ImportJob, Supplier, SupplierFtpPublic, SupplierInvoiceFile } from "@/lib/types";
+import { selskapetsModular } from "../../moduler";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +15,13 @@ export const dynamic = "force-dynamic";
  * holdes oppdatert: FTP-henting hver natt, «Hent nå», eller opplasting i
  * nettleseren. FTP-oppsettet leses via service role og strippes for
  * passordet før det går til klienten — tabellen har ingen policy.
+ *
+ * Sida ligg under Selskap, ikkje /ordre, så modulsperra i ordre/layout.tsx
+ * dekkjer henne ikkje. Sjekken står her i staden.
  */
 export default async function GrossisterPage() {
+  if (!harModul(await selskapetsModular(), "ordre")) return <ModulMangler modul="Ordre" />;
+
   const session = await currentSession();
   const supabase = await supabaseServer();
   const admin = supabaseAdmin();

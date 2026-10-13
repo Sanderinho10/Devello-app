@@ -15,24 +15,20 @@ import { harModul } from "@/lib/moduler";
  * kort nok til at alt får plass uten å lete.
  *
  * Under skillelinjen ligger Selskap: det som settes opp én gang eller
- * justeres sjelden — abonnement, medlemmer, firmaopplysninger, og så
- * oppsettet for hver agent gruppert under agentens navn: prisfil,
- * referansefiler og postkasse for Tilbud; grossister og regnskap for
- * Ordre. Gruppene holder tilbud og ordre fra hverandre, uten at en
- * prisfil man rører to ganger i året tar plass i det daglige.
+ * justeres sjelden — abonnement, medlemmer og innstillinger. Innstillinger
+ * er én inngang; bak den ligger firmaopplysninger og oppsettet for hver
+ * agent, prisfil, referansefiler og grossister, med egen fanestripe (se
+ * app/selskap/innstillinger). Menyen holdes kort: en prisfil man rører to
+ * ganger i året skal ikke ta plass ved siden av det daglige.
  *
- * URL-ene er som før (/tilbud/prisfil, /ordre/innstillinger …); det er
- * bare menyen som er organisert annerledes. Hvilke moduler som vises
- * styres av companies.moduler (lib/moduler.ts): Ordre, og oppsettet for
- * Ordre, bare når selskapet har modulen. Det er samme bryter som API-et
+ * Hvilke moduler som vises styres av companies.moduler (lib/moduler.ts):
+ * Ordre bare når selskapet har modulen. Det er samme bryter som API-et
  * sjekker, så menyen og tilgangen kan ikke sprike.
  */
 
 interface NavTab {
   label: string;
   href: string;
-  /** Overskrift over fanen, når seksjonen er delt i grupper. */
-  group?: string;
 }
 
 interface NavSection {
@@ -80,24 +76,18 @@ function agentSections(moduler: string[]): NavSection[] {
   return sections;
 }
 
-/** Oppsettet: kontoen først, så hver agents oppsett under agentens navn. */
-function companySection(moduler: string[]): NavSection {
-  const tabs: NavTab[] = [
+/** Oppsettet: kontoen, folkene, og én inngang til resten. */
+const SELSKAP: NavSection = {
+  key: "selskap",
+  label: "Selskap",
+  icon: "◉",
+  basePath: "/selskap",
+  tabs: [
     { label: "Abonnement", href: "/selskap/abonnement" },
     { label: "Medlemmer", href: "/selskap/medlemmer" },
-    { label: "Detaljer", href: "/selskap/detaljer" },
-    { label: "Prisfil", href: "/tilbud/prisfil", group: "Tilbud" },
-    { label: "Referansefiler", href: "/tilbud/referansefiler", group: "Tilbud" },
-    { label: "Innstillinger", href: "/tilbud/innstillinger", group: "Tilbud" },
-  ];
-  if (harModul(moduler, "ordre")) {
-    tabs.push(
-      { label: "Grossister", href: "/ordre/grossister", group: "Ordre" },
-      { label: "Innstillinger", href: "/ordre/innstillinger", group: "Ordre" },
-    );
-  }
-  return { key: "selskap", label: "Selskap", icon: "◉", basePath: "/selskap", tabs };
-}
+    { label: "Innstillinger", href: "/selskap/innstillinger" },
+  ],
+};
 
 function passer(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(href + "/");
@@ -120,12 +110,10 @@ export function Sidebar({
   useEffect(() => setOpen(false), [pathname]);
 
   const agenter = agentSections(moduler);
-  const selskap = companySection(moduler);
 
-  // Den lengste fanen som passer, uansett seksjon, er den som gjelder.
-  // Prisfilen bor under /tilbud, men står i menyen under Selskap — så det er
-  // fanen som avgjør hvilken seksjon som lyser, ikke starten på URL-en.
-  const aktivFane = [...agenter, selskap]
+  // Den lengste fanen som passer er den som gjelder: /selskap/innstillinger
+  // dekker alt under seg (prisfil, grossister …), /ordre bare ordrelisten.
+  const aktivFane = [...agenter, SELSKAP]
     .flatMap((s) => s.tabs)
     .filter((tab) => passer(pathname, tab.href))
     .sort((a, b) => b.href.length - a.href.length)[0];
@@ -154,18 +142,14 @@ export function Sidebar({
 
         {section.tabs.length > 0 && (
           <nav className="nav-tabs">
-            {section.tabs.map((tab, i) => (
-              <span key={tab.href} className="nav-tab-wrap">
-                {tab.group && tab.group !== section.tabs[i - 1]?.group && (
-                  <span className="nav-group">{tab.group}</span>
-                )}
-                <Link
-                  href={tab.href}
-                  className={`nav-tab${tab === aktivFane ? " active" : ""}`}
-                >
-                  {tab.label}
-                </Link>
-              </span>
+            {section.tabs.map((tab) => (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                className={`nav-tab${tab === aktivFane ? " active" : ""}`}
+              >
+                {tab.label}
+              </Link>
             ))}
           </nav>
         )}
@@ -199,7 +183,7 @@ export function Sidebar({
         {agenter.map(renderSection)}
 
         <div className="nav-separator" />
-        {renderSection(selskap)}
+        {renderSection(SELSKAP)}
 
         <div className="sidebar-footer">
           <div>{companyName}</div>

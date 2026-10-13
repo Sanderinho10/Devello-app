@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { BrandImageUpload } from "@/components/BrandImageUpload";
@@ -11,7 +10,7 @@ import type { CompanyBrand, ToneSettings } from "@/lib/types";
  * Innstillingene som hører til tilbudsagenten alene.
  *
  * Logo, farge, kontaktinfo, adresse og målform gjelder hele selskapet og
- * ligger under Selskap → Detaljer. De sto en stund begge steder, og det er
+ * ligger i Selskap-seksjonen over. De sto en stund begge steder, og det er
  * verre enn å ha dem ett vanskelig sted: to felt for samme opplysning spriker
  * før eller siden, og da vet ingen hvilket av dem kunden faktisk ser.
  *
@@ -173,19 +172,6 @@ export function SettingsForm({
               allerede er laget endres ikke.
             </span>
           </label>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="card-pad">
-          <div className="tiny muted">
-            Logo, farge, kontaktinfo, adresse og målform gjelder hele selskapet
-            og ligger under{" "}
-            <Link href="/selskap/detaljer" className="drop-link">
-              Selskap → Detaljer
-            </Link>
-            .
-          </div>
         </div>
       </div>
 

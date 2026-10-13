@@ -35,7 +35,7 @@ export async function POST() {
 
   if (!mailbox) {
     return NextResponse.json(
-      { error: "Ingen aktiv postkasse. Koble til under Selskap → Tilbud → Innstillinger." },
+      { error: "Ingen aktiv postkasse. Koble til under Selskap → Innstillinger → Tilbud." },
       { status: 400 },
     );
   }

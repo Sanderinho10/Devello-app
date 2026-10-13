@@ -336,8 +336,8 @@ function BoligmappaKort({
         <span className="label">Boligmappa</span>
         <p className="muted tiny" style={{ margin: 0 }}>
           Ikke koblet til.{" "}
-          <Link href="/ordre/innstillinger" style={{ textDecoration: "underline" }}>
-            Koble til Boligmappa under Selskap → Ordre → Innstillinger
+          <Link href="/selskap/innstillinger/generelt#ordre" style={{ textDecoration: "underline" }}>
+            Koble til Boligmappa under Selskap → Innstillinger → Ordre
           </Link>{" "}
           for å sende dokumentasjonen dit. Alt annet fungerer uten.
         </p>
@@ -419,7 +419,7 @@ function BoligmappaKort({
       {kopling.status === "feil" && (
         <div className="banner error">
           {kopling.status_reason ?? "Koplinga virker ikke."}{" "}
-          <Link href="/ordre/innstillinger" style={{ textDecoration: "underline" }}>
+          <Link href="/selskap/innstillinger/generelt#ordre" style={{ textDecoration: "underline" }}>
             Innstillinger
           </Link>
         </div>

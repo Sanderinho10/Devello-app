@@ -39,7 +39,7 @@ export default async function PriceListPage({
     <>
       <div className="page-header">
         <div>
-          <Link className="button ghost" href="/tilbud/prisfil" style={{ marginLeft: -10 }}>
+          <Link className="button ghost" href="/selskap/innstillinger/prisfil" style={{ marginLeft: -10 }}>
             ← Prisfil
           </Link>
           <h1 style={{ marginTop: 6 }}>{list.name}</h1>

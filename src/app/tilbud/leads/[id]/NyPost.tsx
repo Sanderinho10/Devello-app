@@ -213,7 +213,7 @@ export function NyPost({
       {lagre && !liste && (
         <p className="hint krav">
           Det finnes ingen aktiv {PRICE_KIND_LABELS[kind].toLowerCase()} å lagre i.{" "}
-          <Link href="/tilbud/prisfil" style={{ textDecoration: "underline" }}>
+          <Link href="/selskap/innstillinger/prisfil" style={{ textDecoration: "underline" }}>
             Legg den inn under Prisfil
           </Link>
           , eller legg posten til bare i dette tilbudet.

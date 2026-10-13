@@ -1136,7 +1136,7 @@ export function DraftEditor({
                       Legg til en ny post
                     </button>
                     , eller{" "}
-                    <Link href="/tilbud/prisfil" style={{ textDecoration: "underline" }}>
+                    <Link href="/selskap/innstillinger/prisfil" style={{ textDecoration: "underline" }}>
                       importer prisfilen
                     </Link>
                     .

@@ -22,7 +22,7 @@ export async function POST() {
     const resultat = await synkroniserFakturaer(session.companyId, { trigger: "manuell" });
     if (resultat.ikkeTilkoblet) {
       return NextResponse.json(
-        { error: "Ikke tilkoblet noe regnskapssystem. Koble til under Selskap → Ordre → Innstillinger." },
+        { error: "Ikke tilkoblet noe regnskapssystem. Koble til under Selskap → Innstillinger → Ordre." },
         { status: 400 },
       );
     }
