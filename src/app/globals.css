@@ -2444,6 +2444,7 @@ p {
 }
 .vedlegg-kort.ikke-lest {
   opacity: 0.45;
+}
 
 /* Dokumentasjon (steg 5) */
 .mal-liste {
@@ -2453,6 +2454,9 @@ p {
 }
 
 .mal-valg {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   text-align: left;
   padding: 12px 14px;
   border: 1px solid var(--border);
