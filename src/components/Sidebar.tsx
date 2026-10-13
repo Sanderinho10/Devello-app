@@ -10,9 +10,9 @@ import { harModul } from "@/lib/moduler";
 /**
  * Navigasjon etter hvor ofte man er der.
  *
- * Øverst står det daglige: Tilbud (leads), Ordre (ordrer og
- * leverandørfakturaer) og Kunder. Det er arbeidslisten, og den skal være
- * kort nok til at alt får plass uten å lete.
+ * Øverst står det daglige: Tilbud (leads og kunder) og Ordre (ordrer og
+ * leverandørfakturaer). Det er arbeidslisten, og den skal være kort nok
+ * til at alt får plass uten å lete.
  *
  * Under skillelinjen ligger Selskap: det som settes opp én gang eller
  * justeres sjelden — abonnement, medlemmer og innstillinger. Innstillinger
@@ -45,7 +45,12 @@ const TILBUD: NavSection = {
   label: "Tilbud",
   icon: "◆",
   basePath: "/tilbud",
-  tabs: [{ label: "Leads", href: "/tilbud/leads" }],
+  tabs: [
+    { label: "Leads", href: "/tilbud/leads" },
+    // Kunderegisteret bor på /kunder og brukes av begge agentene, men
+    // det er i tilbudsarbeidet man slår opp i det — så det står her.
+    { label: "Kunder", href: "/kunder" },
+  ],
 };
 
 const ORDRE: NavSection = {
@@ -59,20 +64,10 @@ const ORDRE: NavSection = {
   ],
 };
 
-/** Kunderegisteret går på tvers av agentene. Én knapp — kundesiden er listen. */
-const KUNDER: NavSection = {
-  key: "kunder",
-  label: "Kunder",
-  icon: "◎",
-  basePath: "/kunder",
-  tabs: [],
-};
-
-/** Det daglige, i rekkefølgen jobben går: tilbud → ordre → kunder. */
+/** Det daglige, i rekkefølgen jobben går: tilbud → ordre. */
 function agentSections(moduler: string[]): NavSection[] {
   const sections = [TILBUD];
   if (harModul(moduler, "ordre")) sections.push(ORDRE);
-  sections.push(KUNDER);
   return sections;
 }
 
