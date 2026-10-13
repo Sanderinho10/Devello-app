@@ -181,7 +181,7 @@ export function SignupWizard() {
         return;
       }
 
-      router.push("/tilbud/innstillinger");
+      router.push("/selskap/innstillinger/generelt");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -416,7 +416,7 @@ export function SignupWizard() {
             <p className="muted" style={{ margin: "6px 0 18px" }}>
               Logo, farge og kontaktinfo som blir lagt inn i tilbudene agenten
               lager. Alt kan stå tomt og fylles ut senere under Selskap →
-              Detaljer — men det er lettere å gjøre nå enn å oppdage det på det
+              Innstillinger — men det er lettere å gjøre nå enn å oppdage det på det
               første tilbudet som går ut.
             </p>
 

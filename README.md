@@ -196,7 +196,7 @@ Tilbudsagenten finnes i to versjoner side om side (`src/lib/claude/motor.ts`).
 Hvilken et selskap kjører er en innstilling, ikke en utrulling:
 
 1. `companies.motor_versjon` — selskapets eget valg, satt under Selskap →
-   Tilbud → Innstillinger → Motor.
+   Innstillinger → Tilbud → Motor.
 2. `MOTOR_DEFAULT` i miljøet — standarden for selskaper uten eget valg.
 3. Ingen av delene → `v2`.
 
@@ -257,7 +257,7 @@ i `src/lib/grossist/import.ts`:
 1. **FTP-henting hver natt.** Grossisten legger prisfil (`V4…`) og
    rabattfil (`R4…`) på et FTP-område per kunde. Admin legger inn
    protokoll, vert, brukernavn, passord, katalog og filmønster under
-   Selskap → Ordre → Grossister → Automatisk henting, tester tilkoblingen (fillista
+   Selskap → Innstillinger → Grossister → Automatisk henting, tester tilkoblingen (fillista
    vises, og hvilken fil som ville blitt hentet) og kan trykke «Hent nå».
    Passordet ligger i `supplier_ftp`, som ikke har noen policy — det kan
    aldri leses fra nettleseren. Nyeste fil som matcher mønsteret hentes;
@@ -319,7 +319,7 @@ Oppsettet:
    Legg til utvidelse → «Egendefinert utvidelse», limer inn Devello sin
    application key, gir lesetilgang til inngående faktura,
    bilagsdokumentasjon og leverandør, og får en **client key**.
-3. Client key limes inn under Selskap → Ordre → Innstillinger → Regnskapssystem.
+3. Client key limes inn under Selskap → Innstillinger → Ordre → Regnskapssystem.
    Den lagres i `accounting_connections.client_key`, som ingen nettleser
    kan lese (kolonnerettigheter, samme grep som postkasse-tokenene).
 
@@ -341,7 +341,7 @@ grossistvarene inn likevel: grossisten legger fakturafiler på samme
 FTP-område som prisfilene — i formatet EFO/NELFO Fakturaformat 4.0, noen
 også som EHF-XML — og det er slik Cordel «Autofakt», Tripletex og Elinn
 får varene inn. Admin setter filmønster (og eventuelt egen katalog) under
-Selskap → Ordre → Grossister → Automatisk henting → Fakturafiler; nattjobben og
+Selskap → Innstillinger → Grossister → Automatisk henting → Fakturafiler; nattjobben og
 «Hent fakturaer nå» lister området, henter **alle** nye filer som matcher
 (hver fil er én faktura eller én bunt), legger dem i Storage
 (`supplier-invoices/{company}/ftp/{supplier}/`), leser dem og skriver
@@ -431,7 +431,7 @@ merket «Signert i Devello av …» på arket — ingen BankID, som i fagsysteme
 En administrator kan gjenåpne; da slettes PDF-en og Boligmappa-statusen
 nullstilles.
 
-Boligmappa: kunden kobler til under Selskap → Ordre → Innstillinger med sin egen
+Boligmappa: kunden kobler til under Selskap → Innstillinger → Ordre med sin egen
 Boligmappa Bedrift-bruker (OAuth authorization code, `offline_access`).
 Client id og secret er Devello sine (`BOLIGMAPPA_CLIENT_ID`,
 `BOLIGMAPPA_CLIENT_SECRET`, `BOLIGMAPPA_ENV` staging/production,
@@ -471,10 +471,13 @@ Hvilke seksjoner et selskap ser, styres av `companies.moduler` (`tilbud`,
 `ordre`): Tilbud står alltid, Ordre bare når modulen er på, og samme flagg
 sjekkes i `/api/orders` og i `ordre/layout.tsx` — se `src/lib/moduler.ts`.
 
-Under agentene ligger **Selskap**: abonnement, medlemmer og firmaopplysninger.
-Skillet går på hvem som eier innstillingen. Postkasse, merkevare og tone hører
-til tilbudsagenten og blir værende der. Navn, organisasjonsnummer og
-fakturaadresse hører til kontoen.
+Under agentene ligger **Selskap**: abonnement, medlemmer og innstillinger.
+Innstillinger er én inngang med egen fanestripe: den samlede innstillingssiden,
+prisfil, referansefiler og grossister (`src/app/selskap/innstillinger`). På den
+samlede siden står alt sortert etter hvem som eier innstillingen — Selskap,
+Tilbud, Ordre. Postkasse, merkevare og tone hører til tilbudsagenten; navn,
+organisasjonsnummer og fakturaadresse hører til kontoen. De gamle adressene
+(`/tilbud/prisfil`, `/ordre/innstillinger` …) sendes videre fra `next.config.ts`.
 
 To skjemaer må aldri eie samme felt. `/api/settings` skriver bare tone og
 merkevare; navn og organisasjonsnummer går gjennom `/api/company`. Ellers ville
@@ -518,7 +521,7 @@ til selskapet som skal måles. Uten den lister scriptene selskapene og stopper.
 - **Fase 3 — selvbetjent onboarding og konto:** registrering med organisasjonsnummer-
   sjekk, admin/standard-roller, invitasjoner og partnerkoder for
   regnskapsførere, og en Selskap-seksjon med abonnement, medlemmer og
-  firmaopplysninger. Klart.
+  innstillinger. Klart.
 
   Betaling gjenstår: pakkevalget blir lagret, men ingen faktura sendes og
   ingenting trekkes. **Prisene i `src/lib/billing/plans.ts` er plassholdere**

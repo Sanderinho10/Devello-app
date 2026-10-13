@@ -130,7 +130,7 @@ export function TimerFane({
       {!laast && timetypar.length === 0 && (
         <div className="banner warning" style={{ marginBottom: 0 }}>
           Legg inn timepriser i prisfilen først.{" "}
-          <Link href="/tilbud/prisfil" style={{ textDecoration: "underline" }}>
+          <Link href="/selskap/innstillinger/prisfil" style={{ textDecoration: "underline" }}>
             Gå til prisfilen →
           </Link>
         </div>

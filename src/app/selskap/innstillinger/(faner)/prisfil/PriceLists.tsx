@@ -90,7 +90,7 @@ function KindSection({
       }
       close();
       router.refresh();
-      if (payload.imported > 0) router.push(`/tilbud/prisfil/${payload.id}`);
+      if (payload.imported > 0) router.push(`/selskap/innstillinger/prisfil/${payload.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -219,7 +219,7 @@ function KindSection({
               <tr key={list.id}>
                 <td>
                   <Link
-                    href={`/tilbud/prisfil/${list.id}`}
+                    href={`/selskap/innstillinger/prisfil/${list.id}`}
                     style={{ fontWeight: 550, textDecoration: "underline" }}
                   >
                     {list.name}
