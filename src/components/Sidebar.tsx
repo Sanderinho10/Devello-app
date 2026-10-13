@@ -10,11 +10,11 @@ import { harModul } from "@/lib/moduler";
 /**
  * Navigasjon etter hvor ofte man er der.
  *
- * Øverst står det daglige: Tilbud (leads og kunder), Ordre (ordrer og
- * leverandørfakturaer) og Kunder. Det er arbeidslisten, og den skal være
- * kort nok til at alt får plass uten å lete. Kunder står to steder med
- * vilje: som fane under Tilbud, der man slår opp i registeret, og som
- * egen knapp, siden registeret går på tvers av agentene.
+ * Øverst står det daglige: Tilbud (leads og kunder) og Ordre (ordrer og
+ * leverandørfakturaer). Det er arbeidslisten, og den skal være kort nok
+ * til at alt får plass uten å lete. Kunderegisteret bor på /kunder og
+ * brukes av begge agentene, men det er i tilbudsarbeidet man slår opp i
+ * det — så det står som fane under Tilbud.
  *
  * Under skillelinjen ligger Selskap: det som settes opp én gang eller
  * justeres sjelden — abonnement, medlemmer og innstillinger. Innstillinger
@@ -64,20 +64,10 @@ const ORDRE: NavSection = {
   ],
 };
 
-/** Kunderegisteret går på tvers av agentene. Én knapp — kundesiden er listen. */
-const KUNDER: NavSection = {
-  key: "kunder",
-  label: "Kunder",
-  icon: "◎",
-  basePath: "/kunder",
-  tabs: [],
-};
-
-/** Det daglige, i rekkefølgen jobben går: tilbud → ordre → kunder. */
+/** Det daglige, i rekkefølgen jobben går: tilbud → ordre. */
 function agentSections(moduler: string[]): NavSection[] {
   const sections = [TILBUD];
   if (harModul(moduler, "ordre")) sections.push(ORDRE);
-  sections.push(KUNDER);
   return sections;
 }
 
@@ -124,11 +114,9 @@ export function Sidebar({
     .sort((a, b) => b.href.length - a.href.length)[0];
 
   function renderSection(section: NavSection) {
-    // En seksjon uten faner (Kunder) lyser på sin egen adresse, også når
-    // samme adresse er en fane et annet sted i menyen.
-    const active = section.tabs.length
-      ? section.tabs.includes(aktivFane as NavTab)
-      : passer(pathname, section.basePath);
+    const active = aktivFane
+      ? section.tabs.includes(aktivFane)
+      : pathname.startsWith(section.basePath);
     return (
       <div className="nav-agent" key={section.key}>
         {section.comingSoon ? (
