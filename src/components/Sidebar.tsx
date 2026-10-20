@@ -10,10 +10,10 @@ import { harModul } from "@/lib/moduler";
 /**
  * Navigasjon etter hvor ofte man er der.
  *
- * Over skillelinjen står det daglige: Tilbud (leads), Ordre (ordrer) og
- * Register — kontakter, leverandørfakturaer og grossister, det man slår opp
- * i fra begge. Det er arbeidslisten, og den skal være kort nok til at alt
- * får plass uten å lete.
+ * Over skillelinjen står det daglige: Tilbud, Ordre og Register — bare
+ * hovedoverskriftene. Undersidene (som kontakter, leverandørfakturaer og
+ * grossister under Register) er faner inne på siden, ikke i menyen, så
+ * menyen holder seg kort.
  *
  * Under skillelinjen ligger Selskap: det som settes opp én gang eller
  * justeres sjelden — abonnement, medlemmer og innstillinger. Innstillinger
@@ -37,6 +37,8 @@ interface NavSection {
   label: string;
   icon: string;
   basePath: string;
+  /** Der knappen går. Uten: første fane, eller basePath. */
+  href?: string;
   tabs: NavTab[];
   comingSoon?: boolean;
 }
@@ -46,7 +48,8 @@ const TILBUD: NavSection = {
   label: "Tilbud",
   icon: "◆",
   basePath: "/tilbud",
-  tabs: [{ label: "Leads", href: "/tilbud/leads" }],
+  href: "/tilbud/leads",
+  tabs: [],
 };
 
 const ORDRE: NavSection = {
@@ -54,26 +57,25 @@ const ORDRE: NavSection = {
   label: "Ordre",
   icon: "▣",
   basePath: "/ordre",
-  tabs: [{ label: "Ordrer", href: "/ordre" }],
+  href: "/ordre",
+  tabs: [],
 };
 
-/** Registrene. Leverandørfakturaer og grossister hører til ordremodulen. */
-function register(moduler: string[]): NavSection {
-  const tabs: NavTab[] = [{ label: "Kontakter", href: "/register/kontakter" }];
-  if (harModul(moduler, "ordre")) {
-    tabs.push(
-      { label: "Leverandørfakturaer", href: "/register/leverandorfakturaer" },
-      { label: "Grossister", href: "/register/grossister" },
-    );
-  }
-  return { key: "register", label: "Register", icon: "▤", basePath: "/register", tabs };
-}
+/** Registrene. Fanene (kontakter, leverandørfakturaer, grossister) står på siden — se app/register. */
+const REGISTER: NavSection = {
+  key: "register",
+  label: "Register",
+  icon: "▤",
+  basePath: "/register",
+  href: "/register/kontakter",
+  tabs: [],
+};
 
 /** Det daglige, i rekkefølgen jobben går: tilbud → ordre, og registrene. */
 function agentSections(moduler: string[]): NavSection[] {
   const sections = [TILBUD];
   if (harModul(moduler, "ordre")) sections.push(ORDRE);
-  sections.push(register(moduler));
+  sections.push(REGISTER);
   return sections;
 }
 
@@ -134,7 +136,7 @@ export function Sidebar({
         ) : (
           <Link
             className={`nav-button${active ? " active" : ""}`}
-            href={section.tabs[0]?.href ?? section.basePath}
+            href={section.href ?? section.tabs[0]?.href ?? section.basePath}
           >
             <span className="nav-icon">{section.icon}</span>
             {section.label}
