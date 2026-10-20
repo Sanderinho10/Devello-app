@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { KontaktKort } from "./KontaktKort";
 import { kontakttypeTekst } from "../KontaktFelt";
+import { adresseTekst, hovedadresse } from "@/lib/kunder/adresse";
 import { supabaseServer } from "@/lib/supabase/server";
 import {
   INVOICE_DRAFT_STATUS_LABELS,
@@ -89,7 +90,7 @@ export default async function KontaktPage({ params }: { params: Promise<{ id: st
           <p className="page-subtitle">
             {kontakttypeTekst(kunde)}
             {" · "}
-            {[kunde.contact, kunde.email, kunde.phone, kunde.address].filter(Boolean).join(" · ") ||
+            {[kunde.contact, kunde.email, kunde.phone, adresseTekst(hovedadresse(kunde))].filter(Boolean).join(" · ") ||
               "Ingen kontaktinfo ennå"}
           </p>
         </div>

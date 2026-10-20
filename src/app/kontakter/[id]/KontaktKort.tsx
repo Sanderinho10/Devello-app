@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Customer } from "@/lib/types";
-import { KontaktFelt, erEndret, harType, tilVerdier } from "../KontaktFelt";
+import { KontaktFelt, erEndret, harType, manglar, tilVerdier } from "../KontaktFelt";
 
 /**
  * Kontaktkortet på kontaktsiden. Lagre-knappen kommer når noe er endret.
@@ -15,16 +15,15 @@ export function KontaktKort({ kontakt }: { kontakt: Customer }) {
   const [lagret, setLagret] = useState(() => tilVerdier(kontakt));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fane, setFane] = useState<"kontakt" | "adresser" | "notater">("kontakt");
 
   const endret = erEndret(verdier, lagret);
 
   async function lagre() {
-    if (!verdier.name.trim()) {
-      setError("Kontakten må ha et navn.");
-      return;
-    }
-    if (!harType(verdier)) {
-      setError("Kryss av for kunde, leverandør eller begge.");
+    const feil = manglar(verdier);
+    if (feil) {
+      setError(feil);
+      setFane("kontakt");
       return;
     }
     setBusy(true);
@@ -59,7 +58,7 @@ export function KontaktKort({ kontakt }: { kontakt: Customer }) {
         )}
       </div>
       {error && <div className="banner error">{error}</div>}
-      <KontaktFelt verdier={verdier} onChange={setVerdier} />
+      <KontaktFelt verdier={verdier} onChange={setVerdier} fane={fane} onFane={setFane} />
     </div>
   );
 }

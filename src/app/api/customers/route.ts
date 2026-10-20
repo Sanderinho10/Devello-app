@@ -1,7 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { KUNDEFELT, lesKontakttype, lesKundefelt } from "@/lib/kunder/felt";
+import type { Customer } from "@/lib/types";
+import { lesKontakt } from "@/lib/kunder/felt";
+import { adresseTekst, oppdragsadresse } from "@/lib/kunder/adresse";
 
 /**
  * Søk i kontaktregisteret, til forslagene i kundefeltene i skjemaene. Treff
@@ -24,7 +26,7 @@ export async function GET(request: NextRequest) {
     const admin = supabaseAdmin();
     const { data, error } = await admin
       .from("customers")
-      .select("id, name, contact, email, phone, address, is_customer, is_supplier")
+      .select("*")
       .eq("company_id", session.companyId)
       .or(
         `name.ilike.${monster},email.ilike.${monster},contact.ilike.${monster},phone.ilike.${monster}`,
@@ -32,7 +34,20 @@ export async function GET(request: NextRequest) {
       .order("name")
       .limit(8);
     if (error) throw new Error(error.message);
-    return NextResponse.json({ kunder: data ?? [] });
+    // Skjemaene fyller ut stedet for jobben med «address»: det er
+    // oppdragsadressen, som er hovedadressen når det ikke er krysset av for
+    // en egen.
+    const kunder = ((data ?? []) as Customer[]).map((k) => ({
+      id: k.id,
+      name: k.name,
+      contact: k.contact,
+      email: k.email,
+      phone: k.phone,
+      address: adresseTekst(oppdragsadresse(k)) || null,
+      is_customer: k.is_customer,
+      is_supplier: k.is_supplier,
+    }));
+    return NextResponse.json({ kunder });
   } catch (err) {
     return errorResponse(err);
   }
@@ -53,13 +68,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-    const felt = lesKundefelt(body, KUNDEFELT);
+    const felt = lesKontakt(body);
     if (!felt.name) {
       return NextResponse.json({ error: "Kontakten må ha et navn." }, { status: 400 });
     }
-    const type = lesKontakttype(body);
-    const is_customer = type.is_customer ?? !type.is_supplier;
-    const is_supplier = type.is_supplier ?? false;
+    const is_customer = felt.is_customer ?? !felt.is_supplier;
+    const is_supplier = felt.is_supplier ?? false;
     if (!is_customer && !is_supplier) {
       return NextResponse.json({ error: "Kryss av for kunde, leverandør eller begge." }, { status: 400 });
     }

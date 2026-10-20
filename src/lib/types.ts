@@ -490,7 +490,26 @@ export interface Customer {
   contact: string | null;
   email: string | null;
   phone: string | null;
+  website: string | null;
+  /** Firma eller privatperson. */
+  is_person: boolean;
+  /** Hovedadressen. Fakturaadresse og oppdragsadresse: se lib/kunder/adresse.ts. */
   address: string | null;
+  address2: string | null;
+  postal_code: string | null;
+  city: string | null;
+  country: string;
+  invoice_separate: boolean;
+  invoice_address: string | null;
+  invoice_address2: string | null;
+  invoice_postal_code: string | null;
+  invoice_city: string | null;
+  invoice_country: string | null;
+  site_separate: boolean;
+  site_address: string | null;
+  site_address2: string | null;
+  site_postal_code: string | null;
+  site_city: string | null;
   org_nr: string | null;
   notes: string | null;
   /** Kontakten er en kunde. Settes av seg selv når kontakten kobles til et tilbud eller en ordre. */

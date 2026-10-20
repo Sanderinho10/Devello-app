@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Modal } from "@/components/Modal";
-import { KontaktFelt, harType, tomKontakt } from "./KontaktFelt";
+import { KontaktFelt, harType, manglar, tomKontakt } from "./KontaktFelt";
 
 /** Ny kontakt for hånd. Navnet er påkrevd, og den må være kunde, leverandør eller begge. */
 export function NyKontakt() {
@@ -12,6 +12,7 @@ export function NyKontakt() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [felt, setFelt] = useState(tomKontakt);
+  const [fane, setFane] = useState<"kontakt" | "adresser" | "notater">("kontakt");
 
   function close() {
     if (busy) return;
@@ -21,7 +22,13 @@ export function NyKontakt() {
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (!felt.name.trim() || !harType(felt)) return;
+    const feil = manglar(felt);
+    if (feil) {
+      // Navn og kunde/leverandør står på Kontakt-fanen.
+      setError(feil);
+      setFane("kontakt");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -45,10 +52,10 @@ export function NyKontakt() {
         Ny kontakt
       </button>
 
-      <Modal open={open} onClose={close} title="Ny kontakt">
+      <Modal open={open} onClose={close} title="Ny kontakt" size="wide">
         <form onSubmit={submit}>
           {error && <div className="banner error">{error}</div>}
-          <KontaktFelt verdier={felt} onChange={setFelt} autoFocus />
+          <KontaktFelt verdier={felt} onChange={setFelt} autoFocus fane={fane} onFane={setFane} />
           <div className="modal-actions">
             <button type="button" className="button secondary" onClick={close} disabled={busy}>
               Avbryt

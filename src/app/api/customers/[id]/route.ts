@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { KUNDEFELT, lesKontakttype, lesKundefelt } from "@/lib/kunder/felt";
+import { lesKontakt } from "@/lib/kunder/felt";
 
 /**
  * Oppdaterer kontaktkortet. Bare feltene som sendes endres.
@@ -22,7 +22,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-    const felt = { ...lesKundefelt(body, KUNDEFELT), ...lesKontakttype(body) };
+    const felt = lesKontakt(body);
     if (felt.name !== undefined && !felt.name) {
       return NextResponse.json({ error: "Kontakten må ha et navn." }, { status: 400 });
     }
