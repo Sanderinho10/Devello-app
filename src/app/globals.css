@@ -2911,6 +2911,21 @@ body.drar-rad * {
 .epost-slipp-hint {
   margin: -4px 0 14px;
 }
+
+/* Rader med høyt innhold (tekstfelt, vedleggsliste): etiketten står øverst
+   ved feltet, ikke midt på. */
+.kontakt-rad.topp {
+  align-items: start;
+}
+
+.kontakt-rad.topp > .kontakt-rad-etikett {
+  padding-top: 8px;
+}
+
+.kontakt-rad .epost-slipp-hint {
+  margin: 0;
+  padding-top: 8px;
+}
 .button.slipp-maal {
   border-style: dashed;
   border-color: var(--accent);

@@ -265,66 +265,75 @@ export function ManualLead() {
           {error && <div className="banner error">{error}</div>}
           {henta && <div className="banner success">{henta}</div>}
 
-          <div className="epost-slipp-hint tiny muted">
-            {leser ? (
-              "Leser filene…"
-            ) : (
-              <>
-                Kom den på e-post? Dra e-posten inn her fra Outlook eller Mail,
-                og bilder eller PDF-er kunden har sendt. Du kan også{" "}
-                <button
-                  type="button"
-                  className="linkish"
-                  onClick={() => filvelger.current?.click()}
-                >
-                  velge filer
-                </button>
-                .
-              </>
-            )}
-            <input
-              ref={filvelger}
-              type="file"
-              multiple
-              accept=".msg,.eml,message/rfc822,application/vnd.ms-outlook,.pdf,application/pdf,.jpg,.jpeg,.png,.webp,.gif,.heic,.heif,.avif,image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,image/avif"
-              hidden
-              onChange={(e) => {
-                const filer = Array.from(e.target.files ?? []);
-                if (filer.length > 0) {
-                  setError(null);
-                  setHenta(null);
-                  void lesFiler(filer);
+          {/* Som i Go: etiketten foran feltet, kunden øverst og selve
+              henvendelsen under. Hele vinduet tar imot en e-post som slippes. */}
+          <div className="kontakt-panel ny-post-panel">
+            <div className="kontakt-rad">
+              <span className="kontakt-rad-etikett">Kunde</span>
+              <div>
+                <KundeSok
+                  value={name}
+                  onChange={(v) => {
+                    setName(v);
+                    if (kunde && v !== kunde.name) setKunde(null);
+                  }}
+                  onVelg={velgKunde}
+                  placeholder="Valgfritt — Marit Aasen"
+                />
+                {kunde && <span className="hint">Fra kunderegisteret.</span>}
+              </div>
+            </div>
+            <label className="kontakt-rad">
+              <span className="kontakt-rad-etikett">E-post</span>
+              <input
+                className="input"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Valgfritt — marit@example.no"
+              />
+            </label>
+            <div className="kontakt-rad">
+              <span />
+              <span className="hint" style={{ marginTop: -4 }}>
+                Blir mottaker på Outlook-kladden. Tom kan du fylle inn i Outlook.
+              </span>
+            </div>
+
+            <div className="kontakt-skilje">Henvendelsen</div>
+            <label className="kontakt-rad topp">
+              <span className="kontakt-rad-etikett">Forespørsel</span>
+              <textarea
+                className="textarea"
+                autoFocus
+                required
+                rows={7}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder={
+                  "Skriv med egne ord, slik du ville forklart det til en kollega.\n\n" +
+                  "«Marit ringte. Skal pusse opp kjellerstua, ca. 24 m². Trenger 8 doble " +
+                  "stikkontakter, 4 takpunkt med bryter og en ny kurs fra sikringsskapet. " +
+                  "Veggene er åpne. Vil ha det gjort i september.»"
                 }
-                e.target.value = "";
-              }}
-            />
-          </div>
+              />
+            </label>
+            <div className="kontakt-rad">
+              <span />
+              <span className="hint" style={{ marginTop: -4 }}>
+                Agenten finner selv ut hvilke poster jobben består av.
+              </span>
+            </div>
 
-          <label className="field">
-            <span className="label">Hva spurte kunden om?</span>
-            <textarea
-              className="textarea tall"
-              autoFocus
-              required
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={
-                "Skriv med egne ord, slik du ville forklart det til en kollega.\n\n" +
-                "«Marit ringte. Skal pusse opp kjellerstua, ca. 24 m². Trenger 8 doble " +
-                "stikkontakter, 4 takpunkt med bryter og en ny kurs fra sikringsskapet. " +
-                "Veggene er åpne. Vil ha det gjort i september.»"
-              }
-            />
-            <span className="hint">
-              Agenten leser dette som en vanlig forespørsel og finner selv ut
-              hvilke poster jobben består av.
-            </span>
-          </label>
-
-          {vedlegg.length > 0 && (
-            <div className="field">
-              <span className="label">
-                Vedlegg · {vedlegg.length} av {MAKS_VEDLEGG}
+            <div className="kontakt-rad topp">
+              <span className="kontakt-rad-etikett">
+                Vedlegg
+                {vedlegg.length > 0 && (
+                  <span className="tiny muted">
+                    {" "}
+                    · {vedlegg.length} av {MAKS_VEDLEGG}
+                  </span>
+                )}
               </span>
               <div className="stack" style={{ gap: 6 }}>
                 {vedlegg.map((f) => (
@@ -347,44 +356,43 @@ export function ManualLead() {
                     </button>
                   </div>
                 ))}
+                <div className="epost-slipp-hint tiny muted">
+                  {leser ? (
+                    "Leser filene…"
+                  ) : (
+                    <>
+                      Dra inn e-posten fra Outlook eller Mail, eller bilder og PDF-er kunden
+                      har sendt — eller{" "}
+                      <button
+                        type="button"
+                        className="linkish"
+                        onClick={() => filvelger.current?.click()}
+                      >
+                        velg filer
+                      </button>
+                      .
+                    </>
+                  )}
+            <input
+              ref={filvelger}
+              type="file"
+              multiple
+              accept=".msg,.eml,message/rfc822,application/vnd.ms-outlook,.pdf,application/pdf,.jpg,.jpeg,.png,.webp,.gif,.heic,.heif,.avif,image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,image/avif"
+              hidden
+              onChange={(e) => {
+                const filer = Array.from(e.target.files ?? []);
+                if (filer.length > 0) {
+                  setError(null);
+                  setHenta(null);
+                  void lesFiler(filer);
+                }
+                e.target.value = "";
+              }}
+            />
+                </div>
               </div>
-              <span className="hint">
-                Agenten ser på bildene og leser PDF-ene sammen med teksten —
-                antall punkter, mål og det eksisterende anlegget kommer ofte
-                tydeligere fram der.
-              </span>
             </div>
-          )}
-
-          <div className="grid-2">
-            <div className="field">
-              <span className="label">Kunde (valgfritt)</span>
-              <KundeSok
-                value={name}
-                onChange={(v) => {
-                  setName(v);
-                  if (kunde && v !== kunde.name) setKunde(null);
-                }}
-                onVelg={velgKunde}
-                placeholder="Marit Aasen"
-              />
-              {kunde && <span className="hint">Fra kunderegisteret.</span>}
-            </div>
-            <label className="field">
-              <span className="label">E-post (valgfritt)</span>
-              <input
-                className="input"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="marit@example.no"
-              />
-            </label>
           </div>
-          <span className="hint">
-            E-posten blir mottaker på Outlook-kladden. Lar du den stå tom, fyller
-            du den inn i Outlook før du sender.
-          </span>
 
           <div className="modal-actions">
             <button
