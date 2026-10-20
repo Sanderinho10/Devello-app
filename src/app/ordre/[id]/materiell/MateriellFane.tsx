@@ -177,18 +177,14 @@ export function MateriellFane({
     const fakturert = Boolean(e.invoice_draft_id);
 
     return (
-      <div key={e.id} className={`lead-row materiell-rad${erstatta ? " erstatta" : ""}${fakturert ? " fakturert" : ""}`}>
-        <span className="ordre-nr">{e.item_no ?? "—"}</span>
-        <div className="lead-main">
-          <div className="lead-subject" style={{ cursor: "default" }}>
+      <tr key={e.id} className={`materiell-rad${erstatta ? " erstatta" : ""}${fakturert ? " fakturert" : ""}`}>
+        <td className="ordre-nr meta">{e.item_no ?? "—"}</td>
+        <td className="hoved">
+          <div>
             {e.name}
             {fakturert && <span className="chip fakturert-merke">fakturert</span>}
           </div>
-          <div className="lead-meta">
-            {q.toLocaleString("nb-NO")} {e.unit} × {formatPris(sal)}
-            {kost !== null && ` · kost ${formatPris(kost)}`}
-            {!info && e.note && ` · ${e.note}`}
-          </div>
+          {!info && e.note && <div className="tiny muted">{e.note}</div>}
           {info && (
             <div className="chips">
               <span className="chip faktura">
@@ -203,8 +199,12 @@ export function MateriellFane({
               Erstattet av faktura{erstattaInfo ? ` ${erstattaInfo.invoice_no}` : ""} — teller ikke i summen.
             </div>
           )}
-        </div>
-        <span className="materiell-paaslag">
+        </td>
+        <td className="num meta nowrap">
+          {q.toLocaleString("nb-NO")} {e.unit}
+        </td>
+        <td className="num meta muted nowrap">{kost === null ? "—" : formatPris(kost)}</td>
+        <td className="num meta materiell-paaslag">
           {redigerPaaslag?.id === e.id ? (
             <form
               className="row"
@@ -239,22 +239,25 @@ export function MateriellFane({
               {Number(e.markup_pct).toLocaleString("nb-NO")} %
             </button>
           )}
-        </span>
-        <span className="ordre-sum">
+        </td>
+        <td className="num meta nowrap">{formatPris(sal)}</td>
+        <td className="num belop nowrap">
           <strong>{formatNok(q * sal)}</strong>
-        </span>
-        {!laast && !erstatta && !fakturert && (
-          info ? (
-            <button type="button" className="button ghost" onClick={() => loys(e)}>
-              Løs fra ordre
-            </button>
-          ) : (
-            <button type="button" className="button ghost" onClick={() => slett(e)}>
-              Slett
-            </button>
-          )
-        )}
-      </div>
+        </td>
+        <td className="handling">
+          {!laast && !erstatta && !fakturert && (
+            info ? (
+              <button type="button" className="button ghost" onClick={() => loys(e)}>
+                Løs fra ordre
+              </button>
+            ) : (
+              <button type="button" className="button ghost" onClick={() => slett(e)}>
+                Slett
+              </button>
+            )
+          )}
+        </td>
+      </tr>
     );
   }
 
@@ -462,14 +465,6 @@ export function MateriellFane({
       )}
 
       <div className="card">
-        <div className="card-header">
-          <span className="label" style={{ marginBottom: 0 }}>
-            Materiell på ordren
-          </span>
-          <span className="tiny muted">
-            kost {formatNok(sum.kost)} · salg {formatNok(sum.sal)}
-          </span>
-        </div>
         {laast && error && <div className="banner error" style={{ margin: 16 }}>{error}</div>}
 
         {entries.length === 0 ? (
@@ -478,32 +473,56 @@ export function MateriellFane({
             <div>{laast ? "Ordren er avsluttet." : "Søk opp en vare over, eller legg til en fritekstlinje."}</div>
           </div>
         ) : (
-          <>
-            {fraFaktura.length > 0 && (
-              <>
-                <div className="dato-skille">Fra leverandørfakturaer</div>
-                <div className="lead-list">{fraFaktura.map((e) => rad(e))}</div>
-                {manuelle.length > 0 && <div className="dato-skille">Ført manuelt</div>}
-              </>
-            )}
-            <div className="lead-list">{manuelle.map((e) => rad(e))}</div>
-          </>
-        )}
-
-        {entries.length > 0 && (
-          <div className="card-pad" style={{ borderTop: "1px solid var(--border)" }}>
-            <div className="row-between tiny" style={{ padding: "3px 0" }}>
-              <span className="muted">
-                Sum kost
-                {sum.fraFaktura > 0 && ` · ${sum.fraFaktura} ${sum.fraFaktura === 1 ? "linje" : "linjer"} fra faktura`}
-                {sum.erstatta > 0 && ` · ${sum.erstatta} erstattet`}
-              </span>
-              <span>{formatNok(sum.kost)}</span>
-            </div>
-            <div className="row-between" style={{ marginTop: 6, fontWeight: 600 }}>
-              <span>Sum salg eks. mva</span>
-              <span>{formatNok(sum.sal)}</span>
-            </div>
+          <div className="tabell-rull">
+            <table className="table tabell-mobil">
+              <thead>
+                <tr>
+                  <th>Varenr</th>
+                  <th>Vare</th>
+                  <th className="num">Mengde</th>
+                  <th className="num">Kost</th>
+                  <th className="num">Påslag</th>
+                  <th className="num">Pris</th>
+                  <th className="num">Sum</th>
+                  <th aria-label="Handling" />
+                </tr>
+              </thead>
+              {/* Gruppene som overskriftsrader, som i reskontroen i Go. */}
+              {fraFaktura.length > 0 && (
+                <tbody>
+                  <tr className="gruppe-rad">
+                    <td colSpan={8}>Fra leverandørfakturaer</td>
+                  </tr>
+                  {fraFaktura.map((e) => rad(e))}
+                </tbody>
+              )}
+              {manuelle.length > 0 && (
+                <tbody>
+                  {fraFaktura.length > 0 && (
+                    <tr className="gruppe-rad">
+                      <td colSpan={8}>Ført manuelt</td>
+                    </tr>
+                  )}
+                  {manuelle.map((e) => rad(e))}
+                </tbody>
+              )}
+              <tfoot>
+                <tr className="sum-type">
+                  <td colSpan={6} className="muted">
+                    Sum kost
+                    {sum.fraFaktura > 0 && ` · ${sum.fraFaktura} ${sum.fraFaktura === 1 ? "linje" : "linjer"} fra faktura`}
+                    {sum.erstatta > 0 && ` · ${sum.erstatta} erstattet`}
+                  </td>
+                  <td className="num">{formatNok(sum.kost)}</td>
+                  <td />
+                </tr>
+                <tr className="sum-rad">
+                  <td colSpan={6}>Sum salg eks. mva</td>
+                  <td className="num">{formatNok(sum.sal)}</td>
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
           </div>
         )}
       </div>
