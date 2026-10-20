@@ -5,8 +5,10 @@
  * overskriftsrad, understrekede faner og en verktøylinje med handlingene til
  * venstre og søket til høyre. Et arbeidsverktøy man skal se mye på samtidig.
  *
- * Formen og skriften er Apple: San Francisco (Inter der den ikke finnes),
- * stram bokstavavstand på titler, kapselknapper og myke, runde hjørner.
+ * Form, skrift og farger er Apple: San Francisco (Inter der den ikke finnes),
+ * stram bokstavavstand på titler, kapselknapper, myke, runde hjørner og
+ * Apples palett — lyst og grått, én blå aksent, og grønt, oransje og rødt
+ * bare der noe skal sies.
  * Mockupene i design/ lenker til den samme filen, slik at mockup og app aldri
  * driver fra hverandre.
  */
@@ -22,14 +24,18 @@
   --text-secondary: #6e6e73;
   --text-tertiary: #86868b;
 
+  /* Apples systemfarger, i de mørkere variantene som holder kontrast på
+     tekst. De lyse flatene er de samme fargene, tonet ned. */
   --accent: #0071e3;
+  --accent-hover: #0077ed;
   --accent-soft: #e8f2fd;
-  --positive: #1d8a4e;
-  --positive-soft: #e6f4ec;
-  --warning: #b25000;
-  --warning-soft: #fdf0e5;
-  --negative: #b3261e;
-  --negative-soft: #fdecea;
+  --link: #0066cc;
+  --positive: #248a3d;
+  --positive-soft: #e5f6e9;
+  --warning: #c93400;
+  --warning-soft: #fff1e5;
+  --negative: #d70015;
+  --negative-soft: #ffebed;
 
   --radius: 10px;
   --radius-lg: 12px;
@@ -39,8 +45,6 @@
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03);
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.18);
 
-  /* Overskriftsraden i tabellene — mørk, som i Go, men i vår egen tekstfarge. */
-  --table-head: #2c2c2e;
 
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", var(--font-inter, "Inter"),
     "Segoe UI", Helvetica, Arial, sans-serif;
@@ -432,7 +436,7 @@ p {
 }
 
 .button:hover:not(:disabled) {
-  background: #0077ed;
+  background: var(--accent-hover);
 }
 
 .button:active:not(:disabled) {
@@ -441,7 +445,7 @@ p {
 
 .button:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.35);
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.3);
 }
 
 .button:disabled {
@@ -473,7 +477,7 @@ p {
 
 .button.danger {
   background: transparent;
-  color: #c0392b;
+  color: var(--negative);
   border-color: transparent;
   padding: 6px 10px;
 }
@@ -830,7 +834,7 @@ p {
 }
 
 /* Samme bryter brukt som visningsvelger blir faner som i Go: tekst på rad,
-   en blå strek under den aktive, en tynn linje under hele raden. */
+   en mørk strek under den aktive, en tynn linje under hele raden. */
 .type-switch.kompakt {
   max-width: none;
   gap: 28px;
@@ -860,10 +864,10 @@ p {
   box-shadow: none;
   color: var(--text);
   font-weight: 600;
-  border-bottom-color: var(--accent);
+  border-bottom-color: var(--text);
 }
 
-/* Faner øverst i et kort: den blå streken skal ligge på kortets egen
+/* Faner øverst i et kort: streken under aktiv fane skal ligge på kortets egen
    skillelinje, ikke på en linje nummer to rett over den. */
 .card-header:has(> .type-switch.kompakt) {
   padding-top: 8px;
@@ -1091,7 +1095,7 @@ p {
   color: var(--positive);
 }
 .pris-celle-status.feil {
-  color: #c0392b;
+  color: var(--negative);
   text-align: right;
 }
 
@@ -1197,7 +1201,7 @@ p {
 }
 
 .file-row-error {
-  color: #c0392b;
+  color: var(--negative);
   padding: 2px 4px;
 }
 
@@ -1577,12 +1581,13 @@ p {
 
 .table th {
   text-align: left;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0;
-  color: #fff;
+  color: var(--text-secondary);
   padding: 9px 14px;
-  background: var(--table-head);
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 
@@ -1601,9 +1606,14 @@ p {
   color: inherit;
 }
 
+.sort-kolonne:hover,
+.sort-kolonne.aktiv {
+  color: var(--text);
+}
+
 .sort-pil {
   font-size: 9px;
-  color: #6cb4ff;
+  color: var(--accent);
   visibility: hidden;
 }
 
@@ -1620,13 +1630,13 @@ p {
   opacity: 1;
 }
 
-/* Rader som åpner noe: blå markering under musa, navnet som lenke. */
+/* Rader som åpner noe: grå markering under musa, navnet som blå lenke. */
 .table.klikkbar tbody tr {
   cursor: pointer;
 }
 
 .table.klikkbar tbody tr:hover td {
-  background: var(--accent-soft);
+  background: var(--bg);
 }
 
 /* Emnet i leads-tabellen er en knapp, men skal se ut som lenkene. */
@@ -1651,7 +1661,7 @@ p {
 }
 
 .table .lenke {
-  color: var(--accent);
+  color: var(--link);
 }
 
 .table .lenke:hover {
@@ -1698,7 +1708,7 @@ p {
 
 .banner.info {
   background: var(--accent-soft);
-  color: #0a4b8f;
+  color: var(--link);
 }
 
 .banner.warning {
@@ -1707,8 +1717,8 @@ p {
 }
 
 .banner.error {
-  background: #fdecea;
-  color: #a4271b;
+  background: var(--negative-soft);
+  color: var(--negative);
 }
 
 .banner.success {
@@ -2196,13 +2206,13 @@ p {
   background: none;
   font: inherit;
   font-size: 11px;
-  color: #c0392b;
+  color: var(--negative);
   text-decoration: underline;
   cursor: pointer;
 }
 
 .cell-reset:hover {
-  color: #a4271b;
+  color: var(--negative);
 }
 
 /* Fila man drar inn i e-posten. Skal se ut som noe man tar tak i. */
@@ -2714,7 +2724,7 @@ p {
 }
 
 .paakravd {
-  color: #a4271b;
+  color: var(--negative);
 }
 
 .check3 {
@@ -2737,15 +2747,15 @@ p {
 }
 
 .check3-knapp.valgt.ok {
-  background: #e6f4ea;
-  border-color: #1f7a3a;
-  color: #1f7a3a;
+  background: var(--positive-soft);
+  border-color: var(--positive);
+  color: var(--positive);
 }
 
 .check3-knapp.valgt.avvik {
-  background: #fbe9e7;
-  border-color: #a4271b;
-  color: #a4271b;
+  background: var(--negative-soft);
+  border-color: var(--negative);
+  color: var(--negative);
 }
 
 .check3-knapp.valgt.ia {

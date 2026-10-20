@@ -86,7 +86,7 @@ export function LeadRow({
             {lead.subject || "(uten emne)"}
           </button>
           {lead.generation_error && (
-            <div className="tiny" style={{ color: "#c0392b" }}>
+            <div className="tiny" style={{ color: "var(--negative)" }}>
               Genereringen stoppet: {lead.generation_error}
             </div>
           )}
