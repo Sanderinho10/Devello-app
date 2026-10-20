@@ -81,39 +81,53 @@ export function NyOrdre() {
         <form onSubmit={submit}>
           {error && <div className="banner error">{error}</div>}
 
-          <label className="field">
-            <span className="label">Hva er jobben?</span>
-            <input
-              className="input"
-              autoFocus
-              required
-              value={felt.title}
-              onChange={(e) => sett("title", e.target.value)}
-              placeholder="Bytte sikringsskap — Storgata 12"
-            />
-          </label>
-
-          <div className="grid-2">
-            <div className="field">
-              <span className="label">Kunde</span>
-              <KundeSok
-                value={felt.customer_name}
-                onChange={(v) => sett("customer_name", v)}
-                onVelg={velgKunde}
-                placeholder="Marit Aasen"
+          {/* Som i Go: etiketten foran feltet, jobben øverst og kunden under.
+              Bare jobben er påkrevd. */}
+          <div className="kontakt-panel ny-post-panel">
+            <label className="kontakt-rad">
+              <span className="kontakt-rad-etikett">Jobben</span>
+              <input
+                className="input"
+                autoFocus
+                required
+                value={felt.title}
+                onChange={(e) => sett("title", e.target.value)}
+                placeholder="Bytte sikringsskap — Storgata 12"
               />
-              {kunde && <span className="hint">Fra kunderegisteret — resten er fylt ut.</span>}
+            </label>
+            <label className="kontakt-rad">
+              <span className="kontakt-rad-etikett">Adresse</span>
+              <input
+                className="input"
+                value={felt.site_address}
+                onChange={(e) => sett("site_address", e.target.value)}
+                placeholder="Der jobben gjøres — Storgata 12, Oslo"
+              />
+            </label>
+
+            <div className="kontakt-skilje">Kunden</div>
+            <div className="kontakt-rad">
+              <span className="kontakt-rad-etikett">Kunde</span>
+              <div>
+                <KundeSok
+                  value={felt.customer_name}
+                  onChange={(v) => sett("customer_name", v)}
+                  onVelg={velgKunde}
+                  placeholder="Søk eller skriv — Marit Aasen"
+                />
+                {kunde && <span className="hint">Fra kunderegisteret — resten er fylt ut.</span>}
+              </div>
             </div>
-            <label className="field">
-              <span className="label">Kontaktperson</span>
+            <label className="kontakt-rad">
+              <span className="kontakt-rad-etikett">Kontaktperson</span>
               <input
                 className="input"
                 value={felt.customer_contact}
                 onChange={(e) => sett("customer_contact", e.target.value)}
               />
             </label>
-            <label className="field">
-              <span className="label">E-post</span>
+            <label className="kontakt-rad">
+              <span className="kontakt-rad-etikett">E-post</span>
               <input
                 className="input"
                 type="email"
@@ -121,8 +135,8 @@ export function NyOrdre() {
                 onChange={(e) => sett("customer_email", e.target.value)}
               />
             </label>
-            <label className="field">
-              <span className="label">Telefon</span>
+            <label className="kontakt-rad">
+              <span className="kontakt-rad-etikett">Telefon</span>
               <input
                 className="input"
                 value={felt.customer_phone}
@@ -130,16 +144,6 @@ export function NyOrdre() {
               />
             </label>
           </div>
-
-          <label className="field">
-            <span className="label">Adresse der jobben gjøres</span>
-            <input
-              className="input"
-              value={felt.site_address}
-              onChange={(e) => sett("site_address", e.target.value)}
-              placeholder="Storgata 12, 0155 Oslo"
-            />
-          </label>
 
           <div className="modal-actions">
             <button type="button" className="button secondary" onClick={close} disabled={busy}>
