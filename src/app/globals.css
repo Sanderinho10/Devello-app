@@ -2197,6 +2197,75 @@ body.drar-rad * {
   letter-spacing: -0.01em;
 }
 
+/* Ordreoversikten: tallene som en tett stripe, felt skilt med en strek i
+   stedet for hver sin boks. */
+.ordre-oversikt.stack {
+  gap: 12px;
+}
+
+.ordre-tall .oppsummering {
+  gap: 0;
+  margin: 0;
+}
+
+.ordre-tall .oppsummering-post {
+  padding: 10px 16px;
+  border-radius: 0;
+  background: none;
+  border-left: 1px solid var(--border);
+  color: inherit;
+}
+
+.ordre-tall .oppsummering-post:first-child {
+  border-left: none;
+}
+
+.ordre-tall .oppsummering-post strong {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ordre-tall .oppsummering-post.clickable:hover {
+  background: var(--bg);
+}
+
+.ordre-oversikt .stack {
+  gap: 12px;
+}
+
+.ordre-oversikt .card-pad {
+  padding: 14px 18px;
+}
+
+/* Beskrivelsen vokser med teksten, så hele står synlig (der nettleseren
+   støtter det; ellers kan feltet dras større som før). */
+.ordre-oversikt .textarea {
+  field-sizing: content;
+  max-height: 60vh;
+}
+
+/* Kunden i en smal spalte: kortere etikett-kolonne. */
+.ordre-kunde .kontakt-rad {
+  grid-template-columns: 96px minmax(0, 1fr);
+  margin-bottom: 8px;
+}
+
+.ordre-kunde .input {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+/* Loggen er til å slå opp i, ikke til å lese: små rader. */
+.ordre-hendelser .card-header {
+  padding: 10px 16px;
+}
+
+.ordre-hendelser .lead-row {
+  padding: 7px 16px;
+  font-size: 13px;
+  gap: 10px;
+}
+
 .oppsummering-post.clickable:hover {
   background: rgba(0, 0, 0, 0.07);
 }

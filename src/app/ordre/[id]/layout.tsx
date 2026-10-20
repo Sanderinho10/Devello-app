@@ -27,12 +27,12 @@ export default async function OrdreLayout({
 
   return (
     <>
-      <div className="page-header">
+      <div className="page-header kompakt">
         <div>
-          <Link className="button ghost" href="/ordre" style={{ marginLeft: -10 }}>
+          <Link className="tilbake" href="/ordre">
             ← Ordrer
           </Link>
-          <h1 style={{ marginTop: 6 }}>
+          <h1>
             <span className="muted">Ordre #{ordre.order_no}</span> · {ordre.title}
           </h1>
           <p className="page-subtitle">

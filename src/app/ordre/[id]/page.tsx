@@ -72,9 +72,10 @@ export default async function OrdreSide({
 
   return (
     <>
-      <div className="stack">
-        <div className="card card-pad">
-          <span className="label">Oppsummering</span>
+      {/* Tallene øverst som en stripe, og under to kolonner som i Go: det man
+          leser og retter til venstre, kunden og loggen til høyre. */}
+      <div className="stack ordre-oversikt">
+        <div className="card ordre-tall">
           <div className="oppsummering">
             <div className="oppsummering-post">
               <span className="tiny muted">Planlagt (tilbud)</span>
@@ -120,21 +121,12 @@ export default async function OrdreSide({
           </div>
         </div>
 
+        <div className="detail-layout">
+        <div className="stack" style={{ minWidth: 0 }}>
         <OrdreBeskrivelse
           orderId={ordre.id}
           description={ordre.description}
           source={ordre.description_source}
-        />
-
-        <OrdreKunde
-          orderId={ordre.id}
-          kunde={{
-            customer_name: ordre.customer_name,
-            customer_contact: ordre.customer_contact,
-            customer_email: ordre.customer_email,
-            customer_phone: ordre.customer_phone,
-            site_address: ordre.site_address,
-          }}
         />
 
         {snapshot && (
@@ -204,7 +196,21 @@ export default async function OrdreSide({
           </div>
         )}
 
-        <div className="card">
+        </div>
+
+        <aside className="stack ordre-side">
+        <OrdreKunde
+          orderId={ordre.id}
+          kunde={{
+            customer_name: ordre.customer_name,
+            customer_contact: ordre.customer_contact,
+            customer_email: ordre.customer_email,
+            customer_phone: ordre.customer_phone,
+            site_address: ordre.site_address,
+          }}
+        />
+
+        <div className="card ordre-hendelser">
           <div className="card-header">
             <span className="label" style={{ marginBottom: 0 }}>
               Hendelser
@@ -222,6 +228,8 @@ export default async function OrdreSide({
               ))}
             </div>
           )}
+        </div>
+        </aside>
         </div>
       </div>
     </>
