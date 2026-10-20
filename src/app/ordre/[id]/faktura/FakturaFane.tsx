@@ -273,8 +273,9 @@ export function FakturaFane({
             </Link>
           </div>
         </div>
-        <LinjeTabell lines={draft.lines} laast onEndre={() => {}} onFjern={() => {}} />
-        <Summer subtotal={draft.totals.subtotal} vat={draft.totals.vat} total={draft.totals.total} vatPct={vatPct} />
+        <LinjeTabell lines={draft.lines} laast onEndre={() => {}} onFjern={() => {}}>
+          <Summer subtotal={draft.totals.subtotal} vat={draft.totals.vat} total={draft.totals.total} vatPct={vatPct} />
+        </LinjeTabell>
         {draft.invoice_text && (
           <div className="card card-pad">
             <span className="label">Fakturatekst</span>
@@ -290,61 +291,61 @@ export function FakturaFane({
   const kanOverfore = godkjent && !dirty && kopling && !kopling.feil && kopling.manglandeProdukt.length === 0;
 
   return (
-    <div className="stack fane-mobil">
-      <div className="card card-pad">
-        <div className="row-between" style={{ flexWrap: "wrap", gap: 10 }}>
-          <span className="row" style={{ flexWrap: "wrap" }}>
-            <span className="pill paagaar">{INVOICE_STRATEGY_LABELS[draft.strategy]}</span>
-            <span className={`pill ${draft.status === "godkjent" ? "ferdig" : draft.status === "feil" ? "avbrutt" : "opna"}`}>
-              {INVOICE_DRAFT_STATUS_LABELS[draft.status]}
-            </span>
-            <span className="tiny muted">
-              Forslag {formatDate(draft.generated_at)}
-              {draft.approved_at && ` · godkjent ${formatDate(draft.approved_at)}`}
-            </span>
+    <div className="stack fane-mobil faktura-fane">
+      {/* Verktøylinja som i Go: handlingene til venstre, neste steg først,
+          og forslagets status til høyre. */}
+      <div className="verktoylinje" style={{ margin: 0 }}>
+        {godkjent ? (
+          <button
+            type="button"
+            className="button"
+            onClick={() => setOverfoering({ steg: "bekreft" })}
+            disabled={!kanOverfore || busy !== null}
+            title={
+              !kopling
+                ? "Ingen regnskapssystem er koblet til"
+                : kopling.manglandeProdukt.length
+                  ? "Produktmappingen mangler"
+                  : dirty
+                    ? "Lagre endringene først"
+                    : undefined
+            }
+          >
+            Overfør til {providerNavn}
+          </button>
+        ) : (
+          <button type="button" className="button" onClick={godkjenn} disabled={busy !== null || medLinjer === 0}>
+            {busy === "godkjenn" ? "Godkjenner…" : "Godkjenn"}
+          </button>
+        )}
+        {dirty && (
+          <button type="button" className="button secondary" onClick={lagre} disabled={busy !== null}>
+            {busy === "lagre" ? "Lagrer…" : "Lagre endringer"}
+          </button>
+        )}
+        {godkjent && (
+          <button type="button" className="button secondary" onClick={angre} disabled={busy !== null}>
+            Angre godkjenning
+          </button>
+        )}
+        <button type="button" className="button secondary" onClick={generer} disabled={busy !== null}>
+          {busy === "generer" ? "Lager…" : "Nytt forslag"}
+        </button>
+        <span className="verktoylinje-hoyre" style={{ flexWrap: "wrap" }}>
+          <span className="tiny muted">
+            Forslag {formatDate(draft.generated_at)}
+            {draft.approved_at && ` · godkjent ${formatDate(draft.approved_at)}`}
           </span>
-          <span className="row" style={{ flexWrap: "wrap" }}>
-            <button type="button" className="button ghost" onClick={generer} disabled={busy !== null}>
-              {busy === "generer" ? "Lager…" : "Nytt forslag"}
-            </button>
-            {dirty && (
-              <button type="button" className="button secondary" onClick={lagre} disabled={busy !== null}>
-                {busy === "lagre" ? "Lagrer…" : "Lagre endringer"}
-              </button>
-            )}
-            {godkjent ? (
-              <button type="button" className="button secondary" onClick={angre} disabled={busy !== null}>
-                Angre godkjenning
-              </button>
-            ) : (
-              <button type="button" className="button" onClick={godkjenn} disabled={busy !== null || medLinjer === 0}>
-                {busy === "godkjenn" ? "Godkjenner…" : "Godkjenn"}
-              </button>
-            )}
-            {godkjent && (
-              <button
-                type="button"
-                className="button"
-                onClick={() => setOverfoering({ steg: "bekreft" })}
-                disabled={!kanOverfore || busy !== null}
-                title={
-                  !kopling
-                    ? "Ingen regnskapssystem er koblet til"
-                    : kopling.manglandeProdukt.length
-                      ? "Produktmappingen mangler"
-                      : dirty
-                        ? "Lagre endringene først"
-                        : undefined
-                }
-              >
-                Overfør til {providerNavn}
-              </button>
-            )}
+          <span className="pill paagaar">{INVOICE_STRATEGY_LABELS[draft.strategy]}</span>
+          <span className={`pill ${draft.status === "godkjent" ? "ferdig" : draft.status === "feil" ? "avbrutt" : "opna"}`}>
+            {INVOICE_DRAFT_STATUS_LABELS[draft.status]}
           </span>
-        </div>
-        {error && <div className="banner error" style={{ marginTop: 12, marginBottom: 0 }}>{error}</div>}
+        </span>
+      </div>
+
+        {error && <div className="banner error" style={{ marginBottom: 0 }}>{error}</div>}
         {draft.status === "feil" && draft.transfer_error && !error && (
-          <div className="banner error" style={{ marginTop: 12, marginBottom: 0 }}>
+          <div className="banner error" style={{ marginBottom: 0 }}>
             Overføringen feilet: {draft.transfer_error}
             <div style={{ marginTop: 8 }}>
               <button type="button" className="button secondary" onClick={() => overfor()} disabled={busy !== null}>
@@ -354,7 +355,7 @@ export function FakturaFane({
           </div>
         )}
         {godkjent && !kopling && (
-          <div className="banner info" style={{ marginTop: 12, marginBottom: 0 }}>
+          <div className="banner info" style={{ marginBottom: 0 }}>
             Ingen regnskapssystem er koblet til. Sett det opp under{" "}
             <Link href="/selskap/innstillinger/generelt#ordre" style={{ textDecoration: "underline" }}>
               Selskap → Innstillinger → Ordre
@@ -363,7 +364,7 @@ export function FakturaFane({
           </div>
         )}
         {godkjent && kopling && kopling.manglandeProdukt.length > 0 && (
-          <div className="banner warning" style={{ marginTop: 12, marginBottom: 0 }}>
+          <div className="banner warning" style={{ marginBottom: 0 }}>
             Produktmappingen mangler for {kopling.manglandeProdukt.map((k) => PRODUCT_MAP_LABELS[k].toLowerCase()).join(", ")}.{" "}
             <Link href="/selskap/innstillinger/generelt#ordre" style={{ textDecoration: "underline" }}>
               Sett den under Selskap → Innstillinger → Ordre → Regnskapssystem
@@ -371,7 +372,6 @@ export function FakturaFane({
             .
           </div>
         )}
-      </div>
 
       {overfoering && (
         <OverforDialog
@@ -407,43 +407,40 @@ export function FakturaFane({
         </div>
       )}
 
-      <LinjeTabell lines={lines} laast={false} onEndre={endre} onFjern={fjern} onLeggTil={leggTil} />
-      <Summer subtotal={subtotal} vat={vat} total={round2(subtotal + vat)} vatPct={vatPct} />
-
+      {/* Fakturahodet over linjene, som i Go: etiketten foran feltet. */}
       <div className="card card-pad">
-        <div className="grid-2">
-          <label className="field" style={{ gridColumn: "1 / -1" }}>
-            <span className="label">Fakturatekst</span>
-            <textarea
-              className="input"
-              rows={3}
-              value={tekst}
-              onChange={(e) => {
-                setTekst(e.target.value);
-                setDirty(true);
-              }}
-            />
-            <span className="hint">Står øverst på fakturaen. Ingen priser her — de står i linjene.</span>
+        <div className="utkast-felt" style={{ marginBottom: 0 }}>
+          <label htmlFor="faktura-tekst" style={{ alignSelf: "start", paddingTop: 7 }}>
+            Fakturatekst
           </label>
-          <label className="field">
-            <span className="label">Deres ref.</span>
-            <input
-              className="input"
-              value={ref}
-              onChange={(e) => {
-                setRef(e.target.value);
-                setDirty(true);
-              }}
-              placeholder="Kontaktperson hos kunden"
-            />
-          </label>
+          <textarea
+            id="faktura-tekst"
+            className="input bred"
+            rows={2}
+            value={tekst}
+            onChange={(e) => {
+              setTekst(e.target.value);
+              setDirty(true);
+            }}
+            placeholder="Står øverst på fakturaen. Ingen priser her — de står i linjene."
+          />
+          <label htmlFor="faktura-ref">Deres ref.</label>
+          <input
+            id="faktura-ref"
+            className="input"
+            value={ref}
+            onChange={(e) => {
+              setRef(e.target.value);
+              setDirty(true);
+            }}
+            placeholder="Kontaktperson hos kunden"
+          />
         </div>
-        {dirty && (
-          <button type="button" className="button secondary" onClick={lagre} disabled={busy !== null}>
-            {busy === "lagre" ? "Lagrer…" : "Lagre endringer"}
-          </button>
-        )}
       </div>
+
+      <LinjeTabell lines={lines} laast={false} onEndre={endre} onFjern={fjern} onLeggTil={leggTil}>
+        <Summer subtotal={subtotal} vat={vat} total={round2(subtotal + vat)} vatPct={vatPct} />
+      </LinjeTabell>
     </div>
   );
 }
@@ -464,12 +461,15 @@ function LinjeTabell({
   onEndre,
   onFjern,
   onLeggTil,
+  children,
 }: {
   lines: InvoiceLine[];
   laast: boolean;
   onEndre: (id: string, patch: Partial<InvoiceLine>) => void;
   onFjern: (id: string) => void;
   onLeggTil?: () => void;
+  /** Summene, nederst i samme kort. */
+  children?: React.ReactNode;
 }) {
   return (
     <div className="card">
@@ -523,7 +523,7 @@ function LinjeTabell({
                         <span>{l.description}</span>
                       ) : (
                         <input
-                          className="input"
+                          className="cell-input"
                           value={l.description}
                           onChange={(e) => onEndre(l.id, { description: e.target.value })}
                           placeholder="Beskrivelse"
@@ -544,7 +544,7 @@ function LinjeTabell({
                         Number(l.quantity).toLocaleString("nb-NO")
                       ) : (
                         <input
-                          className="input num"
+                          className="cell-input num"
                           inputMode="decimal"
                           value={String(l.quantity)}
                           onChange={(e) => onEndre(l.id, { quantity: Number(e.target.value.replace(",", ".")) || 0 })}
@@ -559,7 +559,7 @@ function LinjeTabell({
                         l.unit
                       ) : (
                         <input
-                          className="input"
+                          className="cell-input"
                           value={l.unit}
                           onChange={(e) => onEndre(l.id, { unit: e.target.value })}
                           style={{ width: 60 }}
@@ -571,7 +571,7 @@ function LinjeTabell({
                         erTekst ? <span className="muted">—</span> : formatPris(Number(l.unit_price))
                       ) : (
                         <input
-                          className="input num"
+                          className="cell-input num"
                           inputMode="decimal"
                           value={l.unit_price === null ? "" : String(l.unit_price)}
                           placeholder="—"
@@ -602,22 +602,23 @@ function LinjeTabell({
           </table>
         </div>
       )}
+      {children}
     </div>
   );
 }
 
 function Summer({ subtotal, vat, total, vatPct }: { subtotal: number; vat: number; total: number; vatPct: number }) {
   return (
-    <div className="card card-pad">
-      <div className="row-between tiny" style={{ padding: "3px 0" }}>
-        <span className="muted">Sum eks. mva</span>
+    <div className="doc-totals faktura-summer">
+      <div className="doc-total-row">
+        <span>Sum eks. mva</span>
         <span>{formatNok(subtotal)}</span>
       </div>
-      <div className="row-between tiny" style={{ padding: "3px 0" }}>
-        <span className="muted">Mva {vatPct} %</span>
+      <div className="doc-total-row">
+        <span>Mva {vatPct} %</span>
         <span>{formatNok(vat)}</span>
       </div>
-      <div className="row-between" style={{ marginTop: 6, fontWeight: 600 }}>
+      <div className="doc-total-row grand">
         <span>Å betale</span>
         <span>{formatNok(total)}</span>
       </div>

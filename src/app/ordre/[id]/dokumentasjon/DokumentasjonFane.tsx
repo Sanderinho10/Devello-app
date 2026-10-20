@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import { Modal } from "@/components/Modal";
 import { formatDate, type BoligmappaEigedom, type OrderDocument, type OrderStatus } from "@/lib/types";
 
 /**
@@ -133,81 +134,90 @@ export function DokumentasjonFane({
 
       {error && <div className="banner error" style={{ marginBottom: 0 }}>{error}</div>}
 
-      <div className="card">
-        <div className="card-header">
-          <span className="label" style={{ marginBottom: 0 }}>
-            Dokumenter
-          </span>
-          <span className="row" style={{ flexWrap: "wrap" }}>
-            {harBoligmappa && ordre.boligmappa_number && usendte.length > 0 && (
-              <button
-                type="button"
-                className="button secondary"
-                disabled={busy !== null}
-                onClick={async () => {
-                  const r = await post(`/api/orders/${ordre.id}/boligmappa/send-alle`, {}, "send-alle");
-                  if (r && Array.isArray(r.feil) && r.feil.length) setError((r.feil as string[]).join(" · "));
-                }}
-              >
-                {busy === "send-alle" ? "Sender…" : `Send alle ferdige (${usendte.length})`}
-              </button>
-            )}
-            {kanLeggeTil && (
-              <button type="button" className="button" onClick={() => setNytt((v) => !v)}>
-                {nytt ? "Lukk" : "Nytt dokument"}
-              </button>
-            )}
-          </span>
-        </div>
-
-        {nytt && (
-          <div className="card-pad nytt-dokument" style={{ borderBottom: "1px solid var(--border)" }}>
-            <div className="label">Skjema fra mal</div>
-            <div className="mal-liste">
-              {malar.map((m) => (
-                <button
-                  key={m.key}
-                  type="button"
-                  className="mal-valg"
-                  disabled={busy !== null}
-                  onClick={() => nyttSkjema(m.key)}
-                >
-                  <span style={{ display: "block", fontWeight: 600 }}>{busy === `mal:${m.key}` ? "Oppretter…" : m.title}</span>
-                  <span className="tiny muted">{m.lovgrunnlag}</span>
-                  {m.beskrivelse && <span className="tiny muted" style={{ display: "block", marginTop: 3 }}>{m.beskrivelse}</span>}
-                </button>
-              ))}
-            </div>
-            <div className="label" style={{ marginTop: 14 }}>
-              Fil eller bilde
-            </div>
-            <p className="tiny muted" style={{ marginBottom: 8 }}>
-              Datablad, FDV, bilde av skapet. På mobil åpner kameraet.
-            </p>
-            <input
-              ref={filInput}
-              type="file"
-              accept="image/*,application/pdf"
-              capture="environment"
-              style={{ display: "none" }}
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) void lastOpp(f);
+      {/* Verktøylinja som i Go: nytt dokument først, sending etter. */}
+      {(kanLeggeTil || (harBoligmappa && ordre.boligmappa_number && usendte.length > 0)) && (
+        <div className="verktoylinje" style={{ margin: 0 }}>
+          {kanLeggeTil && (
+            <button type="button" className="button" onClick={() => setNytt(true)}>
+              Nytt dokument
+            </button>
+          )}
+          {harBoligmappa && ordre.boligmappa_number && usendte.length > 0 && (
+            <button
+              type="button"
+              className="button secondary"
+              disabled={busy !== null}
+              onClick={async () => {
+                const r = await post(`/api/orders/${ordre.id}/boligmappa/send-alle`, {}, "send-alle");
+                if (r && Array.isArray(r.feil) && r.feil.length) setError((r.feil as string[]).join(" · "));
               }}
-            />
+            >
+              {busy === "send-alle" ? "Sender…" : `Send alle ferdige til Boligmappa (${usendte.length})`}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Nytt dokument som popup: et skjema fra mal, eller en fil. */}
+      <Modal open={nytt} onClose={() => busy === null && setNytt(false)} size="wide" title="Nytt dokument">
+        <div className="kontakt-panel ny-post-panel">
+          <div className="label">Skjema fra mal</div>
+          <div className="mal-liste">
+            {malar.map((m) => (
+              <button
+                key={m.key}
+                type="button"
+                className="mal-valg"
+                disabled={busy !== null}
+                onClick={() => nyttSkjema(m.key)}
+              >
+                <span style={{ display: "block", fontWeight: 600 }}>{busy === `mal:${m.key}` ? "Oppretter…" : m.title}</span>
+                <span className="tiny muted">{m.lovgrunnlag}</span>
+                {m.beskrivelse && <span className="tiny muted" style={{ display: "block", marginTop: 3 }}>{m.beskrivelse}</span>}
+              </button>
+            ))}
+          </div>
+          <div className="kontakt-skilje">Fil eller bilde</div>
+          <div className="row" style={{ flexWrap: "wrap" }}>
             <button type="button" className="button secondary" disabled={busy !== null} onClick={() => filInput.current?.click()}>
               {busy === "fil" ? "Laster opp…" : "Last opp fil eller ta bilde"}
             </button>
+            <span className="tiny muted">Datablad, FDV, bilde av skapet. På mobil åpner kameraet.</span>
           </div>
-        )}
+          <input
+            ref={filInput}
+            type="file"
+            accept="image/*,application/pdf"
+            capture="environment"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void lastOpp(f);
+            }}
+          />
+        </div>
+      </Modal>
 
+      <div className="card">
         {dokument.length === 0 ? (
           <div className="empty">
             <div className="empty-title">Ingen dokumentasjon ennå</div>
             <div>{kanLeggeTil ? "Trykk «Nytt dokument» for et skjema fra mal, eller last opp en fil." : "Ordren er avbrutt."}</div>
           </div>
         ) : (
-          <div className="lead-list">
+          <div className="tabell-rull">
+          <table className="table tabell-mobil dokument-tabell">
+            <thead>
+              <tr>
+                <th>Dokument</th>
+                <th>Type</th>
+                <th>Status</th>
+                {harBoligmappa && <th>Boligmappa</th>}
+                <th>Endret</th>
+                <th aria-label="Handling" />
+              </tr>
+            </thead>
+            <tbody>
             {dokument.map((d) => (
               <DokumentRad
                 key={d.id}
@@ -225,6 +235,8 @@ export function DokumentasjonFane({
                 }}
               />
             ))}
+            </tbody>
+          </table>
           </div>
         )}
       </div>
@@ -255,35 +267,44 @@ function DokumentRad({
   const ferdig = d.status === "ferdig";
   const kanSende = harBoligmappa && ordre.boligmappa_number && ferdig && !d.boligmappa_file_id;
   return (
-    <div className="lead-row dokument-rad">
-      <div className="lead-main">
-        <div className="lead-subject" style={{ cursor: "default" }}>
-          {skjema ? (
-            <Link href={`/ordre/${ordre.id}/dokumentasjon/${d.id}`}>{d.title}</Link>
-          ) : (
-            <a href={`/api/orders/${ordre.id}/dokumenter/${d.id}/fil`} target="_blank" rel="noreferrer">
-              {d.title}
-            </a>
-          )}
-        </div>
-        <div className="lead-meta">
-          {skjema ? "Skjema" : d.mime_type?.startsWith("image/") ? "Bilde" : "Fil"}
-          {" · "}
-          {ferdig && skjema ? `Ferdig · signert av ${d.signed_name ?? "—"} ${formatDate(d.signed_at)}` : ferdig ? `Lastet opp ${formatDate(d.created_at)}` : `Utkast · endret ${formatDate(d.updated_at)}`}
-        </div>
-        <div className="chips">
-          <span className={`pill ${ferdig ? "ferdig" : "opna"}`}>{ferdig ? "Ferdig" : "Utkast"}</span>
-          {harBoligmappa && (
-            <span className={`pill ${d.boligmappa_file_id ? "ferdig" : d.boligmappa_error ? "avbrutt" : "utkast_klar"}`} title={d.boligmappa_error ?? undefined}>
-              {d.boligmappa_file_id ? `Boligmappa · sendt ${formatDag(d.boligmappa_sent_at)}` : d.boligmappa_error ? "Boligmappa · feil" : "Ikke sendt til Boligmappa"}
-            </span>
-          )}
-        </div>
-        {d.boligmappa_error && !d.boligmappa_file_id && (
-          <div className="tiny" style={{ color: "var(--negative)", marginTop: 4 }}>{d.boligmappa_error}</div>
+    <tr className="dokument-rad">
+      <td className="hoved">
+        {skjema ? (
+          <Link className="lenke" href={`/ordre/${ordre.id}/dokumentasjon/${d.id}`}>
+            {d.title}
+          </Link>
+        ) : (
+          <a className="lenke" href={`/api/orders/${ordre.id}/dokumenter/${d.id}/fil`} target="_blank" rel="noreferrer">
+            {d.title}
+          </a>
         )}
-      </div>
-      <span className="row" style={{ flexWrap: "wrap" }}>
+        {d.boligmappa_error && !d.boligmappa_file_id && (
+          <div className="tiny" style={{ color: "var(--negative)", marginTop: 2 }}>{d.boligmappa_error}</div>
+        )}
+      </td>
+      <td className="meta">{skjema ? "Skjema" : d.mime_type?.startsWith("image/") ? "Bilde" : "Fil"}</td>
+      <td className="belop">
+        <span className={`pill ${ferdig ? "ferdig" : "opna"}`}>{ferdig ? "Ferdig" : "Utkast"}</span>
+      </td>
+      {harBoligmappa && (
+        <td className="meta">
+          <span
+            className={`pill ${d.boligmappa_file_id ? "ferdig" : d.boligmappa_error ? "avbrutt" : "utkast_klar"}`}
+            title={d.boligmappa_error ?? undefined}
+          >
+            {d.boligmappa_file_id ? `Sendt ${formatDag(d.boligmappa_sent_at)}` : d.boligmappa_error ? "Feil" : "Ikke sendt"}
+          </span>
+        </td>
+      )}
+      <td className="meta muted">
+        {ferdig && skjema
+          ? `Signert av ${d.signed_name ?? "—"} ${formatDate(d.signed_at)}`
+          : ferdig
+            ? `Lastet opp ${formatDate(d.created_at)}`
+            : `Endret ${formatDate(d.updated_at)}`}
+      </td>
+      <td className="handling">
+        <div className="celle-knapper">
         {skjema && (
           <Link className="button secondary" href={`/ordre/${ordre.id}/dokumentasjon/${d.id}`}>
             {ferdig ? "Åpne" : "Fyll ut"}
@@ -296,21 +317,22 @@ function DokumentRad({
         )}
         {kanSende && (
           <button type="button" className="button" disabled={busy !== null} onClick={onSend}>
-            {busy === `send:${d.id}` ? "Sender…" : d.boligmappa_error ? "Prøv igjen" : "Send til Boligmappa"}
+            {busy === `send:${d.id}` ? "Sender…" : d.boligmappa_error ? "Prøv igjen" : "Send"}
           </button>
         )}
         {skjema && ferdig && erAdmin && (
-          <button type="button" className="linkish" disabled={busy !== null} onClick={onGjenopne}>
+          <button type="button" className="button ghost" disabled={busy !== null} onClick={onGjenopne}>
             Gjenåpne
           </button>
         )}
         {(!ferdig || !skjema) && !d.boligmappa_file_id && (
-          <button type="button" className="linkish" disabled={busy !== null} onClick={onSlett}>
+          <button type="button" className="button ghost" disabled={busy !== null} onClick={onSlett}>
             Slett
           </button>
         )}
-      </span>
-    </div>
+        </div>
+      </td>
+    </tr>
   );
 }
 

@@ -31,7 +31,7 @@ export function NotatFane({ orderId, userId, erAdmin, notat }: { orderId: string
   return (
     <div className="card">
       <div className="card-header">
-        <span className="label">Notater fra jobben</span>
+        <span className="label" style={{ marginBottom: 0 }}>Notater fra jobben</span>
         <span className="tiny muted">Skrives i montørappen. Her kan de leses og slettes.</span>
       </div>
       {error && <div className="banner error" style={{ margin: 16 }}>{error}</div>}
@@ -57,7 +57,7 @@ export function NotatFane({ orderId, userId, erAdmin, notat }: { orderId: string
                         <img
                           src={`/api/orders/${orderId}/dokumenter/${b.id}/fil`}
                           alt={b.title}
-                          style={{ width: 96, height: 96, objectFit: "cover", borderRadius: 6, border: "1px solid var(--border, #ddd)" }}
+                          style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 6, border: "1px solid var(--border)" }}
                         />
                       </a>
                     ))}

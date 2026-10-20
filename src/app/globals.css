@@ -3071,19 +3071,31 @@ tr.fakturert,
 
 .faktura-tabell {
   overflow-x: auto;
+  padding: 0 16px;
+}
+
+.faktura-tabell .doc-table {
+  margin-top: 0;
 }
 
 .faktura-tabell .doc-table td {
   vertical-align: top;
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 
-.faktura-tabell .input {
-  padding: 5px 8px;
-  font-size: 13.5px;
+/* Celler uten felt (sum, tekstlinjens strek) på linje med tallene i feltene. */
+.faktura-tabell .doc-table td:not(:has(input)) {
+  padding-top: 9px;
 }
 
-.faktura-tabell .input.num {
-  text-align: right;
+.faktura-tabell .chips {
+  margin: 0 0 2px 7px;
+}
+
+/* Summene nederst til høyre i linjekortet, som i tilbudet. */
+.faktura-summer {
+  margin: 10px 16px 16px auto;
 }
 
 .faktura-tabell tr.utelatt td {
@@ -3312,8 +3324,21 @@ tr.fakturert,
   cursor: default;
 }
 
-.dokument-rad .chips {
-  margin-top: 6px;
+.celle-knapper {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+}
+
+.dokument-tabell td.handling .button {
+  padding: 3px 10px;
+  font-size: 12.5px;
+}
+
+/* Boligmappa som en slank linje over dokumentene. */
+.boligmappa-kort.card-pad {
+  padding: 10px 16px;
 }
 
 .boligmappa-treff .ordre-velger-rad {
@@ -3407,9 +3432,14 @@ tr.fakturert,
   .mal-liste {
     grid-template-columns: 1fr;
   }
-  .dokument-rad .row {
-    flex: 0 0 100%;
+  .dokument-tabell .celle-knapper {
     flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .dokument-tabell td.handling .button {
+    min-height: 40px;
+    padding: 6px 12px;
+    font-size: 14px;
   }
 }
 
