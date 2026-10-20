@@ -635,19 +635,11 @@ export function DraftEditor({
       */}
       <fieldset className="stack editor-felt" disabled={sendt}>
         {/* Type-bryter: agentens forslag, redigerbart før bekreft */}
-      <div className="card card-pad allow-overflow">
-        <div className="row-between" style={{ marginBottom: 8 }}>
-          <span className="label" style={{ marginBottom: 0 }}>
-            Tilbudstype
-          </span>
-          <ConfidenceBadge
-            level={confidence}
-            note={confidenceNote}
-            classificationNote={draft.typebegrunnelse}
-            suggestedType={draft.quote_type}
-          />
-        </div>
-        <div className="type-switch">
+      {/* Tilbudstypen på én linje: den velges én gang og leses sjelden, så den
+          skal ikke ta plassen fra postene. Forklaringen står bak velgeren. */}
+      <div className="card utkast-topp allow-overflow">
+        <span className="utkast-topp-etikett">Tilbudstype</span>
+        <div className="type-switch liten">
           {ALL_TYPES.map((type) => (
             <button
               key={type}
@@ -662,11 +654,17 @@ export function DraftEditor({
             </button>
           ))}
         </div>
-        <span className="hint">
+        <span className="utkast-topp-hjelp">
           {revisjon > 1
             ? "Typen står fast i en ny versjon. Den bygger videre på det som ble sendt."
             : QUOTE_TYPE_HELP[quoteType]}
         </span>
+        <ConfidenceBadge
+          level={confidence}
+          note={confidenceNote}
+          classificationNote={draft.typebegrunnelse}
+          suggestedType={draft.quote_type}
+        />
       </div>
 
       {error && <div className="banner error">{error}</div>}
@@ -773,33 +771,34 @@ export function DraftEditor({
       {/* Dokument-forhåndsvisning for punktpris og fastpris */}
       {draft.agent_status !== "trenger_avklaring" && wantsDocument && document && (
         <div className="doc-preview">
+          {/* Avsenderen står i PDF-en. Her er den bare en påminnelse om hvem
+              tilbudet går fra, så den får én linje og ikke et helt brevhode. */}
           <div className="doc-head">
-            <div style={{ fontSize: 17, fontWeight: 600 }}>
-              {brand?.contact_name ?? ""}
-            </div>
-            <div className="doc-sender">
-              {address?.line && <div>{address.line}</div>}
-              {(address?.postalCode || address?.city) && (
-                <div>{[address.postalCode, address.city].filter(Boolean).join(" ")}</div>
-              )}
-              {brand?.contact_email && <div>{brand.contact_email}</div>}
-              {brand?.contact_phone && <div>{brand.contact_phone}</div>}
-            </div>
+            <strong>{brand?.contact_name ?? ""}</strong>
+            <span className="doc-sender">
+              {[
+                address?.line,
+                [address?.postalCode, address?.city].filter(Boolean).join(" "),
+                brand?.contact_email,
+                brand?.contact_phone,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
           </div>
 
-          <label className="field">
-            <span className="label">Tittel</span>
+          {/* Etiketten til venstre for feltet, som i Go: to rader i stedet for fire. */}
+          <div className="utkast-felt">
+            <label htmlFor="utkast-tittel">Tittel</label>
             <input
-              className="input"
+              id="utkast-tittel"
+              className="input bred"
               value={document.title}
               onChange={(e) => updateDocument({ title: e.target.value })}
             />
-          </label>
-
-          <div className="grid-2">
-            <label className="field">
-              <span className="label">Kunde</span>
+            <label htmlFor="utkast-kunde">Kunde</label>
               <input
+                id="utkast-kunde"
                 className="input"
                 value={document.customer.name}
                 onChange={(e) =>
@@ -808,10 +807,9 @@ export function DraftEditor({
                   })
                 }
               />
-            </label>
-            <label className="field">
-              <span className="label">Adresse</span>
+            <label htmlFor="utkast-adresse">Adresse</label>
               <input
+                id="utkast-adresse"
                 className="input"
                 value={document.customer.address ?? ""}
                 onChange={(e) =>
@@ -820,7 +818,6 @@ export function DraftEditor({
                   })
                 }
               />
-            </label>
           </div>
 
           {document.sections.map((section, sectionIndex) => {
@@ -832,7 +829,7 @@ export function DraftEditor({
             );
 
             return (
-              <div key={sectionIndex} style={{ marginBottom: 22 }}>
+              <div key={sectionIndex} style={{ marginBottom: 16 }}>
                 <div className="seksjon-topp">
                   <input
                     className="input seksjon-tittel"
@@ -879,18 +876,18 @@ export function DraftEditor({
                 <table className="doc-table">
                   <thead>
                     <tr>
-                      <th style={{ width: 30 }} />
+                      <th style={{ width: 28 }} />
                       <th>Post</th>
-                      <th className="num" style={{ width: 100 }}>
+                      <th className="num" style={{ width: 64 }}>
                         Antall
                       </th>
-                      <th className="num" style={{ width: 130 }}>
+                      <th className="num" style={{ width: 124 }}>
                         Enhetspris
                       </th>
-                      <th className="num" style={{ width: 90 }}>
+                      <th className="num" style={{ width: 68 }}>
                         Rabatt
                       </th>
-                      <th className="num" style={{ width: 120 }}>
+                      <th className="num" style={{ width: 100 }}>
                         Sum
                       </th>
                       <th style={{ width: 34 }} />
@@ -991,11 +988,13 @@ export function DraftEditor({
                               neste generering slår opp prisfilen på nytt, og
                               beløpet herfra går aldri inn i agentens kontekst.
                             */}
+                            <div className="celle-enhet">
                             <input
                               className="cell-input num"
                               type="number"
                               min="0"
                               step="1"
+                              aria-label={`Enhetspris per ${line.unit}`}
                               value={line.unit_price}
                               onChange={(e) => {
                                 const pris = Number(e.target.value);
@@ -1008,7 +1007,8 @@ export function DraftEditor({
                                 });
                               }}
                             />
-                            <div className="tiny muted">per {line.unit}</div>
+                            <span className="celle-enhet-tekst">/{line.unit}</span>
+                            </div>
                             {line.unit_price_manual && (
                               <button
                                 type="button"
@@ -1031,6 +1031,7 @@ export function DraftEditor({
                               rabatt. Kolonnen kommer med i PDF-en bare når
                               minst én rad har den — se harRabatt.
                             */}
+                            <div className="celle-enhet">
                             <input
                               className="cell-input num"
                               type="number"
@@ -1048,7 +1049,8 @@ export function DraftEditor({
                                 });
                               }}
                             />
-                            <div className="tiny muted">%</div>
+                            <span className="celle-enhet-tekst">%</span>
+                            </div>
                           </td>
                           <td className="num">
                             <strong>{formatNok(lineTotal(line))}</strong>
@@ -1146,6 +1148,9 @@ export function DraftEditor({
             );
           })}
 
+          {/* Ny seksjon til venstre og summene til høyre på samme rad — den
+              tomme plassen ved siden av summene var en hel rad for én knapp. */}
+          <div className="utkast-bunn">
           <button type="button" className="button ghost" onClick={addSection}>
             + Legg til seksjon
           </button>
@@ -1166,6 +1171,7 @@ export function DraftEditor({
               </div>
             </div>
           )}
+          </div>
 
           <div className="field" style={{ marginTop: 26 }}>
             <span className="label">Forutsetninger</span>
@@ -1179,14 +1185,15 @@ export function DraftEditor({
 
       {/* E-posttekst */}
       <div className="card card-pad">
-        <label className="field">
-          <span className="label">Emne</span>
+        <div className="utkast-felt" style={{ marginBottom: 10 }}>
+          <label htmlFor="utkast-emne">Emne</label>
           <input
-            className="input"
+            id="utkast-emne"
+            className="input bred"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
           />
-        </label>
+        </div>
         <label className="field" style={{ marginBottom: 0 }}>
           <span className="label">E-posttekst</span>
           <textarea
