@@ -35,6 +35,18 @@ export default async function KontaktPage({ params }: { params: Promise<{ id: st
   if (!kontaktRad) notFound();
   const kunde = kontaktRad as Customer;
 
+  // Gjelder kundenummeret i Go den koblingen selskapet har nå?
+  let goNummerGjeld: boolean | null = null;
+  if (kunde.accounting_customer_no) {
+    const { data: kopling } = await supabase
+      .from("accounting_connections")
+      .select("id")
+      .eq("company_id", kunde.company_id)
+      .neq("status", "kopla_fra")
+      .maybeSingle();
+    goNummerGjeld = kopling ? kopling.id === kunde.accounting_connection_id : false;
+  }
+
   const [{ data: leadRader }, { data: ordreRader }] = await Promise.all([
     supabase
       .from("leads")
@@ -97,7 +109,7 @@ export default async function KontaktPage({ params }: { params: Promise<{ id: st
       </div>
 
       <div className="stack">
-        <KontaktKort kontakt={kunde} />
+        <KontaktKort kontakt={kunde} goNummerGjeld={goNummerGjeld} />
 
         {visKundedel && (
           <>

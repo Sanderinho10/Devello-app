@@ -516,6 +516,9 @@ export interface Customer {
   is_customer: boolean;
   /** Kontakten er en leverandør. */
   is_supplier: boolean;
+  /** Kundenummeret i PowerOffice Go, lagret etter første overføring. Gjelder bare for koblingen under. */
+  accounting_customer_no: string | null;
+  accounting_connection_id: string | null;
   created_at: string;
   updated_at: string;
 }

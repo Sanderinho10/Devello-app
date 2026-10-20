@@ -5,7 +5,7 @@
  *
  *   npm run test:kunde-go
  */
-import { foreslaaKunde, landkodeFor } from "@/lib/faktura/overfor";
+import { foreslaaKunde, lagraKundenummer, landkodeFor } from "@/lib/faktura/overfor";
 import type { Customer } from "@/lib/types";
 
 let feil = 0;
@@ -51,6 +51,8 @@ const KONTAKT: Customer = {
   notes: null,
   is_customer: true,
   is_supplier: false,
+  accounting_customer_no: null,
+  accounting_connection_id: null,
   created_at: "",
   updated_at: "",
 };
@@ -116,6 +118,14 @@ sjekk("Norge → NO", landkodeFor("Norge") === "NO");
 sjekk("Sverige → SE", landkodeFor("Sverige") === "SE");
 sjekk("tomt → NO", landkodeFor("") === "NO");
 sjekk("ukjent → ingen kode", landkodeFor("Atlantis") === null);
+
+// 8. Lagret kundenummer brukes bare for samme kobling.
+sjekk("ingen lagret: null", lagraKundenummer(KONTAKT, "kop1") === null);
+sjekk("ingen kontakt: null", lagraKundenummer(null, "kop1") === null);
+const lagra = { ...KONTAKT, accounting_customer_no: " 10023 ", accounting_connection_id: "kop1" };
+sjekk("samme kobling: brukes", lagraKundenummer(lagra, "kop1") === "10023");
+sjekk("annen kobling (ny klient, demo→prod): brukes ikke", lagraKundenummer(lagra, "kop2") === null);
+sjekk("kobling slettet: brukes ikke", lagraKundenummer({ ...lagra, accounting_connection_id: null }, "kop1") === null);
 
 console.log(feil ? `\n${feil} feil` : "\nAlt i orden");
 process.exit(feil ? 1 : 0);

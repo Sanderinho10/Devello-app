@@ -18,8 +18,10 @@ import {
  *
  * Rekkefølgen er valgt så ingenting halvgjort blir stående:
  *
- *   1. Kunden i Go: finnes den (org.nr. fra kontaktregisteret, e-post,
- *      telefon), brukes den. Flere treff → brukeren velger. Ingen →
+ *   1. Kunden i Go: har kontakten et kundenummer fra en tidligere
+ *      overføring (samme kobling), brukes det. Ellers: finnes den (org.nr.
+ *      fra kontaktregisteret, e-post, telefon), brukes den. Flere treff →
+ *      brukeren velger. Ingen →
  *      brukeren bekrefter at den skal opprettes, med firma/person,
  *      org.nr. og fakturaadresse fra kontaktkortet når ordren har en
  *      kontakt. Uten kontakt: bare ordrens kundefelt, som før.
@@ -27,8 +29,9 @@ import {
  *      id-en vi lagret sist)? Da lages ingen ny — det er idempotensen.
  *   3. POST /SalesOrders/Complete med status Draft.
  *   4. Først når Go har svart ja: utkastet låses, føringene merkes
- *      fakturert, ordren blir fakturert. Feiler Go, endres ingenting annet
- *      enn transfer_error, og knappen kan trykkes igjen.
+ *      fakturert, ordren blir fakturert, og kundenummeret lagres på
+ *      kontakten. Feiler Go, endres ingenting annet enn transfer_error
+ *      (og et lagret kundenummer Go avviste), og knappen kan trykkes igjen.
  */
 
 export type OverforResultat =
@@ -83,10 +86,16 @@ export async function overforTilRegnskap(
 
   const pogo = pogoClient(kopling);
   const kontakt = await hentKontakt(admin, ordre);
+  // Kom kundenummeret fra kontakten? Da fjernes det om Go avviser ordren.
+  let fraKontakt = false;
 
   try {
     // 1. Kunden.
     let customerNo = input.customerNo?.trim() || draft.transfer_customer_no || null;
+    if (!customerNo) {
+      customerNo = lagraKundenummer(kontakt, kopling.id);
+      fraKontakt = customerNo !== null;
+    }
     if (!customerNo) {
       const funne = await finnKunde(pogo, ordre, kontakt);
       if (funne.length > 1) {
@@ -175,9 +184,16 @@ export async function overforTilRegnskap(
       created_by: input.userId,
     });
 
+    await lagreKundenummer(admin, kontakt, kopling.id, customerNo);
+
     return { ok: true, draft: ferdig, alleredeOverfort };
   } catch (err) {
     const melding = err instanceof Error ? err.message : String(err);
+    // Go avviste et lagret kundenummer (kunden slettet eller slått sammen
+    // i Go): glem det, så leter neste forsøk opp kunden på nytt.
+    if (fraKontakt && kontakt && err instanceof PogoFeil && (err.status === 400 || err.status === 404)) {
+      await glemKundenummer(admin, kontakt);
+    }
     await admin
       .from("invoice_drafts")
       .update({ status: "feil", transfer_error: melding })
@@ -204,6 +220,51 @@ async function hentKontakt(admin: SupabaseClient, ordre: Order): Promise<Custome
   } catch {
     return null;
   }
+}
+
+/** Kundenummeret lagret på kontakten, når det hører til denne koblingen. */
+export function lagraKundenummer(
+  kontakt: Pick<Customer, "accounting_customer_no" | "accounting_connection_id"> | null,
+  koplingId: string,
+): string | null {
+  if (!kontakt?.accounting_customer_no?.trim()) return null;
+  if (kontakt.accounting_connection_id !== koplingId) return null;
+  return kontakt.accounting_customer_no.trim();
+}
+
+/**
+ * Lagrer kundenummeret på kontakten etter at Go har opprettet ordren. Feiler
+ * det, er ordren like fullt overført — neste gang letes kunden bare opp igjen.
+ */
+async function lagreKundenummer(
+  admin: SupabaseClient,
+  kontakt: Customer | null,
+  koplingId: string,
+  customerNo: string,
+): Promise<void> {
+  if (!kontakt) return;
+  if (kontakt.accounting_customer_no === customerNo && kontakt.accounting_connection_id === koplingId) return;
+  // Kalles etter at alt er lagret: en feil her skal aldri gjøre en vellykket
+  // overføring om til en feilet.
+  try {
+    const { error } = await admin
+      .from("customers")
+      .update({ accounting_customer_no: customerNo, accounting_connection_id: koplingId })
+      .eq("id", kontakt.id)
+      .eq("company_id", kontakt.company_id);
+    if (error) console.error("Kunne ikke lagre kundenummeret på kontakten:", error.message);
+  } catch (err) {
+    console.error("Kunne ikke lagre kundenummeret på kontakten:", err);
+  }
+}
+
+async function glemKundenummer(admin: SupabaseClient, kontakt: Customer): Promise<void> {
+  const { error } = await admin
+    .from("customers")
+    .update({ accounting_customer_no: null, accounting_connection_id: null })
+    .eq("id", kontakt.id)
+    .eq("company_id", kontakt.company_id);
+  if (error) console.error("Kunne ikke fjerne kundenummeret på kontakten:", error.message);
 }
 
 /** Org.nr. med bare sifrene, når det er et gyldig norsk (ni sifre). */

@@ -22,7 +22,13 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-    const felt = lesKontakt(body);
+    const felt: Record<string, unknown> = lesKontakt(body);
+    // Kundenummeret i Go settes bare av overføringen. Herfra kan det bare
+    // fjernes — da letes kunden opp på nytt neste gang.
+    if (body.accounting_customer_no === null) {
+      felt.accounting_customer_no = null;
+      felt.accounting_connection_id = null;
+    }
     if (felt.name !== undefined && !felt.name) {
       return NextResponse.json({ error: "Kontakten må ha et navn." }, { status: 400 });
     }
