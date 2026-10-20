@@ -2297,8 +2297,234 @@ body.drar-rad * {
   color: var(--accent);
 }
 
-.time-rad.redigerer {
+/* Raden som er åpen for endring i føringslinja over. */
+.tabell-mobil tr.redigerer td {
   background: var(--accent-soft);
+}
+
+/* Timeføringen som én linje over tabellen, som i Go. Feltene brytes til
+   neste linje når det ikke er plass, og stables på telefon. */
+.foring {
+  padding: 12px 16px 14px;
+}
+
+.foring.redigerer {
+  box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow);
+}
+
+.foring-topp {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 28px;
+  margin-bottom: 8px;
+}
+
+.foring-felt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px 12px;
+}
+
+.foring-felt .label {
+  margin-bottom: 4px;
+}
+
+.foring-felt .input {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.foring-dato {
+  flex: 0 0 150px;
+}
+
+.foring-montor {
+  flex: 1 1 150px;
+}
+
+.foring-type {
+  flex: 1.4 1 200px;
+}
+
+.foring-timar {
+  flex: 0 0 230px;
+}
+
+.foring-timar .hurtigknappar {
+  margin-top: 6px;
+}
+
+.foring-timar .hurtigknappar .button {
+  padding-top: 3px;
+  padding-bottom: 3px;
+  font-size: 12.5px;
+}
+
+.foring-note {
+  flex: 2 1 220px;
+}
+
+.foring-knapp {
+  align-self: flex-start;
+  /* På linje med feltene, under etiketthøyden. */
+  padding-top: 21px;
+}
+
+/* Gruppene i tabellen (dag, fra faktura / manuelt), som i reskontroen i Go. */
+.table .gruppe-rad td {
+  padding-top: 12px;
+  padding-bottom: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--link);
+  background: var(--surface);
+}
+
+/* «tir. 20. okt.» → «Tir. 20. okt.»: bare første bokstav i gruppenavnet. */
+.table .gruppe-rad td:first-child::first-letter {
+  text-transform: uppercase;
+}
+
+.table tbody + tbody .gruppe-rad td {
+  border-top: 1px solid var(--border);
+}
+
+/* Summer nederst i tabellen. */
+.table tfoot td {
+  padding: 6px 14px;
+  border-bottom: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.table tfoot .sum-type td {
+  font-size: 12.5px;
+}
+
+.table tfoot tr:first-child td {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.table tfoot .sum-rad td {
+  font-weight: 600;
+  padding-bottom: 12px;
+}
+
+.tabell-mobil td.handling {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.tabell-mobil td.handling .button.ghost {
+  padding: 3px 8px;
+  font-size: 12.5px;
+}
+
+/*
+ * Telefon: tabellen blir en liste med små kort. Hovedteksten står øverst,
+ * beløpet til høyre, detaljene på linja under og knappene nederst — slik
+ * montøren leste lista før den ble tabell.
+ */
+@media (max-width: 700px) {
+  .tabell-mobil thead {
+    display: none;
+  }
+  .tabell-mobil,
+  .tabell-mobil tbody,
+  .tabell-mobil tfoot {
+    display: block;
+  }
+  .tabell-mobil tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tabell-mobil td {
+    display: block;
+    padding: 0;
+    border: none;
+  }
+  .tabell-mobil td:empty {
+    display: none;
+  }
+  /* Hovedteksten og beløpet fyller første linje, så detaljene alltid
+     havner på linja under. */
+  .tabell-mobil td.hoved {
+    flex: 0 0 calc(100% - 108px);
+    min-width: 0;
+    order: 1;
+    font-weight: 500;
+  }
+  .tabell-mobil td.hoved .chip {
+    max-width: 100%;
+  }
+  .tabell-mobil td.belop {
+    flex: 0 0 100px;
+    order: 2;
+    text-align: right;
+  }
+  .tabell-mobil td.meta {
+    order: 3;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+  }
+  .tabell-mobil td.handling {
+    order: 4;
+    flex-basis: 100%;
+    width: auto;
+    text-align: left;
+  }
+  .tabell-mobil td.handling .button.ghost {
+    min-height: 40px;
+    padding: 6px 12px;
+  }
+  .tabell-mobil .gruppe-rad,
+  .tabell-mobil tfoot tr {
+    justify-content: space-between;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .tabell-mobil .gruppe-rad td,
+  .tabell-mobil tfoot td,
+  .tabell-mobil tbody + tbody .gruppe-rad td,
+  .tabell-mobil tfoot tr:first-child td {
+    padding: 0;
+    border: none;
+  }
+  .tabell-mobil .gruppe-rad td:first-child,
+  .tabell-mobil tfoot td:first-child {
+    flex: 1;
+  }
+  .tabell-mobil tfoot tr {
+    border-bottom: none;
+  }
+  .tabell-mobil tfoot tr:first-child {
+    border-top: 1px solid var(--border);
+  }
+  .tabell-mobil .gruppe-rad td.num,
+  .tabell-mobil tfoot td.num {
+    margin-left: auto;
+  }
+  .foring-felt > * {
+    flex: 1 1 100%;
+  }
+  .foring-knapp {
+    padding-top: 0;
+  }
+  .foring-knapp .button {
+    width: 100%;
+    justify-content: center;
+  }
+  .foring-timar .hurtigknappar .button {
+    min-height: 44px;
+    font-size: 14px;
+  }
 }
 
 /* Materiell: valgt vare under søket, påslaget som trykkbar prosent */
@@ -2495,8 +2721,8 @@ body.drar-rad * {
   opacity: 0.55;
 }
 
-.materiell-rad.erstatta .lead-subject,
-.materiell-rad.erstatta .ordre-sum {
+.materiell-rad.erstatta .hoved > div:first-child,
+.materiell-rad.erstatta .belop {
   text-decoration: line-through;
 }
 
@@ -2831,7 +3057,7 @@ body.drar-rad * {
 }
 
 /* Fakturaforslag (steg 4) */
-.time-rad.fakturert,
+tr.fakturert,
 .materiell-rad.fakturert {
   opacity: 0.6;
 }
