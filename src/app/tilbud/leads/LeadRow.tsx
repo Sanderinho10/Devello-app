@@ -14,9 +14,9 @@ import { LEAD_STATUS_LABELS, formatDate, type Lead } from "@/lib/types";
  * agenten har lest jobben riktig. Popupen er stedet man leser e-posten som den
  * faktisk kom inn.
  *
- * Raden er klikkbar for mus, men det er emnet som er den fokuserbare knappen.
- * En hel rad med role="button" ville pakket «Åpne»-knappen inn i en annen
- * knapp — her er det ett kontrollelement, og raden er bare et større treffområde.
+ * Emnet går til utkastet, som «Åpne». Klikk ellers på raden viser e-posten i
+ * popupen; for tastaturet er det avsenderen som er knappen for popupen. En hel
+ * rad med role="button" ville pakket lenken og «Åpne» inn i en annen knapp.
  */
 export function LeadRow({
   lead,
@@ -70,28 +70,54 @@ export function LeadRow({
   const parts = [lead.from_name, lead.from_email].filter(Boolean);
   if (lead.source === "manuell") parts.push("manuell henvendelse");
   const sender = parts.join(" · ") || "(ukjent avsender)";
+  const harUtkast = lead.status !== "ny" && lead.status !== "genererer";
 
   return (
       <tr onClick={() => setOpen(true)}>
         <td className="ordre-nr">{tilbudsnr ?? ""}</td>
         <td>
-          <button
-            type="button"
-            className="lenke knapp"
-            onClick={(event) => {
-              event.stopPropagation();
-              setOpen(true);
-            }}
-          >
-            {lead.subject || "(uten emne)"}
-          </button>
+          {/* Emnet går rett til utkastet, som «Åpne». Resten av raden viser
+              e-posten i popupen. Uten utkast finnes det ingen side å gå til,
+              så da åpner emnet popupen. */}
+          {harUtkast ? (
+            <Link
+              className="lenke"
+              href={`/tilbud/leads/${lead.id}`}
+              onClick={(event) => event.stopPropagation()}
+            >
+              {lead.subject || "(uten emne)"}
+            </Link>
+          ) : (
+            <button
+              type="button"
+              className="lenke knapp"
+              onClick={(event) => {
+                event.stopPropagation();
+                setOpen(true);
+              }}
+            >
+              {lead.subject || "(uten emne)"}
+            </button>
+          )}
           {lead.generation_error && (
             <div className="tiny" style={{ color: "var(--negative)" }}>
               Genereringen stoppet: {lead.generation_error}
             </div>
           )}
         </td>
-        <td>{sender}</td>
+        <td>
+          <button
+            type="button"
+            className="celle-knapp"
+            title="Vis e-posten"
+            onClick={(event) => {
+              event.stopPropagation();
+              setOpen(true);
+            }}
+          >
+            {sender}
+          </button>
+        </td>
         <td className="nowrap">
           <span className={`pill ${lead.status}`}>{LEAD_STATUS_LABELS[lead.status]}</span>
           {revisjon > 1 && (

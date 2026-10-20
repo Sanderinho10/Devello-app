@@ -1898,6 +1898,24 @@ body.drar-rad * {
   background: var(--bg);
 }
 
+/* Knapp som ser ut som vanlig celletekst — avsenderen i leads-tabellen,
+   som åpner e-posten. Den er der for tastaturet; musa klikker på raden. */
+.table .celle-knapp {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: inherit;
+}
+
+.table .celle-knapp:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 /* Emnet i leads-tabellen er en knapp, men skal se ut som lenkene. */
 .table .lenke.knapp {
   padding: 0;
@@ -2892,6 +2910,21 @@ body.drar-rad * {
 }
 .epost-slipp-hint {
   margin: -4px 0 14px;
+}
+
+/* Rader med høyt innhold (tekstfelt, vedleggsliste): etiketten står øverst
+   ved feltet, ikke midt på. */
+.kontakt-rad.topp {
+  align-items: start;
+}
+
+.kontakt-rad.topp > .kontakt-rad-etikett {
+  padding-top: 8px;
+}
+
+.kontakt-rad .epost-slipp-hint {
+  margin: 0;
+  padding-top: 8px;
 }
 .button.slipp-maal {
   border-style: dashed;
