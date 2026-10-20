@@ -93,12 +93,12 @@ export default async function LeadPage({
 
   return (
     <>
-      <div className="page-header">
+      <div className="page-header kompakt">
         <div>
-          <Link className="button ghost" href="/tilbud/leads" style={{ marginLeft: -10 }}>
+          <Link className="tilbake" href="/tilbud/leads">
             ← Leads
           </Link>
-          <h1 style={{ marginTop: 6 }}>
+          <h1>
             {draft?.quote_no ? <span className="muted">Tilbud {draft.quote_no} · </span> : null}
             {lead.subject || "(uten emne)"}
           </h1>
