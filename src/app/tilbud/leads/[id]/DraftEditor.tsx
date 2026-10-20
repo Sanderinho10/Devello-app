@@ -383,31 +383,6 @@ export function DraftEditor({
    * Flytter hele seksjonen — overskrift og poster — ett hakk opp eller ned.
    * Rekkefølgen her er rekkefølgen på PDF-en.
    */
-  function moveSection(sectionIndex: number, direction: -1 | 1) {
-    const to = sectionIndex + direction;
-    if (!document || to < 0 || to >= document.sections.length) return;
-
-    setDocument((current) => {
-      if (!current) return current;
-      const sections = [...current.sections];
-      const [moved] = sections.splice(sectionIndex, 1);
-      sections.splice(to, 0, moved);
-      return { ...current, sections };
-    });
-
-    // Seksjonene har indeks som nøkkel, så fokus ville blitt stående igjen på
-    // plassen og ikke fulgt med seksjonen. Flytt det etter, så man kan trykke
-    // flere ganger på rad. Står den nå øverst eller nederst, er knappen i den
-    // retningen skrudd av — da tar vi den andre.
-    requestAnimationFrame(() => {
-      const atEdge = to === 0 || to === document.sections.length - 1;
-      const knapp = atEdge ? -direction : direction;
-      window.document
-        .querySelector<HTMLButtonElement>(`[data-seksjon-flytt="${to}:${knapp}"]`)
-        ?.focus();
-    });
-  }
-
   function removeSection(sectionIndex: number) {
     if (!document) return;
     const section = document.sections[sectionIndex];
@@ -457,8 +432,29 @@ export function DraftEditor({
     );
   }
 
-  // Dra-og-slipp av postrader. Flyttingen skjer først når raden har glidd på plass.
+  // Dra-og-slipp av postrader og av hele seksjoner. Flyttingen skjer først når
+  // raden har glidd på plass.
   const dra = useRadDra((section, from, to) => moveLine(section, from, to));
+  const draSeksjon = useRadDra((_gruppe, from, to) => flyttSeksjon(from, to));
+
+  /** Flytter en seksjon fra én plass til en annen, ved dra eller piltast. */
+  function flyttSeksjon(from: number, to: number, fokuser = false) {
+    if (!document || from === to || to < 0 || to >= document.sections.length) return;
+    setDocument((current) => {
+      if (!current) return current;
+      const sections = [...current.sections];
+      const [moved] = sections.splice(from, 1);
+      sections.splice(to, 0, moved);
+      return { ...current, sections };
+    });
+    // Seksjonene har indeks som nøkkel, så fokus ville blitt stående på
+    // plassen. Flytt det etter, så man kan trykke piltasten flere ganger.
+    if (fokuser) {
+      requestAnimationFrame(() => {
+        window.document.querySelector<HTMLElement>(`[data-seksjon-grip="${to}"]`)?.focus();
+      });
+    }
+  }
 
   function moveLine(sectionIndex: number, from: number, to: number) {
     if (from === to) return;
@@ -767,7 +763,7 @@ export function DraftEditor({
 
       {/* Dokument-forhåndsvisning for punktpris og fastpris */}
       {draft.agent_status !== "trenger_avklaring" && wantsDocument && document && (
-        <div className="doc-preview">
+        <div className={`doc-preview${draSeksjon.drar !== null ? " drar" : ""}`}>
           {/* Avsenderen står i PDF-en. Her er den bare en påminnelse om hvem
               tilbudet går fra, så den får én linje og ikke et helt brevhode. */}
           <div className="doc-head">
@@ -826,8 +822,33 @@ export function DraftEditor({
             );
 
             return (
-              <div key={sectionIndex} style={{ marginBottom: 16 }}>
+              <div key={sectionIndex} {...draSeksjon.rad(0, sectionIndex, "seksjon")}>
                 <div className="seksjon-topp">
+                  {document.sections.length > 1 && (
+                    <span
+                      className="grip"
+                      role="button"
+                      tabIndex={0}
+                      data-seksjon-grip={sectionIndex}
+                      aria-label={`Flytt seksjonen «${section.title || "uten overskrift"}», ${sectionIndex + 1} av ${document.sections.length}`}
+                      title="Dra for å flytte seksjonen, eller bruk piltastene"
+                      onPointerDown={(event) => {
+                        if (!sendt) draSeksjon.start(event, 0, sectionIndex);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "ArrowUp") {
+                          event.preventDefault();
+                          flyttSeksjon(sectionIndex, sectionIndex - 1, true);
+                        }
+                        if (event.key === "ArrowDown") {
+                          event.preventDefault();
+                          flyttSeksjon(sectionIndex, sectionIndex + 1, true);
+                        }
+                      }}
+                    >
+                      ⠿
+                    </span>
+                  )}
                   <input
                     className="input seksjon-tittel"
                     value={section.title}
@@ -837,28 +858,6 @@ export function DraftEditor({
                   />
                   {document.sections.length > 1 && (
                     <div className="seksjon-knapper">
-                      <button
-                        type="button"
-                        className="button ghost"
-                        data-seksjon-flytt={`${sectionIndex}:-1`}
-                        title="Flytt seksjonen opp"
-                        aria-label={`Flytt «${section.title || "seksjonen"}» opp`}
-                        disabled={sectionIndex === 0}
-                        onClick={() => moveSection(sectionIndex, -1)}
-                      >
-                        ↑
-                      </button>
-                      <button
-                        type="button"
-                        className="button ghost"
-                        data-seksjon-flytt={`${sectionIndex}:1`}
-                        title="Flytt seksjonen ned"
-                        aria-label={`Flytt «${section.title || "seksjonen"}» ned`}
-                        disabled={sectionIndex === document.sections.length - 1}
-                        onClick={() => moveSection(sectionIndex, 1)}
-                      >
-                        ↓
-                      </button>
                       <button
                         type="button"
                         className="button ghost"
