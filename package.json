@@ -36,7 +36,8 @@
     "test:fakturafil": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-fakturafil.ts",
     "test:app-api": "node --env-file=.env.local --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-app-api.ts",
     "nattjobb": "node --env-file-if-exists=.env.local --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/nattjobb.ts",
-    "ftp:hent": "node --env-file=.env.local --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/hent-fra-ftp.ts"
+    "ftp:hent": "node --env-file=.env.local --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/hent-fra-ftp.ts",
+    "test:kunde-go": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-kunde-go.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.117.1",

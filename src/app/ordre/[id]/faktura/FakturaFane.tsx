@@ -675,7 +675,20 @@ function OverforDialog({
             Kunden finnes ikke i {providerNavn}. Opprette{" "}
             <strong>{steg.foreslaatt.Name}</strong> ({steg.foreslaatt.IsPerson ? "privatperson" : "bedrift"}
             {steg.foreslaatt.EmailAddress ? `, ${steg.foreslaatt.EmailAddress}` : ""}
-            {steg.foreslaatt.PhoneNumber ? `, ${steg.foreslaatt.PhoneNumber}` : ""})?
+            {steg.foreslaatt.PhoneNumber ? `, ${steg.foreslaatt.PhoneNumber}` : ""}
+            {steg.foreslaatt.OrganizationNumber ? `, org.nr. ${steg.foreslaatt.OrganizationNumber}` : ""})?
+            {steg.foreslaatt.MailAddress && (
+              <div className="muted" style={{ marginTop: 4 }}>
+                Adresse:{" "}
+                {[
+                  steg.foreslaatt.MailAddress.AddressLine1,
+                  steg.foreslaatt.MailAddress.AddressLine2,
+                  [steg.foreslaatt.MailAddress.ZipCode, steg.foreslaatt.MailAddress.City].filter(Boolean).join(" "),
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
+              </div>
+            )}
           </div>
           <div className="row" style={{ flexWrap: "wrap" }}>
             <button type="button" className="button" onClick={() => onOverfor({ createCustomer: true })} disabled={busy}>
