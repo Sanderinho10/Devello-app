@@ -1716,6 +1716,24 @@ body.drar-rad * {
   min-height: 0;
 }
 
+/* Feltene for prisfilen er grået ut til man krysser av for dem. */
+.ny-post-prisfil {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-inline-size: 0;
+  transition: opacity 0.15s ease;
+}
+
+.ny-post-prisfil:disabled {
+  opacity: 0.5;
+}
+
+.ny-post-prisfil:disabled .input {
+  background: var(--surface-sunken);
+  cursor: not-allowed;
+}
+
 .ny-post-lagre {
   display: flex;
   align-items: flex-start;

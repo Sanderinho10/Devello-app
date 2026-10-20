@@ -29,7 +29,8 @@ import { PRICE_KIND_LABELS, type PriceItemKind, type PriceListItem, type QuoteLi
  * koden selv — «el040» velger kategorien EL.
  *
  * Skjemaet er en popup som i Go, med etiketten foran feltene. Posten gjelder
- * bare tilbudet til man krysser av for prisfilen — da kommer kategori og kode.
+ * bare tilbudet til man krysser av for prisfilen — da blir kategori, kode og
+ * beskrivelse, som står grået ut under, til å fylle ut.
  */
 export function NyPost({
   kind,
@@ -202,8 +203,10 @@ export function NyPost({
           </span>
         </label>
 
-        {/* Av som standard: de fleste egne poster gjelder bare denne jobben.
-            Krysser man av, kommer det som trengs for å finne plassen i prisfilen. */}
+        {/* Som i Go: avkryssingen står over feltene den styrer, og feltene
+            vises hele tiden, men er grået ut til man krysser av. Da ser man
+            hva lagringen innebærer før man velger den. */}
+        <div className="kontakt-skilje">Prisfilen</div>
         <div className="kontakt-rad">
           <span />
           <label className="ny-post-lagre">
@@ -227,21 +230,18 @@ export function NyPost({
           </p>
         )}
 
-        {lagre && liste && (
-          <>
-            <div className="kontakt-skilje">Plass i prisfilen</div>
-            <KodeVelger rader={rader} verdi={kodevalg} onChange={setKodevalg} paakrevd etikettVenstre />
-            <label className="kontakt-rad">
-              <span className="kontakt-rad-etikett">Beskrivelse</span>
-              <input
-                className="input"
-                value={beskrivelse}
-                onChange={(e) => setBeskrivelse(e.target.value)}
-                placeholder="Hva som er med i prisen (valgfritt)"
-              />
-            </label>
-          </>
-        )}
+        <fieldset className="ny-post-prisfil" disabled={!lagre || !liste}>
+          <KodeVelger rader={rader} verdi={kodevalg} onChange={setKodevalg} paakrevd etikettVenstre />
+          <label className="kontakt-rad">
+            <span className="kontakt-rad-etikett">Beskrivelse</span>
+            <input
+              className="input"
+              value={beskrivelse}
+              onChange={(e) => setBeskrivelse(e.target.value)}
+              placeholder="Hva som er med i prisen (valgfritt)"
+            />
+          </label>
+        </fieldset>
       </div>
 
       {feil && <div className="banner error" style={{ marginTop: 12, marginBottom: 0 }}>{feil}</div>}
