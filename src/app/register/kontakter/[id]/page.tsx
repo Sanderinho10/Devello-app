@@ -95,7 +95,7 @@ export default async function KontaktPage({ params }: { params: Promise<{ id: st
     <>
       <div className="page-header">
         <div>
-          <Link className="button ghost" href="/kontakter" style={{ marginLeft: -10 }}>
+          <Link className="button ghost" href="/register/kontakter" style={{ marginLeft: -10 }}>
             ← Kontakter
           </Link>
           <h1 style={{ marginTop: 6 }}>{kunde.name}</h1>

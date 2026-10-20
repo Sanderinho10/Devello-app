@@ -1,5 +1,3 @@
-import { harModul } from "@/lib/moduler";
-
 export interface InnstillingsFane {
   label: string;
   href: string;
@@ -11,10 +9,12 @@ export interface InnstillingsFane {
  * Det som ligg under Selskap → Innstillinger, i rekkjefølgje.
  *
  * Oversikta og fanestripa les same liste, så dei kan ikkje sprike.
- * Grossister høyrer til ordremodulen og står berre når selskapet har han —
- * same brytar som API-et og /ordre-sidene sjekkar.
+ * Grossistane flytta til Register (/register/grossister) — dei er eit
+ * register ein slår opp i, ikkje noko som blir sett opp éin gong.
  */
-export function innstillingsFaner(moduler: string[]): InnstillingsFane[] {
+// Modulane står att i signaturen så kallarane slepp å endrast om ei fane
+// igjen skal avhenge av ein modul.
+export function innstillingsFaner(_moduler: string[]): InnstillingsFane[] {
   const faner: InnstillingsFane[] = [
     {
       label: "Innstillinger",
@@ -33,12 +33,5 @@ export function innstillingsFaner(moduler: string[]): InnstillingsFane[] {
       beskrivelse: "Tidligere tilbud som agenten lærer tilbudstype og nivå fra.",
     },
   ];
-  if (harModul(moduler, "ordre")) {
-    faner.push({
-      label: "Grossister",
-      href: "/selskap/innstillinger/grossister",
-      beskrivelse: "Grossistene dere handler hos, katalogene deres og hvordan de holdes oppdatert.",
-    });
-  }
   return faner;
 }
