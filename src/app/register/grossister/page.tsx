@@ -6,7 +6,7 @@ import { harModul } from "@/lib/moduler";
 import { utanPassord } from "@/lib/grossist/api";
 import { currentSession, supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import type { ImportJob, Supplier, SupplierFtpPublic, SupplierInvoiceFile } from "@/lib/types";
-import { selskapetsModular } from "../../moduler";
+import { selskapetsModular } from "@/app/selskap/innstillinger/moduler";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
  * nettleseren. FTP-oppsettet leses via service role og strippes for
  * passordet før det går til klienten — tabellen har ingen policy.
  *
- * Sida ligg under Selskap, ikkje /ordre, så modulsperra i ordre/layout.tsx
+ * Sida ligg under Register, ikkje /ordre, så modulsperra i ordre/layout.tsx
  * dekkjer henne ikkje. Sjekken står her i staden.
  */
 export default async function GrossisterPage() {

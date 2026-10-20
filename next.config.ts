@@ -26,10 +26,15 @@ const nextConfig: NextConfig = {
       { source: "/tilbud/prisfil", destination: "/selskap/innstillinger/prisfil", permanent: false },
       { source: "/tilbud/prisfil/:id", destination: "/selskap/innstillinger/prisfil/:id", permanent: false },
       { source: "/tilbud/referansefiler", destination: "/selskap/innstillinger/referansefiler", permanent: false },
-      { source: "/ordre/grossister", destination: "/selskap/innstillinger/grossister", permanent: false },
+      // Registrene samlet under Register i menyen.
+      { source: "/ordre/grossister", destination: "/register/grossister", permanent: false },
+      { source: "/selskap/innstillinger/grossister", destination: "/register/grossister", permanent: false },
+      { source: "/ordre/leverandorfakturaer", destination: "/register/leverandorfakturaer", permanent: false },
+      { source: "/kontakter", destination: "/register/kontakter", permanent: false },
+      { source: "/kontakter/:id", destination: "/register/kontakter/:id", permanent: false },
       // Kunderegisteret ble kontaktregisteret (kunder og leverandører).
-      { source: "/kunder", destination: "/kontakter?type=kunder", permanent: false },
-      { source: "/kunder/:id", destination: "/kontakter/:id", permanent: false },
+      { source: "/kunder", destination: "/register/kontakter?type=kunder", permanent: false },
+      { source: "/kunder/:id", destination: "/register/kontakter/:id", permanent: false },
     ];
   },
 

@@ -424,7 +424,7 @@ export function MateriellFane({
             <span className="label" style={{ marginBottom: 0 }}>
               Leverandørfakturaer uten linjer
             </span>
-            <Link href="/ordre/leverandorfakturaer" className="tiny">
+            <Link href="/register/leverandorfakturaer" className="tiny">
               Alle leverandørfakturaer →
             </Link>
           </div>

@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { FakturaListe } from "./FakturaListe";
 import { HentFakturaer } from "@/components/HentFakturaer";
+import { ModulMangler } from "@/components/ModulMangler";
+import { harModul } from "@/lib/moduler";
+import { selskapetsModular } from "@/app/selskap/innstillinger/moduler";
 import { currentSession, supabaseServer } from "@/lib/supabase/server";
 import type { SupplierInvoice, SupplierInvoiceLine } from "@/lib/types";
 
@@ -14,12 +17,17 @@ type Visning = "ukopla" | "kopla" | "alle";
  * «Ukoblet» er arbeidslista: fakturaer der ordrenummeret ikke ble funnet,
  * eller var tvetydig. Alt annet gikk av seg selv. Kreditnotaer står her
  * også — de kobles aldri automatisk.
+ *
+ * Siden ligger under Register, ikke /ordre, så modulsperren i
+ * ordre/layout.tsx dekker den ikke. Sjekken står her i stedet.
  */
 export default async function LeverandorfakturaerPage({
   searchParams,
 }: {
   searchParams: Promise<{ vis?: string }>;
 }) {
+  if (!harModul(await selskapetsModular(), "ordre")) return <ModulMangler modul="Ordre" />;
+
   const session = await currentSession();
   const supabase = await supabaseServer();
   const visRaa = (await searchParams).vis;
@@ -98,7 +106,7 @@ export default async function LeverandorfakturaerPage({
               Selskap → Innstillinger → Ordre
             </Link>
             , eller sett opp fakturafiler fra grossisten under{" "}
-            <Link href="/selskap/innstillinger/grossister" style={{ textDecoration: "underline" }}>
+            <Link href="/register/grossister" style={{ textDecoration: "underline" }}>
               Selskap → Innstillinger → Grossister
             </Link>
             , så hentes fakturaene hit.
@@ -108,17 +116,17 @@ export default async function LeverandorfakturaerPage({
         <div className="card">
           <div className="card-header row-between">
             <div className="type-switch kompakt">
-              <Link href="/ordre/leverandorfakturaer" className={`type-option${vis === "ukopla" ? " active" : ""}`}>
+              <Link href="/register/leverandorfakturaer" className={`type-option${vis === "ukopla" ? " active" : ""}`}>
                 Ukoblet {ukopla ?? 0}
               </Link>
               <Link
-                href="/ordre/leverandorfakturaer?vis=kopla"
+                href="/register/leverandorfakturaer?vis=kopla"
                 className={`type-option${vis === "kopla" ? " active" : ""}`}
               >
                 Koblet {kopla ?? 0}
               </Link>
               <Link
-                href="/ordre/leverandorfakturaer?vis=alle"
+                href="/register/leverandorfakturaer?vis=alle"
                 className={`type-option${vis === "alle" ? " active" : ""}`}
               >
                 Alle {alle ?? 0}

@@ -84,7 +84,7 @@ export default async function KontakterPage({
     if (q && medSok) p.set("q", q);
     if (type !== "alle") p.set("type", type);
     const s = p.toString();
-    return s ? `/kontakter?${s}` : "/kontakter";
+    return s ? `/register/kontakter?${s}` : "/register/kontakter";
   }
 
   return (
@@ -152,26 +152,26 @@ export default async function KontakterPage({
             <table className="table klikkbar">
               <thead>
                 <tr>
-                  <SortKolonne kolonne="navn" sortering={sortering} sti="/kontakter" params={sortParams}>
+                  <SortKolonne kolonne="navn" sortering={sortering} sti="/register/kontakter" params={sortParams}>
                     Navn
                   </SortKolonne>
                   <th>Type</th>
-                  <SortKolonne kolonne="kontaktperson" sortering={sortering} sti="/kontakter" params={sortParams}>
+                  <SortKolonne kolonne="kontaktperson" sortering={sortering} sti="/register/kontakter" params={sortParams}>
                     Kontaktperson
                   </SortKolonne>
-                  <SortKolonne kolonne="telefon" sortering={sortering} sti="/kontakter" params={sortParams}>
+                  <SortKolonne kolonne="telefon" sortering={sortering} sti="/register/kontakter" params={sortParams}>
                     Telefon
                   </SortKolonne>
-                  <SortKolonne kolonne="epost" sortering={sortering} sti="/kontakter" params={sortParams}>
+                  <SortKolonne kolonne="epost" sortering={sortering} sti="/register/kontakter" params={sortParams}>
                     E-post
                   </SortKolonne>
-                  <SortKolonne kolonne="tilbud" sortering={sortering} sti="/kontakter" params={sortParams} className="num">
+                  <SortKolonne kolonne="tilbud" sortering={sortering} sti="/register/kontakter" params={sortParams} className="num">
                     Tilbud
                   </SortKolonne>
-                  <SortKolonne kolonne="ordrer" sortering={sortering} sti="/kontakter" params={sortParams} className="num">
+                  <SortKolonne kolonne="ordrer" sortering={sortering} sti="/register/kontakter" params={sortParams} className="num">
                     Ordrer
                   </SortKolonne>
-                  <SortKolonne kolonne="opprettet" sortering={sortering} sti="/kontakter" params={sortParams} className="num">
+                  <SortKolonne kolonne="opprettet" sortering={sortering} sti="/register/kontakter" params={sortParams} className="num">
                     Opprettet
                   </SortKolonne>
                 </tr>
@@ -181,9 +181,9 @@ export default async function KontakterPage({
                   const harJobber =
                     kontakt.is_customer || antallTilbud.has(kontakt.id) || antallOrdrer.has(kontakt.id);
                   return (
-                    <KlikkbarRad key={kontakt.id} href={`/kontakter/${kontakt.id}`}>
+                    <KlikkbarRad key={kontakt.id} href={`/register/kontakter/${kontakt.id}`}>
                       <td>
-                        <Link className="lenke" href={`/kontakter/${kontakt.id}`}>
+                        <Link className="lenke" href={`/register/kontakter/${kontakt.id}`}>
                           {kontakt.name}
                         </Link>
                       </td>

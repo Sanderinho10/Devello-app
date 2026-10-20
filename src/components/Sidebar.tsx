@@ -10,22 +10,21 @@ import { harModul } from "@/lib/moduler";
 /**
  * Navigasjon etter hvor ofte man er der.
  *
- * Øverst står det daglige: Tilbud (leads og kontakter) og Ordre (ordrer og
- * leverandørfakturaer). Det er arbeidslisten, og den skal være kort nok
- * til at alt får plass uten å lete. Kontaktregisteret (kunder og
- * leverandører) bor på /kontakter og brukes av begge agentene, men det er
- * i tilbudsarbeidet man slår opp i det — så det står som fane under Tilbud.
+ * Over skillelinjen står det daglige: Tilbud (leads), Ordre (ordrer) og
+ * Register — kontakter, leverandørfakturaer og grossister, det man slår opp
+ * i fra begge. Det er arbeidslisten, og den skal være kort nok til at alt
+ * får plass uten å lete.
  *
  * Under skillelinjen ligger Selskap: det som settes opp én gang eller
  * justeres sjelden — abonnement, medlemmer og innstillinger. Innstillinger
  * er én inngang; bak den ligger firmaopplysninger og oppsettet for hver
- * agent, prisfil, referansefiler og grossister, med egen fanestripe (se
- * app/selskap/innstillinger). Menyen holdes kort: en prisfil man rører to
- * ganger i året skal ikke ta plass ved siden av det daglige.
+ * agent, prisfil og referansefiler, med egen fanestripe (se
+ * app/selskap/innstillinger).
  *
  * Hvilke moduler som vises styres av companies.moduler (lib/moduler.ts):
- * Ordre bare når selskapet har modulen. Det er samme bryter som API-et
- * sjekker, så menyen og tilgangen kan ikke sprike.
+ * Ordre, leverandørfakturaer og grossister bare når selskapet har
+ * ordremodulen. Det er samme bryter som sidene og API-et sjekker, så menyen
+ * og tilgangen kan ikke sprike.
  */
 
 interface NavTab {
@@ -47,10 +46,7 @@ const TILBUD: NavSection = {
   label: "Tilbud",
   icon: "◆",
   basePath: "/tilbud",
-  tabs: [
-    { label: "Leads", href: "/tilbud/leads" },
-    { label: "Kontakter", href: "/kontakter" },
-  ],
+  tabs: [{ label: "Leads", href: "/tilbud/leads" }],
 };
 
 const ORDRE: NavSection = {
@@ -58,16 +54,26 @@ const ORDRE: NavSection = {
   label: "Ordre",
   icon: "▣",
   basePath: "/ordre",
-  tabs: [
-    { label: "Ordrer", href: "/ordre" },
-    { label: "Leverandørfakturaer", href: "/ordre/leverandorfakturaer" },
-  ],
+  tabs: [{ label: "Ordrer", href: "/ordre" }],
 };
 
-/** Det daglige, i rekkefølgen jobben går: tilbud → ordre. */
+/** Registrene. Leverandørfakturaer og grossister hører til ordremodulen. */
+function register(moduler: string[]): NavSection {
+  const tabs: NavTab[] = [{ label: "Kontakter", href: "/register/kontakter" }];
+  if (harModul(moduler, "ordre")) {
+    tabs.push(
+      { label: "Leverandørfakturaer", href: "/register/leverandorfakturaer" },
+      { label: "Grossister", href: "/register/grossister" },
+    );
+  }
+  return { key: "register", label: "Register", icon: "▤", basePath: "/register", tabs };
+}
+
+/** Det daglige, i rekkefølgen jobben går: tilbud → ordre, og registrene. */
 function agentSections(moduler: string[]): NavSection[] {
   const sections = [TILBUD];
   if (harModul(moduler, "ordre")) sections.push(ORDRE);
+  sections.push(register(moduler));
   return sections;
 }
 
@@ -107,7 +113,7 @@ export function Sidebar({
   const agenter = agentSections(moduler);
 
   // Den lengste fanen som passer er den som gjelder: /selskap/innstillinger
-  // dekker alt under seg (prisfil, grossister …), /ordre bare ordrelisten.
+  // dekker alt under seg (prisfil, referansefiler …), /ordre bare ordrelisten.
   const aktivFane = [...agenter, SELSKAP]
     .flatMap((s) => s.tabs)
     .filter((tab) => passer(pathname, tab.href))

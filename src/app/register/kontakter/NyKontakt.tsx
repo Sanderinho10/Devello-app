@@ -39,7 +39,7 @@ export function NyKontakt() {
       });
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.error ?? "Kunne ikke opprette kontakten");
-      router.push(`/kontakter/${payload.id}`);
+      router.push(`/register/kontakter/${payload.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setBusy(false);
