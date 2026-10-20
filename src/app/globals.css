@@ -1,7 +1,12 @@
 /*
  * Devello — designsystem.
  *
- * Rent, Apple-inspirert: systemfont, lite fargebruk, myke skygger, luftig.
+ * Oppsettet er lånt fra PowerOffice Go: tette tabeller med mørk
+ * overskriftsrad, understrekede faner og en verktøylinje med handlingene til
+ * venstre og søket til høyre. Et arbeidsverktøy man skal se mye på samtidig.
+ *
+ * Formen og skriften er Apple: San Francisco (Inter der den ikke finnes),
+ * stram bokstavavstand på titler, kapselknapper og myke, runde hjørner.
  * Mockupene i design/ lenker til den samme filen, slik at mockup og app aldri
  * driver fra hverandre.
  */
@@ -26,16 +31,21 @@
   --negative: #b3261e;
   --negative-soft: #fdecea;
 
-  --radius: 12px;
-  --radius-lg: 18px;
+  --radius: 10px;
+  --radius-lg: 12px;
   --radius-sm: 8px;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.03);
-  --shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.06), 0 16px 48px rgba(0, 0, 0, 0.07);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.18);
 
-  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
-    Helvetica, Arial, sans-serif;
+  /* Overskriftsraden i tabellene — mørk, som i Go, men i vår egen tekstfarge. */
+  --table-head: #2c2c2e;
+
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", var(--font-inter, "Inter"),
+    "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+    var(--font-inter, "Inter"), "Segoe UI", Helvetica, Arial, sans-serif;
 
   --sidebar-width: 244px;
 }
@@ -56,6 +66,7 @@ body {
   font-family: var(--font);
   font-size: 14px;
   line-height: 1.55;
+  letter-spacing: -0.006em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -357,16 +368,25 @@ p {
   margin-bottom: 26px;
 }
 
+.page-header h1 {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
 .page-subtitle {
   color: var(--text-secondary);
-  margin-top: 5px;
-  font-size: 14px;
+  margin-top: 4px;
+  font-size: 13px;
 }
 
 /* ----------------------------------------------------------- components -- */
 
 .card {
   background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
   overflow: hidden;
@@ -397,7 +417,7 @@ p {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 8px 16px;
+  padding: 7px 16px;
   border-radius: 980px;
   border: 1px solid transparent;
   background: var(--accent);
@@ -405,13 +425,23 @@ p {
   font: inherit;
   font-weight: 500;
   font-size: 13.5px;
+  letter-spacing: -0.01em;
   cursor: pointer;
   transition: opacity 0.15s ease, background 0.15s ease;
   white-space: nowrap;
 }
 
 .button:hover:not(:disabled) {
-  opacity: 0.88;
+  background: #0077ed;
+}
+
+.button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.35);
 }
 
 .button:disabled {
@@ -420,13 +450,13 @@ p {
 }
 
 .button.secondary {
-  background: var(--surface);
+  background: rgba(0, 0, 0, 0.06);
   color: var(--text);
-  border-color: var(--border-strong);
+  border-color: transparent;
 }
 
 .button.secondary:hover:not(:disabled) {
-  background: var(--surface-sunken);
+  background: rgba(0, 0, 0, 0.1);
   opacity: 1;
 }
 
@@ -558,7 +588,7 @@ p {
   flex-wrap: wrap;
   align-items: center;
   gap: 16px;
-  padding: 15px 24px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--border);
   transition: background 0.12s ease;
 }
@@ -574,7 +604,7 @@ p {
 }
 
 .lead-row:hover {
-  background: var(--surface-sunken);
+  background: var(--accent-soft);
 }
 
 .lead-main {
@@ -773,7 +803,7 @@ p {
   gap: 3px;
   padding: 3px;
   background: rgba(0, 0, 0, 0.05);
-  border-radius: 11px;
+  border-radius: var(--radius);
   max-width: 520px;
 }
 
@@ -782,7 +812,7 @@ p {
   padding: 7px 14px;
   border: none;
   background: transparent;
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   font: inherit;
   font-size: 13.5px;
   font-weight: 500;
@@ -799,15 +829,99 @@ p {
   box-shadow: var(--shadow-sm);
 }
 
-/* Samme bryter, men som en visningsvelger: fanene skal ta plassen de
-   trenger og ikke deles likt over hele bredden. */
+/* Samme bryter brukt som visningsvelger blir faner som i Go: tekst på rad,
+   en blå strek under den aktive, en tynn linje under hele raden. */
 .type-switch.kompakt {
   max-width: none;
+  gap: 28px;
+  padding: 0;
+  background: none;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border-strong);
 }
 
 .type-switch.kompakt .type-option {
   flex: 0 0 auto;
+  padding: 8px 2px;
+  font-size: 14px;
+  margin-bottom: -1px;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
   text-decoration: none;
+  font-weight: 400;
+}
+
+.type-switch.kompakt .type-option:hover {
+  color: var(--text);
+}
+
+.type-switch.kompakt .type-option.active {
+  background: none;
+  box-shadow: none;
+  color: var(--text);
+  font-weight: 600;
+  border-bottom-color: var(--accent);
+}
+
+/* Faner øverst i et kort: den blå streken skal ligge på kortets egen
+   skillelinje, ikke på en linje nummer to rett over den. */
+.card-header:has(> .type-switch.kompakt) {
+  padding-top: 8px;
+  padding-bottom: 0;
+  align-items: flex-end;
+}
+
+.card-header:has(> .type-switch.kompakt) > :not(.type-switch) {
+  padding-bottom: 10px;
+}
+
+.card-header > .type-switch.kompakt {
+  border-bottom: none;
+}
+
+/* Antallet bak fanenavnet: med, men dempet. */
+.fane-tal {
+  margin-left: 6px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Verktøylinja over en liste: handlingene til venstre, filter og søk til
+   høyre. Samme rekkefølge på hver side, så hånda finner fram. */
+.verktoylinje {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 18px 0 12px;
+}
+
+.verktoylinje-hoyre {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.verktoylinje .input {
+  width: 240px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+/* Søkefeltet som i macOS: grå flate, forstørrelsesglass, ingen kant før
+   man klikker i det. */
+.verktoylinje .input[type="search"] {
+  padding-left: 30px;
+  border-color: transparent;
+  background: rgba(0, 0, 0, 0.05)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2386868b' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E")
+    no-repeat 10px center;
+}
+
+.verktoylinje .input[type="search"]:focus {
+  background-color: var(--surface);
+  border-color: var(--accent);
 }
 
 .suggestion-note {
@@ -841,7 +955,7 @@ p {
 .textarea,
 .select {
   width: 100%;
-  padding: 9px 12px;
+  padding: 7px 10px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
@@ -1205,24 +1319,39 @@ p {
   overflow: visible;
 }
 
+/* Popupen kan bo inni en tabellcelle (leads-tabellen). Da skal den ikke arve
+   cellens høyrejustering, nowrap og mindre skrift. */
+.modal {
+  text-align: left;
+  white-space: normal;
+  font-size: 14px;
+  cursor: auto;
+}
+
 .modal::backdrop {
   background: rgba(0, 0, 0, 0.28);
 }
 
 .modal-body {
-  padding: 22px 24px 20px;
+  padding: 18px 20px 18px;
 }
 
+/* Tittellinja: et eget felt over innholdet, som vinduslinja i Go. */
 .modal-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 18px;
+  padding: 10px 12px 10px 20px;
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
 .modal-head h2 {
-  font-size: 17px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .modal-head .button.ghost {
@@ -1448,19 +1577,90 @@ p {
 
 .table th {
   text-align: left;
-  font-size: 11.5px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-tertiary);
-  padding: 12px 24px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface-sunken);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: #fff;
+  padding: 9px 14px;
+  background: var(--table-head);
+  white-space: nowrap;
 }
 
 .table td {
-  padding: 12px 24px;
+  padding: 9px 14px;
   border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+/* Sorterbare kolonner: hele overskrifta er lenka. Pila står alltid på
+   plass, men er bare synlig (og blå) på kolonnen lista er sortert på. */
+.sort-kolonne {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: inherit;
+}
+
+.sort-pil {
+  font-size: 9px;
+  color: #6cb4ff;
+  visibility: hidden;
+}
+
+.sort-kolonne.aktiv .sort-pil {
+  visibility: visible;
+}
+
+.sort-kolonne:hover .sort-pil {
+  visibility: visible;
+  opacity: 0.5;
+}
+
+.sort-kolonne.aktiv:hover .sort-pil {
+  opacity: 1;
+}
+
+/* Rader som åpner noe: blå markering under musa, navnet som lenke. */
+.table.klikkbar tbody tr {
+  cursor: pointer;
+}
+
+.table.klikkbar tbody tr:hover td {
+  background: var(--accent-soft);
+}
+
+/* Emnet i leads-tabellen er en knapp, men skal se ut som lenkene. */
+.table .lenke.knapp {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.table td .button {
+  padding: 3px 12px;
+  font-size: 12.5px;
+}
+
+.table td.handling {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.table .lenke {
+  color: var(--accent);
+}
+
+.table .lenke:hover {
+  text-decoration: underline;
+}
+
+/* Tabellen blir for brei på telefon: den ruller sidelengs i kortet. */
+.tabell-rull {
+  overflow-x: auto;
 }
 
 .table tr:last-child td {
@@ -1470,6 +1670,10 @@ p {
 .table .num,
 .table th.num {
   text-align: right;
+}
+
+.nowrap {
+  white-space: nowrap;
 }
 
 /* Tilstandar */
@@ -2697,9 +2901,13 @@ p {
   color: var(--text);
 }
 .kontakt-fane.aktiv {
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-weight: 600;
+  background: var(--accent);
+  color: #fff;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  font-weight: 500;
+  /* Pila peker mot panelet, som i Go. */
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%);
+  padding-right: 20px;
 }
 .kontakt-fane-tal {
   min-width: 20px;
@@ -2787,27 +2995,6 @@ p {
     grid-template-columns: 1fr;
     gap: 4px;
   }
-}
-.kontakt-filter {
-  display: flex;
-  gap: 4px;
-  padding: 10px 24px;
-  border-bottom: 1px solid var(--border);
-}
-.kontakt-filter-valg {
-  padding: 4px 12px;
-  border-radius: 999px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  text-decoration: none;
-}
-.kontakt-filter-valg:hover {
-  color: inherit;
-}
-.kontakt-filter-valg.aktiv {
-  background: var(--border);
-  color: inherit;
-  font-weight: 500;
 }
 .kontakt-merke {
   font-size: 12px;

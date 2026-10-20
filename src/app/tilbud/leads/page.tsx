@@ -4,15 +4,28 @@ import { AutoRefresh } from "./AutoRefresh";
 import { LeadRow } from "./LeadRow";
 import { ManualLead } from "./ManualLead";
 import { SkjulbartVarsel } from "@/components/SkjulbartVarsel";
+import { SortKolonne } from "@/components/SortKolonne";
+import { lesSortering } from "@/lib/sortering";
 import { currentSession, supabaseServer } from "@/lib/supabase/server";
 import { formatDate, type Lead } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
+const KOLONNER = ["nr", "emne", "avsender", "status", "mottatt"] as const;
+
+/** Kolonnen i databasen. «nr» står på utkastet og sorteres etter henting. */
+const DB_KOLONNE: Record<(typeof KOLONNER)[number], string> = {
+  nr: "received_at",
+  emne: "subject",
+  avsender: "from_name",
+  status: "status",
+  mottatt: "received_at",
+};
+
 export default async function LeadsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ vis?: string }>;
+  searchParams: Promise<{ vis?: string; sort?: string; retning?: string }>;
 }) {
   const session = await currentSession();
   const supabase = await supabaseServer();
@@ -20,7 +33,9 @@ export default async function LeadsPage({
   // Arkivet er sendte tilbud. De hører ikke hjemme i arbeidslisten — jobben
   // er gjort — men de skal være til å finne igjen, saa de faar sin egen
   // visning i stedet for aa forsvinne.
-  const arkiv = (await searchParams).vis === "arkiv";
+  const sp = await searchParams;
+  const arkiv = sp.vis === "arkiv";
+  const sortering = lesSortering(sp, KOLONNER, { kolonne: "mottatt", stigende: false });
 
   const [
     { data: leads },
@@ -36,7 +51,10 @@ export default async function LeadsPage({
       // åpnet igjen etter at det ble sendt.
       .select("*, drafts(revisjon, quote_no)")
       [arkiv ? "eq" : "neq"]("status", "sendt")
-      .order("received_at", { ascending: false, nullsFirst: false })
+      .order(DB_KOLONNE[sortering.kolonne], {
+        ascending: sortering.kolonne === "nr" ? false : sortering.stigende,
+        nullsFirst: false,
+      })
       .limit(100),
     supabase
       .from("mailbox_connections")
@@ -66,6 +84,18 @@ export default async function LeadsPage({
   ]);
 
   const rows = (leads ?? []) as (Lead & { drafts: DraftRevisjon })[];
+  // Tilbudsnummeret står på utkastet, ikke på leadet, så det sorteres her.
+  // Leads uten nummer havner sist uansett retning.
+  if (sortering.kolonne === "nr") {
+    const retning = sortering.stigende ? 1 : -1;
+    rows.sort((a, b) => {
+      const x = tilbudsnrAv(a.drafts);
+      const y = tilbudsnrAv(b.drafts);
+      if (x === null || y === null) return x === y ? 0 : x === null ? 1 : -1;
+      return (x - y) * retning;
+    });
+  }
+  const sortParams = { vis: arkiv ? "arkiv" : undefined };
   const skjulte: string[] = meg?.skjulte_varsel ?? [];
 
   return (
@@ -78,10 +108,6 @@ export default async function LeadsPage({
               ? `Innkommende forespørsler fra ${mailbox.email_address}`
               : "Ingen postkasse tilkoblet ennå"}
           </p>
-        </div>
-        <div className="row">
-          <ManualLead />
-          {mailbox && <LeadActions kind="hent" />}
         </div>
       </div>
 
@@ -108,30 +134,27 @@ export default async function LeadsPage({
         </div>
       )}
 
-      <div className="card">
-        <div className="card-header row-between">
-          <div className="type-switch kompakt">
-            <Link
-              href="/tilbud/leads"
-              className={`type-option${arkiv ? "" : " active"}`}
-            >
-              Arbeidsliste {iArbeid ?? 0}
-            </Link>
-            <Link
-              href="/tilbud/leads?vis=arkiv"
-              className={`type-option${arkiv ? " active" : ""}`}
-            >
-              Arkiv {iArkiv ?? 0}
-            </Link>
-          </div>
-          {lastRun?.finished_at && !arkiv && (
-            <span className="muted tiny">
-              Sist hentet {formatDate(lastRun.finished_at)}
-              {lastRun.status === "feil" && " — feilet"}
-            </span>
-          )}
-        </div>
+      <nav className="type-switch kompakt" aria-label="Vis">
+        <Link href="/tilbud/leads" className={`type-option${arkiv ? "" : " active"}`}>
+          Arbeidsliste<span className="fane-tal">{iArbeid ?? 0}</span>
+        </Link>
+        <Link href="/tilbud/leads?vis=arkiv" className={`type-option${arkiv ? " active" : ""}`}>
+          Arkiv<span className="fane-tal">{iArkiv ?? 0}</span>
+        </Link>
+      </nav>
 
+      <div className="verktoylinje">
+        {mailbox && <LeadActions kind="hent" />}
+        <ManualLead />
+        {lastRun?.finished_at && !arkiv && (
+          <span className="verktoylinje-hoyre muted tiny">
+            Sist hentet {formatDate(lastRun.finished_at)}
+            {lastRun.status === "feil" && " — feilet"}
+          </span>
+        )}
+      </div>
+
+      <div className="card">
         {rows.length === 0 ? (
           <div className="empty">
             <div className="empty-title">
@@ -144,10 +167,45 @@ export default async function LeadsPage({
             </div>
           </div>
         ) : (
-          <div className="lead-list">
-            {rows.map((lead) => (
-              <LeadRow key={lead.id} lead={lead} revisjon={revisjonAv(lead.drafts)} tilbudsnr={tilbudsnrAv(lead.drafts)} />
-            ))}
+          <div className="tabell-rull">
+            <table className="table klikkbar">
+              <thead>
+                <tr>
+                  <SortKolonne kolonne="nr" sortering={sortering} sti="/tilbud/leads" params={sortParams}>
+                    Nr
+                  </SortKolonne>
+                  <SortKolonne kolonne="emne" sortering={sortering} sti="/tilbud/leads" params={sortParams}>
+                    Emne
+                  </SortKolonne>
+                  <SortKolonne kolonne="avsender" sortering={sortering} sti="/tilbud/leads" params={sortParams}>
+                    Avsender
+                  </SortKolonne>
+                  <SortKolonne kolonne="status" sortering={sortering} sti="/tilbud/leads" params={sortParams}>
+                    Status
+                  </SortKolonne>
+                  <SortKolonne
+                    kolonne="mottatt"
+                    sortering={sortering}
+                    sti="/tilbud/leads"
+                    params={sortParams}
+                    className="num"
+                  >
+                    Mottatt
+                  </SortKolonne>
+                  <th aria-label="Handling" />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((lead) => (
+                  <LeadRow
+                    key={lead.id}
+                    lead={lead}
+                    revisjon={revisjonAv(lead.drafts)}
+                    tilbudsnr={tilbudsnrAv(lead.drafts)}
+                  />
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

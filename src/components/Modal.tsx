@@ -46,20 +46,18 @@ export function Modal({
         if (event.target === ref.current) onClose();
       }}
     >
-      <div className="modal-body">
-        <div className="modal-head">
-          <h2>{title}</h2>
-          <button
-            type="button"
-            className="button ghost"
-            onClick={onClose}
-            aria-label="Lukk"
-          >
-            ×
-          </button>
-        </div>
-        {children}
+      <div className="modal-head">
+        <h2>{title}</h2>
+        <button
+          type="button"
+          className="button ghost"
+          onClick={onClose}
+          aria-label="Lukk"
+        >
+          ×
+        </button>
       </div>
+      <div className="modal-body">{children}</div>
     </dialog>
   );
 }

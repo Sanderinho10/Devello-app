@@ -72,40 +72,44 @@ export function LeadRow({
   const sender = parts.join(" · ") || "(ukjent avsender)";
 
   return (
-    <>
-      <div className="lead-row clickable" onClick={() => setOpen(true)}>
-        <div className="lead-main">
+      <tr onClick={() => setOpen(true)}>
+        <td className="ordre-nr">{tilbudsnr ?? ""}</td>
+        <td>
           <button
             type="button"
-            className="lead-subject"
+            className="lenke knapp"
             onClick={(event) => {
               event.stopPropagation();
               setOpen(true);
             }}
           >
-            {tilbudsnr ? <span className="muted">{tilbudsnr} · </span> : null}
             {lead.subject || "(uten emne)"}
           </button>
-          <div className="lead-meta">{sender}</div>
           {lead.generation_error && (
-            <div className="lead-meta" style={{ color: "#c0392b" }}>
+            <div className="tiny" style={{ color: "#c0392b" }}>
               Genereringen stoppet: {lead.generation_error}
             </div>
           )}
-        </div>
-        <span className={`pill ${lead.status}`}>{LEAD_STATUS_LABELS[lead.status]}</span>
-        {revisjon > 1 && (
-          <span
-            className="pill versjon"
-            title={`Versjon ${revisjon} — tilbudet er åpnet igjen etter at det ble sendt`}
-          >
-            v{revisjon}
-          </span>
-        )}
-        <span className="lead-time">{formatDate(lead.received_at)}</span>
+        </td>
+        <td>{sender}</td>
+        <td className="nowrap">
+          <span className={`pill ${lead.status}`}>{LEAD_STATUS_LABELS[lead.status]}</span>
+          {revisjon > 1 && (
+            <span
+              className="pill versjon"
+              style={{ marginLeft: 6 }}
+              title={`Versjon ${revisjon} — tilbudet er åpnet igjen etter at det ble sendt`}
+            >
+              v{revisjon}
+            </span>
+          )}
+        </td>
+        <td className="num muted nowrap">{formatDate(lead.received_at)}</td>
 
-        {/* Handlingene har sin egen mening — de skal ikke åpne popupen. */}
-        <span onClick={(event) => event.stopPropagation()}>
+        {/* Handlingene har sin egen mening — de skal ikke åpne popupen. Popupen
+            bor også her, så klikk inni den ikke bobler opp til raden og åpner
+            den igjen idet den lukkes. */}
+        <td className="handling" onClick={(event) => event.stopPropagation()}>
           {lead.status === "genererer" ? (
             // Ingen knapp mens agenten holder på: to samtidige genereringer på
             // samme lead ville bare overskrevet hverandre.
@@ -117,8 +121,6 @@ export function LeadRow({
               Åpne
             </Link>
           )}
-        </span>
-      </div>
 
       <Modal
         open={open}
@@ -161,6 +163,7 @@ export function LeadRow({
           )}
         </div>
       </Modal>
-    </>
+        </td>
+      </tr>
   );
 }
