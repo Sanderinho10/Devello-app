@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useRadDra } from "./useRadDra";
 
 /**
  * Forutsetningene som en punktliste, slik de står i tilbudet.
@@ -13,6 +14,9 @@ import { useEffect, useRef } from "react";
  * under, Backspace i et tomt punkt fjerner det og går til punktet over.
  * Tomme punkter tas ut når PDF-en lages, så et halvskrevet punkt aldri blir
  * en tom kule i tilbudet.
+ *
+ * Rekkefølgen endres ved å dra i håndtaket, som postene, eller med
+ * piltastene på håndtaket.
  */
 export function Forutsetninger({
   punkter,
@@ -48,6 +52,16 @@ export function Forutsetninger({
     onChange(neste);
   }
 
+  function flytt(fra: number, til: number) {
+    if (fra === til) return;
+    const neste = [...punkter];
+    const [p] = neste.splice(fra, 1);
+    neste.splice(til, 0, p);
+    onChange(neste);
+  }
+
+  const dra = useRadDra((_gruppe, fra, til) => flytt(fra, til));
+
   function fjern(indeks: number, flyttFokus: boolean) {
     if (flyttFokus) fokus.current = Math.max(0, indeks - 1);
     onChange(punkter.filter((_, i) => i !== indeks));
@@ -61,9 +75,36 @@ export function Forutsetninger({
         </p>
       )}
 
-      <ul>
+      <ul className={dra.drar !== null ? "drar" : undefined}>
         {punkter.map((punkt, indeks) => (
-          <li key={indeks} className="punkt-rad">
+          <li key={indeks} {...dra.rad(0, indeks, "punkt-rad")}>
+            {punkter.length > 1 && (
+              <span
+                className="grip punkt-grip"
+                role="button"
+                tabIndex={0}
+                aria-label={`Flytt forutsetning ${indeks + 1} av ${punkter.length}`}
+                title="Dra for å flytte, eller bruk piltastene"
+                onPointerDown={(event) => {
+                  // En låst (sendt) liste har skrudd av feltene; håndtaket følger dem.
+                  if (!(event.currentTarget as HTMLElement).closest("fieldset:disabled")) {
+                    dra.start(event, 0, indeks);
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowUp" && indeks > 0) {
+                    event.preventDefault();
+                    flytt(indeks, indeks - 1);
+                  }
+                  if (event.key === "ArrowDown" && indeks < punkter.length - 1) {
+                    event.preventDefault();
+                    flytt(indeks, indeks + 1);
+                  }
+                }}
+              >
+                ⠿
+              </span>
+            )}
             <textarea
               ref={(el) => {
                 felt.current[indeks] = el;

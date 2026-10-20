@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { Modal } from "@/components/Modal";
 import { kategoriForSeksjon, kategorierAv, prefiksAv } from "@/lib/pricelist/koder";
 import {
   KodeVelger,
@@ -26,6 +27,10 @@ import { PRICE_KIND_LABELS, type PriceItemKind, type PriceListItem, type QuoteLi
  * er elbillader), og prisfilen er sortert etter dem. Derfor foreslår vi
  * kategorien ut fra seksjonen og neste ledige kode i den, og man kan skrive
  * koden selv — «el040» velger kategorien EL.
+ *
+ * Skjemaet er en popup som i Go, med etiketten foran feltene. Posten gjelder
+ * bare tilbudet til man krysser av for prisfilen — da blir kategori, kode og
+ * beskrivelse, som står grået ut under, til å fylle ut.
  */
 export function NyPost({
   kind,
@@ -149,43 +154,28 @@ export function NyPost({
     }
   }
 
-  // Enter legger til, som i søket over. Escape lukker.
+  // Enter legger til, som i søket bak. Escape lukker popupen av seg selv.
   function onKeyDown(event: React.KeyboardEvent) {
     // Bare i tekstfeltene: Enter på en knapp skal trykke på den knappen.
     if (event.key === "Enter" && event.target instanceof HTMLInputElement) {
       event.preventDefault();
       void leggTil();
     }
-    if (event.key === "Escape") onAvbryt();
+  }
+
+  function lukk() {
+    if (!lagrer) onAvbryt();
   }
 
   return (
-    <div className="ny-post" onKeyDown={onKeyDown}>
-      <div className="type-switch ny-post-valg">
-        <button
-          type="button"
-          className={`type-option${!lagre ? " active" : ""}`}
-          onClick={() => setLagre(false)}
-        >
-          Bare dette tilbudet
-        </button>
-        <button
-          type="button"
-          className={`type-option${lagre ? " active" : ""}`}
-          onClick={() => setLagre(true)}
-        >
-          Lagre i prisfilen
-        </button>
-      </div>
-      <span className="hint" style={{ marginTop: 0 }}>
-        {lagre
-          ? "Posten legges i prisfilen under kategorien sin. Neste gang finner du den i søket, og agenten kan bruke den."
-          : "Posten gjelder bare her. Prisfilen blir som den er."}
-      </span>
-
-      <div className="ny-post-rad">
-        <label className="field" style={{ flex: 3 }}>
-          <span className="label">Navn</span>
+    <Modal
+      open
+      onClose={lukk}
+      title={seksjonstittel.trim() ? `Ny post i «${seksjonstittel.trim()}»` : "Ny post"}
+    >
+      <div className="kontakt-panel ny-post-panel" onKeyDown={onKeyDown}>
+        <label className="kontakt-rad">
+          <span className="kontakt-rad-etikett">Navn</span>
           <input
             className="input"
             value={navn}
@@ -194,58 +184,76 @@ export function NyPost({
             placeholder="Punkt for håndklevarmer"
           />
         </label>
-        <label className="field" style={{ flex: 1 }}>
-          <span className="label">Enhet</span>
-          <input className="input" value={enhet} onChange={(e) => setEnhet(e.target.value)} />
+        <label className="kontakt-rad">
+          <span className="kontakt-rad-etikett">Enhet</span>
+          <span className="kort-felt">
+            <input className="input" value={enhet} onChange={(e) => setEnhet(e.target.value)} />
+          </span>
         </label>
-        <label className="field" style={{ flex: 1.3 }}>
-          <span className="label">Pris eks. mva</span>
-          <input
-            className="input num"
-            inputMode="decimal"
-            value={pris}
-            onChange={(e) => setPris(e.target.value)}
-            placeholder="0"
-          />
+        <label className="kontakt-rad">
+          <span className="kontakt-rad-etikett">Pris eks. mva</span>
+          <span className="kort-felt">
+            <input
+              className="input num"
+              inputMode="decimal"
+              value={pris}
+              onChange={(e) => setPris(e.target.value)}
+              placeholder="0"
+            />
+          </span>
         </label>
-      </div>
 
-      {lagre && !liste && (
-        <p className="hint krav">
-          Det finnes ingen aktiv {PRICE_KIND_LABELS[kind].toLowerCase()} å lagre i.{" "}
-          <Link href="/selskap/innstillinger/prisfil" style={{ textDecoration: "underline" }}>
-            Legg den inn under Prisfil
-          </Link>
-          , eller legg posten til bare i dette tilbudet.
-        </p>
-      )}
+        {/* Som i Go: avkryssingen står over feltene den styrer, og feltene
+            vises hele tiden, men er grået ut til man krysser av. Da ser man
+            hva lagringen innebærer før man velger den. */}
+        <div className="kontakt-skilje">Prisfilen</div>
+        <div className="kontakt-rad">
+          <span />
+          <label className="ny-post-lagre">
+            <input type="checkbox" checked={lagre} onChange={(e) => setLagre(e.target.checked)} />
+            <span>
+              Lagre i prisfilen
+              <span className="hint">
+                Da finner du den i søket neste gang, og agenten kan bruke den.
+              </span>
+            </span>
+          </label>
+        </div>
 
-      {lagre && liste && (
-        <>
-          <KodeVelger rader={rader} verdi={kodevalg} onChange={setKodevalg} paakrevd />
+        {lagre && !liste && (
+          <p className="hint krav">
+            Det finnes ingen aktiv {PRICE_KIND_LABELS[kind].toLowerCase()} å lagre i.{" "}
+            <Link href="/selskap/innstillinger/prisfil" style={{ textDecoration: "underline" }}>
+              Legg den inn under Prisfil
+            </Link>
+            , eller legg posten til bare i dette tilbudet.
+          </p>
+        )}
 
-          <label className="field" style={{ marginTop: 10 }}>
-            <span className="label">Beskrivelse (valgfritt)</span>
+        <fieldset className="ny-post-prisfil" disabled={!lagre || !liste}>
+          <KodeVelger rader={rader} verdi={kodevalg} onChange={setKodevalg} paakrevd etikettVenstre />
+          <label className="kontakt-rad">
+            <span className="kontakt-rad-etikett">Beskrivelse</span>
             <input
               className="input"
               value={beskrivelse}
               onChange={(e) => setBeskrivelse(e.target.value)}
-              placeholder="Hva som er med i prisen"
+              placeholder="Hva som er med i prisen (valgfritt)"
             />
           </label>
-        </>
-      )}
+        </fieldset>
+      </div>
 
-      {feil && <div className="banner error" style={{ marginTop: 10 }}>{feil}</div>}
+      {feil && <div className="banner error" style={{ marginTop: 12, marginBottom: 0 }}>{feil}</div>}
 
-      <div className="ny-post-knapper">
-        <button type="button" className="button ghost" onClick={onAvbryt} disabled={lagrer}>
+      <div className="modal-actions">
+        <button type="button" className="button secondary" onClick={lukk} disabled={lagrer}>
           Avbryt
         </button>
         <button type="button" className="button" onClick={leggTil} disabled={lagrer}>
           {lagrer ? "Lagrer…" : lagre ? "Lagre og legg til" : "Legg til"}
         </button>
       </div>
-    </div>
+    </Modal>
   );
 }

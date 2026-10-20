@@ -1133,7 +1133,7 @@ p {
   vertical-align: middle;
 }
 
-.doc-table tbody tr:hover td {
+.doc-table:not(.drar) tbody tr:hover td {
   background: var(--bg);
 }
 
@@ -1231,9 +1231,118 @@ p {
   color: var(--accent);
 }
 
-/* Viser hver raden blir sleppt */
-.doc-table tr.drag-over td {
-  box-shadow: inset 0 2px 0 var(--accent);
+/* Mens en rad dras: raden løftes med skygge og følger musa, de andre glir
+   unna med en kort, myk bevegelse. Ved slipp glir den løftede på plass. */
+.grip {
+  touch-action: none;
+}
+
+.doc-table tbody tr {
+  position: relative;
+}
+
+.doc-table.drar tbody tr:not(.loftet) {
+  transition: transform 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.doc-table tr.loftet {
+  z-index: 2;
+  background: var(--surface);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14), 0 0 0 1px var(--border);
+}
+
+.doc-table tr.loftet td {
+  background: var(--surface);
+  border-bottom-color: transparent;
+}
+
+.doc-table tr.loftet .cell-input {
+  border-color: transparent;
+}
+
+.doc-table tr.loftet .grip {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text);
+}
+
+.doc-table tr.loftet.setter {
+  transition: transform 160ms cubic-bezier(0.2, 0, 0, 1), box-shadow 160ms ease;
+  box-shadow: 0 0 0 1px transparent;
+}
+
+/* Samme løft for forutsetninger og hele seksjoner. */
+.drar > [data-dra-rad]:not(.loftet) {
+  transition: transform 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+[data-dra-rad].loftet:not(tr) {
+  position: relative;
+  z-index: 3;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  /* Den hvite ringen gir luft rundt innholdet uten å flytte det. */
+  box-shadow: 0 0 0 6px var(--surface), 0 0 0 7px var(--border), 0 14px 34px rgba(0, 0, 0, 0.16);
+}
+
+[data-dra-rad].loftet.setter:not(tr) {
+  transition: transform 160ms cubic-bezier(0.2, 0, 0, 1), box-shadow 160ms ease;
+  box-shadow: 0 0 0 6px transparent, 0 0 0 7px transparent, 0 0 0 transparent;
+}
+
+/* Bare håndtaket man drar i — ikke håndtakene på postene inni en seksjon. */
+[data-dra-rad].loftet > .grip,
+[data-dra-rad].loftet > .seksjon-topp > .grip {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text);
+}
+
+[data-dra-rad].loftet .punkt-felt,
+[data-dra-rad].loftet .seksjon-tittel {
+  border-color: transparent;
+}
+
+/* Seksjonene i utkastet. Avstanden står her og ikke inline, så
+   forskyvningen mens man drar kan bruke style-attributtet. */
+.seksjon {
+  margin-bottom: 16px;
+}
+
+/* Håndtaket på en forutsetning ligger i margen til venstre og kommer fram
+   når man er innom punktet, så lista leser som lista kunden får. */
+.punkt-grip {
+  position: absolute;
+  left: -20px;
+  top: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.punkt-rad:hover .punkt-grip,
+.punkt-grip:focus-visible,
+.loftet .punkt-grip {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .punkt-grip {
+    opacity: 1;
+  }
+}
+
+/* Ingen tekstmarkering og «gripende» peker over hele siden mens man drar. */
+body.drar-rad,
+body.drar-rad * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .doc-table.drar tbody tr:not(.loftet),
+  .doc-table tr.loftet.setter,
+  .drar > [data-dra-rad]:not(.loftet),
+  [data-dra-rad].loftet.setter:not(tr) {
+    transition: none;
+  }
 }
 
 .add-line {
@@ -1601,17 +1710,56 @@ p {
 }
 
 /* Skjemaet for en post som ikke finnes i prisfilen. */
-.ny-post {
-  margin-top: 10px;
-  padding: 14px;
-  max-width: 620px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-sunken);
+/* «Ny post»-popupen: samme felt som kontaktkortet, men panelet trenger ikke
+   kontaktkortets høyde. */
+.kontakt-panel.ny-post-panel {
+  min-height: 0;
 }
 
-.ny-post-valg {
-  margin-bottom: 6px;
+/* Feltene for prisfilen er grået ut til man krysser av for dem. */
+.ny-post-prisfil {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-inline-size: 0;
+  transition: opacity 0.15s ease;
+}
+
+.ny-post-prisfil:disabled {
+  opacity: 0.5;
+}
+
+.ny-post-prisfil:disabled .input {
+  background: var(--surface-sunken);
+  cursor: not-allowed;
+}
+
+.ny-post-lagre {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 4px;
+  cursor: pointer;
+}
+
+.ny-post-lagre input {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.ny-post-lagre .hint {
+  display: block;
+  margin-top: 1px;
+}
+
+/* Korte verdier (enhet, pris, kode) får et kort felt, så det ser ut som det
+   de er og ikke som et sted å skrive en setning. */
+.kort-felt {
+  display: block;
+  max-width: 160px;
 }
 
 .ny-post-rad {
@@ -2386,8 +2534,9 @@ p {
 }
 
 /* Dra-håndtakene er ikke skjemafelt, saa de maa slaas av for seg. */
-.editor-felt:disabled [draggable="true"] {
+.editor-felt:disabled .grip {
   pointer-events: none;
+  opacity: 0.4;
 }
 
 /* Seksjonsoverskriften i utkastet.
