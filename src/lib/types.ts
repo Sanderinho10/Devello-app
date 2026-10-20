@@ -479,8 +479,8 @@ export interface Order {
 }
 
 /**
- * En kunde i registeret. Én rad per kunde per selskap; leads og ordrer peker
- * hit via customer_id. Opprettes automatisk første gang et tilbud eller en
+ * En kontakt i kontaktregisteret — kunde, leverandør eller begge. Én rad per
+ * kontakt per selskap; leads og ordrer peker hit via customer_id. Opprettes automatisk første gang et tilbud eller en
  * ordre har et navn eller en e-post vi ikke har sett før (lib/kunder/koble.ts).
  */
 export interface Customer {
@@ -490,9 +490,35 @@ export interface Customer {
   contact: string | null;
   email: string | null;
   phone: string | null;
+  website: string | null;
+  /** Firma eller privatperson. */
+  is_person: boolean;
+  /** Hovedadressen. Fakturaadresse og oppdragsadresse: se lib/kunder/adresse.ts. */
   address: string | null;
+  address2: string | null;
+  postal_code: string | null;
+  city: string | null;
+  country: string;
+  invoice_separate: boolean;
+  invoice_address: string | null;
+  invoice_address2: string | null;
+  invoice_postal_code: string | null;
+  invoice_city: string | null;
+  invoice_country: string | null;
+  site_separate: boolean;
+  site_address: string | null;
+  site_address2: string | null;
+  site_postal_code: string | null;
+  site_city: string | null;
   org_nr: string | null;
   notes: string | null;
+  /** Kontakten er en kunde. Settes av seg selv når kontakten kobles til et tilbud eller en ordre. */
+  is_customer: boolean;
+  /** Kontakten er en leverandør. */
+  is_supplier: boolean;
+  /** Kundenummeret i PowerOffice Go, lagret etter første overføring. Gjelder bare for koblingen under. */
+  accounting_customer_no: string | null;
+  accounting_connection_id: string | null;
   created_at: string;
   updated_at: string;
 }

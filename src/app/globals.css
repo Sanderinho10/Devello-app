@@ -2643,7 +2643,180 @@ p {
   }
 }
 
-/* Kunderegisteret */
+/* Kontaktregisteret */
+.kontakt-type-valg {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.kontakt-type-valg input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+}
+.kontakt-go {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  font-size: 14px;
+}
+.kontakt-skjema {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+.kontakt-faner {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.kontakt-fane {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+.kontakt-fane:hover {
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+.kontakt-fane.aktiv {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.kontakt-fane-tal {
+  min-width: 20px;
+  padding: 0 6px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 12px;
+  text-align: center;
+}
+.kontakt-panel {
+  min-width: 0;
+  min-height: 420px;
+  padding: 16px 20px;
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+}
+.kontakt-rad {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+.kontakt-rad-etikett {
+  color: var(--text-secondary);
+}
+.kontakt-valg {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+.kontakt-poststed {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 8px;
+}
+.kontakt-skilje {
+  margin: 18px 0 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+}
+.kontakt-adresse + .kontakt-adresse {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.kontakt-adresse-hode {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.kontakt-adresse-hode h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.kontakt-adresse-forklaring {
+  margin: 4px 0 12px;
+  font-size: 13px;
+}
+.kontakt-panel .input:disabled {
+  background: var(--surface-sunken);
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+@media (max-width: 700px) {
+  .kontakt-skjema {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .kontakt-faner {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+  .kontakt-panel {
+    min-height: 0;
+    padding: 12px;
+  }
+  .kontakt-rad {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+.kontakt-filter {
+  display: flex;
+  gap: 4px;
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--border);
+}
+.kontakt-filter-valg {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+.kontakt-filter-valg:hover {
+  color: inherit;
+}
+.kontakt-filter-valg.aktiv {
+  background: var(--border);
+  color: inherit;
+  font-weight: 500;
+}
+.kontakt-merke {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.kontakt-merke.leverandor {
+  font-weight: 500;
+}
 .kunde-tall {
   font-size: 13px;
   white-space: nowrap;

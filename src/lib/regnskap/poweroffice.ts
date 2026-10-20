@@ -423,7 +423,7 @@ export interface PogoKundePost {
   EmailAddress?: string;
   InvoiceEmailAddress?: string;
   PhoneNumber?: string;
-  MailAddress?: { AddressLine1?: string; ZipCode?: string; City?: string; CountryCode?: string };
+  MailAddress?: { AddressLine1?: string; AddressLine2?: string; ZipCode?: string; City?: string; CountryCode?: string };
 }
 
 export interface PogoProdukt {

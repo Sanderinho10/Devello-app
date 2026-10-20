@@ -10,11 +10,11 @@ import { harModul } from "@/lib/moduler";
 /**
  * Navigasjon etter hvor ofte man er der.
  *
- * Øverst står det daglige: Tilbud (leads og kunder) og Ordre (ordrer og
+ * Øverst står det daglige: Tilbud (leads og kontakter) og Ordre (ordrer og
  * leverandørfakturaer). Det er arbeidslisten, og den skal være kort nok
- * til at alt får plass uten å lete. Kunderegisteret bor på /kunder og
- * brukes av begge agentene, men det er i tilbudsarbeidet man slår opp i
- * det — så det står som fane under Tilbud.
+ * til at alt får plass uten å lete. Kontaktregisteret (kunder og
+ * leverandører) bor på /kontakter og brukes av begge agentene, men det er
+ * i tilbudsarbeidet man slår opp i det — så det står som fane under Tilbud.
  *
  * Under skillelinjen ligger Selskap: det som settes opp én gang eller
  * justeres sjelden — abonnement, medlemmer og innstillinger. Innstillinger
@@ -49,7 +49,7 @@ const TILBUD: NavSection = {
   basePath: "/tilbud",
   tabs: [
     { label: "Leads", href: "/tilbud/leads" },
-    { label: "Kunder", href: "/kunder" },
+    { label: "Kontakter", href: "/kontakter" },
   ],
 };
 
