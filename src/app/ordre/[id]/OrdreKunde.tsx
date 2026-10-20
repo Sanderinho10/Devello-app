@@ -14,7 +14,7 @@ const FELT: { navn: keyof Kundefelt; etikett: string; type?: string }[] = [
   { navn: "customer_contact", etikett: "Kontaktperson" },
   { navn: "customer_email", etikett: "E-post", type: "email" },
   { navn: "customer_phone", etikett: "Telefon" },
-  { navn: "site_address", etikett: "Adresse der jobben gjøres" },
+  { navn: "site_address", etikett: "Jobbadresse" },
 ];
 
 /**
@@ -58,8 +58,8 @@ export function OrdreKunde({ orderId, kunde }: { orderId: string; kunde: Kundefe
   }
 
   return (
-    <div className="card card-pad">
-      <div className="row-between" style={{ marginBottom: 12 }}>
+    <div className="card card-pad ordre-kunde">
+      <div className="row-between" style={{ marginBottom: 10, minHeight: 30 }}>
         <span className="label" style={{ marginBottom: 0 }}>
           Kunde
         </span>
@@ -70,23 +70,18 @@ export function OrdreKunde({ orderId, kunde }: { orderId: string; kunde: Kundefe
         )}
       </div>
       {error && <div className="banner error">{error}</div>}
-      <div className="grid-2">
-        {FELT.map((f) => (
-          <label
-            key={f.navn}
-            className="field"
-            style={f.navn === "site_address" ? { gridColumn: "1 / -1", marginBottom: 0 } : undefined}
-          >
-            <span className="label">{f.etikett}</span>
-            <input
-              className="input"
-              type={f.type ?? "text"}
-              value={verdier[f.navn]}
-              onChange={(e) => setVerdier((v) => ({ ...v, [f.navn]: e.target.value }))}
-            />
-          </label>
-        ))}
-      </div>
+      {/* Etiketten foran feltet, som i Go. */}
+      {FELT.map((f) => (
+        <label key={f.navn} className="kontakt-rad">
+          <span className="kontakt-rad-etikett">{f.etikett}</span>
+          <input
+            className="input"
+            type={f.type ?? "text"}
+            value={verdier[f.navn]}
+            onChange={(e) => setVerdier((v) => ({ ...v, [f.navn]: e.target.value }))}
+          />
+        </label>
+      ))}
     </div>
   );
 }
