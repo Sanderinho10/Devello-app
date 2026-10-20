@@ -3,7 +3,7 @@ import { errorResponse, sessionOr401 } from "@/lib/api";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import type { Customer } from "@/lib/types";
 import { lesKontakt } from "@/lib/kunder/felt";
-import { adresseTekst, oppdragsadresse } from "@/lib/kunder/adresse";
+import { adresseTekst, hovedadresse } from "@/lib/kunder/adresse";
 
 /**
  * Søk i kontaktregisteret, til forslagene i kundefeltene i skjemaene. Treff
@@ -34,16 +34,15 @@ export async function GET(request: NextRequest) {
       .order("name")
       .limit(8);
     if (error) throw new Error(error.message);
-    // Skjemaene fyller ut stedet for jobben med «address»: det er
-    // oppdragsadressen, som er hovedadressen når det ikke er krysset av for
-    // en egen.
+    // «address» er kundens hovedadresse. Hvor en jobb gjøres hører til
+    // ordren, ikke kunden — skjemaene har en egen avkryssing for det.
     const kunder = ((data ?? []) as Customer[]).map((k) => ({
       id: k.id,
       name: k.name,
       contact: k.contact,
       email: k.email,
       phone: k.phone,
-      address: adresseTekst(oppdragsadresse(k)) || null,
+      address: adresseTekst(hovedadresse(k)) || null,
       is_customer: k.is_customer,
       is_supplier: k.is_supplier,
     }));

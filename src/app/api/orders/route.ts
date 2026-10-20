@@ -57,6 +57,11 @@ export async function POST(request: NextRequest) {
       customer_email?: string;
       customer_phone?: string;
       site_address?: string;
+      /**
+       * Kundens egen adresse. Er oppdraget et annet sted, er site_address
+       * oppdragsadressen og denne kundens adresse; ellers er de like.
+       */
+      customer_address?: string;
       /** Valgt fra kunderegisteret i skjemaet. Må tilhøre selskapet. */
       customer_id?: string;
     };
@@ -160,7 +165,8 @@ export async function POST(request: NextRequest) {
         email: felt.customer_email,
         phone: felt.customer_phone,
         contact: felt.customer_contact,
-        address: felt.site_address,
+        // En ny kunde får sin egen adresse, ikke stedet for denne ene jobben.
+        address: tekst(body.customer_address) || felt.site_address,
       }));
 
     const { data: order, error: insertFeil } = await admin

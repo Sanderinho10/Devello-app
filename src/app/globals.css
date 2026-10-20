@@ -1716,6 +1716,34 @@ body.drar-rad * {
   min-height: 0;
 }
 
+/* Tilbud i søkelista: nummer og tittel som én linje, kunde og status under. */
+.tilbud-valg {
+  grid-template-columns: 1fr;
+}
+
+.tilbud-valg .picker-name {
+  display: block;
+}
+
+/* Valgt tilbud i «Ny ordre»: vist som en linje med «Fjern». */
+.valgt-tilbud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 34px;
+  padding: 4px 4px 4px 12px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  font-size: 13.5px;
+}
+
+/* Grå inni grå skal ikke bli dobbelt så blek. */
+.ny-post-prisfil:disabled .ny-post-prisfil:disabled {
+  opacity: 1;
+}
+
 /* Feltene for prisfilen er grået ut til man krysser av for dem. */
 .ny-post-prisfil {
   border: 0;

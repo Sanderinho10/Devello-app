@@ -82,9 +82,9 @@ const LAND = ["Norge", "Sverige", "Danmark", "Finland", "Island", "Tyskland", "P
  * høyre. Samme skjema i «Ny kontakt» og på kontaktsiden.
  *
  * Kontakt-fanen har det man trenger hver gang, med hovedadressen. Under
- * Adresser ligger fakturaadresse og oppdragsadresse; de kan bare skrives i
- * når de er krysset av som egne, og viser ellers hovedadressen — det er den
- * som gjelder da.
+ * Adresser ligger fakturaadressen; den kan bare skrives i når den er krysset
+ * av som egen, og viser ellers hovedadressen — det er den som gjelder da.
+ * Hvor en jobb gjøres står på ordren, ikke på kunden.
  */
 export function KontaktFelt({
   verdier,
@@ -261,45 +261,6 @@ export function KontaktFelt({
                   invoice_postal_code: a.postnr,
                   invoice_city: a.sted,
                   invoice_country: a.land ?? verdier.invoice_country,
-                })
-              }
-            />
-            <EgenAdresse
-              tittel="Oppdragsadresse"
-              avkryssing="Egen oppdragsadresse"
-              forklaring="Der jobben vanligvis gjøres — hytta, utleieboligen. Foreslås på nye ordrer for kontakten."
-              egen={verdier.site_separate}
-              verdier={
-                verdier.site_separate
-                  ? {
-                      linje1: verdier.site_address,
-                      linje2: verdier.site_address2,
-                      postnr: verdier.site_postal_code,
-                      sted: verdier.site_city,
-                    }
-                  : hoved(verdier)
-              }
-              onEgen={(egen) =>
-                onChange({
-                  ...verdier,
-                  site_separate: egen,
-                  ...(egen && !verdier.site_address && !verdier.site_city
-                    ? {
-                        site_address: verdier.address,
-                        site_address2: verdier.address2,
-                        site_postal_code: verdier.postal_code,
-                        site_city: verdier.city,
-                      }
-                    : {}),
-                })
-              }
-              onChange={(a) =>
-                onChange({
-                  ...verdier,
-                  site_address: a.linje1,
-                  site_address2: a.linje2,
-                  site_postal_code: a.postnr,
-                  site_city: a.sted,
                 })
               }
             />

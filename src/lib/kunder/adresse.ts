@@ -3,10 +3,11 @@ import type { Customer } from "@/lib/types";
 /**
  * Adressene på en kontakt.
  *
- * Hovedadressen står alltid. Fakturaadresse og oppdragsadresse gjelder bare
- * når de er krysset av som egne; ellers er de lik hovedadressen. Alle som
- * trenger «adressen vi fakturerer til» eller «der jobben er» skal gå via
- * funksjonene her, så regelen bor ett sted.
+ * Hovedadressen står alltid. Fakturaadressen gjelder bare når den er
+ * krysset av som egen; ellers er den lik hovedadressen. Alle som trenger
+ * «adressen vi fakturerer til» skal gå via funksjonene her, så regelen bor
+ * ett sted. Hvor en jobb gjøres står på ordren (site_address), ikke på
+ * kunden — de gamle site_*-kolonnene på kunden leses ikke lenger.
  */
 export interface Adresse {
   linje1: string;
@@ -29,11 +30,6 @@ type AdresseFelt = Pick<
   | "invoice_postal_code"
   | "invoice_city"
   | "invoice_country"
-  | "site_separate"
-  | "site_address"
-  | "site_address2"
-  | "site_postal_code"
-  | "site_city"
 >;
 
 export function hovedadresse(k: Partial<AdresseFelt>): Adresse {
@@ -54,17 +50,6 @@ export function fakturaadresse(k: Partial<AdresseFelt>): Adresse {
     postnr: k.invoice_postal_code ?? "",
     sted: k.invoice_city ?? "",
     land: k.invoice_country || k.country || "Norge",
-  };
-}
-
-export function oppdragsadresse(k: Partial<AdresseFelt>): Adresse {
-  if (!k.site_separate) return hovedadresse(k);
-  return {
-    linje1: k.site_address ?? "",
-    linje2: k.site_address2 ?? "",
-    postnr: k.site_postal_code ?? "",
-    sted: k.site_city ?? "",
-    land: k.country || "Norge",
   };
 }
 
