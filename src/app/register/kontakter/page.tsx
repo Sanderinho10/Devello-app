@@ -3,9 +3,8 @@ import { NyKontakt } from "./NyKontakt";
 import { KlikkbarRad } from "@/components/KlikkbarRad";
 import { SortKolonne } from "@/components/SortKolonne";
 import { lesSortering } from "@/lib/sortering";
-import { kontakttypeTekst } from "./KontaktFelt";
 import { supabaseServer } from "@/lib/supabase/server";
-import { lesKontaktFilter, type KontaktFilter } from "@/lib/kunder/felt";
+import { kontakttypeTekst, lesKontaktFilter, type KontaktFilter } from "@/lib/kunder/felt";
 import { formatDate, type Customer } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
