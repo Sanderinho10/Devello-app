@@ -1601,14 +1601,31 @@ p {
 }
 
 /* Skjemaet for en post som ikke finnes i prisfilen. */
-/* «Ny post»-popupen: samme sidefaner og felt som kontaktkortet, men panelet
-   trenger ikke kontaktkortets høyde. */
+/* «Ny post»-popupen: samme felt som kontaktkortet, men panelet trenger ikke
+   kontaktkortets høyde. */
 .kontakt-panel.ny-post-panel {
   min-height: 0;
 }
 
-.ny-post-forklaring {
-  margin: 0 0 12px;
+.ny-post-lagre {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 4px;
+  cursor: pointer;
+}
+
+.ny-post-lagre input {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.ny-post-lagre .hint {
+  display: block;
+  margin-top: 1px;
 }
 
 /* Korte verdier (enhet, pris, kode) får et kort felt, så det ser ut som det
