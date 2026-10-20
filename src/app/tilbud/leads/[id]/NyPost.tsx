@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { Modal } from "@/components/Modal";
 import { kategoriForSeksjon, kategorierAv, prefiksAv } from "@/lib/pricelist/koder";
 import {
   KodeVelger,
@@ -26,6 +27,9 @@ import { PRICE_KIND_LABELS, type PriceItemKind, type PriceListItem, type QuoteLi
  * er elbillader), og prisfilen er sortert etter dem. Derfor foreslår vi
  * kategorien ut fra seksjonen og neste ledige kode i den, og man kan skrive
  * koden selv — «el040» velger kategorien EL.
+ *
+ * Skjemaet er en popup som i Go: valget mellom de to til venstre, feltene med
+ * etiketten foran til høyre. Utkastet bak blir stående som det var.
  */
 export function NyPost({
   kind,
@@ -149,103 +153,120 @@ export function NyPost({
     }
   }
 
-  // Enter legger til, som i søket over. Escape lukker.
+  // Enter legger til, som i søket bak. Escape lukker popupen av seg selv.
   function onKeyDown(event: React.KeyboardEvent) {
     // Bare i tekstfeltene: Enter på en knapp skal trykke på den knappen.
     if (event.key === "Enter" && event.target instanceof HTMLInputElement) {
       event.preventDefault();
       void leggTil();
     }
-    if (event.key === "Escape") onAvbryt();
+  }
+
+  function lukk() {
+    if (!lagrer) onAvbryt();
   }
 
   return (
-    <div className="ny-post" onKeyDown={onKeyDown}>
-      <div className="type-switch ny-post-valg">
-        <button
-          type="button"
-          className={`type-option${!lagre ? " active" : ""}`}
-          onClick={() => setLagre(false)}
-        >
-          Bare dette tilbudet
-        </button>
-        <button
-          type="button"
-          className={`type-option${lagre ? " active" : ""}`}
-          onClick={() => setLagre(true)}
-        >
-          Lagre i prisfilen
-        </button>
-      </div>
-      <span className="hint" style={{ marginTop: 0 }}>
-        {lagre
-          ? "Posten legges i prisfilen under kategorien sin. Neste gang finner du den i søket, og agenten kan bruke den."
-          : "Posten gjelder bare her. Prisfilen blir som den er."}
-      </span>
+    <Modal
+      open
+      onClose={lukk}
+      size="wide"
+      title={seksjonstittel.trim() ? `Ny post i «${seksjonstittel.trim()}»` : "Ny post"}
+    >
+      <div className="kontakt-skjema" onKeyDown={onKeyDown}>
+        <nav className="kontakt-faner" aria-label="Hvor posten skal ligge">
+          <button
+            type="button"
+            className={`kontakt-fane${!lagre ? " aktiv" : ""}`}
+            aria-pressed={!lagre}
+            onClick={() => setLagre(false)}
+          >
+            Bare dette tilbudet
+          </button>
+          <button
+            type="button"
+            className={`kontakt-fane${lagre ? " aktiv" : ""}`}
+            aria-pressed={lagre}
+            onClick={() => setLagre(true)}
+          >
+            Lagre i prisfilen
+          </button>
+        </nav>
 
-      <div className="ny-post-rad">
-        <label className="field" style={{ flex: 3 }}>
-          <span className="label">Navn</span>
-          <input
-            className="input"
-            value={navn}
-            autoFocus
-            onChange={(e) => setNavn(e.target.value)}
-            placeholder="Punkt for håndklevarmer"
-          />
-        </label>
-        <label className="field" style={{ flex: 1 }}>
-          <span className="label">Enhet</span>
-          <input className="input" value={enhet} onChange={(e) => setEnhet(e.target.value)} />
-        </label>
-        <label className="field" style={{ flex: 1.3 }}>
-          <span className="label">Pris eks. mva</span>
-          <input
-            className="input num"
-            inputMode="decimal"
-            value={pris}
-            onChange={(e) => setPris(e.target.value)}
-            placeholder="0"
-          />
-        </label>
-      </div>
+        <div className="kontakt-panel ny-post-panel">
+          <p className="hint ny-post-forklaring">
+            {lagre
+              ? "Posten legges i prisfilen under kategorien sin. Neste gang finner du den i søket, og agenten kan bruke den."
+              : "Posten gjelder bare her. Prisfilen blir som den er."}
+          </p>
 
-      {lagre && !liste && (
-        <p className="hint krav">
-          Det finnes ingen aktiv {PRICE_KIND_LABELS[kind].toLowerCase()} å lagre i.{" "}
-          <Link href="/selskap/innstillinger/prisfil" style={{ textDecoration: "underline" }}>
-            Legg den inn under Prisfil
-          </Link>
-          , eller legg posten til bare i dette tilbudet.
-        </p>
-      )}
-
-      {lagre && liste && (
-        <>
-          <KodeVelger rader={rader} verdi={kodevalg} onChange={setKodevalg} paakrevd />
-
-          <label className="field" style={{ marginTop: 10 }}>
-            <span className="label">Beskrivelse (valgfritt)</span>
+          <label className="kontakt-rad">
+            <span className="kontakt-rad-etikett">Navn</span>
             <input
               className="input"
-              value={beskrivelse}
-              onChange={(e) => setBeskrivelse(e.target.value)}
-              placeholder="Hva som er med i prisen"
+              value={navn}
+              autoFocus
+              onChange={(e) => setNavn(e.target.value)}
+              placeholder="Punkt for håndklevarmer"
             />
           </label>
-        </>
-      )}
+          <label className="kontakt-rad">
+            <span className="kontakt-rad-etikett">Enhet</span>
+            <span className="kort-felt">
+              <input className="input" value={enhet} onChange={(e) => setEnhet(e.target.value)} />
+            </span>
+          </label>
+          <label className="kontakt-rad">
+            <span className="kontakt-rad-etikett">Pris eks. mva</span>
+            <span className="kort-felt">
+              <input
+                className="input num"
+                inputMode="decimal"
+                value={pris}
+                onChange={(e) => setPris(e.target.value)}
+                placeholder="0"
+              />
+            </span>
+          </label>
 
-      {feil && <div className="banner error" style={{ marginTop: 10 }}>{feil}</div>}
+          {lagre && !liste && (
+            <p className="hint krav">
+              Det finnes ingen aktiv {PRICE_KIND_LABELS[kind].toLowerCase()} å lagre i.{" "}
+              <Link href="/selskap/innstillinger/prisfil" style={{ textDecoration: "underline" }}>
+                Legg den inn under Prisfil
+              </Link>
+              , eller legg posten til bare i dette tilbudet.
+            </p>
+          )}
 
-      <div className="ny-post-knapper">
-        <button type="button" className="button ghost" onClick={onAvbryt} disabled={lagrer}>
+          {lagre && liste && (
+            <>
+              <div className="kontakt-skilje">Plass i prisfilen</div>
+              <KodeVelger rader={rader} verdi={kodevalg} onChange={setKodevalg} paakrevd etikettVenstre />
+              <label className="kontakt-rad">
+                <span className="kontakt-rad-etikett">Beskrivelse</span>
+                <input
+                  className="input"
+                  value={beskrivelse}
+                  onChange={(e) => setBeskrivelse(e.target.value)}
+                  placeholder="Hva som er med i prisen (valgfritt)"
+                />
+              </label>
+            </>
+          )}
+        </div>
+      </div>
+
+      {feil && <div className="banner error" style={{ marginTop: 12, marginBottom: 0 }}>{feil}</div>}
+
+      <div className="modal-actions">
+        <button type="button" className="button secondary" onClick={lukk} disabled={lagrer}>
           Avbryt
         </button>
         <button type="button" className="button" onClick={leggTil} disabled={lagrer}>
           {lagrer ? "Lagrer…" : lagre ? "Lagre og legg til" : "Legg til"}
         </button>
       </div>
-    </div>
+    </Modal>
   );
 }

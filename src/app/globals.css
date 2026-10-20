@@ -1601,17 +1601,21 @@ p {
 }
 
 /* Skjemaet for en post som ikke finnes i prisfilen. */
-.ny-post {
-  margin-top: 10px;
-  padding: 14px;
-  max-width: 620px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-sunken);
+/* «Ny post»-popupen: samme sidefaner og felt som kontaktkortet, men panelet
+   trenger ikke kontaktkortets høyde. */
+.kontakt-panel.ny-post-panel {
+  min-height: 0;
 }
 
-.ny-post-valg {
-  margin-bottom: 6px;
+.ny-post-forklaring {
+  margin: 0 0 12px;
+}
+
+/* Korte verdier (enhet, pris, kode) får et kort felt, så det ser ut som det
+   de er og ikke som et sted å skrive en setning. */
+.kort-felt {
+  display: block;
+  max-width: 160px;
 }
 
 .ny-post-rad {
