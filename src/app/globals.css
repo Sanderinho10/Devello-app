@@ -1287,6 +1287,15 @@ p {
   overflow: visible;
 }
 
+/* Popupen kan bo inni en tabellcelle (leads-tabellen). Da skal den ikke arve
+   cellens høyrejustering, nowrap og mindre skrift. */
+.modal {
+  text-align: left;
+  white-space: normal;
+  font-size: 14px;
+  cursor: auto;
+}
+
 .modal::backdrop {
   background: rgba(0, 0, 0, 0.28);
 }
@@ -1550,6 +1559,34 @@ p {
   font-size: 13px;
 }
 
+/* Sorterbare kolonner: hele overskrifta er lenka. Pila står alltid på
+   plass, men er bare synlig (og blå) på kolonnen lista er sortert på. */
+.sort-kolonne {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: inherit;
+}
+
+.sort-pil {
+  font-size: 9px;
+  color: #6cb4ff;
+  visibility: hidden;
+}
+
+.sort-kolonne.aktiv .sort-pil {
+  visibility: visible;
+}
+
+.sort-kolonne:hover .sort-pil {
+  visibility: visible;
+  opacity: 0.5;
+}
+
+.sort-kolonne.aktiv:hover .sort-pil {
+  opacity: 1;
+}
+
 /* Rader som åpner noe: blå markering under musa, navnet som lenke. */
 .table.klikkbar tbody tr {
   cursor: pointer;
@@ -1557,6 +1594,27 @@ p {
 
 .table.klikkbar tbody tr:hover td {
   background: var(--accent-soft);
+}
+
+/* Emnet i leads-tabellen er en knapp, men skal se ut som lenkene. */
+.table .lenke.knapp {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.table td .button {
+  padding: 3px 10px;
+  font-size: 12.5px;
+}
+
+.table td.handling {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
 }
 
 .table .lenke {

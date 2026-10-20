@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { NyOrdre } from "./NyOrdre";
 import { KlikkbarRad } from "@/components/KlikkbarRad";
+import { SortKolonne } from "@/components/SortKolonne";
+import { lesSortering } from "@/lib/sortering";
 import { supabaseServer } from "@/lib/supabase/server";
 import {
   ORDER_ACTIVE_STATUSES,
@@ -11,6 +13,18 @@ import {
 } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+
+const KOLONNER = ["nr", "tittel", "kunde", "adresse", "status", "sum", "opprettet"] as const;
+
+const DB_KOLONNE: Record<(typeof KOLONNER)[number], string> = {
+  nr: "order_no",
+  tittel: "title",
+  kunde: "customer_name",
+  adresse: "site_address",
+  status: "status",
+  sum: "planned_total",
+  opprettet: "created_at",
+};
 
 /**
  * Ordrelisten.
@@ -23,10 +37,12 @@ export const dynamic = "force-dynamic";
 export default async function OrdrePage({
   searchParams,
 }: {
-  searchParams: Promise<{ vis?: string }>;
+  searchParams: Promise<{ vis?: string; sort?: string; retning?: string }>;
 }) {
   const supabase = await supabaseServer();
-  const avsluttede = (await searchParams).vis === "avsluttede";
+  const sp = await searchParams;
+  const avsluttede = sp.vis === "avsluttede";
+  const sortering = lesSortering(sp, KOLONNER, { kolonne: "opprettet", stigende: false });
 
   // PostgREST vil ha «in»-listen som «(a,b)» i not-varianten.
   const aktivListe = `(${ORDER_ACTIVE_STATUSES.join(",")})`;
@@ -37,7 +53,7 @@ export default async function OrdrePage({
       ? liste.not("status", "in", aktivListe)
       : liste.in("status", ORDER_ACTIVE_STATUSES)
     )
-      .order("created_at", { ascending: false })
+      .order(DB_KOLONNE[sortering.kolonne], { ascending: sortering.stigende, nullsFirst: false })
       .limit(200),
     supabase
       .from("orders")
@@ -50,6 +66,7 @@ export default async function OrdrePage({
   ]);
 
   const ordrer = (rader ?? []) as Order[];
+  const sortParams = { vis: avsluttede ? "avsluttede" : undefined };
 
   // Fakturerte ordrer viser ordrenummeret i regnskapssystemet.
   const goNr = new Map<string, string>();
@@ -104,13 +121,27 @@ export default async function OrdrePage({
             <table className="table klikkbar">
               <thead>
                 <tr>
-                  <th>Nr</th>
-                  <th>Tittel</th>
-                  <th>Kunde</th>
-                  <th>Adresse</th>
-                  <th>Status</th>
-                  <th className="num">Planlagt sum</th>
-                  <th className="num">Opprettet</th>
+                  <SortKolonne kolonne="nr" sortering={sortering} sti="/ordre" params={sortParams}>
+                    Nr
+                  </SortKolonne>
+                  <SortKolonne kolonne="tittel" sortering={sortering} sti="/ordre" params={sortParams}>
+                    Tittel
+                  </SortKolonne>
+                  <SortKolonne kolonne="kunde" sortering={sortering} sti="/ordre" params={sortParams}>
+                    Kunde
+                  </SortKolonne>
+                  <SortKolonne kolonne="adresse" sortering={sortering} sti="/ordre" params={sortParams}>
+                    Adresse
+                  </SortKolonne>
+                  <SortKolonne kolonne="status" sortering={sortering} sti="/ordre" params={sortParams}>
+                    Status
+                  </SortKolonne>
+                  <SortKolonne kolonne="sum" sortering={sortering} sti="/ordre" params={sortParams} className="num">
+                    Planlagt sum
+                  </SortKolonne>
+                  <SortKolonne kolonne="opprettet" sortering={sortering} sti="/ordre" params={sortParams} className="num">
+                    Opprettet
+                  </SortKolonne>
                 </tr>
               </thead>
               <tbody>
