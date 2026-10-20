@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { KontaktKort } from "./KontaktKort";
-import { kontakttypeTekst } from "../KontaktFelt";
+import { kontakttypeTekst } from "@/lib/kunder/felt";
 import { adresseTekst, hovedadresse } from "@/lib/kunder/adresse";
 import { supabaseServer } from "@/lib/supabase/server";
 import {

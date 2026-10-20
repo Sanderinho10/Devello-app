@@ -451,9 +451,3 @@ function EgenAdresse({
     </section>
   );
 }
-
-/** Kort merkelapp for listene: «Kunde», «Leverandør» eller «Kunde og leverandør». */
-export function kontakttypeTekst(k: { is_customer: boolean; is_supplier: boolean }): string {
-  if (k.is_customer && k.is_supplier) return "Kunde og leverandør";
-  return k.is_supplier ? "Leverandør" : "Kunde";
-}

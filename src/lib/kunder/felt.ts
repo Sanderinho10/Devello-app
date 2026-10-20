@@ -84,3 +84,13 @@ export type KontaktFilter = "alle" | "kunder" | "leverandorer";
 export function lesKontaktFilter(verdi: string | undefined): KontaktFilter {
   return verdi === "kunder" || verdi === "leverandorer" ? verdi : "alle";
 }
+
+/**
+ * Kort merkelapp for listene: «Kunde», «Leverandør» eller «Kunde og
+ * leverandør». Ligger her og ikke i KontaktFelt.tsx: den er "use client", og
+ * serversidene kan ikke kalle funksjoner derfra.
+ */
+export function kontakttypeTekst(k: { is_customer: boolean; is_supplier: boolean }): string {
+  if (k.is_customer && k.is_supplier) return "Kunde og leverandør";
+  return k.is_supplier ? "Leverandør" : "Kunde";
+}
