@@ -42,7 +42,7 @@ export function HentFakturaer() {
         {busy ? "Henter…" : "Hent fakturaer nå"}
       </button>
       {melding && (
-        <span className="tiny" style={{ color: feil ? "#a4271b" : "var(--text-secondary)" }}>
+        <span className="tiny" style={{ color: feil ? "var(--negative)" : "var(--text-secondary)" }}>
           {melding}
         </span>
       )}

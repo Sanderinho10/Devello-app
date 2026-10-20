@@ -280,7 +280,7 @@ function DokumentRad({
           )}
         </div>
         {d.boligmappa_error && !d.boligmappa_file_id && (
-          <div className="tiny" style={{ color: "#a4271b", marginTop: 4 }}>{d.boligmappa_error}</div>
+          <div className="tiny" style={{ color: "var(--negative)", marginTop: 4 }}>{d.boligmappa_error}</div>
         )}
       </div>
       <span className="row" style={{ flexWrap: "wrap" }}>
