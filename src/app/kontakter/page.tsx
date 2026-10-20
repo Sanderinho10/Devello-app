@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { NyKontakt } from "./NyKontakt";
+import { KlikkbarRad } from "@/components/KlikkbarRad";
 import { kontakttypeTekst } from "./KontaktFelt";
 import { supabaseServer } from "@/lib/supabase/server";
 import { lesKontaktFilter, type KontaktFilter } from "@/lib/kunder/felt";
@@ -65,44 +66,44 @@ export default async function KontakterPage({
           <h1>Kontakter</h1>
           <p className="page-subtitle">Kunder og leverandører — med tilbud, ordrer og fakturaforslag samlet på kunden.</p>
         </div>
+      </div>
+
+      <nav className="type-switch kompakt" aria-label="Vis">
+        {FILTER.map((f) => (
+          <Link
+            key={f.verdi}
+            href={lenke(f.verdi)}
+            className={`type-option${f.verdi === filter ? " active" : ""}`}
+            aria-current={f.verdi === filter ? "page" : undefined}
+          >
+            {f.etikett}
+          </Link>
+        ))}
+      </nav>
+
+      <div className="verktoylinje">
         <NyKontakt />
+        <form method="get" className="verktoylinje-hoyre">
+          {filter !== "alle" && <input type="hidden" name="type" value={filter} />}
+          <span className="muted tiny">{kontakter.length} kontakter</span>
+          {q && (
+            <Link className="button ghost" href={lenke(filter, false)}>
+              Nullstill
+            </Link>
+          )}
+          <input
+            className="input"
+            type="search"
+            name="q"
+            defaultValue={q}
+            placeholder="Søk"
+            title="Søk på navn, e-post eller kontaktperson"
+            aria-label="Søk i kontakter"
+          />
+        </form>
       </div>
 
       <div className="card">
-        <div className="card-header row-between">
-          <form method="get" className="row" style={{ flex: 1 }}>
-            {filter !== "alle" && <input type="hidden" name="type" value={filter} />}
-            <input
-              className="input"
-              type="search"
-              name="q"
-              defaultValue={q}
-              placeholder="Søk på navn, e-post eller kontaktperson"
-              aria-label="Søk i kontakter"
-              style={{ maxWidth: 420 }}
-            />
-            {q && (
-              <Link className="button ghost" href={lenke(filter, false)}>
-                Nullstill
-              </Link>
-            )}
-          </form>
-          <span className="muted">{kontakter.length} kontakter</span>
-        </div>
-
-        <nav className="kontakt-filter" aria-label="Vis">
-          {FILTER.map((f) => (
-            <Link
-              key={f.verdi}
-              href={lenke(f.verdi)}
-              className={`kontakt-filter-valg${f.verdi === filter ? " aktiv" : ""}`}
-              aria-current={f.verdi === filter ? "page" : undefined}
-            >
-              {f.etikett}
-            </Link>
-          ))}
-        </nav>
-
         {kontakter.length === 0 ? (
           <div className="empty">
             <div className="empty-title">
@@ -117,33 +118,47 @@ export default async function KontakterPage({
             </div>
           </div>
         ) : (
-          <div className="lead-list">
-            {kontakter.map((kontakt) => (
-              <Link key={kontakt.id} href={`/kontakter/${kontakt.id}`} className="lead-row clickable">
-                <div className="lead-main">
-                  <div className="lead-subject" style={{ cursor: "inherit" }}>
-                    {kontakt.name}
-                  </div>
-                  <div className="lead-meta">
-                    {[kontakt.contact, kontakt.email, kontakt.phone].filter(Boolean).join(" · ") ||
-                      "(ingen kontaktinfo)"}
-                  </div>
-                </div>
-                <span className={`kontakt-merke${kontakt.is_supplier ? " leverandor" : ""}`}>
-                  {kontakttypeTekst(kontakt)}
-                </span>
-                <span className="muted kunde-tall">
-                  {kontakt.is_customer || antallTilbud.has(kontakt.id) || antallOrdrer.has(kontakt.id) ? (
-                    <>
-                      {teller(antallTilbud.get(kontakt.id) ?? 0, "tilbud", "tilbud")}
-                      {" · "}
-                      {teller(antallOrdrer.get(kontakt.id) ?? 0, "ordre", "ordrer")}
-                    </>
-                  ) : null}
-                </span>
-                <span className="lead-time">{formatDate(kontakt.created_at)}</span>
-              </Link>
-            ))}
+          <div className="tabell-rull">
+            <table className="table klikkbar">
+              <thead>
+                <tr>
+                  <th>Navn</th>
+                  <th>Type</th>
+                  <th>Kontaktperson</th>
+                  <th>Telefon</th>
+                  <th>E-post</th>
+                  <th className="num">Tilbud</th>
+                  <th className="num">Ordrer</th>
+                  <th className="num">Opprettet</th>
+                </tr>
+              </thead>
+              <tbody>
+                {kontakter.map((kontakt) => {
+                  const harJobber =
+                    kontakt.is_customer || antallTilbud.has(kontakt.id) || antallOrdrer.has(kontakt.id);
+                  return (
+                    <KlikkbarRad key={kontakt.id} href={`/kontakter/${kontakt.id}`}>
+                      <td>
+                        <Link className="lenke" href={`/kontakter/${kontakt.id}`}>
+                          {kontakt.name}
+                        </Link>
+                      </td>
+                      <td>
+                        <span className={`kontakt-merke${kontakt.is_supplier ? " leverandor" : ""}`}>
+                          {kontakttypeTekst(kontakt)}
+                        </span>
+                      </td>
+                      <td>{kontakt.contact}</td>
+                      <td className="nowrap">{kontakt.phone}</td>
+                      <td>{kontakt.email}</td>
+                      <td className="num">{harJobber ? antallTilbud.get(kontakt.id) ?? 0 : ""}</td>
+                      <td className="num">{harJobber ? antallOrdrer.get(kontakt.id) ?? 0 : ""}</td>
+                      <td className="num muted nowrap">{formatDate(kontakt.created_at)}</td>
+                    </KlikkbarRad>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
@@ -157,8 +172,4 @@ function tell(rader: { customer_id: string | null }[]): Map<string, number> {
     if (r.customer_id) m.set(r.customer_id, (m.get(r.customer_id) ?? 0) + 1);
   }
   return m;
-}
-
-function teller(n: number, ein: string, fleire: string): string {
-  return `${n} ${n === 1 ? ein : fleire}`;
 }

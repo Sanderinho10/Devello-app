@@ -79,10 +79,6 @@ export default async function LeadsPage({
               : "Ingen postkasse tilkoblet ennå"}
           </p>
         </div>
-        <div className="row">
-          <ManualLead />
-          {mailbox && <LeadActions kind="hent" />}
-        </div>
       </div>
 
       {!mailbox && (
@@ -108,30 +104,27 @@ export default async function LeadsPage({
         </div>
       )}
 
-      <div className="card">
-        <div className="card-header row-between">
-          <div className="type-switch kompakt">
-            <Link
-              href="/tilbud/leads"
-              className={`type-option${arkiv ? "" : " active"}`}
-            >
-              Arbeidsliste {iArbeid ?? 0}
-            </Link>
-            <Link
-              href="/tilbud/leads?vis=arkiv"
-              className={`type-option${arkiv ? " active" : ""}`}
-            >
-              Arkiv {iArkiv ?? 0}
-            </Link>
-          </div>
-          {lastRun?.finished_at && !arkiv && (
-            <span className="muted tiny">
-              Sist hentet {formatDate(lastRun.finished_at)}
-              {lastRun.status === "feil" && " — feilet"}
-            </span>
-          )}
-        </div>
+      <nav className="type-switch kompakt" aria-label="Vis">
+        <Link href="/tilbud/leads" className={`type-option${arkiv ? "" : " active"}`}>
+          Arbeidsliste<span className="fane-tal">{iArbeid ?? 0}</span>
+        </Link>
+        <Link href="/tilbud/leads?vis=arkiv" className={`type-option${arkiv ? " active" : ""}`}>
+          Arkiv<span className="fane-tal">{iArkiv ?? 0}</span>
+        </Link>
+      </nav>
 
+      <div className="verktoylinje">
+        {mailbox && <LeadActions kind="hent" />}
+        <ManualLead />
+        {lastRun?.finished_at && !arkiv && (
+          <span className="verktoylinje-hoyre muted tiny">
+            Sist hentet {formatDate(lastRun.finished_at)}
+            {lastRun.status === "feil" && " — feilet"}
+          </span>
+        )}
+      </div>
+
+      <div className="card">
         {rows.length === 0 ? (
           <div className="empty">
             <div className="empty-title">

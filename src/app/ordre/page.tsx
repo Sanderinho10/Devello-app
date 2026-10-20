@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { NyOrdre } from "./NyOrdre";
+import { KlikkbarRad } from "@/components/KlikkbarRad";
 import { supabaseServer } from "@/lib/supabase/server";
 import {
   ORDER_ACTIVE_STATUSES,
@@ -71,24 +72,22 @@ export default async function OrdrePage({
           <h1>Ordrer</h1>
           <p className="page-subtitle">Alt som skjer på en jobb, samlet på ett nummer.</p>
         </div>
+      </div>
+
+      <nav className="type-switch kompakt" aria-label="Vis">
+        <Link href="/ordre" className={`type-option${avsluttede ? "" : " active"}`}>
+          Aktive<span className="fane-tal">{aktive ?? 0}</span>
+        </Link>
+        <Link href="/ordre?vis=avsluttede" className={`type-option${avsluttede ? " active" : ""}`}>
+          Avsluttede<span className="fane-tal">{lukkede ?? 0}</span>
+        </Link>
+      </nav>
+
+      <div className="verktoylinje">
         <NyOrdre />
       </div>
 
       <div className="card">
-        <div className="card-header row-between">
-          <div className="type-switch kompakt">
-            <Link href="/ordre" className={`type-option${avsluttede ? "" : " active"}`}>
-              Aktive {aktive ?? 0}
-            </Link>
-            <Link
-              href="/ordre?vis=avsluttede"
-              className={`type-option${avsluttede ? " active" : ""}`}
-            >
-              Avsluttede {lukkede ?? 0}
-            </Link>
-          </div>
-        </div>
-
         {ordrer.length === 0 ? (
           <div className="empty">
             <div className="empty-title">
@@ -101,29 +100,47 @@ export default async function OrdrePage({
             </div>
           </div>
         ) : (
-          <div className="lead-list">
-            {ordrer.map((ordre) => (
-              <Link key={ordre.id} href={`/ordre/${ordre.id}`} className="lead-row clickable">
-                <span className="ordre-nr">#{ordre.order_no}</span>
-                <div className="lead-main">
-                  <div className="lead-subject" style={{ cursor: "inherit" }}>
-                    {ordre.title}
-                  </div>
-                  <div className="lead-meta">
-                    {[ordre.customer_name, ordre.site_address].filter(Boolean).join(" · ") ||
-                      "(ingen kunde)"}
-                  </div>
-                </div>
-                <span className={`pill ${ordre.status}`} title={goNr.has(ordre.id) ? "Ordreutkast i regnskapssystemet" : undefined}>
-                  {ORDER_STATUS_LABELS[ordre.status]}
-                  {goNr.get(ordre.id) && ` · Go ${goNr.get(ordre.id)}`}
-                </span>
-                <span className="ordre-sum">
-                  {ordre.planned_total === null ? "—" : formatNok(Number(ordre.planned_total))}
-                </span>
-                <span className="lead-time">{formatDate(ordre.created_at)}</span>
-              </Link>
-            ))}
+          <div className="tabell-rull">
+            <table className="table klikkbar">
+              <thead>
+                <tr>
+                  <th>Nr</th>
+                  <th>Tittel</th>
+                  <th>Kunde</th>
+                  <th>Adresse</th>
+                  <th>Status</th>
+                  <th className="num">Planlagt sum</th>
+                  <th className="num">Opprettet</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ordrer.map((ordre) => (
+                  <KlikkbarRad key={ordre.id} href={`/ordre/${ordre.id}`}>
+                    <td className="ordre-nr">{ordre.order_no}</td>
+                    <td>
+                      <Link className="lenke" href={`/ordre/${ordre.id}`}>
+                        {ordre.title}
+                      </Link>
+                    </td>
+                    <td>{ordre.customer_name}</td>
+                    <td className="muted">{ordre.site_address}</td>
+                    <td>
+                      <span
+                        className={`pill ${ordre.status}`}
+                        title={goNr.has(ordre.id) ? "Ordreutkast i regnskapssystemet" : undefined}
+                      >
+                        {ORDER_STATUS_LABELS[ordre.status]}
+                        {goNr.get(ordre.id) && ` · Go ${goNr.get(ordre.id)}`}
+                      </span>
+                    </td>
+                    <td className="num nowrap">
+                      {ordre.planned_total === null ? "—" : formatNok(Number(ordre.planned_total))}
+                    </td>
+                    <td className="num muted nowrap">{formatDate(ordre.created_at)}</td>
+                  </KlikkbarRad>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
