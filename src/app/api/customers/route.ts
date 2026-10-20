@@ -1,12 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { KUNDEFELT, lesKundefelt } from "@/lib/kunder/felt";
+import { KUNDEFELT, lesKontakttype, lesKundefelt } from "@/lib/kunder/felt";
 
 /**
- * Søk i kunderegisteret, til forslagene i skjemaene. Treff på navn, e-post,
- * kontaktperson og telefon; de åtte beste. Uten søkeord: ingen treff — en
- * liste over alle kunder er /kunder, ikke dette.
+ * Søk i kontaktregisteret, til forslagene i kundefeltene i skjemaene. Treff
+ * på navn, e-post, kontaktperson og telefon; de åtte beste. Rene leverandører
+ * er med — velges en til et tilbud eller en ordre, blir den også kunde (se
+ * finn_eller_opprett_kunde, 0050). Uten søkeord: ingen treff — en liste over
+ * alle kontakter er /kontakter, ikke dette.
  */
 export async function GET(request: NextRequest) {
   const session = await sessionOr401();
@@ -22,7 +24,7 @@ export async function GET(request: NextRequest) {
     const admin = supabaseAdmin();
     const { data, error } = await admin
       .from("customers")
-      .select("id, name, contact, email, phone, address")
+      .select("id, name, contact, email, phone, address, is_customer, is_supplier")
       .eq("company_id", session.companyId)
       .or(
         `name.ilike.${monster},email.ilike.${monster},contact.ilike.${monster},phone.ilike.${monster}`,
@@ -37,11 +39,13 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * Oppretter en kunde for hånd.
+ * Oppretter en kontakt for hånd.
  *
  * De fleste kundene oppstår av seg selv fra tilbud og ordrer; dette er for
- * den som vil ha kunden inn før første jobb. Navnet er påkrevd. En e-post
- * som alt finnes på en annen kunde avvises — én adresse er én kunde.
+ * leverandører og for den som vil ha kunden inn før første jobb. Navnet er
+ * påkrevd, og kontakten må være kunde, leverandør eller begge — sendes ingen
+ * av dem, er den kunde. En e-post som alt finnes på en annen kontakt avvises
+ * — én adresse er én kontakt.
  */
 export async function POST(request: NextRequest) {
   const session = await sessionOr401();
@@ -51,20 +55,26 @@ export async function POST(request: NextRequest) {
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const felt = lesKundefelt(body, KUNDEFELT);
     if (!felt.name) {
-      return NextResponse.json({ error: "Kunden må ha et navn." }, { status: 400 });
+      return NextResponse.json({ error: "Kontakten må ha et navn." }, { status: 400 });
+    }
+    const type = lesKontakttype(body);
+    const is_customer = type.is_customer ?? !type.is_supplier;
+    const is_supplier = type.is_supplier ?? false;
+    if (!is_customer && !is_supplier) {
+      return NextResponse.json({ error: "Kryss av for kunde, leverandør eller begge." }, { status: 400 });
     }
 
     const admin = supabaseAdmin();
     const { data, error } = await admin
       .from("customers")
-      .insert({ ...felt, company_id: session.companyId })
+      .insert({ ...felt, is_customer, is_supplier, company_id: session.companyId })
       .select("id")
       .single();
 
     if (error) {
       if (error.code === "23505") {
         return NextResponse.json(
-          { error: "Det finnes allerede en kunde med denne e-postadressen." },
+          { error: "Det finnes allerede en kontakt med denne e-postadressen." },
           { status: 409 },
         );
       }

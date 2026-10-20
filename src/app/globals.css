@@ -2643,7 +2643,59 @@ p {
   }
 }
 
-/* Kunderegisteret */
+/* Kontaktregisteret */
+.kontakt-type {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+.kontakt-type-etikett {
+  color: var(--text-secondary);
+}
+.kontakt-type-valg {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.kontakt-type-valg input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+}
+.kontakt-filter {
+  display: flex;
+  gap: 4px;
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--border);
+}
+.kontakt-filter-valg {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+.kontakt-filter-valg:hover {
+  color: inherit;
+}
+.kontakt-filter-valg.aktiv {
+  background: var(--border);
+  color: inherit;
+  font-weight: 500;
+}
+.kontakt-merke {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.kontakt-merke.leverandor {
+  font-weight: 500;
+}
 .kunde-tall {
   font-size: 13px;
   white-space: nowrap;

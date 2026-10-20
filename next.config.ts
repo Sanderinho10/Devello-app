@@ -27,6 +27,9 @@ const nextConfig: NextConfig = {
       { source: "/tilbud/prisfil/:id", destination: "/selskap/innstillinger/prisfil/:id", permanent: false },
       { source: "/tilbud/referansefiler", destination: "/selskap/innstillinger/referansefiler", permanent: false },
       { source: "/ordre/grossister", destination: "/selskap/innstillinger/grossister", permanent: false },
+      // Kunderegisteret ble kontaktregisteret (kunder og leverandører).
+      { source: "/kunder", destination: "/kontakter?type=kunder", permanent: false },
+      { source: "/kunder/:id", destination: "/kontakter/:id", permanent: false },
     ];
   },
 

@@ -19,3 +19,21 @@ export function lesKundefelt(
   }
   return ut as Partial<Record<Kundefelt, string | null>> & { name?: string };
 }
+
+/** Hva kontakten er: kunde, leverandør eller begge. */
+export type Kontakttype = { is_customer?: boolean; is_supplier?: boolean };
+
+/** Plukker ut avkryssingene som er sendt inn. Bare ekte booleans tas med. */
+export function lesKontakttype(body: Record<string, unknown>): Kontakttype {
+  const ut: Kontakttype = {};
+  if (typeof body.is_customer === "boolean") ut.is_customer = body.is_customer;
+  if (typeof body.is_supplier === "boolean") ut.is_supplier = body.is_supplier;
+  return ut;
+}
+
+/** Filteret i kontaktlisten, fra ?type= i adressen. */
+export type KontaktFilter = "alle" | "kunder" | "leverandorer";
+
+export function lesKontaktFilter(verdi: string | undefined): KontaktFilter {
+  return verdi === "kunder" || verdi === "leverandorer" ? verdi : "alle";
+}

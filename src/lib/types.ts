@@ -479,8 +479,8 @@ export interface Order {
 }
 
 /**
- * En kunde i registeret. Én rad per kunde per selskap; leads og ordrer peker
- * hit via customer_id. Opprettes automatisk første gang et tilbud eller en
+ * En kontakt i kontaktregisteret — kunde, leverandør eller begge. Én rad per
+ * kontakt per selskap; leads og ordrer peker hit via customer_id. Opprettes automatisk første gang et tilbud eller en
  * ordre har et navn eller en e-post vi ikke har sett før (lib/kunder/koble.ts).
  */
 export interface Customer {
@@ -493,6 +493,10 @@ export interface Customer {
   address: string | null;
   org_nr: string | null;
   notes: string | null;
+  /** Kontakten er en kunde. Settes av seg selv når kontakten kobles til et tilbud eller en ordre. */
+  is_customer: boolean;
+  /** Kontakten er en leverandør. */
+  is_supplier: boolean;
   created_at: string;
   updated_at: string;
 }

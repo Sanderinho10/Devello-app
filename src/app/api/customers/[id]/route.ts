@@ -1,13 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { KUNDEFELT, lesKundefelt } from "@/lib/kunder/felt";
+import { KUNDEFELT, lesKontakttype, lesKundefelt } from "@/lib/kunder/felt";
 
 /**
- * Oppdaterer kundekortet. Bare feltene som sendes endres.
+ * Oppdaterer kontaktkortet. Bare feltene som sendes endres.
  *
  * Endringer her rører ikke tilbud eller ordrer: kundefeltene der er
- * dokumentets og ordrens egne, og skal vise det som gjaldt da.
+ * dokumentets og ordrens egne, og skal vise det som gjaldt da. Det gjelder
+ * også kunde/leverandør-avkryssingen: overføringen til PowerOffice Go leser
+ * ordrens kundefelt, ikke registeret, så en kontakt som slutter å være kunde
+ * her stopper ingen faktura.
  */
 export async function PATCH(
   request: NextRequest,
@@ -19,9 +22,12 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-    const felt = lesKundefelt(body, KUNDEFELT);
+    const felt = { ...lesKundefelt(body, KUNDEFELT), ...lesKontakttype(body) };
     if (felt.name !== undefined && !felt.name) {
-      return NextResponse.json({ error: "Kunden må ha et navn." }, { status: 400 });
+      return NextResponse.json({ error: "Kontakten må ha et navn." }, { status: 400 });
+    }
+    if (felt.is_customer === false && felt.is_supplier === false) {
+      return NextResponse.json({ error: "Kryss av for kunde, leverandør eller begge." }, { status: 400 });
     }
     if (Object.keys(felt).length === 0) {
       return NextResponse.json({ error: "Ingenting å endre." }, { status: 400 });
@@ -40,13 +46,18 @@ export async function PATCH(
     if (error) {
       if (error.code === "23505") {
         return NextResponse.json(
-          { error: "Det finnes allerede en kunde med denne e-postadressen." },
+          { error: "Det finnes allerede en kontakt med denne e-postadressen." },
           { status: 409 },
         );
       }
+      // customers_kunde_eller_leverandor: bare den ene avkryssingen ble sendt,
+      // og den andre var alt av.
+      if (error.code === "23514") {
+        return NextResponse.json({ error: "Kryss av for kunde, leverandør eller begge." }, { status: 400 });
+      }
       throw new Error(error.message);
     }
-    if (!data) return NextResponse.json({ error: "Fant ikke kunden" }, { status: 404 });
+    if (!data) return NextResponse.json({ error: "Fant ikke kontakten" }, { status: 404 });
     return NextResponse.json(data);
   } catch (err) {
     return errorResponse(err);

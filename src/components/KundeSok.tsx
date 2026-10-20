@@ -10,10 +10,12 @@ export interface KundeForslag {
   email: string | null;
   phone: string | null;
   address: string | null;
+  is_customer?: boolean;
+  is_supplier?: boolean;
 }
 
 /**
- * Kundefelt med forslag fra kunderegisteret.
+ * Kundefelt med forslag fra kontaktregisteret.
  *
  * Skriver man to tegn, kommer kundene som passer under feltet. Velger man
  * en, fyller skjemaet ut resten selv og husker hvem det var — så ordren
@@ -129,7 +131,9 @@ export function KundeSok({
             >
               <span className="picker-name">{k.name}</span>
               <span className="picker-description">
-                {[k.contact, k.email, k.phone].filter(Boolean).join(" · ")}
+                {[k.is_supplier ? (k.is_customer ? "Kunde og leverandør" : "Leverandør") : null, k.contact, k.email, k.phone]
+                  .filter(Boolean)
+                  .join(" · ")}
               </span>
             </button>
           ))}

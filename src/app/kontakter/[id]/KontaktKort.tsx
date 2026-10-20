@@ -3,32 +3,34 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Customer } from "@/lib/types";
-import { KundeFelt, tilVerdier } from "../KundeFelt";
+import { KontaktFelt, erEndret, harType, tilVerdier } from "../KontaktFelt";
 
 /**
- * Kundekortet på kundesiden. Lagre-knappen kommer når noe er endret.
+ * Kontaktkortet på kontaktsiden. Lagre-knappen kommer når noe er endret.
  * Endringer her rører ikke tilbud eller ordrer som alt finnes.
  */
-export function KundeKort({ kunde }: { kunde: Customer }) {
+export function KontaktKort({ kontakt }: { kontakt: Customer }) {
   const router = useRouter();
-  const [verdier, setVerdier] = useState(() => tilVerdier(kunde));
-  const [lagret, setLagret] = useState(() => tilVerdier(kunde));
+  const [verdier, setVerdier] = useState(() => tilVerdier(kontakt));
+  const [lagret, setLagret] = useState(() => tilVerdier(kontakt));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const endret = (Object.keys(verdier) as (keyof typeof verdier)[]).some(
-    (k) => verdier[k].trim() !== lagret[k].trim(),
-  );
+  const endret = erEndret(verdier, lagret);
 
   async function lagre() {
     if (!verdier.name.trim()) {
-      setError("Kunden må ha et navn.");
+      setError("Kontakten må ha et navn.");
+      return;
+    }
+    if (!harType(verdier)) {
+      setError("Kryss av for kunde, leverandør eller begge.");
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/customers/${kunde.id}`, {
+      const res = await fetch(`/api/customers/${kontakt.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(verdier),
@@ -48,16 +50,16 @@ export function KundeKort({ kunde }: { kunde: Customer }) {
     <div className="card card-pad">
       <div className="row-between" style={{ marginBottom: 12 }}>
         <span className="label" style={{ marginBottom: 0 }}>
-          Kundekort
+          Kontaktkort
         </span>
         {endret && (
-          <button type="button" className="button" onClick={lagre} disabled={busy}>
+          <button type="button" className="button" onClick={lagre} disabled={busy || !harType(verdier)}>
             {busy ? "Lagrer…" : "Lagre"}
           </button>
         )}
       </div>
       {error && <div className="banner error">{error}</div>}
-      <KundeFelt verdier={verdier} onChange={setVerdier} />
+      <KontaktFelt verdier={verdier} onChange={setVerdier} />
     </div>
   );
 }
