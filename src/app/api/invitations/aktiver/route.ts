@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse } from "@/lib/api";
+import { harBrukerIAnnetSelskap, leggTilMedlemskap } from "@/lib/selskap/medlemskap";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
 /**
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
 
     const token = (body.token ?? "").trim();
     const password = body.password ?? "";
-    const fullName = (body.full_name ?? "").trim();
+    let fullName = (body.full_name ?? "").trim();
 
     if (!token) {
       return NextResponse.json({ error: "Mangler invitasjon." }, { status: 400 });
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
     const admin = supabaseAdmin();
     const { data: invite } = await admin
       .from("invitations")
-      .select("id, company_id, email, role, expires_at, token_used_at")
+      .select("id, company_id, email, role, expires_at, token_used_at, fornavn, etternavn")
       .eq("token", token)
       .maybeSingle();
 
@@ -59,6 +60,18 @@ export async function POST(request: NextRequest) {
     }
 
     const email = invite.email.toLowerCase();
+    // Navnet administratoren skrev ved invitasjonen, om den inviterte ikke skrev et selv.
+    if (!fullName) fullName = [invite.fornavn, invite.etternavn].filter(Boolean).join(" ").trim();
+
+    // Har personen alt en Devello-bruker i et annet selskap, skal passordet
+    // deres ikke røres her. De logger inn som vanlig og godtar invitasjonen
+    // innlogget (/api/invitations/godta) — da legges selskapet til.
+    if (await harBrukerIAnnetSelskap(admin, email, invite.company_id)) {
+      return NextResponse.json(
+        { error: "Du har allerede en Devello-bruker. Logg inn, så kan du godta invitasjonen.", kode: "har_bruker" },
+        { status: 409 },
+      );
+    }
 
     // Brukeren kan finnes fra før: invitasjonsmailen fra Supabase oppretter
     // en auth-bruker med én gang, uten passord. Da setter vi passordet på
@@ -99,6 +112,7 @@ export async function POST(request: NextRequest) {
       role: invite.role,
     });
     if (userError) throw new Error(userError.message);
+    await leggTilMedlemskap(admin, { userId, companyId: invite.company_id, role: invite.role });
 
     await admin
       .from("invitations")

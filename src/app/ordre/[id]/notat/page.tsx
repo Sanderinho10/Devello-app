@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { brukereISelskap } from "@/lib/selskap/medlemskap";
 import { NotatFane } from "./NotatFane";
 import { hentOrdre } from "@/lib/ordre/hent";
 import { currentSession, supabaseServer } from "@/lib/supabase/server";
@@ -27,7 +28,7 @@ export default async function NotatSide({ params }: { params: Promise<{ id: stri
       .eq("kind", "fil")
       .not("note_id", "is", null)
       .order("created_at", { ascending: true }),
-    supabase.from("users").select("id, full_name, email").eq("company_id", session!.companyId),
+    brukereISelskap(supabase, session!.companyId).then((data) => ({ data })),
     supabase.from("users").select("role").eq("id", session!.userId).maybeSingle(),
   ]);
 

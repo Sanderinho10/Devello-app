@@ -8,13 +8,16 @@ export function AcceptInvite({
   token,
   email,
   selskap,
+  navn = "",
 }: {
   token: string;
   email: string;
   selskap: string;
+  /** Navnet administratoren skrev ved invitasjonen. Kan rettes her. */
+  navn?: string;
 }) {
   const router = useRouter();
-  const [fullName, setFullName] = useState("");
+  const [fullName, setFullName] = useState(navn);
   const [password, setPassword] = useState("");
   const [repeat, setRepeat] = useState("");
   const [busy, setBusy] = useState(false);
@@ -46,7 +49,7 @@ export function AcceptInvite({
         router.push("/login");
         return;
       }
-      router.push("/tilbud/leads");
+      router.push("/dashboard");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));

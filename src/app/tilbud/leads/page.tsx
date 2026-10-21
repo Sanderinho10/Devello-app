@@ -114,8 +114,8 @@ export default async function LeadsPage({
       {!mailbox && (
         <SkjulbartVarsel id="ingen-postkasse" skjult={skjulte.includes("ingen-postkasse")}>
           Koble til en Microsoft 365-postkasse under{" "}
-          <Link href="/selskap/innstillinger/generelt#tilbud" style={{ textDecoration: "underline" }}>
-            Selskap → Innstillinger → Tilbud
+          <Link href="/selskap/innstillinger/postkasse" style={{ textDecoration: "underline" }}>
+            Selskap → Innstillinger → Postkasse
           </Link>{" "}
           for å hente leads. Jobber dere med manuelle henvendelser, kan du
           krympe dette varselet.

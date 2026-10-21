@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { SignOut } from "@/components/SignOut";
 import { Merke } from "@/components/Merke";
+import { SelskapVelger } from "@/components/SelskapVelger";
 import { harModul } from "@/lib/moduler";
 
 /**
@@ -43,6 +44,16 @@ interface NavSection {
   comingSoon?: boolean;
 }
 
+/** Startsiden, som i Go: tall og forbruk på ett sted. */
+const DASHBOARD: NavSection = {
+  key: "dashboard",
+  label: "Dashboard",
+  icon: "▦",
+  basePath: "/dashboard",
+  href: "/dashboard",
+  tabs: [],
+};
+
 const TILBUD: NavSection = {
   key: "tilbud",
   label: "Tilbud",
@@ -71,9 +82,9 @@ const REGISTER: NavSection = {
   tabs: [],
 };
 
-/** Det daglige, i rekkefølgen jobben går: tilbud → ordre, og registrene. */
+/** Det daglige, i rekkefølgen jobben går: startsiden, tilbud → ordre, og registrene. */
 function agentSections(moduler: string[]): NavSection[] {
-  const sections = [TILBUD];
+  const sections = [DASHBOARD, TILBUD];
   if (harModul(moduler, "ordre")) sections.push(ORDRE);
   sections.push(REGISTER);
   return sections;
@@ -92,6 +103,15 @@ const SELSKAP: NavSection = {
   ],
 };
 
+/** Devellos egne sider, bare for DEVELLO_ADMIN_EPOST (lib/devello-admin.ts). */
+const DEVELLO: NavSection = {
+  key: "devello",
+  label: "Devello",
+  icon: "✦",
+  basePath: "/devello",
+  tabs: [{ label: "Abonnementsfakturaer", href: "/devello/fakturaer" }],
+};
+
 function passer(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(href + "/");
 }
@@ -100,11 +120,22 @@ export function Sidebar({
   companyName,
   userEmail,
   moduler,
+  aktiv = true,
+  erDevello = false,
+  selskaper = [],
+  aktivSelskapId = "",
 }: {
   companyName: string;
   userEmail: string;
   /** companies.moduler — hvilke seksjoner som skal vises. */
   moduler: string[];
+  /** Uten aktivt abonnement er bare Selskap åpent (lib/billing/tilgang.ts). */
+  aktiv?: boolean;
+  /** Devello-ansatt: viser Devello-seksjonen nederst. */
+  erDevello?: boolean;
+  /** Selskapene brukeren er med i. Flere enn ett: velgeren øverst i menyen. */
+  selskaper?: { id: string; name: string }[];
+  aktivSelskapId?: string;
 }) {
   const pathname = usePathname();
 
@@ -112,11 +143,11 @@ export function Sidebar({
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(false), [pathname]);
 
-  const agenter = agentSections(moduler);
+  const agenter = aktiv ? agentSections(moduler) : [];
 
   // Den lengste fanen som passer er den som gjelder: /selskap/innstillinger
   // dekker alt under seg (prisfil, referansefiler …), /ordre bare ordrelisten.
-  const aktivFane = [...agenter, SELSKAP]
+  const aktivFane = [...agenter, SELSKAP, DEVELLO]
     .flatMap((s) => s.tabs)
     .filter((tab) => passer(pathname, tab.href))
     .sort((a, b) => b.href.length - a.href.length)[0];
@@ -183,10 +214,12 @@ export function Sidebar({
       </div>
 
       <div className={`sidebar-nav${open ? " open" : ""}`}>
+        {selskaper.length > 1 && <SelskapVelger selskaper={selskaper} aktivId={aktivSelskapId} />}
         {agenter.map(renderSection)}
 
-        <div className="nav-separator" />
+        {agenter.length > 0 && <div className="nav-separator" />}
         {renderSection(SELSKAP)}
+        {erDevello && renderSection(DEVELLO)}
 
         <div className="sidebar-footer">
           <div>{companyName}</div>

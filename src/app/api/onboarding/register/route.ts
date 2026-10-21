@@ -8,6 +8,7 @@ import {
 import { normalizeOrgNr, validateOrgNr } from "@/lib/onboarding/orgnr";
 import { supabaseAdmin, supabaseAnon } from "@/lib/supabase/server";
 import { oppdaterModular } from "@/lib/moduler";
+import { leggTilMedlemskap } from "@/lib/selskap/medlemskap";
 import { orgNrTaken } from "../check-org/route";
 
 /**
@@ -218,6 +219,7 @@ export async function POST(request: NextRequest) {
       // Modulene følger prøvetiden: alle er åpne til den er ute.
       await oppdaterModular(admin, company.id);
       if (userError) throw new Error(userError.message);
+      await leggTilMedlemskap(admin, { userId, companyId: company.id, role: "admin" });
 
       // 4. Merkevareraden, med det de fylte ut i steg 3.
       //

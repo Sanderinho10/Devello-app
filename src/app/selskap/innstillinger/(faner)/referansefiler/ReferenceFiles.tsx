@@ -277,48 +277,36 @@ export function ReferenceFiles({
       )}
       {error && !open && <div className="banner error">{error}</div>}
 
-      <div className="card">
-        <div className="card-header">
-          <strong>
-            {items.length} av {MAKS_REFERANSEFILER} filer
-          </strong>
-          <span className="row" style={{ gap: 10, alignItems: "center" }}>
-            {fullt && (
-              <span className="tiny muted">
-                Grensen er nådd — slett en fil for å få plass til flere.
-              </span>
-            )}
-            <button
-              className="button"
-              onClick={() => setOpen(true)}
-              disabled={fullt}
-              title={
-                fullt
-                  ? `Grensen er ${MAKS_REFERANSEFILER} referansefiler.`
-                  : undefined
-              }
-            >
-              Legg til nytt tilbud
-            </button>
-          </span>
-        </div>
+      <div className="verktoylinje" style={{ margin: 0 }}>
+        <button
+          className="button"
+          onClick={() => setOpen(true)}
+          disabled={fullt}
+          title={fullt ? `Grensen er ${MAKS_REFERANSEFILER} referansefiler.` : undefined}
+        >
+          Legg til tilbud
+        </button>
+        <span className="verktoylinje-hoyre tiny muted">
+          {fullt ? "Grensen er nådd — slett en fil for å få plass til flere · " : ""}
+          {items.length} av {MAKS_REFERANSEFILER} filer
+        </span>
+      </div>
 
+      <div className="card allow-overflow">
         {items.length === 0 ? (
           <div className="empty">
             <div className="empty-title">Ingen referansefiler ennå</div>
-            <div>
-              Uten referanser må agenten gjette tilbudstype ut fra omfanget alene.
-            </div>
+            <div>Uten referanser må agenten gjette tilbudstype ut fra omfanget alene.</div>
           </div>
         ) : (
-          <table className="table">
+          <table className="table tabell-mobil">
             <thead>
               <tr>
                 <th>Fil</th>
-                <th style={{ width: 170 }}>Tilbudstype</th>
-                <th style={{ width: 150 }}>Status</th>
-                <th style={{ width: 150 }}>Lagt inn</th>
-                <th style={{ width: 60 }} />
+                <th>Tilbudstype</th>
+                <th>Status</th>
+                <th>Lagt inn</th>
+                <th aria-label="Handlinger" />
               </tr>
             </thead>
             <tbody>
@@ -326,42 +314,33 @@ export function ReferenceFiles({
                 const status = statusFor(item);
                 return (
                   <tr key={item.id}>
-                    <td>
+                    <td className="hoved">
                       {/* Eldre rader kan mangle fil. Da er navnet bare tekst —
                           en lenke ville gitt 404. */}
                       {item.storage_path ? (
-                        <a
-                          href={`/api/reference-quotes/${item.id}/file`}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{ fontWeight: 550, textDecoration: "underline" }}
-                        >
+                        <a className="lenke-bla" href={`/api/reference-quotes/${item.id}/file`} target="_blank" rel="noreferrer">
                           {item.file_name ?? item.title}
                         </a>
                       ) : (
                         <>
-                          <span style={{ fontWeight: 550 }}>
-                            {item.file_name ?? item.title}
-                          </span>
+                          <span style={{ fontWeight: 550 }}>{item.file_name ?? item.title}</span>
                           <div className="tiny muted">Ingen fil lagret</div>
                         </>
                       )}
                     </td>
-                    <td>
-                      <span className="pill">{QUOTE_TYPE_LABELS[item.type]}</span>
-                    </td>
-                    <td>
+                    <td className="meta">{QUOTE_TYPE_LABELS[item.type]}</td>
+                    <td className="meta">
                       {status === "klar" ? (
-                        <span className="pill lest">Lest og indeksert</span>
+                        <span className="pill ferdig">Lest og indeksert</span>
                       ) : status === "lest" ? (
-                        <span className="pill ulest">Lest, ikke indeksert</span>
+                        <span className="pill utkast_klar">Lest, ikke indeksert</span>
                       ) : (
-                        <span className="pill ulest">Ikke lest</span>
+                        <span className="pill utkast_klar">Ikke lest</span>
                       )}
                     </td>
-                    <td className="muted tiny">{formatDate(item.created_at)}</td>
-                    <td>
-                      <button className="button danger" onClick={() => remove(item)}>
+                    <td className="meta tiny muted">{formatDate(item.created_at)}</td>
+                    <td className="handling">
+                      <button type="button" className="button ghost" onClick={() => remove(item)}>
                         Slett
                       </button>
                     </td>

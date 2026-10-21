@@ -45,7 +45,7 @@ export default function AuthCallbackPage() {
         return;
       }
 
-      const videre = url.searchParams.get("next") || "/tilbud/leads";
+      const videre = url.searchParams.get("next") || "/dashboard";
 
       try {
         const code = url.searchParams.get("code");

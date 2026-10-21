@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { KONTAKT_EPOST, PAKKAR, formatPrice, trialDaysLeft, type Pakke } from "@/lib/billing/katalog";
 import type { Oversikt } from "@/lib/billing/subscription";
+import type { Tilgang } from "@/lib/billing/tilgang";
 
 /** Som Oversikt, men med perioden som ISO-strenger over nettverket. */
 export type OversiktRad = Omit<Oversikt, "periode"> & {
@@ -11,17 +12,19 @@ export type OversiktRad = Omit<Oversikt, "periode"> & {
 };
 
 /**
- * Abonnementssiden: prøvetid eller gjeldende pakke, forbruk og estimert
- * kostnad denne perioden, og de fire pakkene som kort — én linje per enhet,
- * som PowerOffice Go viser sine.
+ * Abonnementssiden: prøvetid eller gjeldende pakke, og de fire pakkene som
+ * kort — én linje per enhet, som PowerOffice Go viser sine. Forbruket står
+ * på dashboardet.
  */
 export function Pakkar({
   oversikt,
   trialEndsAt,
   partnerCode,
   isAdmin,
+  tilgang,
 }: {
   oversikt: OversiktRad;
+  tilgang: Pick<Tilgang, "grunn">;
   trialEndsAt: string | null;
   partnerCode: string | null;
   isAdmin: boolean;
@@ -31,8 +34,7 @@ export function Pakkar({
   const [error, setError] = useState<string | null>(null);
 
   const daysLeft = trialDaysLeft(trialEndsAt);
-  const { pakke, abonnement, forbruk, kostnad, bedrePakke, periode } = oversikt;
-  const erMikro = abonnement?.interval === "aar";
+  const { pakke, abonnement, periode } = oversikt;
 
   async function send(body: Record<string, unknown>, nokkel: string) {
     setBusy(nokkel);
@@ -57,13 +59,21 @@ export function Pakkar({
     <div className="stack">
       {error && <div className="banner error">{error}</div>}
 
-      {daysLeft !== null && daysLeft > 0 && !abonnement ? (
+      {tilgang.grunn === "unntak" ? (
+        <div className="banner info">
+          Løpende abonnement på alle moduler, uten fakturering. Selskapet er satt opp som demo- og testselskap.
+        </div>
+      ) : tilgang.grunn === "deaktivert" ? (
+        <div className="banner error">
+          Kontoen er deaktivert fordi en faktura ikke er betalt. Den åpnes igjen når betalingen er registrert.
+        </div>
+      ) : daysLeft !== null && daysLeft > 0 && !abonnement ? (
         <div className="banner info">
           <strong>
             {daysLeft} {daysLeft === 1 ? "dag" : "dager"} igjen
           </strong>{" "}
-          av prøveperioden, som varer til {kortDato(trialEndsAt)} — alle moduler er åpne. Forbruket under
-          telles, men det blir ikke fakturert.
+          av prøveperioden, som varer til {kortDato(trialEndsAt)} — alle moduler er åpne. Forbruket telles
+          (se dashboardet), men det blir ikke fakturert.
         </div>
       ) : !abonnement ? (
         <div className="banner warning">Prøveperioden er ute og dere står ikke på noen pakke. Velg en under.</div>
@@ -75,71 +85,6 @@ export function Pakkar({
           {abonnement.cancelAtPeriodEnd && " · sagt opp, virker ut perioden"}
         </div>
       )}
-
-      {/* Forbruk denne perioden */}
-      <section className="card card-pad">
-        <div className="row-between">
-          <strong>Forbruk {erMikro ? "i år" : "denne perioden"}</strong>
-          <span className="tiny muted">
-            {kortDato(periode.start)} – {kortDato(periode.slutt)}
-          </span>
-        </div>
-        <table className="doc-table" style={{ marginTop: 10 }}>
-          <tbody>
-            {abonnement && <Rad namn="Grunnpris" belop={abonnement.priceNok} />}
-            {abonnement && abonnement.includedUnits > 0 ? (
-              <>
-                <Rad
-                  namn={`Enheter brukt (tilbud ${forbruk.tilbud} + fakturaer ${forbruk.faktura})`}
-                  detalj={`${forbruk.tilbud + forbruk.faktura} av ${abonnement.includedUnits} inkludert`}
-                  belop={kostnad?.einingar ?? 0}
-                />
-              </>
-            ) : (
-              <>
-                <Rad
-                  namn="Tilbud generert"
-                  detalj={abonnement ? `${forbruk.tilbud} × ${formatPrice(abonnement.unitPriceNok.tilbud)}` : String(forbruk.tilbud)}
-                  belop={abonnement ? forbruk.tilbud * abonnement.unitPriceNok.tilbud : null}
-                />
-                <Rad
-                  namn="Fakturaer overført"
-                  detalj={abonnement ? `${forbruk.faktura} × ${formatPrice(abonnement.unitPriceNok.faktura)}` : String(forbruk.faktura)}
-                  belop={abonnement ? forbruk.faktura * abonnement.unitPriceNok.faktura : null}
-                />
-              </>
-            )}
-            <Rad
-              namn={erMikro ? "Aktive montører i appen denne måneden" : "Aktive montører i appen"}
-              detalj={
-                abonnement
-                  ? erMikro
-                    ? `${forbruk.appBrukarar} (${abonnement.includedAppUsers} inkludert) · ${forbruk.appBrukarMaanadar ?? 0} montørmåneder over i år × ${formatPrice(abonnement.appUserPriceNok)}`
-                    : `${forbruk.appBrukarar} × ${formatPrice(abonnement.appUserPriceNok)}`
-                  : String(forbruk.appBrukarar)
-              }
-              belop={kostnad?.appBrukarar ?? null}
-            />
-            {kostnad && (
-              <tr>
-                <td>
-                  <strong>Estimert {erMikro ? "for året" : "for perioden"}</strong>
-                </td>
-                <td className="tiny muted" />
-                <td className="num">
-                  <strong>{formatPrice(kostnad.sum)}</strong> <span className="tiny muted">eks. mva</span>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-        {bedrePakke && (
-          <p className="banner info" style={{ marginTop: 12 }}>
-            Med dette forbruket ville dere spart <strong>{formatPrice(bedrePakke.sparerKrPerMaanad)} i måneden</strong> på{" "}
-            <strong>{bedrePakke.pakke.name}</strong>.
-          </p>
-        )}
-      </section>
 
       {/* Pakkene */}
       <div className="plan-grid pakkar">
@@ -175,16 +120,6 @@ export function Pakkar({
         </a>
       </p>
     </div>
-  );
-}
-
-function Rad({ namn, detalj, belop }: { namn: string; detalj?: string; belop: number | null }) {
-  return (
-    <tr>
-      <td>{namn}</td>
-      <td className="tiny muted">{detalj ?? ""}</td>
-      <td className="num">{belop === null ? "" : formatPrice(belop)}</td>
-    </tr>
   );
 }
 

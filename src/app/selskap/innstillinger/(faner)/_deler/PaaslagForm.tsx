@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Lagrelinje, Panel, Rad } from "./Panel";
 
 /**
  * Standardpåslaget på materiell.
@@ -42,32 +43,48 @@ export function PaaslagForm({ paaslag, erAdmin }: { paaslag: number; erAdmin: bo
     }
   }
 
+  const eksempel = Number(verdi.replace(",", "."));
+
   return (
-    <form className="card card-pad" onSubmit={lagre} style={{ maxWidth: 520 }}>
-      {error && <div className="banner error">{error}</div>}
-      {ok && <div className="banner success">Lagret.</div>}
-      <label className="field">
-        <span className="label">Standardpåslag på materiell (%)</span>
-        <input
-          className="input"
-          inputMode="decimal"
-          value={verdi}
-          onChange={(e) => setVerdi(e.target.value)}
-          disabled={!erAdmin}
-          style={{ maxWidth: 140 }}
-        />
-        <span className="hint">
-          Legges på nettoprisen fra grossisten når materiell føres på en ordre. Kan
-          overstyres per linje. Linjer som alt er ført, endres ikke.
-        </span>
-      </label>
-      {erAdmin ? (
-        <button className="button" type="submit" disabled={busy || verdi === lagret}>
-          {busy ? "Lagrer…" : "Lagre"}
-        </button>
-      ) : (
-        <span className="tiny muted">Bare administratorer kan endre påslaget.</span>
-      )}
+    <form onSubmit={lagre}>
+      <Panel
+        tittel="Påslag"
+        hint="Legges på nettoprisen fra grossisten når materiell føres på en ordre."
+        bunn={
+          <Lagrelinje
+            endret={verdi !== lagret}
+            busy={busy}
+            lagret={ok}
+            onAngre={() => setVerdi(lagret)}
+            kanEndre={erAdmin}
+            ikkeAdmin="Bare administratorer kan endre påslaget."
+          />
+        }
+      >
+        {error && <div className="banner error">{error}</div>}
+        <Rad
+          etikett="Standardpåslag"
+          hint={
+            Number.isFinite(eksempel) && eksempel >= 0
+              ? `En vare til 100 kr netto føres til ${(100 * (1 + eksempel / 100)).toLocaleString("nb-NO", { maximumFractionDigits: 2 })} kr. Kan overstyres per linje; linjer som alt er ført, endres ikke.`
+              : "Kan overstyres per linje. Linjer som alt er ført, endres ikke."
+          }
+        >
+          <span className="inst-med-enhet">
+            <input
+              className="input"
+              inputMode="decimal"
+              value={verdi}
+              onChange={(e) => {
+                setVerdi(e.target.value);
+                setOk(false);
+              }}
+              disabled={!erAdmin}
+            />
+            <span className="muted">%</span>
+          </span>
+        </Rad>
+      </Panel>
     </form>
   );
 }

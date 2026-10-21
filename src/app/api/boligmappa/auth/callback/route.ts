@@ -4,7 +4,7 @@ import { currentSession, supabaseAdmin } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? request.nextUrl.origin;
-  const tilbake = new URL("/selskap/innstillinger/generelt", appUrl);
+  const tilbake = new URL("/selskap/innstillinger/boligmappa", appUrl);
 
   const session = await currentSession();
   if (!session) return NextResponse.redirect(new URL("/login", appUrl));

@@ -1,5 +1,6 @@
 import { Pakkar } from "./Pakkar";
 import { abonnementsoversikt } from "@/lib/billing/subscription";
+import { hentTilgang } from "@/lib/billing/tilgang";
 import { currentSession, supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -16,11 +17,14 @@ export default async function AbonnementPage() {
   // Abonnement og forbruk ligger bak service role — tabellene har ingen
   // policy for authenticated. Selskapet leses ut fra sesjonen, aldri fra
   // noe klienten har sendt.
-  const oversikt = await abonnementsoversikt(supabaseAdmin(), session!.companyId, company?.created_at ?? new Date().toISOString());
+  const [oversikt, tilgang] = await Promise.all([
+    abonnementsoversikt(supabaseAdmin(), session!.companyId, company?.created_at ?? new Date().toISOString()),
+    hentTilgang(session!.companyId),
+  ]);
 
   return (
     <>
-      <div className="page-header">
+      <div className="page-header kompakt">
         <div>
           <h1>Abonnement</h1>
           <p className="page-subtitle">Én pakke, lav grunnpris, og dere betaler for det dere faktisk bruker.</p>
@@ -35,6 +39,7 @@ export default async function AbonnementPage() {
         trialEndsAt={company?.trial_ends_at ?? null}
         partnerCode={company?.partner_code ?? null}
         isAdmin={me?.role === "admin"}
+        tilgang={{ grunn: tilgang.grunn }}
       />
     </>
   );

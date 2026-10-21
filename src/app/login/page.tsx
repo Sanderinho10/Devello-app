@@ -79,7 +79,10 @@ function LoginForm() {
           setBusy(false);
           return;
         }
-        router.push("/tilbud/leads");
+        // «Logg inn og bli med» fra en invitasjon sender brukeren tilbake dit.
+        // Bare interne stier — aldri en adresse utenfra.
+        const neste = params.get("neste");
+        router.push(neste && neste.startsWith("/") && !neste.startsWith("//") ? neste : "/dashboard");
         router.refresh();
         return;
       }

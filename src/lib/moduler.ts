@@ -24,7 +24,9 @@ export function harModul(moduler: string[] | null | undefined, id: ModulId): boo
 }
 
 /** Kva modulane skal vere, gitt pakke og prøvetid. Rein, testbar. */
-export function modularFor(input: { packageId: string | null; trialEndsAt: string | null; no?: Date }): ModulId[] {
+export function modularFor(input: { packageId: string | null; trialEndsAt: string | null; unntak?: boolean; no?: Date }): ModulId[] {
+  // Demo- og testselskapet har løpende abonnement på alt (lib/billing/tilgang.ts).
+  if (input.unntak) return [...ALLE_MODULAR];
   const pakke = finnPakke(input.packageId);
   if (pakke) return [...pakke.moduler];
   const no = input.no ?? new Date();
@@ -35,13 +37,13 @@ export function modularFor(input: { packageId: string | null; trialEndsAt: strin
 /** Skriv companies.moduler frå abonnementet og prøvetida. Overstyrte selskap står urørte. */
 export async function oppdaterModular(admin: SupabaseClient, companyId: string): Promise<ModulId[] | null> {
   const [{ data: company }, { data: sub }] = await Promise.all([
-    admin.from("companies").select("moduler, moduler_overstyrt, trial_ends_at").eq("id", companyId).maybeSingle(),
+    admin.from("companies").select("moduler, moduler_overstyrt, trial_ends_at, abonnement_unntak").eq("id", companyId).maybeSingle(),
     admin.from("subscriptions").select("package_id").eq("company_id", companyId).maybeSingle(),
   ]);
   if (!company) return null;
   if (company.moduler_overstyrt) return (company.moduler as ModulId[]) ?? [];
 
-  const moduler = modularFor({ packageId: (sub?.package_id as string | null) ?? null, trialEndsAt: company.trial_ends_at as string | null });
+  const moduler = modularFor({ packageId: (sub?.package_id as string | null) ?? null, trialEndsAt: company.trial_ends_at as string | null, unntak: Boolean(company.abonnement_unntak) });
   const naa = ((company.moduler as string[]) ?? []).slice().sort().join(",");
   if (naa !== moduler.slice().sort().join(",")) {
     const { error } = await admin.from("companies").update({ moduler }).eq("id", companyId);

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
+import { erMedlem, harBrukerIAnnetSelskap } from "@/lib/selskap/medlemskap";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import type { UserRole } from "@/lib/types";
 
@@ -32,23 +33,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = (await request.json()) as { email?: string; role?: UserRole };
+    const body = (await request.json()) as { email?: string; role?: UserRole; fornavn?: string; etternavn?: string };
     const email = (body.email ?? "").trim().toLowerCase();
     const role: UserRole = body.role === "admin" ? "admin" : "standard";
+    const fornavn = (body.fornavn ?? "").trim().slice(0, 60);
+    const etternavn = (body.etternavn ?? "").trim().slice(0, 60);
 
+    if (!fornavn || !etternavn) {
+      return NextResponse.json({ error: "Skriv inn fornavn og etternavn." }, { status: 400 });
+    }
     if (!email || !email.includes("@")) {
       return NextResponse.json({ error: "Ugyldig e-postadresse." }, { status: 400 });
     }
 
     // Er de allerede med, er invitasjonen meningsløs.
-    const { data: alreadyMember } = await admin
-      .from("users")
-      .select("id")
-      .eq("email", email)
-      .eq("company_id", session.companyId)
-      .maybeSingle();
-
-    if (alreadyMember) {
+    if (await erMedlem(admin, email, session.companyId)) {
       return NextResponse.json(
         { error: "Denne personen er allerede medlem." },
         { status: 409 },
@@ -71,20 +70,38 @@ export async function POST(request: NextRequest) {
         company_id: session.companyId,
         email,
         role,
+        fornavn,
+        etternavn,
         invited_by: session.userId,
       })
       .select("token")
       .single();
     if (error) throw new Error(error.message);
 
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? request.nextUrl.origin;
+
+    // Har personen alt en Devello-bruker i et annet selskap, sender vi ikke
+    // Supabase sin invitasjonsmail — den er for nye brukere og ville feilet.
+    // Lenken tar dem til «logg inn og bli med», og selskapet legges til i
+    // velgeren deres.
+    if (await harBrukerIAnnetSelskap(admin, email, session.companyId)) {
+      return NextResponse.json({
+        ok: true,
+        link: `${appUrl}/invitasjon/${invite.token}`,
+        warning:
+          "Personen har allerede en Devello-bruker i et annet selskap. Send lenken under: de logger inn med sitt " +
+          "vanlige passord og trykker «Bli med», så kan de bytte mellom selskapene i menyen.",
+      });
+    }
+
     // Selve e-posten. Feiler den, står invitasjonen igjen og kan sendes på
     // nytt — vi ruller den ikke tilbake, for koblingen er det som betyr noe.
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? request.nextUrl.origin;
     const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
       // Invitasjonslenka fra Supabase er en engangslenke og kan bli
       // spist av en e-postskanner. Vår egen lenke under er den pålitelige
       // veien; denne er bekvemmeligheten når den kommer fram.
       redirectTo: `${appUrl}/auth/callback`,
+      data: { full_name: `${fornavn} ${etternavn}` },
     });
 
     // Lenken går tilbake uansett hvordan e-posten gikk. Den er den pålitelige

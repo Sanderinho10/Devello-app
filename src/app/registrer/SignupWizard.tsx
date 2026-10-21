@@ -181,7 +181,7 @@ export function SignupWizard() {
         return;
       }
 
-      router.push("/selskap/innstillinger/generelt");
+      router.push("/selskap/innstillinger/firma");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));

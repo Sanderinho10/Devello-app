@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { HentFakturaer } from "@/components/HentFakturaer";
+import { Panel, Rad } from "./Panel";
 import {
   ACCOUNTING_PROVIDER_LABELS,
   PRODUCT_MAP_LABELS,
@@ -79,122 +80,117 @@ export function RegnskapKort({
   const appKey = applicationKeys[environment];
 
   return (
-    <div className="card card-pad" style={{ maxWidth: 640 }}>
-      <div className="row-between" style={{ marginBottom: 8 }}>
-        <span className="label" style={{ marginBottom: 0 }}>
-          Regnskapssystem
-        </span>
-        {aktiv && kopling && (
-          <span className={`pill ${kopling.status === "aktiv" ? "ferdig" : "avbrutt"}`}>
-            {kopling.status === "aktiv" ? "Tilkoblet" : "Feil"}
-          </span>
-        )}
-      </div>
-      <p className="muted tiny" style={{ marginBottom: 14 }}>
-        Leverandørfakturaer hentes fra regnskapssystemet og legges på ordren de hører til, og
-        godkjente fakturaforslag legges tilbake som ordreutkast. Ingenting bokføres eller sendes
-        fra Devello — fakturaen sendes fra regnskapssystemet.
-      </p>
+    <>
+      <Panel
+        tittel="PowerOffice Go"
+        hint="Ingenting bokføres eller sendes fra Devello — fakturaen sendes fra regnskapssystemet."
+        hoyre={
+          aktiv && kopling ? (
+            <span className={`pill ${kopling.status === "aktiv" ? "ferdig" : "sperret"}`}>
+              {kopling.status === "aktiv" ? "Tilkoblet" : "Feil"}
+            </span>
+          ) : (
+            <span className="pill utkast_klar">Ikke tilkoblet</span>
+          )
+        }
+      >
+        {error && <div className="banner error">{error}</div>}
 
-      {error && <div className="banner error">{error}</div>}
-
-      {aktiv && kopling && !visSkjema ? (
-        <div className="stack" style={{ gap: 10 }}>
-          <div>
-            <strong>{ACCOUNTING_PROVIDER_LABELS[kopling.provider]}</strong>
-            <span className="tiny muted"> · {kopling.environment === "demo" ? "demomiljø" : "produksjon"}</span>
-          </div>
-          {kopling.status === "feil" && kopling.status_reason && (
-            <div className="banner error" style={{ marginBottom: 0 }}>{kopling.status_reason}</div>
-          )}
-          <div className="tiny muted">
-            {kopling.last_sync_at
-              ? `Sist hentet ${formatDate(kopling.last_sync_at)}${kopling.last_sync_note ? ` — ${kopling.last_sync_note}` : ""}`
-              : "Ingen fakturaer hentet ennå."}
-          </div>
-          <div className="row" style={{ flexWrap: "wrap" }}>
-            <HentFakturaer />
-            {erAdmin && (
-              <>
-                <button type="button" className="button secondary" onClick={() => setVisSkjema(true)}>
-                  Bytt nøkkel
-                </button>
-                <button
-                  type="button"
-                  className="button ghost"
-                  onClick={kopleFra}
-                  disabled={busy !== null}
-                >
-                  {busy === "kople_fra" ? "Kobler fra…" : "Koble fra"}
-                </button>
-              </>
-            )}
-          </div>
-          <ProdukterIGo kopling={kopling} erAdmin={erAdmin} />
-        </div>
-      ) : erAdmin ? (
-        <form onSubmit={kople}>
-          <div className="grid-2">
-            <label className="field">
-              <span className="label">System</span>
+        {aktiv && kopling && !visSkjema ? (
+          <>
+            <dl className="inst-status">
+              <dt>System</dt>
+              <dd>{ACCOUNTING_PROVIDER_LABELS[kopling.provider]}</dd>
+              <dt>Miljø</dt>
+              <dd>{kopling.environment === "demo" ? "Demo" : "Produksjon"}</dd>
+              <dt>Sist hentet</dt>
+              <dd>
+                {kopling.last_sync_at
+                  ? `${formatDate(kopling.last_sync_at)}${kopling.last_sync_note ? ` — ${kopling.last_sync_note}` : ""}`
+                  : "Ingen fakturaer hentet ennå"}
+              </dd>
+            </dl>
+            {kopling.status === "feil" && kopling.status_reason && <div className="banner error">{kopling.status_reason}</div>}
+            <div className="inst-knapper">
+              <HentFakturaer />
+              {erAdmin && (
+                <>
+                  <button type="button" className="button secondary" onClick={() => setVisSkjema(true)}>
+                    Bytt nøkkel
+                  </button>
+                  <button type="button" className="button ghost" onClick={kopleFra} disabled={busy !== null}>
+                    {busy === "kople_fra" ? "Kobler fra…" : "Koble fra"}
+                  </button>
+                </>
+              )}
+            </div>
+          </>
+        ) : erAdmin ? (
+          <form onSubmit={kople}>
+            <p className="tiny muted" style={{ margin: "0 0 14px" }}>
+              Leverandørfakturaer hentes og legges på ordren de hører til, og godkjente fakturaforslag legges tilbake som
+              ordreutkast.
+            </p>
+            <Rad etikett="System" smal>
               <select className="input" value="poweroffice" disabled>
                 <option value="poweroffice">PowerOffice Go</option>
               </select>
-            </label>
-            <label className="field">
-              <span className="label">Miljø</span>
-              <select
-                className="input"
-                value={environment}
-                onChange={(e) => setEnvironment(e.target.value as AccountingEnv)}
-              >
+            </Rad>
+            <Rad etikett="Miljø" smal>
+              <select className="input" value={environment} onChange={(e) => setEnvironment(e.target.value as AccountingEnv)}>
                 <option value="production">Produksjon</option>
                 <option value="demo">Demo</option>
               </select>
-            </label>
-          </div>
-          <label className="field">
-            <span className="label">Client key fra PowerOffice Go</span>
-            <input
-              className="input"
-              type="password"
-              autoComplete="off"
-              value={clientKey}
-              onChange={(e) => setClientKey(e.target.value)}
-              required
-            />
-            <span className="hint">
-              I Go: Meny → Innstillinger → Utvidelser → Legg til utvidelse → «Egendefinert
-              utvidelse». Lim inn Devello sin application key
-              {appKey ? (
+            </Rad>
+            <Rad
+              etikett="Client key"
+              topp
+              hint={
                 <>
-                  {" "}
-                  <code className="kode">{appKey}</code>
+                  I Go: Meny → Innstillinger → Utvidelser → Legg til utvidelse → «Egendefinert utvidelse». Lim inn Devello sin
+                  application key
+                  {appKey ? (
+                    <>
+                      {" "}
+                      <code className="kode">{appKey}</code>
+                    </>
+                  ) : (
+                    " (ikke satt i dette miljøet)"
+                  )}
+                  , gi utvidelsen tilgang til inngående faktura, bilagsdokumentasjon og leverandør (lesing) og til
+                  salgsordre, kunde og produkt (uten «send faktura»), og kopier client key hit. Nøkkelen vises aldri igjen.
                 </>
-              ) : (
-                " (ikke satt i dette miljøet)"
-              )}
-              , gi utvidelsen tilgang til inngående faktura, bilagsdokumentasjon og leverandør
-              (lesing) og til salgsordre, kunde og produkt (for fakturaforslagene — uten
-              «send faktura»), og kopier client key hit. Produksjonstilgang krever at PowerOffice
-              har godkjent Devello.
-            </span>
-          </label>
-          <div className="row">
-            <button className="button" type="submit" disabled={busy !== null || !clientKey.trim()}>
-              {busy === "test" ? "Tester…" : "Test og koble til"}
-            </button>
-            {aktiv && (
-              <button type="button" className="button ghost" onClick={() => setVisSkjema(false)}>
-                Avbryt
+              }
+            >
+              <input
+                className="input"
+                type="password"
+                autoComplete="off"
+                value={clientKey}
+                onChange={(e) => setClientKey(e.target.value)}
+                required
+              />
+            </Rad>
+            <div className="inst-knapper" style={{ paddingLeft: 0 }}>
+              <button className="button" type="submit" disabled={busy !== null || !clientKey.trim()}>
+                {busy === "test" ? "Tester…" : "Test og koble til"}
               </button>
-            )}
-          </div>
-        </form>
-      ) : (
-        <p className="muted tiny">Ikke tilkoblet. Bare administratorer kan koble til.</p>
-      )}
-    </div>
+              {aktiv && (
+                <button type="button" className="button secondary" onClick={() => setVisSkjema(false)}>
+                  Avbryt
+                </button>
+              )}
+            </div>
+          </form>
+        ) : (
+          <p className="muted" style={{ margin: "0 0 14px" }}>
+            Ikke tilkoblet. Bare administratorer kan koble til.
+          </p>
+        )}
+      </Panel>
+
+      {aktiv && kopling && !visSkjema && <ProdukterIGo kopling={kopling} erAdmin={erAdmin} />}
+    </>
   );
 }
 
@@ -304,66 +300,60 @@ function ProdukterIGo({ kopling, erAdmin }: { kopling: AccountingConnectionPubli
   const manglar = NOKLAR.filter((k) => !map[k]);
 
   return (
-    <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12, marginTop: 4 }}>
-      <div className="row-between" style={{ marginBottom: 6 }}>
-        <span className="label" style={{ marginBottom: 0 }}>
-          Produkter i Go
-        </span>
-        {manglar.length > 0 ? (
-          <span className="pill opna">{manglar.length} mangler</span>
+    <Panel
+      tittel="Produkter i Go"
+      hint="Hver linje på fakturaforslaget går på et produkt i Go — produktet bærer salgskonto og mva-kode."
+      hoyre={
+        manglar.length > 0 ? (
+          <span className="pill utkast_klar">{manglar.length} mangler</span>
         ) : (
           <span className="pill ferdig">Komplett</span>
-        )}
-      </div>
-      <p className="muted tiny" style={{ marginBottom: 10 }}>
-        Hver linje på fakturaforslaget går på et produkt i Go — produktet bærer salgskonto og
-        mva-kode. Velg fra listen, eller opprett Devellos standardprodukter.
-      </p>
+        )
+      }
+      bunn={
+        erAdmin ? (
+          <div className="inst-lagre">
+            <button type="button" className="button secondary" onClick={hent} disabled={busy !== null}>
+              {busy === "hent" ? "Henter…" : "Hent produkter fra Go"}
+            </button>
+            <button type="button" className="button ghost" onClick={standard} disabled={busy !== null}>
+              {busy === "standard" ? "Oppretter…" : "Opprett standardprodukter"}
+            </button>
+            <span className="spacer" />
+            <span className={`tiny ${dirty ? "inst-endret" : "muted"}`}>{dirty ? "Ulagrede endringer" : ""}</span>
+            <button type="button" className="button" onClick={lagre} disabled={busy !== null || !dirty}>
+              {busy === "lagre" ? "Lagrer…" : "Lagre"}
+            </button>
+          </div>
+        ) : undefined
+      }
+    >
       {feil && <div className="banner error">{feil}</div>}
       {melding && <div className="banner info">{melding}</div>}
-
-      <div className="produkt-map">
-        {NOKLAR.map((k) => (
-          <label key={k} className="field" style={{ marginBottom: 0 }}>
-            <span className="label">{PRODUCT_MAP_LABELS[k]}</span>
-            <select
-              className="input"
-              value={map[k] ?? ""}
-              disabled={!erAdmin || produkter === null}
-              onChange={(e) => setMap({ ...map, [k]: e.target.value || undefined })}
-            >
-              <option value="">{produkter === null ? "Henter…" : "— velg produkt —"}</option>
-              {map[k] && !produkter?.some((p) => p.code === map[k]) && (
-                <option value={map[k]}>{map[k]} (ikke i lista)</option>
-              )}
-              {(produkter ?? []).map((p) => (
-                <option key={p.code} value={p.code}>
-                  {p.code} · {p.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        ))}
-      </div>
-
-      <label className="row" style={{ marginTop: 12, gap: 8, cursor: erAdmin ? "pointer" : "default" }}>
-        <input type="checkbox" checked={prosjekt} disabled={!erAdmin} onChange={(e) => setProsjekt(e.target.checked)} />
-        <span>Bruk ordrenummer som prosjekt i Go</span>
-      </label>
-
-      {erAdmin && (
-        <div className="row" style={{ flexWrap: "wrap", marginTop: 12 }}>
-          <button type="button" className="button" onClick={lagre} disabled={busy !== null || !dirty}>
-            {busy === "lagre" ? "Lagrer…" : "Lagre"}
-          </button>
-          <button type="button" className="button secondary" onClick={hent} disabled={busy !== null}>
-            {busy === "hent" ? "Henter…" : "Hent produkter fra Go"}
-          </button>
-          <button type="button" className="button ghost" onClick={standard} disabled={busy !== null}>
-            {busy === "standard" ? "Oppretter…" : "Opprett standardprodukter"}
-          </button>
-        </div>
-      )}
-    </div>
+      {NOKLAR.map((k) => (
+        <Rad key={k} etikett={PRODUCT_MAP_LABELS[k]}>
+          <select
+            className="input"
+            value={map[k] ?? ""}
+            disabled={!erAdmin || produkter === null}
+            onChange={(e) => setMap({ ...map, [k]: e.target.value || undefined })}
+          >
+            <option value="">{produkter === null ? "Henter…" : "— velg produkt —"}</option>
+            {map[k] && !produkter?.some((p) => p.code === map[k]) && <option value={map[k]}>{map[k]} (ikke i lista)</option>}
+            {(produkter ?? []).map((p) => (
+              <option key={p.code} value={p.code}>
+                {p.code} · {p.name}
+              </option>
+            ))}
+          </select>
+        </Rad>
+      ))}
+      <Rad etikett="Prosjekt" som="div">
+        <label className="ny-post-lagre" style={{ margin: 0 }}>
+          <input type="checkbox" checked={prosjekt} disabled={!erAdmin} onChange={(e) => setProsjekt(e.target.checked)} />
+          <span>Bruk ordrenummeret som prosjekt i Go</span>
+        </label>
+      </Rad>
+    </Panel>
   );
 }

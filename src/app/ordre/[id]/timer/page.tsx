@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { brukereISelskap } from "@/lib/selskap/medlemskap";
 import { TimerFane } from "./TimerFane";
 import { hentOrdre, ordreErLaast } from "@/lib/ordre/hent";
 import { currentSession, supabaseServer } from "@/lib/supabase/server";
@@ -22,11 +23,9 @@ export default async function TimerSide({ params }: { params: Promise<{ id: stri
         .eq("order_id", ordre.id)
         .order("work_date", { ascending: false })
         .order("created_at", { ascending: false }),
-      supabase
-        .from("users")
-        .select("id, full_name, email")
-        .eq("company_id", session!.companyId)
-        .order("full_name"),
+      brukereISelskap(supabase, session!.companyId).then((data) => ({
+        data: data.sort((a, b) => (a.full_name ?? a.email).localeCompare(b.full_name ?? b.email, "nb")),
+      })),
       // Timetypene: aktive rader av typen «time» i aktive lister. Samme
       // regel som API-et håndhever.
       supabase
