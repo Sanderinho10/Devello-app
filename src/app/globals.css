@@ -3709,6 +3709,17 @@ tr.fakturert,
   font-weight: 600;
 }
 
+/* Etikett som bare vises når tabellraden er et kort på mobil. */
+.mobil-etikett {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .tabell-mobil .mobil-etikett {
+    display: inline;
+  }
+}
+
 /* Grossistlista: katalogsøket i verktøylinja, treffene som nedtrekksliste */
 .verktoylinje .grossist-sok {
   position: relative;

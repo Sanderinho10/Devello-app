@@ -219,9 +219,13 @@ function GrossistRad({
         <strong>{grossist.name}</strong>
       </td>
       <td className="meta">
+        <span className="mobil-etikett">Kundenr. </span>
         {grossist.customer_no ?? <span className="muted">—</span>}
       </td>
-      <td className="num meta">{aktiveVarer.toLocaleString("nb-NO")}</td>
+      <td className="num meta">
+        {aktiveVarer.toLocaleString("nb-NO")}
+        <span className="mobil-etikett"> varer</span>
+      </td>
       <td className="meta">
         {ftp ? (
           <span
