@@ -1,41 +1,30 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Order } from "@/lib/types";
 
 type Kundefelt = Pick<
   Order,
-  "customer_name" | "customer_contact" | "customer_email" | "customer_phone" | "site_address"
+  "customer_id" | "customer_name" | "customer_contact" | "customer_email" | "customer_phone" | "site_address"
 >;
 
-const FELT: { navn: keyof Kundefelt; etikett: string; type?: string }[] = [
-  { navn: "customer_name", etikett: "Kunde" },
-  { navn: "customer_contact", etikett: "Kontaktperson" },
-  { navn: "customer_email", etikett: "E-post", type: "email" },
-  { navn: "customer_phone", etikett: "Telefon" },
-  { navn: "site_address", etikett: "Jobbadresse" },
-];
-
 /**
- * Kundekortet. Feltene kommer fra tilbudet når ordren ble opprettet derfra,
- * men de er ordrens egne: en ny kontaktperson på jobben skal ikke endre
- * tilbudet, og omvendt.
+ * Kunden på ordren.
+ *
+ * Kundeopplysningene vises bare her — skal de endres, gjøres det på
+ * kundekortet, som lenken går til. Jobbadressen er ordrens egen (hvor akkurat
+ * denne jobben gjøres), så den kan rettes her.
  */
 export function OrdreKunde({ orderId, kunde }: { orderId: string; kunde: Kundefelt }) {
   const router = useRouter();
-  const tilStrenger = (k: Kundefelt) =>
-    Object.fromEntries(FELT.map((f) => [f.navn, k[f.navn] ?? ""])) as Record<
-      keyof Kundefelt,
-      string
-    >;
-
-  const [verdier, setVerdier] = useState(() => tilStrenger(kunde));
-  const [lagret, setLagret] = useState(() => tilStrenger(kunde));
+  const [adresse, setAdresse] = useState(kunde.site_address ?? "");
+  const [lagret, setLagret] = useState(kunde.site_address ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const endret = FELT.some((f) => verdier[f.navn].trim() !== lagret[f.navn].trim());
+  const endret = adresse.trim() !== lagret.trim();
 
   async function lagre() {
     setBusy(true);
@@ -44,11 +33,11 @@ export function OrdreKunde({ orderId, kunde }: { orderId: string; kunde: Kundefe
       const res = await fetch(`/api/orders/${orderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(verdier),
+        body: JSON.stringify({ site_address: adresse }),
       });
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.error ?? "Kunne ikke lagre");
-      setLagret(verdier);
+      setLagret(adresse);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -57,31 +46,72 @@ export function OrdreKunde({ orderId, kunde }: { orderId: string; kunde: Kundefe
     }
   }
 
+  const tom = <span className="muted">—</span>;
+
   return (
     <div className="card card-pad ordre-kunde">
       <div className="row-between" style={{ marginBottom: 10, minHeight: 30 }}>
         <span className="label" style={{ marginBottom: 0 }}>
           Kunde
         </span>
-        {endret && (
-          <button type="button" className="button" onClick={lagre} disabled={busy}>
-            {busy ? "Lagrer…" : "Lagre"}
-          </button>
+        {kunde.customer_id && (
+          <Link className="tiny lenke-bla" href={`/register/kontakter/${kunde.customer_id}`}>
+            Åpne kundekortet →
+          </Link>
         )}
       </div>
       {error && <div className="banner error">{error}</div>}
-      {/* Etiketten foran feltet, som i Go. */}
-      {FELT.map((f) => (
-        <label key={f.navn} className="kontakt-rad">
-          <span className="kontakt-rad-etikett">{f.etikett}</span>
-          <input
-            className="input"
-            type={f.type ?? "text"}
-            value={verdier[f.navn]}
-            onChange={(e) => setVerdier((v) => ({ ...v, [f.navn]: e.target.value }))}
-          />
-        </label>
-      ))}
+
+      <dl className="ordre-kunde-info">
+        <dt>Kunde</dt>
+        <dd>
+          {kunde.customer_name ? (
+            kunde.customer_id ? (
+              <Link className="lenke-bla" href={`/register/kontakter/${kunde.customer_id}`}>
+                {kunde.customer_name}
+              </Link>
+            ) : (
+              kunde.customer_name
+            )
+          ) : (
+            tom
+          )}
+        </dd>
+        <dt>Kontaktperson</dt>
+        <dd>{kunde.customer_contact || tom}</dd>
+        <dt>E-post</dt>
+        <dd>
+          {kunde.customer_email ? <a href={`mailto:${kunde.customer_email}`}>{kunde.customer_email}</a> : tom}
+        </dd>
+        <dt>Telefon</dt>
+        <dd>{kunde.customer_phone ? <a href={`tel:${kunde.customer_phone.replace(/\s/g, "")}`}>{kunde.customer_phone}</a> : tom}</dd>
+      </dl>
+
+      {/* Jobbadressen hører til ordren, ikke kunden, og kan rettes her. */}
+      <label className="kontakt-rad" style={{ marginTop: 10, marginBottom: 0 }}>
+        <span className="kontakt-rad-etikett">Jobbadresse</span>
+        <input
+          className="input"
+          value={adresse}
+          onChange={(e) => setAdresse(e.target.value)}
+          placeholder="Hvor jobben gjøres"
+        />
+      </label>
+      {endret && (
+        <div className="row" style={{ justifyContent: "flex-end", marginTop: 8 }}>
+          <button type="button" className="button ghost" onClick={() => setAdresse(lagret)} disabled={busy}>
+            Angre
+          </button>
+          <button type="button" className="button" onClick={lagre} disabled={busy}>
+            {busy ? "Lagrer…" : "Lagre"}
+          </button>
+        </div>
+      )}
+      {!kunde.customer_id && kunde.customer_name && (
+        <p className="hint" style={{ marginTop: 8 }}>
+          Kunden er ikke koblet til kunderegisteret.
+        </p>
+      )}
     </div>
   );
 }

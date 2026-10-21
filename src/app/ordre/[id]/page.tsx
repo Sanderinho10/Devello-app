@@ -202,6 +202,7 @@ export default async function OrdreSide({
         <OrdreKunde
           orderId={ordre.id}
           kunde={{
+            customer_id: ordre.customer_id,
             customer_name: ordre.customer_name,
             customer_contact: ordre.customer_contact,
             customer_email: ordre.customer_email,
