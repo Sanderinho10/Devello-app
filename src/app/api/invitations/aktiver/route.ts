@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse } from "@/lib/api";
+import { harBrukerIAnnetSelskap, leggTilMedlemskap } from "@/lib/selskap/medlemskap";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
 /**
@@ -62,6 +63,16 @@ export async function POST(request: NextRequest) {
     // Navnet administratoren skrev ved invitasjonen, om den inviterte ikke skrev et selv.
     if (!fullName) fullName = [invite.fornavn, invite.etternavn].filter(Boolean).join(" ").trim();
 
+    // Har personen alt en Devello-bruker i et annet selskap, skal passordet
+    // deres ikke røres her. De logger inn som vanlig og godtar invitasjonen
+    // innlogget (/api/invitations/godta) — da legges selskapet til.
+    if (await harBrukerIAnnetSelskap(admin, email, invite.company_id)) {
+      return NextResponse.json(
+        { error: "Du har allerede en Devello-bruker. Logg inn, så kan du godta invitasjonen.", kode: "har_bruker" },
+        { status: 409 },
+      );
+    }
+
     // Brukeren kan finnes fra før: invitasjonsmailen fra Supabase oppretter
     // en auth-bruker med én gang, uten passord. Da setter vi passordet på
     // den i stedet for å lage en ny.
@@ -101,6 +112,7 @@ export async function POST(request: NextRequest) {
       role: invite.role,
     });
     if (userError) throw new Error(userError.message);
+    await leggTilMedlemskap(admin, { userId, companyId: invite.company_id, role: invite.role });
 
     await admin
       .from("invitations")

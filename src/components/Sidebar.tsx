@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { SignOut } from "@/components/SignOut";
 import { Merke } from "@/components/Merke";
+import { SelskapVelger } from "@/components/SelskapVelger";
 import { harModul } from "@/lib/moduler";
 
 /**
@@ -121,6 +122,8 @@ export function Sidebar({
   moduler,
   aktiv = true,
   erDevello = false,
+  selskaper = [],
+  aktivSelskapId = "",
 }: {
   companyName: string;
   userEmail: string;
@@ -130,6 +133,9 @@ export function Sidebar({
   aktiv?: boolean;
   /** Devello-ansatt: viser Devello-seksjonen nederst. */
   erDevello?: boolean;
+  /** Selskapene brukeren er med i. Flere enn ett: velgeren øverst i menyen. */
+  selskaper?: { id: string; name: string }[];
+  aktivSelskapId?: string;
 }) {
   const pathname = usePathname();
 
@@ -208,6 +214,7 @@ export function Sidebar({
       </div>
 
       <div className={`sidebar-nav${open ? " open" : ""}`}>
+        {selskaper.length > 1 && <SelskapVelger selskaper={selskaper} aktivId={aktivSelskapId} />}
         {agenter.map(renderSection)}
 
         {agenter.length > 0 && <div className="nav-separator" />}

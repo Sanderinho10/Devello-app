@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { brukereISelskap } from "@/lib/selskap/medlemskap";
 import { lovligeOverganger } from "@/lib/ordre/status";
 import type { MaterialEntry, Order, OrderDocument, OrderNote, OrderStatus, TimeEntry } from "@/lib/types";
 
@@ -112,7 +113,7 @@ export async function hentOrdreForApp(admin: SupabaseClient, companyId: string, 
     admin.from("material_entries").select("*").eq("order_id", orderId).eq("company_id", companyId).order("registered_at", { ascending: false }).limit(200),
     admin.from("order_notes").select("*").eq("order_id", orderId).eq("company_id", companyId).order("created_at", { ascending: false }).limit(200),
     admin.from("order_documents").select("id, title, file_name, created_at, note_id, kind, mime_type").eq("order_id", orderId).eq("company_id", companyId).order("created_at", { ascending: false }),
-    admin.from("users").select("id, full_name, email").eq("company_id", companyId),
+    brukereISelskap(admin, companyId).then((data) => ({ data })),
   ]);
 
   const namn = new Map((brukarar ?? []).map((u) => [u.id as string, (u.full_name as string | null) || (u.email as string) || ""]));

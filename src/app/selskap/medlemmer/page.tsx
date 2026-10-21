@@ -1,4 +1,5 @@
 import { Members } from "./Members";
+import { brukereISelskap } from "@/lib/selskap/medlemskap";
 import { currentSession, supabaseServer } from "@/lib/supabase/server";
 import type { Invitation, Member } from "@/lib/types";
 
@@ -9,12 +10,11 @@ export default async function MedlemmerPage() {
   const supabase = await supabaseServer();
 
   const [{ data: members }, { data: invitations }] = await Promise.all([
-    supabase
-      .from("users")
-      .select("id, email, full_name, role")
-      .eq("company_id", session!.companyId)
-      .order("role")
-      .order("email"),
+    // Alle med medlemskap i selskapet, også de som akkurat nå står i et
+    // annet — og med rollen de har her.
+    brukereISelskap(supabase, session!.companyId).then((data) => ({
+      data: data.sort((x, y) => (x.role === y.role ? x.email.localeCompare(y.email) : x.role === "admin" ? -1 : 1)),
+    })),
     supabase
       .from("invitations")
       .select("id, email, fornavn, etternavn, role, accepted_at, expires_at, created_at")

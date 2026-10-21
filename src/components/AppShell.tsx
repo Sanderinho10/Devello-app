@@ -3,7 +3,8 @@ import { AbonnementSperre, BetalingsVarsel } from "@/components/AbonnementVarsel
 import { Sidebar } from "@/components/Sidebar";
 import { hentTilgang } from "@/lib/billing/tilgang";
 import { erDevelloAdmin } from "@/lib/devello-admin";
-import { currentSession, supabaseServer } from "@/lib/supabase/server";
+import { mineSelskap } from "@/lib/selskap/medlemskap";
+import { currentSession, supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 
 /**
  * Skallet rundt de innloggede sidene.
@@ -21,10 +22,11 @@ export async function AppShell({ children, aapen = false }: { children: React.Re
   if (!session) redirect("/login");
 
   const supabase = await supabaseServer();
-  const [{ data: company }, { data: meg }, tilgang] = await Promise.all([
+  const [{ data: company }, { data: meg }, tilgang, selskaper] = await Promise.all([
     supabase.from("companies").select("name, moduler").eq("id", session.companyId).single(),
     supabase.from("users").select("role").eq("id", session.userId).maybeSingle(),
     hentTilgang(session.companyId),
+    mineSelskap(supabaseAdmin(), session.userId),
   ]);
 
   return (
@@ -35,6 +37,8 @@ export async function AppShell({ children, aapen = false }: { children: React.Re
         moduler={company?.moduler ?? []}
         aktiv={tilgang.aktiv}
         erDevello={erDevelloAdmin(session.email)}
+        selskaper={selskaper.map((s) => ({ id: s.id, name: s.name }))}
+        aktivSelskapId={session.companyId}
       />
       <main className="main">
         {tilgang.ubetalt && <BetalingsVarsel ubetalt={tilgang.ubetalt} selskap={company?.name ?? "selskapet"} />}

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { brukereISelskap } from "@/lib/selskap/medlemskap";
 import { errorResponse, sessionOr401 } from "@/lib/api";
 import { registrerAppBrukar } from "@/lib/billing/subscription";
 import { dato, erAdmin, erUnikBrot, finstMedClientId, hentTimetype, ordreForSkriving, tal, uuid } from "@/lib/ordre/api";
@@ -73,12 +74,7 @@ export async function POST(
           { status: 403 },
         );
       }
-      const { data: bruker } = await admin
-        .from("users")
-        .select("id")
-        .eq("id", body.user_id)
-        .eq("company_id", session.companyId)
-        .maybeSingle();
+      const bruker = (await brukereISelskap(admin, session.companyId)).find((b) => b.id === body.user_id);
       if (!bruker) {
         return NextResponse.json({ error: "Fant ikke montøren." }, { status: 400 });
       }
