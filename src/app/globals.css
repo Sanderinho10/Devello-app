@@ -3709,22 +3709,79 @@ tr.fakturert,
   font-weight: 600;
 }
 
-.jobb-rad {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 12px;
-  padding: 7px 0;
-  border-top: 1px solid var(--border);
+/* Grossistlista: katalogsøket i verktøylinja, treffene som nedtrekksliste */
+.verktoylinje .grossist-sok {
+  position: relative;
 }
 
-.jobb-rad:first-of-type {
-  border-top: none;
+.verktoylinje .grossist-sok .input {
+  width: 320px;
+}
+
+.verktoylinje .grossist-sok > .grossist-treff,
+.verktoylinje .grossist-sok > p,
+.verktoylinje .grossist-sok > .banner {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 30;
+  width: min(560px, calc(100vw - 32px));
+  margin-top: 6px !important;
+  background: var(--surface, #fff);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
+}
+
+.verktoylinje .grossist-sok > p {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.grossist-liste .grossist-siste {
+  min-width: 170px;
+}
+
+.grossist-framdrift {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.grossist-framdrift .framdrift {
+  display: block;
+  margin-top: 2px;
+}
+
+.grossist-framdrift .framdrift-fyll {
+  display: block;
+}
+
+.grossist-liste td.handling {
+  text-align: right;
+}
+
+.grossist-liste td.handling .button {
+  padding: 3px 12px;
+  font-size: 13px;
+}
+
+.historikk-tabell td {
+  vertical-align: top;
+}
+
+/* Grossistpopupen: FTP-fanen er lang, så panelet ruller og knappene står fast. */
+.kontakt-panel.grossist-panel {
+  max-height: calc(100vh - 230px);
+  overflow-y: auto;
 }
 
 @media (max-width: 700px) {
-  .grossist-kort .grid-2 {
-    grid-template-columns: 1fr;
+  .verktoylinje .grossist-sok,
+  .verktoylinje .grossist-sok .input {
+    width: 100%;
+  }
+  .verktoylinje:has(.grossist-sok) .verktoylinje-hoyre {
+    flex: 1 1 100%;
   }
 }
 

@@ -1,6 +1,4 @@
-import { GrossistKort } from "./GrossistKort";
-import { NyGrossist } from "./NyGrossist";
-import { GrossistSok } from "@/components/GrossistSok";
+import { GrossistListe } from "./GrossistListe";
 import { ModulMangler } from "@/components/ModulMangler";
 import { harModul } from "@/lib/moduler";
 import { utanPassord } from "@/lib/grossist/api";
@@ -35,13 +33,13 @@ export default async function GrossisterPage() {
       .select("*")
       .eq("company_id", session!.companyId)
       .order("created_at", { ascending: false })
-      .limit(100),
+      .limit(300),
     supabase
       .from("supplier_invoice_files")
       .select("*")
       .eq("company_id", session!.companyId)
       .order("fetched_at", { ascending: false })
-      .limit(100),
+      .limit(300),
   ]);
   const grossistar = (rader ?? []) as Supplier[];
   const erAdmin = meg?.role === "admin";
@@ -53,13 +51,13 @@ export default async function GrossisterPage() {
   const fakturafilerAv = new Map<string, SupplierInvoiceFile[]>();
   for (const f of (fakturafiler ?? []) as SupplierInvoiceFile[]) {
     const liste = fakturafilerAv.get(f.supplier_id) ?? [];
-    if (liste.length < 10) liste.push(f);
+    if (liste.length < 30) liste.push(f);
     fakturafilerAv.set(f.supplier_id, liste);
   }
   const jobbarAv = new Map<string, ImportJob[]>();
   for (const j of (jobbar ?? []) as ImportJob[]) {
     const liste = jobbarAv.get(j.supplier_id) ?? [];
-    if (liste.length < 5) liste.push(j);
+    if (liste.length < 20) liste.push(j);
     jobbarAv.set(j.supplier_id, liste);
   }
 
@@ -76,45 +74,23 @@ export default async function GrossisterPage() {
 
   return (
     <>
-      <div className="page-header">
+      <div className="page-header kompakt">
         <div>
           <h1>Grossister</h1>
-          <p className="page-subtitle">
-            Katalogen materiellet velges fra. Prisene står per måleenhet — kabel per meter, ikke per 100.
-          </p>
+          <p className="page-subtitle">Katalogen materiellet velges fra. Prisene står per måleenhet — kabel per meter, ikke per 100.</p>
         </div>
-        {erAdmin && <NyGrossist />}
       </div>
 
-      {grossistar.length === 0 ? (
-        <div className="card empty">
-          <div className="empty-title">Ingen grossister ennå</div>
-          <div>
-            {erAdmin
-              ? "Trykk «Ny grossist», og sett opp FTP-henting eller last opp prisfilen."
-              : "En administrator legger til grossisten og prisfilen."}
-          </div>
-        </div>
-      ) : (
-        <div className="stack">
-          {grossistar.map((g, i) => (
-            <GrossistKort
-              key={g.id}
-              grossist={g}
-              aktiveVarer={antall[i]}
-              ftp={ftpAv.get(g.id) ?? null}
-              jobbar={jobbarAv.get(g.id) ?? []}
-              fakturafiler={fakturafilerAv.get(g.id) ?? []}
-              erAdmin={erAdmin}
-            />
-          ))}
-
-          <div className="card card-pad">
-            <span className="label">Slå opp i katalogen</span>
-            <GrossistSok />
-          </div>
-        </div>
-      )}
+      <GrossistListe
+        erAdmin={erAdmin}
+        rader={grossistar.map((g, i) => ({
+          grossist: g,
+          aktiveVarer: antall[i],
+          ftp: ftpAv.get(g.id) ?? null,
+          jobbar: jobbarAv.get(g.id) ?? [],
+          fakturafiler: fakturafilerAv.get(g.id) ?? [],
+        }))}
+      />
     </>
   );
 }
