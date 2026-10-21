@@ -1716,6 +1716,115 @@ body.drar-rad * {
   min-height: 0;
 }
 
+/* Kundefeltet som nedtrekksliste, som i Go: pil i feltet, en liten tabell
+   med kundenummer og navn, og «Legg til kunde» nederst. */
+.kunde-velger .input {
+  padding-right: 30px;
+}
+
+.kunde-velger-pil {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  width: 28px;
+  border: none;
+  background: none;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.kunde-velger-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.kunde-velger-hode,
+.kunde-velger-rad {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  padding: 7px 12px;
+}
+
+.kunde-velger-hode {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border);
+}
+
+.kunde-velger-rader {
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.kunde-velger-rad {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.kunde-velger-rad.active {
+  background: var(--accent-soft);
+}
+
+.kunde-velger-kode {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.kunde-velger-navn {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.kunde-velger-tom {
+  padding: 10px 12px;
+}
+
+.kunde-velger-ny {
+  display: block;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  border-top: 1px solid var(--border);
+  background: var(--surface-sunken);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--link);
+  cursor: pointer;
+}
+
+.kunde-velger-ny:hover {
+  background: var(--accent-soft);
+}
+
+/* Tilbud i søkelista: nummer og tittel som én linje, kunde og status under. */
+.tilbud-valg {
+  grid-template-columns: 1fr;
+}
+
+.tilbud-valg .picker-name {
+  display: block;
+}
+
+/* Grå inni grå skal ikke bli dobbelt så blek. */
+.ny-post-prisfil:disabled .ny-post-prisfil:disabled {
+  opacity: 1;
+}
+
 /* Feltene for prisfilen er grået ut til man krysser av for dem. */
 .ny-post-prisfil {
   border: 0;
@@ -3071,19 +3180,31 @@ tr.fakturert,
 
 .faktura-tabell {
   overflow-x: auto;
+  padding: 0 16px;
+}
+
+.faktura-tabell .doc-table {
+  margin-top: 0;
 }
 
 .faktura-tabell .doc-table td {
   vertical-align: top;
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 
-.faktura-tabell .input {
-  padding: 5px 8px;
-  font-size: 13.5px;
+/* Celler uten felt (sum, tekstlinjens strek) på linje med tallene i feltene. */
+.faktura-tabell .doc-table td:not(:has(input)) {
+  padding-top: 9px;
 }
 
-.faktura-tabell .input.num {
-  text-align: right;
+.faktura-tabell .chips {
+  margin: 0 0 2px 7px;
+}
+
+/* Summene nederst til høyre i linjekortet, som i tilbudet. */
+.faktura-summer {
+  margin: 10px 16px 16px auto;
 }
 
 .faktura-tabell tr.utelatt td {
@@ -3312,8 +3433,21 @@ tr.fakturert,
   cursor: default;
 }
 
-.dokument-rad .chips {
-  margin-top: 6px;
+.celle-knapper {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+}
+
+.dokument-tabell td.handling .button {
+  padding: 3px 10px;
+  font-size: 12.5px;
+}
+
+/* Boligmappa som en slank linje over dokumentene. */
+.boligmappa-kort.card-pad {
+  padding: 10px 16px;
 }
 
 .boligmappa-treff .ordre-velger-rad {
@@ -3407,9 +3541,14 @@ tr.fakturert,
   .mal-liste {
     grid-template-columns: 1fr;
   }
-  .dokument-rad .row {
-    flex: 0 0 100%;
+  .dokument-tabell .celle-knapper {
     flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .dokument-tabell td.handling .button {
+    min-height: 40px;
+    padding: 6px 12px;
+    font-size: 14px;
   }
 }
 

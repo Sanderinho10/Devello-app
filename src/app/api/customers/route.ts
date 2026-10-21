@@ -3,7 +3,7 @@ import { errorResponse, sessionOr401 } from "@/lib/api";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import type { Customer } from "@/lib/types";
 import { lesKontakt } from "@/lib/kunder/felt";
-import { adresseTekst, oppdragsadresse } from "@/lib/kunder/adresse";
+import { adresseTekst, hovedadresse } from "@/lib/kunder/adresse";
 
 /**
  * Søk i kontaktregisteret, til forslagene i kundefeltene i skjemaene. Treff
@@ -18,32 +18,39 @@ export async function GET(request: NextRequest) {
 
   try {
     const q = (request.nextUrl.searchParams.get("q") ?? "").trim();
-    if (q.length < 2) return NextResponse.json({ kunder: [] });
+    // «liste=1»: nedtrekkslista i skjemaene åpnes før man har skrevet noe,
+    // som i Go. Da kommer kundene alfabetisk; ellers kreves to tegn.
+    const liste = request.nextUrl.searchParams.get("liste") === "1";
+    if (q.length < 2 && !liste) return NextResponse.json({ kunder: [] });
 
-    // PostgREST-filteret skiller på komma og parenteser; de har ingen plass
-    // i et søkeord uansett.
-    const monster = `%${q.replace(/[%_,()]/g, " ")}%`;
     const admin = supabaseAdmin();
-    const { data, error } = await admin
+    let sporring = admin
       .from("customers")
       .select("*")
       .eq("company_id", session.companyId)
-      .or(
-        `name.ilike.${monster},email.ilike.${monster},contact.ilike.${monster},phone.ilike.${monster}`,
-      )
       .order("name")
-      .limit(8);
+      .limit(q.length < 2 ? 20 : 8);
+    if (q.length >= 2) {
+      // PostgREST-filteret skiller på komma og parenteser; de har ingen plass
+      // i et søkeord uansett.
+      const monster = `%${q.replace(/[%_,()]/g, " ")}%`;
+      sporring = sporring.or(
+        `name.ilike.${monster},email.ilike.${monster},contact.ilike.${monster},phone.ilike.${monster}`,
+      );
+    }
+    const { data, error } = await sporring;
     if (error) throw new Error(error.message);
-    // Skjemaene fyller ut stedet for jobben med «address»: det er
-    // oppdragsadressen, som er hovedadressen når det ikke er krysset av for
-    // en egen.
+    // «address» er kundens hovedadresse. Hvor en jobb gjøres hører til
+    // ordren, ikke kunden — skjemaene har en egen avkryssing for det.
     const kunder = ((data ?? []) as Customer[]).map((k) => ({
       id: k.id,
       name: k.name,
       contact: k.contact,
       email: k.email,
       phone: k.phone,
-      address: adresseTekst(oppdragsadresse(k)) || null,
+      address: adresseTekst(hovedadresse(k)) || null,
+      adresse: hovedadresse(k),
+      kode: k.accounting_customer_no,
       is_customer: k.is_customer,
       is_supplier: k.is_supplier,
     }));

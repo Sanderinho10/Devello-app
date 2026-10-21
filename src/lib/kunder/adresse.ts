@@ -3,10 +3,11 @@ import type { Customer } from "@/lib/types";
 /**
  * Adressene på en kontakt.
  *
- * Hovedadressen står alltid. Fakturaadresse og oppdragsadresse gjelder bare
- * når de er krysset av som egne; ellers er de lik hovedadressen. Alle som
- * trenger «adressen vi fakturerer til» eller «der jobben er» skal gå via
- * funksjonene her, så regelen bor ett sted.
+ * Hovedadressen står alltid. Fakturaadressen gjelder bare når den er
+ * krysset av som egen; ellers er den lik hovedadressen. Alle som trenger
+ * «adressen vi fakturerer til» skal gå via funksjonene her, så regelen bor
+ * ett sted. Hvor en jobb gjøres står på ordren (site_address), ikke på
+ * kunden — de gamle site_*-kolonnene på kunden leses ikke lenger.
  */
 export interface Adresse {
   linje1: string;
@@ -29,11 +30,6 @@ type AdresseFelt = Pick<
   | "invoice_postal_code"
   | "invoice_city"
   | "invoice_country"
-  | "site_separate"
-  | "site_address"
-  | "site_address2"
-  | "site_postal_code"
-  | "site_city"
 >;
 
 export function hovedadresse(k: Partial<AdresseFelt>): Adresse {
@@ -57,15 +53,17 @@ export function fakturaadresse(k: Partial<AdresseFelt>): Adresse {
   };
 }
 
-export function oppdragsadresse(k: Partial<AdresseFelt>): Adresse {
-  if (!k.site_separate) return hovedadresse(k);
-  return {
-    linje1: k.site_address ?? "",
-    linje2: k.site_address2 ?? "",
-    postnr: k.site_postal_code ?? "",
-    sted: k.site_city ?? "",
-    land: k.country || "Norge",
-  };
+/**
+ * «Bjørkevegen 22, 6800 Førde» → adresse, postnummer og sted. Det som ikke
+ * ender på postnummer og sted, blir stående på linje 1 — da er det ingen
+ * grunn til å gjette. Samme regel som overføringen til Go bruker.
+ */
+export function delAdresse(tekst: string | null | undefined): Adresse {
+  const t = (tekst ?? "").trim();
+  const m = t.match(/^(.*?),?\s*(\d{4})\s+([^\d,]+)$/);
+  if (!m) return { linje1: t, linje2: "", postnr: "", sted: "", land: "Norge" };
+  const [linje1, ...resten] = m[1].split(",").map((s) => s.trim());
+  return { linje1: linje1 ?? "", linje2: resten.join(", "), postnr: m[2], sted: m[3].trim(), land: "Norge" };
 }
 
 /** «Storgata 1, 5003 Bergen». Landet tas bare med når det ikke er Norge. */

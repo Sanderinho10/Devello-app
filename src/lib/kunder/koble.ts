@@ -19,6 +19,10 @@ export interface Kundefelt {
   phone?: string | null;
   contact?: string | null;
   address?: string | null;
+  /** Resten av adressen hver for seg, når skjemaet har dem (0053). */
+  address2?: string | null;
+  postal_code?: string | null;
+  city?: string | null;
 }
 
 export async function finnEllerOpprettKunde(
@@ -30,14 +34,31 @@ export async function finnEllerOpprettKunde(
   const email = tekst(felt.email);
   if (!name && !email) return null;
 
-  const { data, error } = await admin.rpc("finn_eller_opprett_kunde", {
+  const grunn = {
     p_company: companyId,
     p_name: name || null,
     p_email: email || null,
     p_phone: tekst(felt.phone) || null,
     p_contact: tekst(felt.contact) || null,
     p_address: tekst(felt.address) || null,
-  });
+  };
+  const delt = {
+    p_address2: tekst(felt.address2) || null,
+    p_postal_code: tekst(felt.postal_code) || null,
+    p_city: tekst(felt.city) || null,
+  };
+  const harDelt = Object.values(delt).some(Boolean);
+  let { data, error } = await admin.rpc("finn_eller_opprett_kunde", harDelt ? { ...grunn, ...delt } : grunn);
+  // Før 0053 er kjørt, kjenner ikke databasen de nye parameterne. Da kobles
+  // kunden som før, med adressen på én linje, heller enn ikke i det hele tatt.
+  if (error && harDelt) {
+    console.warn("finn_eller_opprett_kunde uten adressefelt (0053 ikke kjørt?):", error.message);
+    const poststed = [delt.p_postal_code, delt.p_city].filter(Boolean).join(" ");
+    ({ data, error } = await admin.rpc("finn_eller_opprett_kunde", {
+      ...grunn,
+      p_address: [grunn.p_address, delt.p_address2, poststed].filter(Boolean).join(", ") || null,
+    }));
+  }
   if (error) {
     console.error("Kunne ikke koble kunde:", error.message);
     return null;

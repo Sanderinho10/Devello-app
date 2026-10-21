@@ -57,6 +57,15 @@ export async function POST(request: NextRequest) {
       customer_email?: string;
       customer_phone?: string;
       site_address?: string;
+      /**
+       * Kundens egen adresse. Er oppdraget et annet sted, er site_address
+       * oppdragsadressen og denne kundens adresse; ellers er de like.
+       */
+      customer_address?: string;
+      /** Resten av kundens adresse felt for felt (0053). */
+      customer_address2?: string;
+      customer_postal_code?: string;
+      customer_city?: string;
       /** Valgt fra kunderegisteret i skjemaet. Må tilhøre selskapet. */
       customer_id?: string;
     };
@@ -121,6 +130,20 @@ export async function POST(request: NextRequest) {
         quote_snapshot: { quote_type: draft.quote_type, quote_no: draft.quote_no ?? null, document, totals },
         planned_total: totals?.subtotal ?? null,
       };
+
+      // «Ny ordre» med et tilbud: feltene er fylt ut fra tilbudet, men kan
+      // være rettet før ordren ble laget. Det som er skrevet inn, vinner;
+      // poster og pris kommer fortsatt fra tilbudet.
+      const rettet = (verdi: string | undefined) => tekst(verdi) || null;
+      felt = {
+        ...felt,
+        title: rettet(body.title) ?? felt.title,
+        customer_name: rettet(body.customer_name) ?? felt.customer_name,
+        customer_contact: rettet(body.customer_contact) ?? felt.customer_contact,
+        customer_email: rettet(body.customer_email) ?? felt.customer_email,
+        customer_phone: rettet(body.customer_phone) ?? felt.customer_phone,
+        site_address: rettet(body.site_address) ?? felt.site_address,
+      };
     } else {
       const title = tekst(body.title);
       if (!title) {
@@ -160,7 +183,11 @@ export async function POST(request: NextRequest) {
         email: felt.customer_email,
         phone: felt.customer_phone,
         contact: felt.customer_contact,
-        address: felt.site_address,
+        // En ny kunde får sin egen adresse, ikke stedet for denne ene jobben.
+        address: tekst(body.customer_address) || felt.site_address,
+        address2: body.customer_address2,
+        postal_code: body.customer_postal_code,
+        city: body.customer_city,
       }));
 
     const { data: order, error: insertFeil } = await admin
