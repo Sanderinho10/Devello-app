@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   try {
     url = buildBoligmappaAuthorizeUrl(state);
   } catch (err) {
-    const tilbake = new URL("/selskap/innstillinger/generelt", appUrl);
+    const tilbake = new URL("/selskap/innstillinger/boligmappa", appUrl);
     tilbake.searchParams.set("bm_feil", err instanceof Error ? err.message : String(err));
     return NextResponse.redirect(tilbake);
   }

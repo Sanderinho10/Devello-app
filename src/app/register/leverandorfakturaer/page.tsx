@@ -103,8 +103,8 @@ export default async function LeverandorfakturaerPage({
           <div className="empty-title">Ingen fakturakilde ennå</div>
           <div>
             Koble til PowerOffice Go under{" "}
-            <Link href="/selskap/innstillinger/generelt#ordre" style={{ textDecoration: "underline" }}>
-              Selskap → Innstillinger → Ordre
+            <Link href="/selskap/innstillinger/regnskap" style={{ textDecoration: "underline" }}>
+              Selskap → Innstillinger → Regnskap
             </Link>
             , eller sett opp fakturafiler fra grossisten under{" "}
             <Link href="/register/grossister" style={{ textDecoration: "underline" }}>

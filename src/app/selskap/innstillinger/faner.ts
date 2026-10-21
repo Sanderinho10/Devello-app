@@ -1,37 +1,92 @@
 export interface InnstillingsFane {
   label: string;
   href: string;
-  /** Éi setning om kva som ligg der. Brukt på oversikta. */
+  /** Éi setning om kva som ligg der. Står øvst på sida. */
   beskrivelse: string;
 }
 
+export interface InnstillingsGruppe {
+  label: string;
+  faner: InnstillingsFane[];
+}
+
+const BASE = "/selskap/innstillinger";
+
 /**
- * Det som ligg under Selskap → Innstillinger, i rekkjefølgje.
- *
- * Oversikta og fanestripa les same liste, så dei kan ikkje sprike.
- * Grossistane flytta til Register (/register/grossister) — dei er eit
- * register ein slår opp i, ikkje noko som blir sett opp éin gong.
+ * Menyen til venstre under Selskap → Innstillinger, gruppert som i Go:
+ * det som gjeld heile selskapet, tilbodsagenten, og ordremodulen (berre
+ * når selskapet har han). Menyen og overskrifta på kvar side les same
+ * liste, så dei kan ikkje sprike.
  */
-// Modulane står att i signaturen så kallarane slepp å endrast om ei fane
-// igjen skal avhenge av ein modul.
-export function innstillingsFaner(_moduler: string[]): InnstillingsFane[] {
-  const faner: InnstillingsFane[] = [
+export function innstillingsMeny(moduler: string[]): InnstillingsGruppe[] {
+  const grupper: InnstillingsGruppe[] = [
     {
-      label: "Innstillinger",
-      href: "/selskap/innstillinger/generelt",
-      beskrivelse:
-        "Firmaopplysninger og profil, postkassen og teksten i tilbudene, og påslag, regnskap og Boligmappa for ordre.",
+      label: "Selskap",
+      faner: [
+        {
+          label: "Firma og profil",
+          href: `${BASE}/firma`,
+          beskrivelse: "Firmaopplysninger, adresse, og logoen, fargen og kontaktinfoen som står på tilbudene.",
+        },
+      ],
     },
     {
-      label: "Prisfil",
-      href: "/selskap/innstillinger/prisfil",
-      beskrivelse: "Prisradene agenten slår opp i når den lager tilbud og regner på ordrer.",
-    },
-    {
-      label: "Referansefiler",
-      href: "/selskap/innstillinger/referansefiler",
-      beskrivelse: "Tidligere tilbud som agenten lærer tilbudstype og nivå fra.",
+      label: "Tilbud",
+      faner: [
+        {
+          label: "Postkasse",
+          href: `${BASE}/postkasse`,
+          beskrivelse: "Microsoft 365-postkassen leads hentes fra og svarene legges som kladd i.",
+        },
+        {
+          label: "Tilbudsagent",
+          href: `${BASE}/tilbudsagent`,
+          beskrivelse: "Signatur, bunntekst, tilleggsinstruks og hvilken motor som lager utkastene.",
+        },
+        {
+          label: "Prisfil",
+          href: `${BASE}/prisfil`,
+          beskrivelse: "Prislistene agenten slår opp i. Den regner aldri en pris selv.",
+        },
+        {
+          label: "Referansefiler",
+          href: `${BASE}/referansefiler`,
+          beskrivelse: "Tidligere tilbud som agenten lærer tilbudstype og nivå fra.",
+        },
+      ],
     },
   ];
-  return faner;
+  if (moduler.includes("ordre")) {
+    grupper.push({
+      label: "Ordre",
+      faner: [
+        {
+          label: "Materiell",
+          href: `${BASE}/materiell`,
+          beskrivelse: "Standardpåslaget som legges på grossistprisen når materiell føres på en ordre.",
+        },
+        {
+          label: "Regnskap",
+          href: `${BASE}/regnskap`,
+          beskrivelse: "PowerOffice Go: leverandørfakturaer inn på ordren, og fakturaforslag tilbake som ordreutkast.",
+        },
+        {
+          label: "Boligmappa",
+          href: `${BASE}/boligmappa`,
+          beskrivelse: "Ferdig dokumentasjon sendes til eiendommens Boligmappa med ett trykk fra ordren.",
+        },
+      ],
+    });
+  }
+  return grupper;
+}
+
+/** Fana som gjeld for adressa: den lengste som passar (prisfil/[id] → Prisfil). */
+export function aktivFane(grupper: InnstillingsGruppe[], pathname: string): InnstillingsFane | null {
+  return (
+    grupper
+      .flatMap((g) => g.faner)
+      .filter((f) => pathname === f.href || pathname.startsWith(f.href + "/"))
+      .sort((a, b) => b.href.length - a.href.length)[0] ?? null
+  );
 }

@@ -35,29 +35,30 @@ export default async function PriceListPage({
     .order("position")
     .order("name");
 
+  const l = list as PriceList;
   return (
     <>
-      <div className="page-header">
-        <div>
-          <Link className="button ghost" href="/selskap/innstillinger/prisfil" style={{ marginLeft: -10 }}>
-            ← Prisfil
-          </Link>
-          <h1 style={{ marginTop: 6 }}>{list.name}</h1>
-          <p className="page-subtitle">
-            {PRICE_KIND_LABELS[(list as PriceList).kind]} ·{" "}
-            {PRICE_KIND_HELP[(list as PriceList).kind]}
-          </p>
-        </div>
+      <div className="inst-tittel">
+        <Link className="tilbake" href="/selskap/innstillinger/prisfil">
+          ← Prisfil
+        </Link>
+        <h2>
+          {l.name}{" "}
+          <span className={`pill ${l.active ? "ferdig" : ""}`} style={{ verticalAlign: "middle" }}>
+            {l.active ? "Aktiv" : "Inaktiv"}
+          </span>
+        </h2>
+        <p className="muted">
+          {PRICE_KIND_LABELS[l.kind]} · {PRICE_KIND_HELP[l.kind]}
+          {l.description && ` · ${l.description}`}
+        </p>
       </div>
 
-      {!list.active && (
-        <div className="banner warning">
-          Listen er inaktiv. Agenten henter ikke poster herfra før den blir
-          aktivert igjen.
-        </div>
+      {!l.active && (
+        <div className="banner warning">Listen er inaktiv. Agenten henter ikke poster herfra før den blir aktivert igjen.</div>
       )}
 
-      <ListItems list={list as PriceList} items={(items ?? []) as PriceListItem[]} />
+      <ListItems list={l} items={(items ?? []) as PriceListItem[]} />
     </>
   );
 }

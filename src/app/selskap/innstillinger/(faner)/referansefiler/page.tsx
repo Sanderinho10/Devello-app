@@ -26,16 +26,6 @@ export default async function ReferansefilerPage() {
 
   return (
     <>
-      <div className="page-header">
-        <div>
-          <h1>Referansefiler</h1>
-          <p className="page-subtitle">
-            Tidligere tilbud, merket med type. Dette er fasiten agenten matcher mot
-            når den foreslår tilbudstype.
-          </p>
-        </div>
-      </div>
-
       <Opplaeringskort status={opplaering} />
 
       <ReferenceFiles

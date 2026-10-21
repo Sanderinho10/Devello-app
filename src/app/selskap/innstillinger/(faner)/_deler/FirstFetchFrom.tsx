@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Lagrelinje, Panel, Rad } from "./Panel";
 
 /**
  * «Hent leads fra og med» — bare synlig fram til første henting.
@@ -16,10 +17,10 @@ export function FirstFetchFrom({ value }: { value: string }) {
   const [busy, setBusy] = useState(false);
   const [lagret, setLagret] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const iDag = new Date().toISOString().slice(0, 10);
 
-  async function lagre() {
+  async function lagre(event: React.FormEvent) {
+    event.preventDefault();
     setBusy(true);
     setError(null);
     setLagret(false);
@@ -41,10 +42,18 @@ export function FirstFetchFrom({ value }: { value: string }) {
   }
 
   return (
-    <div className="stack" style={{ gap: 8, marginTop: 14 }}>
-      <label className="field" style={{ marginBottom: 0 }}>
-        <span className="label">Hent leads fra og med</span>
-        <div className="row" style={{ gap: 8, alignItems: "center" }}>
+    <form onSubmit={lagre}>
+      <Panel
+        tittel="Første henting"
+        hint="Gjelder bare den aller første hentingen. Etterpå hentes det som har kommet inn siden sist."
+        bunn={<Lagrelinje endret={dato !== value} busy={busy} lagret={lagret} onAngre={() => setDato(value)} />}
+      >
+        {error && <div className="banner error">{error}</div>}
+        <Rad
+          etikett="Hent leads fra og med"
+          smal
+          hint="Velger du langt tilbake, kan det ta noen klikk på «Hent» før hele køen er inne."
+        >
           <input
             className="input"
             type="date"
@@ -54,25 +63,9 @@ export function FirstFetchFrom({ value }: { value: string }) {
               setDato(e.target.value);
               setLagret(false);
             }}
-            style={{ maxWidth: 190 }}
           />
-          <button
-            type="button"
-            className="button secondary"
-            onClick={lagre}
-            disabled={busy || dato === value}
-          >
-            {busy ? "Lagrer…" : "Lagre"}
-          </button>
-          {lagret && <span className="tiny muted">Lagret.</span>}
-        </div>
-      </label>
-      <span className="hint">
-        Gjelder bare den aller første hentingen. Etterpå henter knappen bare det
-        som har kommet inn siden sist. Velger du langt tilbake, kan det ta noen
-        klikk før hele køen er inne.
-      </span>
-      {error && <div className="banner error">{error}</div>}
-    </div>
+        </Rad>
+      </Panel>
+    </form>
   );
 }

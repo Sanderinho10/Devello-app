@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { formatDate, type BoligmappaConnectionPublic } from "@/lib/types";
+import { Panel } from "./Panel";
 
 /**
  * Koplinga til Boligmappa. Kunden logger inn med sin egen Boligmappa
@@ -42,31 +43,40 @@ export function BoligmappaKort({
   }
 
   return (
-    <div className="card card-pad" style={{ maxWidth: 640 }}>
-      <div className="row-between" style={{ marginBottom: 8 }}>
-        <span className="label" style={{ marginBottom: 0 }}>
-          Boligmappa
-        </span>
-        {kopling && <span className={`pill ${kopling.status === "aktiv" ? "ferdig" : "avbrutt"}`}>{kopling.status === "aktiv" ? "Tilkoblet" : "Feil"}</span>}
-      </div>
-      <p className="muted tiny" style={{ marginBottom: 14 }}>
-        Ferdig dokumentasjon sendes til eiendommens Boligmappa med ett trykk fra ordren. Kobles til med
-        firmaets Boligmappa Bedrift-innlogging.
-      </p>
-
+    <Panel
+      tittel="Boligmappa Bedrift"
+      hint="Kobles til med firmaets Boligmappa Bedrift-innlogging. Devello får lov til å laste opp dokumentasjon på firmaets vegne — ikke noe annet."
+      hoyre={
+        kopling ? (
+          <span className={`pill ${kopling.status === "aktiv" ? "ferdig" : "sperret"}`}>
+            {kopling.status === "aktiv" ? "Tilkoblet" : "Feil"}
+          </span>
+        ) : (
+          <span className="pill utkast_klar">Ikke tilkoblet</span>
+        )
+      }
+    >
       {error && <div className="banner error">{error}</div>}
-      {melding.koblet && !error && <div className="banner success">Koblet til Boligmappa{melding.koblet !== "1" ? ` som ${melding.koblet}` : ""}.</div>}
+      {melding.koblet && !error && (
+        <div className="banner success">Koblet til Boligmappa{melding.koblet !== "1" ? ` som ${melding.koblet}` : ""}.</div>
+      )}
 
       {kopling ? (
-        <div className="stack" style={{ gap: 10 }}>
-          <div>
-            <strong>{kopling.bm_user_name ?? "Boligmappa Bedrift"}</strong>
-            {kopling.bm_company_name && <span>, {kopling.bm_company_name}</span>}
-            <span className="tiny muted"> · {kopling.environment === "staging" ? "staging" : "produksjon"} · koblet {formatDate(kopling.created_at)}</span>
-          </div>
-          {kopling.status === "feil" && kopling.status_reason && <div className="banner error" style={{ marginBottom: 0 }}>{kopling.status_reason}</div>}
+        <>
+          <dl className="inst-status">
+            <dt>Bruker</dt>
+            <dd>
+              <strong>{kopling.bm_user_name ?? "Boligmappa Bedrift"}</strong>
+              {kopling.bm_company_name && `, ${kopling.bm_company_name}`}
+            </dd>
+            <dt>Miljø</dt>
+            <dd>{kopling.environment === "staging" ? "Staging" : "Produksjon"}</dd>
+            <dt>Koblet</dt>
+            <dd>{formatDate(kopling.created_at)}</dd>
+          </dl>
+          {kopling.status === "feil" && kopling.status_reason && <div className="banner error">{kopling.status_reason}</div>}
           {erAdmin && (
-            <div className="row" style={{ flexWrap: "wrap" }}>
+            <div className="inst-knapper">
               <a className="button secondary" href="/api/boligmappa/auth/start">
                 {kopling.status === "feil" ? "Logg inn på nytt" : "Koble til på nytt"}
               </a>
@@ -75,26 +85,24 @@ export function BoligmappaKort({
               </button>
             </div>
           )}
-        </div>
+        </>
       ) : erAdmin ? (
         konfigurert ? (
-          <div>
+          <div className="inst-knapper">
             <a className="button" href="/api/boligmappa/auth/start">
               Koble til Boligmappa
             </a>
-            <span className="hint" style={{ display: "block", marginTop: 8 }}>
-              Du sendes til Boligmappa og logger inn med Bedrift-brukeren. Devello får lov til å laste opp
-              dokumentasjon på firmaets vegne — ikke noe annet.
-            </span>
           </div>
         ) : (
-          <p className="muted tiny">
+          <p className="muted" style={{ margin: "0 0 14px" }}>
             Boligmappa er ikke satt opp i dette miljøet ennå (BOLIGMAPPA_CLIENT_ID og BOLIGMAPPA_CLIENT_SECRET mangler).
           </p>
         )
       ) : (
-        <p className="muted tiny">Ikke tilkoblet. Bare administratorer kan koble til.</p>
+        <p className="muted" style={{ margin: "0 0 14px" }}>
+          Ikke tilkoblet. Bare administratorer kan koble til.
+        </p>
       )}
-    </div>
+    </Panel>
   );
 }

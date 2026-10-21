@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ExcelDrop } from "@/components/ExcelDrop";
+import { Modal } from "@/components/Modal";
 import { Vaskepanel } from "./Vaskepanel";
 import { PrisCelle } from "@/components/PrisCelle";
 import {
@@ -49,6 +50,8 @@ export function ListItems({
   const [replace, setReplace] = useState(false);
   const [imported, setImported] = useState<number | null>(null);
   const [importUtenPris, setImportUtenPris] = useState(0);
+  const [nyRad, setNyRad] = useState(false);
+  const [importer, setImporter] = useState(false);
 
   const shown = useMemo(() => {
     const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
@@ -93,6 +96,7 @@ export function ListItems({
         unit: DEFAULT_UNIT[list.kind],
         unit_price: "",
       });
+      setNyRad(false);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -139,6 +143,7 @@ export function ListItems({
       setImported(payload.imported);
       setImportUtenPris(payload.utenPris ?? 0);
       setFile(null);
+      setImporter(false);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -147,68 +152,91 @@ export function ListItems({
     }
   }
 
+  function aapne(hva: "rad" | "import") {
+    setError(null);
+    setDetails([]);
+    if (hva === "rad") setNyRad(true);
+    else setImporter(true);
+  }
+
   return (
     <div className="stack">
       {/* Står øverst med vilje: det som ser rart ut skal møte deg før
           importknappen, ikke etter at du har lagt til enda en rad. */}
       <Vaskepanel items={items} onVelgRad={setQuery} />
 
-      <div className="card">
-        <div className="card-header">
-          <strong>Importer fra Excel</strong>
-          <span className="tiny muted">
-            {items.length > 0 ? "Legg til eller erstatt radene" : "Fyll listen fra en fil"}
-          </span>
+      {imported !== null && (
+        <div className="banner success">
+          Importerte {imported} {imported === 1 ? "rad" : "rader"}.
+          {importUtenPris > 0 && <> {importUtenPris} av dem har ingen pris — se gjennomgangen øverst.</>}
         </div>
-        <form className="card-pad" onSubmit={importFile}>
-          {imported !== null && (
-            <div className="banner success">
-              Importerte {imported} {imported === 1 ? "rad" : "rader"}.
-              {importUtenPris > 0 && (
-                <>
-                  {" "}
-                  {importUtenPris} av dem har ingen pris — se gjennomgangen
-                  øverst.
-                </>
-              )}
-            </div>
-          )}
+      )}
 
-          <ExcelDrop
-            file={file}
-            onFile={setFile}
-            templateHref={`/api/price-lists/template?kind=${list.kind}`}
-          />
-
-          {items.length > 0 && (
-            <label className="row" style={{ marginTop: 14, cursor: "pointer" }}>
-              <input
-                type="checkbox"
-                checked={replace}
-                onChange={(e) => setReplace(e.target.checked)}
-              />
-              <span className="tiny">
-                Erstatt de {items.length} eksisterende radene i stedet for å legge til
-              </span>
-            </label>
-          )}
-
-          <button
-            className="button"
-            type="submit"
-            disabled={busy || !file}
-            style={{ marginTop: 14 }}
-          >
-            {busy ? "Leser inn filen…" : replace ? "Erstatt rader" : "Importer rader"}
-          </button>
-        </form>
+      <div className="verktoylinje" style={{ margin: 0 }}>
+        <button type="button" className="button" onClick={() => aapne("rad")}>
+          Ny prisrad
+        </button>
+        <button type="button" className="button secondary" onClick={() => aapne("import")}>
+          Importer fra Excel
+        </button>
+        <div className="verktoylinje-hoyre">
+          <span className="tiny muted">
+            {query ? `${shown.length} av ` : ""}
+            {items.length} {items.length === 1 ? "rad" : "rader"}
+          </span>
+          <input className="input" type="search" placeholder="Søk i listen" value={query} onChange={(e) => setQuery(e.target.value)} />
+        </div>
       </div>
 
-      <div className="card">
-        <div className="card-header">
-          <strong>Ny prisrad</strong>
-        </div>
-        <form className="card-pad" onSubmit={save}>
+      <div className="card allow-overflow">
+        {shown.length === 0 ? (
+          <div className="empty">
+            {items.length === 0 ? (
+              <>
+                <div className="empty-title">Listen er tom</div>
+                <div>Legg inn prisrader, eller importer dem fra Excel.</div>
+              </>
+            ) : (
+              <>Ingen rader matcher «{query}».</>
+            )}
+          </div>
+        ) : (
+          <table className="table tabell-mobil">
+            <thead>
+              <tr>
+                <th style={{ width: 80 }}>Kode</th>
+                <th>Navn</th>
+                <th>Enhet</th>
+                <th className="num">Enhetspris</th>
+                <th aria-label="Handlinger" />
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((item) => (
+                <tr key={item.id}>
+                  <td className="meta">{item.code ? <span className="picker-code">{item.code}</span> : <span className="muted">—</span>}</td>
+                  <td className="hoved">
+                    <div style={{ fontWeight: 550 }}>{item.name}</div>
+                    {item.description && <div className="tiny muted">{item.description}</div>}
+                  </td>
+                  <td className="meta muted">{item.unit}</td>
+                  <td className="num belop">
+                    <PrisCelle id={item.id} pris={Number(item.unit_price)} onLagra={() => router.refresh()} />
+                  </td>
+                  <td className="handling">
+                    <button type="button" className="button ghost" onClick={() => remove(item.id)}>
+                      Slett
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <Modal open={nyRad} onClose={() => !busy && setNyRad(false)} title="Ny prisrad" size="wide">
+        <form onSubmit={save}>
           {error && (
             <div className="banner error">
               <div>{error}</div>
@@ -222,136 +250,99 @@ export function ListItems({
               )}
             </div>
           )}
-
-          <label className="field">
-            <span className="label">Navn</span>
-            <input
-              className="input"
-              required
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="Montering stikkontakt, dobbel"
-            />
-          </label>
-
-          {/* Kodene er kategorier — B er bad, EL er elbillader. Raden legges
-              inn under de andre i kategorien sin, ikke nederst. */}
-          <div style={{ marginBottom: 14 }}>
-            <KodeVelger rader={items} verdi={kodevalg} onChange={setKodevalg} paakrevd={false} />
-          </div>
-
-          <label className="field">
-            <span className="label">Beskrivelse (valgfritt)</span>
-            <input
-              className="input"
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder="Hjelper agenten å velge rett post"
-            />
-          </label>
-
-          <div className="grid-2">
-            <label className="field">
-              <span className="label">Enhet</span>
+          <div className="kontakt-panel ny-post-panel">
+            <label className="kontakt-rad">
+              <span className="kontakt-rad-etikett">Navn</span>
               <input
                 className="input"
                 required
-                value={form.unit}
-                onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                autoFocus
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Montering stikkontakt, dobbel"
               />
             </label>
-            <label className="field">
-              <span className="label">Enhetspris eks. mva</span>
+            {/* Kodene er kategorier — B er bad, EL er elbillader. Raden legges
+                inn under de andre i kategorien sin, ikke nederst. */}
+            <div className="kontakt-rad topp">
+              <span className="kontakt-rad-etikett">Kode</span>
+              <div>
+                <KodeVelger rader={items} verdi={kodevalg} onChange={setKodevalg} paakrevd={false} />
+              </div>
+            </div>
+            <label className="kontakt-rad">
+              <span className="kontakt-rad-etikett">Beskrivelse</span>
               <input
                 className="input"
-                type="number"
-                min="0"
-                step="1"
-                required
-                value={form.unit_price}
-                onChange={(e) => setForm({ ...form, unit_price: e.target.value })}
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                placeholder="Valgfritt — hjelper agenten å velge rett post"
               />
             </label>
+            <label className="kontakt-rad">
+              <span className="kontakt-rad-etikett">Enhet</span>
+              <span className="kort-felt">
+                <input className="input" required value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
+              </span>
+            </label>
+            <label className="kontakt-rad">
+              <span className="kontakt-rad-etikett">Pris eks. mva</span>
+              <span className="kort-felt">
+                <input
+                  className="input"
+                  type="number"
+                  min="0"
+                  step="1"
+                  required
+                  value={form.unit_price}
+                  onChange={(e) => setForm({ ...form, unit_price: e.target.value })}
+                />
+              </span>
+            </label>
           </div>
-
-          <button className="button" type="submit" disabled={busy}>
-            {busy ? "Lagrer…" : "Legg til"}
-          </button>
+          <div className="modal-actions">
+            <button type="button" className="button secondary" onClick={() => setNyRad(false)} disabled={busy}>
+              Avbryt
+            </button>
+            <button className="button" type="submit" disabled={busy}>
+              {busy ? "Lagrer…" : "Legg til"}
+            </button>
+          </div>
         </form>
-      </div>
+      </Modal>
 
-      <div className="card">
-        <div className="card-header">
-          <strong>
-            {items.length} {items.length === 1 ? "prisrad" : "prisrader"}
-          </strong>
-          {items.length > 8 && (
-            <input
-              className="input"
-              style={{ maxWidth: 260 }}
-              placeholder="Søk i listen…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
+      <Modal open={importer} onClose={() => !busy && setImporter(false)} title="Importer fra Excel">
+        <form onSubmit={importFile}>
+          {error && (
+            <div className="banner error">
+              <div>{error}</div>
+              {details.length > 0 && (
+                <ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>
+                  {details.slice(0, 8).map((line, index) => (
+                    <li key={index}>{line}</li>
+                  ))}
+                  {details.length > 8 && <li>… og {details.length - 8} til.</li>}
+                </ul>
+              )}
+            </div>
           )}
-        </div>
-
-        {shown.length === 0 ? (
-          <div className="empty">
-            {items.length === 0 ? (
-              <>
-                <div className="empty-title">Listen er tom</div>
-                <div>Legg inn prisrader over for å ta den i bruk.</div>
-              </>
-            ) : (
-              <>Ingen rader matcher «{query}».</>
-            )}
+          <ExcelDrop file={file} onFile={setFile} templateHref={`/api/price-lists/template?kind=${list.kind}`} />
+          {items.length > 0 && (
+            <label className="ny-post-lagre" style={{ marginTop: 14 }}>
+              <input type="checkbox" checked={replace} onChange={(e) => setReplace(e.target.checked)} />
+              <span>Erstatt de {items.length} eksisterende radene i stedet for å legge til</span>
+            </label>
+          )}
+          <div className="modal-actions">
+            <button type="button" className="button secondary" onClick={() => setImporter(false)} disabled={busy}>
+              Avbryt
+            </button>
+            <button className="button" type="submit" disabled={busy || !file}>
+              {busy ? "Leser inn filen…" : replace ? "Erstatt rader" : "Importer rader"}
+            </button>
           </div>
-        ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Navn</th>
-                <th>Enhet</th>
-                <th className="num">Enhetspris</th>
-                <th style={{ width: 60 }} />
-              </tr>
-            </thead>
-            <tbody>
-              {shown.map((item) => (
-                <tr key={item.id}>
-                  <td>
-                    <div style={{ fontWeight: 550 }}>
-                      {item.name}
-                      {item.code && (
-                        <span className="picker-code" style={{ marginLeft: 7 }}>
-                          {item.code}
-                        </span>
-                      )}
-                    </div>
-                    {item.description && (
-                      <div className="tiny muted">{item.description}</div>
-                    )}
-                  </td>
-                  <td className="muted">{item.unit}</td>
-                  <td className="num">
-                    <PrisCelle
-                      id={item.id}
-                      pris={Number(item.unit_price)}
-                      onLagra={() => router.refresh()}
-                    />
-                  </td>
-                  <td>
-                    <button className="button danger" onClick={() => remove(item.id)}>
-                      Slett
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+        </form>
+      </Modal>
     </div>
   );
 }

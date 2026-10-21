@@ -1,6 +1,6 @@
 import { PriceLists } from "./PriceLists";
 import { supabaseServer } from "@/lib/supabase/server";
-import type { PriceItemKind, PriceList } from "@/lib/types";
+import type { PriceList } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -29,26 +29,5 @@ export default async function PrisfilPage() {
     item_count: counts.get(list.id) ?? 0,
   }));
 
-  const byKind = (kind: PriceItemKind) =>
-    withCounts.filter((list) => list.kind === kind);
-
-  return (
-    <>
-      <div className="page-header">
-        <div>
-          <h1>Prisfil</h1>
-          <p className="page-subtitle">
-            Strukturerte prisrader, organiserte i lister. Agenten slår opp herfra
-            og regner aldri selv.
-          </p>
-        </div>
-      </div>
-
-      <PriceLists
-        punktpris={byKind("punktpris")}
-        materiell={byKind("materiell")}
-        time={byKind("time")}
-      />
-    </>
-  );
+  return <PriceLists lister={withCounts} />;
 }

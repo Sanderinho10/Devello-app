@@ -11,16 +11,15 @@ import type { Opplaering } from "@/lib/opplaering/status";
  */
 export function Opplaeringskort({ status }: { status: Opplaering }) {
   return (
-    <div className="card card-pad opplaering">
-      <div className="row-between opplaering-topp">
+    <div className="card allow-overflow inst-panel">
+      <div className="inst-panel-topp">
         <div>
-          <span className="label" style={{ marginBottom: 2 }}>
-            Opplæring
-          </span>
-          <strong>{status.merkelapp}</strong>
+          <strong>Opplæring · {status.merkelapp}</strong>
+          <div className="tiny muted">Hvor godt agenten kjenner tilbudene deres.</div>
         </div>
         <div className="opplaering-tal">{status.prosent}&nbsp;%</div>
       </div>
+      <div className="inst-panel-innhold opplaering" style={{ paddingBottom: 16 }}>
 
       <div className="forbruk-bar" style={{ marginTop: 4 }}>
         <div className="forbruk-fyll" style={{ width: `${status.prosent}%` }} />
@@ -85,6 +84,7 @@ export function Opplaeringskort({ status }: { status: Opplaering }) {
         med vilje lavt: full pott krever at tilbudene faktisk går ut urørt,
         ikke at mye er lastet opp.
       </p>
+      </div>
     </div>
   );
 }
