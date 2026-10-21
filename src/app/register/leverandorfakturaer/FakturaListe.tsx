@@ -80,203 +80,227 @@ export function FakturaListe({
   }
 
   return (
-    <div className="lead-list">
+    <>
       {error && <div className="banner error" style={{ margin: 16 }}>{error}</div>}
-      {fakturaer.map((f) => {
-        const kreditnota = /credit/i.test(f.voucher_type);
-        const erOpen = open.has(f.id);
-        const fLinjer = linjerPerFaktura.get(f.id) ?? [];
-        const ordre = f.order_id ? ordreAvId.get(f.order_id) : null;
-        const duplikat = Boolean(f.duplicate_of);
-        // Uten linjer (ingen EHF) kobles hele fakturaen til ordren.
-        const kanKople = !kreditnota && !duplikat && f.match_status !== "kopla" && f.match_status !== "ignorert";
+      {/* Tabell som i Go. Klikk på en rad viser linjene på fakturaen under
+          den; handlingene til høyre har sin egen mening. */}
+      <table className="table klikkbar tabell-mobil faktura-liste">
+        <thead>
+          <tr>
+            <th aria-label="Vis linjer" style={{ width: 28 }} />
+            <th>Dato</th>
+            <th>Leverandør</th>
+            <th>Faktura</th>
+            <th>Referanser</th>
+            <th className="num">Beløp eks. mva</th>
+            <th>Status</th>
+            <th>Ordre</th>
+          </tr>
+        </thead>
+        {fakturaer.map((f) => {
+          const kreditnota = /credit/i.test(f.voucher_type);
+          const erOpen = open.has(f.id);
+          const fLinjer = linjerPerFaktura.get(f.id) ?? [];
+          const ordre = f.order_id ? ordreAvId.get(f.order_id) : null;
+          const duplikat = Boolean(f.duplicate_of);
+          // Uten linjer (ingen EHF) kobles hele fakturaen til ordren.
+          const kanKople = !kreditnota && !duplikat && f.match_status !== "kopla" && f.match_status !== "ignorert";
+          const detalj = duplikat
+            ? "duplikat — samme faktura er alt lest fra " + (f.source === "regnskap" ? "grossistens fakturafil" : "regnskapssystemet")
+            : f.line_count > 0
+              ? `${f.line_count} linjer`
+              : f.has_ehf
+                ? ""
+                : "ingen EHF";
 
-        return (
-          <div key={f.id} className={`faktura-rad${erOpen ? " open" : ""}`}>
-            <div className="lead-row clickable" onClick={() => toggle(f.id)}>
-              <div className="lead-main">
-                <div className="lead-subject" style={{ cursor: "inherit" }}>
-                  {f.supplier_name ?? "(ukjent leverandør)"}
-                  {" · "}
+          return (
+            <tbody key={f.id} className={erOpen ? "open" : undefined}>
+              <tr onClick={() => toggle(f.id)} aria-expanded={erOpen}>
+                <td className="utvid" aria-hidden>
+                  {erOpen ? "▾" : "▸"}
+                </td>
+                <td className="meta nowrap muted">{formatDag(f.voucher_date)}</td>
+                <td className="hoved">
+                  <div>{f.supplier_name ?? "(ukjent leverandør)"}</div>
+                  <div className="tiny muted">
+                    {[kjelde(f), detalj].filter(Boolean).join(" · ")}
+                    {f.parse_error && ` · kunne ikke lese fakturaen: ${f.parse_error}`}
+                  </div>
+                </td>
+                <td className="meta nowrap">
                   {kreditnota ? "Kreditnota" : "Faktura"} {f.invoice_no ?? f.voucher_no ?? ""}
-                  {f.voucher_no && (
-                    <span className="tiny muted"> · bilag {f.voucher_no}</span>
+                  {f.voucher_no && <div className="tiny muted">bilag {f.voucher_no}</div>}
+                </td>
+                <td className="meta">
+                  {f.references_found.length > 0 && (
+                    <div className="chips" style={{ marginTop: 0 }}>
+                      {f.references_found.slice(0, 4).map((r) => (
+                        <span key={r} className="chip" title="Referanse funnet på fakturaen">
+                          {r}
+                        </span>
+                      ))}
+                    </div>
                   )}
-                </div>
-                <div className="lead-meta">
-                  {formatDag(f.voucher_date)}
-                  {" · "}
-                  <span title="Hvor fakturaen ble hentet fra">{kjelde(f)}</span>
-                  {duplikat
-                    ? " · duplikat — samme faktura er alt lest fra " + (f.source === "regnskap" ? "grossistens fakturafil" : "regnskapssystemet")
-                    : f.line_count > 0
-                      ? ` · ${f.line_count} linjer`
-                      : f.has_ehf
-                        ? ""
-                        : " · ingen EHF"}
-                  {f.parse_error && ` · kunne ikke lese fakturaen: ${f.parse_error}`}
-                </div>
-                {f.references_found.length > 0 && (
-                  <div className="chips">
-                    {f.references_found.slice(0, 6).map((r) => (
-                      <span key={r} className="chip" title="Referanse funnet på fakturaen">
-                        {r}
-                      </span>
-                    ))}
+                </td>
+                <td className="num nowrap belop">
+                  <strong>{f.net_amount === null ? "—" : formatNok(Number(f.net_amount))}</strong>
+                </td>
+                <td className="meta">
+                  <span
+                    className={`pill ${
+                      f.match_status === "kopla" ? "ferdig" : f.match_status === "delvis" ? "paagaar" : f.match_status === "ignorert" ? "avbrutt" : "opna"
+                    }`}
+                  >
+                    {duplikat ? "Duplikat" : kreditnota && f.match_status === "ukopla" ? "Håndteres manuelt" : INVOICE_MATCH_LABELS[f.match_status]}
+                  </span>
+                </td>
+                <td className="handling" onClick={(e) => e.stopPropagation()}>
+                  <div className="celle-knapper">
+                    {duplikat ? null : ordre ? (
+                      <Link className="button secondary" href={`/ordre/${ordre.id}`}>
+                        #{ordre.order_no} →
+                      </Link>
+                    ) : (
+                      kanKople && (
+                        <OrdreVelger
+                          ordrar={ordrar}
+                          busy={busy === `f:${f.id}`}
+                          onVelg={(orderId) =>
+                            kall(`/api/regnskap/fakturaer/${f.id}/kople`, { order_id: orderId }, `f:${f.id}`)
+                          }
+                        />
+                      )
+                    )}
+                    {duplikat ? null : f.match_status === "ignorert" ? (
+                      <button
+                        type="button"
+                        className="button ghost"
+                        disabled={busy !== null}
+                        onClick={() => kall(`/api/regnskap/fakturaer/${f.id}/angre-ignorer`, {}, `i:${f.id}`)}
+                      >
+                        Angre ignorer
+                      </button>
+                    ) : f.matched_line_count === 0 && !f.order_id ? (
+                      <button
+                        type="button"
+                        className="button ghost"
+                        disabled={busy !== null}
+                        onClick={() => kall(`/api/regnskap/fakturaer/${f.id}/ignorer`, {}, `i:${f.id}`)}
+                      >
+                        Ignorer
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="button ghost"
+                        disabled={busy !== null}
+                        onClick={() => {
+                          if (window.confirm("Løse alle linjene fra ordren? Materiellet som kom fra fakturaen fjernes.")) {
+                            kall(`/api/regnskap/fakturaer/${f.id}/loys`, {}, `l:${f.id}`);
+                          }
+                        }}
+                      >
+                        Løs fra ordre
+                      </button>
+                    )}
                   </div>
-                )}
-              </div>
-              <span className="ordre-sum">
-                <strong>{f.net_amount === null ? "—" : formatNok(Number(f.net_amount))}</strong>
-                <span className="tiny muted"> eks. mva</span>
-              </span>
-              <span
-                className={`pill ${
-                  f.match_status === "kopla" ? "ferdig" : f.match_status === "delvis" ? "paagaar" : f.match_status === "ignorert" ? "avbrutt" : "opna"
-                }`}
-              >
-                {duplikat ? "Duplikat" : kreditnota && f.match_status === "ukopla" ? "Håndteres manuelt" : INVOICE_MATCH_LABELS[f.match_status]}
-              </span>
-              <span onClick={(e) => e.stopPropagation()} className="row" style={{ flexWrap: "wrap" }}>
-                {duplikat ? null : ordre ? (
-                  <Link className="button secondary" href={`/ordre/${ordre.id}`}>
-                    #{ordre.order_no} →
-                  </Link>
-                ) : (
-                  kanKople && (
-                    <OrdreVelger
-                      ordrar={ordrar}
-                      busy={busy === `f:${f.id}`}
-                      onVelg={(orderId) =>
-                        kall(`/api/regnskap/fakturaer/${f.id}/kople`, { order_id: orderId }, `f:${f.id}`)
-                      }
-                    />
-                  )
-                )}
-                {duplikat ? null : f.match_status === "ignorert" ? (
-                  <button
-                    type="button"
-                    className="button ghost"
-                    disabled={busy !== null}
-                    onClick={() => kall(`/api/regnskap/fakturaer/${f.id}/angre-ignorer`, {}, `i:${f.id}`)}
-                  >
-                    Angre ignorer
-                  </button>
-                ) : f.matched_line_count === 0 && !f.order_id ? (
-                  <button
-                    type="button"
-                    className="button ghost"
-                    disabled={busy !== null}
-                    onClick={() => kall(`/api/regnskap/fakturaer/${f.id}/ignorer`, {}, `i:${f.id}`)}
-                  >
-                    Ignorer
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="button ghost"
-                    disabled={busy !== null}
-                    onClick={() => {
-                      if (window.confirm("Løse alle linjene fra ordren? Materiellet som kom fra fakturaen fjernes.")) {
-                        kall(`/api/regnskap/fakturaer/${f.id}/loys`, {}, `l:${f.id}`);
-                      }
-                    }}
-                  >
-                    Løs fra ordre
-                  </button>
-                )}
-              </span>
-            </div>
+                </td>
+              </tr>
 
-            {erOpen && (
-              <div className="faktura-linjer">
-                {ordre && ordre.status === "fakturert" && (
-                  <div className="banner warning" style={{ margin: "0 0 10px" }}>
-                    Ordre #{ordre.order_no} er allerede fakturert. Linjene er koblet, men det er ikke laget materiell — se på dem.
-                  </div>
-                )}
-                {fLinjer.length === 0 ? (
-                  <p className="muted tiny">
-                    {duplikat
-                      ? "Linjene ligger på originalen — denne er bare registrert, så den ikke gir dobbelt materiell."
-                      : f.has_ehf
-                        ? "Ingen linjer lest."
-                        : "Fakturaen kom uten EHF — bare hodet finnes i regnskapssystemet."}
-                    {ordre && " Koblet til ordren som helhet; beløpet er ikke ført som materiell."}
-                  </p>
-                ) : (
-                  <table className="doc-table">
-                    <thead>
-                      <tr>
-                        <th>Elnr</th>
-                        <th>Vare</th>
-                        <th className="num">Mengde</th>
-                        <th className="num">Pris</th>
-                        <th className="num">Sum</th>
-                        <th>Ordre</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {fLinjer.map((l) => {
-                        const lo = l.order_id ? ordreAvId.get(l.order_id) : null;
-                        return (
-                          <tr key={l.id}>
-                            <td className="tiny muted">{l.item_no ?? "—"}</td>
-                            <td>
-                              {l.name}
-                              {l.order_reference && (
-                                <span className="tiny muted"> · ref {l.order_reference}</span>
-                              )}
-                            </td>
-                            <td className="num">
-                              {Number(l.quantity).toLocaleString("nb-NO")} {l.unit}
-                            </td>
-                            <td className="num">{formatPris(Number(l.unit_price))}</td>
-                            <td className="num">{formatNok(Number(l.line_total))}</td>
-                            <td>
-                              {l.status === "kopla" && lo ? (
-                                <span className="row">
-                                  <Link href={`/ordre/${lo.id}`}>#{lo.order_no}</Link>
-                                  <button
-                                    type="button"
-                                    className="linkish"
-                                    disabled={busy !== null}
-                                    onClick={() => kall(`/api/regnskap/fakturaer/${f.id}/loys`, { line_id: l.id }, `l:${l.id}`)}
-                                  >
-                                    løs
-                                  </button>
-                                </span>
-                              ) : kreditnota ? (
-                                <span className="tiny muted">manuelt</span>
-                              ) : f.match_status === "ignorert" ? (
-                                <span className="tiny muted">ignorert</span>
-                              ) : (
-                                <OrdreVelger
-                                  ordrar={ordrar}
-                                  kompakt
-                                  busy={busy === `l:${l.id}`}
-                                  onVelg={(orderId) =>
-                                    kall(
-                                      `/api/regnskap/fakturaer/${f.id}/kople`,
-                                      { lines: [{ line_id: l.id, order_id: orderId }] },
-                                      `l:${l.id}`,
-                                    )
-                                  }
-                                />
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
+              {erOpen && (
+                <tr className="faktura-detalj">
+                  <td colSpan={8}>
+                    <div className="faktura-linjer">
+                      {ordre && ordre.status === "fakturert" && (
+                        <div className="banner warning" style={{ margin: "0 0 10px" }}>
+                          Ordre #{ordre.order_no} er allerede fakturert. Linjene er koblet, men det er ikke laget materiell — se på dem.
+                        </div>
+                      )}
+                      {fLinjer.length === 0 ? (
+                        <p className="muted tiny" style={{ margin: 0 }}>
+                          {duplikat
+                            ? "Linjene ligger på originalen — denne er bare registrert, så den ikke gir dobbelt materiell."
+                            : f.has_ehf
+                              ? "Ingen linjer lest."
+                              : "Fakturaen kom uten EHF — bare hodet finnes i regnskapssystemet."}
+                          {ordre && " Koblet til ordren som helhet; beløpet er ikke ført som materiell."}
+                        </p>
+                      ) : (
+                        <table className="doc-table">
+                          <thead>
+                            <tr>
+                              <th>Elnr</th>
+                              <th>Vare</th>
+                              <th className="num">Mengde</th>
+                              <th className="num">Pris</th>
+                              <th className="num">Sum</th>
+                              <th>Ordre</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {fLinjer.map((l) => {
+                              const lo = l.order_id ? ordreAvId.get(l.order_id) : null;
+                              return (
+                                <tr key={l.id}>
+                                  <td className="tiny muted">{l.item_no ?? "—"}</td>
+                                  <td>
+                                    {l.name}
+                                    {l.order_reference && <span className="tiny muted"> · ref {l.order_reference}</span>}
+                                  </td>
+                                  <td className="num">
+                                    {Number(l.quantity).toLocaleString("nb-NO")} {l.unit}
+                                  </td>
+                                  <td className="num">{formatPris(Number(l.unit_price))}</td>
+                                  <td className="num">{formatNok(Number(l.line_total))}</td>
+                                  <td>
+                                    {l.status === "kopla" && lo ? (
+                                      <span className="row">
+                                        <Link className="lenke-bla" href={`/ordre/${lo.id}`}>
+                                          #{lo.order_no}
+                                        </Link>
+                                        <button
+                                          type="button"
+                                          className="linkish"
+                                          disabled={busy !== null}
+                                          onClick={() => kall(`/api/regnskap/fakturaer/${f.id}/loys`, { line_id: l.id }, `l:${l.id}`)}
+                                        >
+                                          løs
+                                        </button>
+                                      </span>
+                                    ) : kreditnota ? (
+                                      <span className="tiny muted">manuelt</span>
+                                    ) : f.match_status === "ignorert" ? (
+                                      <span className="tiny muted">ignorert</span>
+                                    ) : (
+                                      <OrdreVelger
+                                        ordrar={ordrar}
+                                        kompakt
+                                        busy={busy === `l:${l.id}`}
+                                        onVelg={(orderId) =>
+                                          kall(
+                                            `/api/regnskap/fakturaer/${f.id}/kople`,
+                                            { lines: [{ line_id: l.id, order_id: orderId }] },
+                                            `l:${l.id}`,
+                                          )
+                                        }
+                                      />
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          );
+        })}
+      </table>
+    </>
   );
 }
 

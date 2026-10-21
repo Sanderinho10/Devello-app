@@ -3200,6 +3200,53 @@ tr.fakturert,
   margin: 0 0 2px 7px;
 }
 
+/* Leverandørfakturaer: rad med pil som viser linjene under. */
+.faktura-liste td {
+  vertical-align: top;
+}
+
+.faktura-liste td.utvid {
+  width: 28px;
+  padding-right: 0;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.faktura-liste tbody.open > tr:first-child td {
+  background: var(--bg);
+}
+
+.faktura-liste .faktura-detalj td {
+  padding: 0 14px 14px 42px;
+  background: var(--bg);
+  cursor: default;
+}
+
+.faktura-liste .faktura-linjer {
+  padding: 2px 0 0;
+  background: none;
+}
+
+.faktura-liste .faktura-detalj:hover td {
+  background: var(--bg);
+}
+
+/* Ordrevelgeren åpner seg mot venstre fra kolonnen helt til høyre. */
+.faktura-liste .ordre-velger-treff {
+  left: auto;
+  right: 0;
+}
+
+@media (max-width: 700px) {
+  .faktura-liste td.utvid {
+    display: none;
+  }
+  .faktura-liste .faktura-detalj td {
+    flex: 1 1 100%;
+    padding: 0;
+  }
+}
+
 /* Agentens spørsmål og merknader i Faktura: smale linjer som åpnes. */
 .agent-linjer {
   display: flex;
