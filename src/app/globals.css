@@ -3854,4 +3854,23 @@ tr.fakturert,
 }
 .kunde-kort-info dd {
   margin: 0;
+  overflow-wrap: anywhere;
+}
+
+dl.kunde-kort-info {
+  margin: 0;
+}
+
+.kunde-kort-info a {
+  color: var(--link);
+}
+
+/* Notatet på kontakten, under informasjonen. */
+.kontakt-notat {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  white-space: pre-wrap;
+  font-size: 13.5px;
+  color: var(--text-secondary);
 }
