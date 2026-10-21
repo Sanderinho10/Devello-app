@@ -3200,6 +3200,72 @@ tr.fakturert,
   margin: 0 0 2px 7px;
 }
 
+/* Agentens spørsmål og merknader i Faktura: smale linjer som åpnes. */
+.agent-linjer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agent-linje {
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+
+.agent-linje.sporsmal {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.agent-linje.merknad {
+  background: var(--accent-soft);
+  color: var(--link);
+}
+
+.agent-linje summary {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 7px 12px;
+  cursor: pointer;
+  list-style: none;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.agent-linje summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Pil som snur seg når linja er åpen. */
+.agent-linje summary::before {
+  content: "▸";
+  flex: 0 0 auto;
+  margin-right: 4px;
+  transition: transform 0.15s ease;
+}
+
+.agent-linje[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.agent-linje summary span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.85;
+}
+
+.agent-linje[open] summary span {
+  display: none;
+}
+
+.agent-linje ul {
+  margin: 0;
+  padding: 0 12px 10px 34px;
+  line-height: 1.5;
+}
+
 /* Summene nederst til høyre i linjekortet, som i tilbudet. */
 .faktura-summer {
   margin: 10px 16px 16px auto;
