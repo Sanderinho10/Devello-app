@@ -6,6 +6,7 @@ import { KundeSok, type KundeForslag } from "@/components/KundeSok";
 import { Modal } from "@/components/Modal";
 import { TilbudSok, type TilbudForslag } from "@/components/TilbudSok";
 import { AdresseFelt, type AdresseVerdier } from "@/app/register/kontakter/KontaktFelt";
+import { NyKontaktDialog } from "@/app/register/kontakter/NyKontakt";
 import { adresseTekst, delAdresse } from "@/lib/kunder/adresse";
 
 const TOM_ADRESSE: AdresseVerdier = { linje1: "", linje2: "", postnr: "", sted: "" };
@@ -47,6 +48,8 @@ export function NyOrdre() {
   const [tilbudTekst, setTilbudTekst] = useState("");
   // Kunden valgt fra registeret. Slippes når navnet skrives om.
   const [kunde, setKunde] = useState<KundeForslag | null>(null);
+  // «Legg til kunde» i kundelista: kontaktkortet som egen popup, som i Go.
+  const [nyKunde, setNyKunde] = useState<{ navn: string } | null>(null);
 
   function sett(navn: keyof typeof felt, verdi: string) {
     setFelt((f) => ({ ...f, [navn]: verdi }));
@@ -179,6 +182,7 @@ export function NyOrdre() {
                   value={felt.customer_name}
                   onChange={(v) => sett("customer_name", v)}
                   onVelg={velgKunde}
+                  onNyKunde={(navn) => setNyKunde({ navn })}
                   placeholder="Søk eller skriv — Marit Aasen"
                 />
                 {kunde && <span className="hint">Fra kunderegisteret — resten er fylt ut.</span>}
@@ -228,6 +232,17 @@ export function NyOrdre() {
             </button>
           </div>
         </form>
+
+        {/* Utenfor ordreskjemaet: kontaktkortet har sitt eget. Den nye
+            kunden velges i ordren så snart den er lagret. */}
+        <NyKontaktDialog
+          open={nyKunde !== null}
+          onClose={() => setNyKunde(null)}
+          startNavn={nyKunde?.navn ?? ""}
+          tittel="Ny kunde"
+          knapp="Opprett kunde"
+          onOpprettet={velgKunde}
+        />
       </Modal>
     </>
   );

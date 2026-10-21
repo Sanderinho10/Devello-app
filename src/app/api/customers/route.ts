@@ -18,21 +18,27 @@ export async function GET(request: NextRequest) {
 
   try {
     const q = (request.nextUrl.searchParams.get("q") ?? "").trim();
-    if (q.length < 2) return NextResponse.json({ kunder: [] });
+    // «liste=1»: nedtrekkslista i skjemaene åpnes før man har skrevet noe,
+    // som i Go. Da kommer kundene alfabetisk; ellers kreves to tegn.
+    const liste = request.nextUrl.searchParams.get("liste") === "1";
+    if (q.length < 2 && !liste) return NextResponse.json({ kunder: [] });
 
-    // PostgREST-filteret skiller på komma og parenteser; de har ingen plass
-    // i et søkeord uansett.
-    const monster = `%${q.replace(/[%_,()]/g, " ")}%`;
     const admin = supabaseAdmin();
-    const { data, error } = await admin
+    let sporring = admin
       .from("customers")
       .select("*")
       .eq("company_id", session.companyId)
-      .or(
-        `name.ilike.${monster},email.ilike.${monster},contact.ilike.${monster},phone.ilike.${monster}`,
-      )
       .order("name")
-      .limit(8);
+      .limit(q.length < 2 ? 20 : 8);
+    if (q.length >= 2) {
+      // PostgREST-filteret skiller på komma og parenteser; de har ingen plass
+      // i et søkeord uansett.
+      const monster = `%${q.replace(/[%_,()]/g, " ")}%`;
+      sporring = sporring.or(
+        `name.ilike.${monster},email.ilike.${monster},contact.ilike.${monster},phone.ilike.${monster}`,
+      );
+    }
+    const { data, error } = await sporring;
     if (error) throw new Error(error.message);
     // «address» er kundens hovedadresse. Hvor en jobb gjøres hører til
     // ordren, ikke kunden — skjemaene har en egen avkryssing for det.
@@ -44,6 +50,7 @@ export async function GET(request: NextRequest) {
       phone: k.phone,
       address: adresseTekst(hovedadresse(k)) || null,
       adresse: hovedadresse(k),
+      kode: k.accounting_customer_no,
       is_customer: k.is_customer,
       is_supplier: k.is_supplier,
     }));

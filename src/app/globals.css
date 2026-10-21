@@ -1716,6 +1716,101 @@ body.drar-rad * {
   min-height: 0;
 }
 
+/* Kundefeltet som nedtrekksliste, som i Go: pil i feltet, en liten tabell
+   med kundenummer og navn, og «Legg til kunde» nederst. */
+.kunde-velger .input {
+  padding-right: 30px;
+}
+
+.kunde-velger-pil {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  width: 28px;
+  border: none;
+  background: none;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.kunde-velger-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.kunde-velger-hode,
+.kunde-velger-rad {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  padding: 7px 12px;
+}
+
+.kunde-velger-hode {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border);
+}
+
+.kunde-velger-rader {
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.kunde-velger-rad {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.kunde-velger-rad.active {
+  background: var(--accent-soft);
+}
+
+.kunde-velger-kode {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.kunde-velger-navn {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.kunde-velger-tom {
+  padding: 10px 12px;
+}
+
+.kunde-velger-ny {
+  display: block;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  border-top: 1px solid var(--border);
+  background: var(--surface-sunken);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--link);
+  cursor: pointer;
+}
+
+.kunde-velger-ny:hover {
+  background: var(--accent-soft);
+}
+
 /* Tilbud i søkelista: nummer og tittel som én linje, kunde og status under. */
 .tilbud-valg {
   grid-template-columns: 1fr;
