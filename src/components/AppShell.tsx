@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { AbonnementSperre, BetalingsVarsel } from "@/components/AbonnementVarsel";
 import { Sidebar } from "@/components/Sidebar";
 import { hentTilgang } from "@/lib/billing/tilgang";
+import { erDevelloAdmin } from "@/lib/devello-admin";
 import { currentSession, supabaseServer } from "@/lib/supabase/server";
 
 /**
@@ -33,6 +34,7 @@ export async function AppShell({ children, aapen = false }: { children: React.Re
         userEmail={session.email}
         moduler={company?.moduler ?? []}
         aktiv={tilgang.aktiv}
+        erDevello={erDevelloAdmin(session.email)}
       />
       <main className="main">
         {tilgang.ubetalt && <BetalingsVarsel ubetalt={tilgang.ubetalt} selskap={company?.name ?? "selskapet"} />}

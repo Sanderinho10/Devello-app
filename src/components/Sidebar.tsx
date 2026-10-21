@@ -102,6 +102,15 @@ const SELSKAP: NavSection = {
   ],
 };
 
+/** Devellos egne sider, bare for DEVELLO_ADMIN_EPOST (lib/devello-admin.ts). */
+const DEVELLO: NavSection = {
+  key: "devello",
+  label: "Devello",
+  icon: "✦",
+  basePath: "/devello",
+  tabs: [{ label: "Abonnementsfakturaer", href: "/devello/fakturaer" }],
+};
+
 function passer(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(href + "/");
 }
@@ -111,6 +120,7 @@ export function Sidebar({
   userEmail,
   moduler,
   aktiv = true,
+  erDevello = false,
 }: {
   companyName: string;
   userEmail: string;
@@ -118,6 +128,8 @@ export function Sidebar({
   moduler: string[];
   /** Uten aktivt abonnement er bare Selskap åpent (lib/billing/tilgang.ts). */
   aktiv?: boolean;
+  /** Devello-ansatt: viser Devello-seksjonen nederst. */
+  erDevello?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -129,7 +141,7 @@ export function Sidebar({
 
   // Den lengste fanen som passer er den som gjelder: /selskap/innstillinger
   // dekker alt under seg (prisfil, referansefiler …), /ordre bare ordrelisten.
-  const aktivFane = [...agenter, SELSKAP]
+  const aktivFane = [...agenter, SELSKAP, DEVELLO]
     .flatMap((s) => s.tabs)
     .filter((tab) => passer(pathname, tab.href))
     .sort((a, b) => b.href.length - a.href.length)[0];
@@ -200,6 +212,7 @@ export function Sidebar({
 
         {agenter.length > 0 && <div className="nav-separator" />}
         {renderSection(SELSKAP)}
+        {erDevello && renderSection(DEVELLO)}
 
         <div className="sidebar-footer">
           <div>{companyName}</div>

@@ -574,6 +574,12 @@ p {
 
 /* Referansefiler: har agenten den, eller har den den ikke. Grønt betyr at
    fila står i den søkbare poolen — alt annet er usynlig ved generering. */
+/* Kontoen er sperret: skal synes i lista, ikke gli inn som «avbrutt». */
+.pill.sperret {
+  background: #fdecea;
+  color: #b3261e;
+}
+
 .pill.lest {
   background: var(--positive-soft);
   color: var(--positive);
