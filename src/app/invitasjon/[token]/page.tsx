@@ -23,7 +23,7 @@ export default async function InvitasjonPage({
 
   const { data: invite } = await admin
     .from("invitations")
-    .select("email, role, expires_at, token_used_at, companies(name)")
+    .select("email, role, expires_at, token_used_at, fornavn, etternavn, companies(name)")
     .eq("token", token)
     .maybeSingle();
 
@@ -56,7 +56,12 @@ export default async function InvitasjonPage({
             tekst="Invitasjoner varer i to uker. Be om en ny, så er du i gang."
           />
         ) : (
-          <AcceptInvite token={token} email={invite.email} selskap={selskap} />
+          <AcceptInvite
+            token={token}
+            email={invite.email}
+            selskap={selskap}
+            navn={[invite.fornavn, invite.etternavn].filter(Boolean).join(" ")}
+          />
         )}
       </div>
     </div>

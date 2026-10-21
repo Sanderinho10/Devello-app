@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     const token = (body.token ?? "").trim();
     const password = body.password ?? "";
-    const fullName = (body.full_name ?? "").trim();
+    let fullName = (body.full_name ?? "").trim();
 
     if (!token) {
       return NextResponse.json({ error: "Mangler invitasjon." }, { status: 400 });
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     const admin = supabaseAdmin();
     const { data: invite } = await admin
       .from("invitations")
-      .select("id, company_id, email, role, expires_at, token_used_at")
+      .select("id, company_id, email, role, expires_at, token_used_at, fornavn, etternavn")
       .eq("token", token)
       .maybeSingle();
 
@@ -59,6 +59,8 @@ export async function POST(request: NextRequest) {
     }
 
     const email = invite.email.toLowerCase();
+    // Navnet administratoren skrev ved invitasjonen, om den inviterte ikke skrev et selv.
+    if (!fullName) fullName = [invite.fornavn, invite.etternavn].filter(Boolean).join(" ").trim();
 
     // Brukeren kan finnes fra før: invitasjonsmailen fra Supabase oppretter
     // en auth-bruker med én gang, uten passord. Da setter vi passordet på

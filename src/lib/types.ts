@@ -97,6 +97,8 @@ export interface Member {
 export interface Invitation {
   id: string;
   email: string;
+  fornavn: string | null;
+  etternavn: string | null;
   role: UserRole;
   accepted_at: string | null;
   expires_at: string;

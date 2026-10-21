@@ -43,6 +43,16 @@ interface NavSection {
   comingSoon?: boolean;
 }
 
+/** Startsiden, som i Go: tall og forbruk på ett sted. */
+const DASHBOARD: NavSection = {
+  key: "dashboard",
+  label: "Dashboard",
+  icon: "▦",
+  basePath: "/dashboard",
+  href: "/dashboard",
+  tabs: [],
+};
+
 const TILBUD: NavSection = {
   key: "tilbud",
   label: "Tilbud",
@@ -71,9 +81,9 @@ const REGISTER: NavSection = {
   tabs: [],
 };
 
-/** Det daglige, i rekkefølgen jobben går: tilbud → ordre, og registrene. */
+/** Det daglige, i rekkefølgen jobben går: startsiden, tilbud → ordre, og registrene. */
 function agentSections(moduler: string[]): NavSection[] {
-  const sections = [TILBUD];
+  const sections = [DASHBOARD, TILBUD];
   if (harModul(moduler, "ordre")) sections.push(ORDRE);
   sections.push(REGISTER);
   return sections;
@@ -100,11 +110,14 @@ export function Sidebar({
   companyName,
   userEmail,
   moduler,
+  aktiv = true,
 }: {
   companyName: string;
   userEmail: string;
   /** companies.moduler — hvilke seksjoner som skal vises. */
   moduler: string[];
+  /** Uten aktivt abonnement er bare Selskap åpent (lib/billing/tilgang.ts). */
+  aktiv?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -112,7 +125,7 @@ export function Sidebar({
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(false), [pathname]);
 
-  const agenter = agentSections(moduler);
+  const agenter = aktiv ? agentSections(moduler) : [];
 
   // Den lengste fanen som passer er den som gjelder: /selskap/innstillinger
   // dekker alt under seg (prisfil, referansefiler …), /ordre bare ordrelisten.
@@ -185,7 +198,7 @@ export function Sidebar({
       <div className={`sidebar-nav${open ? " open" : ""}`}>
         {agenter.map(renderSection)}
 
-        <div className="nav-separator" />
+        {agenter.length > 0 && <div className="nav-separator" />}
         {renderSection(SELSKAP)}
 
         <div className="sidebar-footer">

@@ -17,7 +17,7 @@ export default async function MedlemmerPage() {
       .order("email"),
     supabase
       .from("invitations")
-      .select("id, email, role, accepted_at, expires_at, created_at")
+      .select("id, email, fornavn, etternavn, role, accepted_at, expires_at, created_at")
       .is("accepted_at", null)
       .order("created_at", { ascending: false }),
   ]);
@@ -26,12 +26,10 @@ export default async function MedlemmerPage() {
 
   return (
     <>
-      <div className="page-header">
+      <div className="page-header kompakt">
         <div>
           <h1>Medlemmer</h1>
-          <p className="page-subtitle">
-            Hvem som har tilgang, og hvilke invitasjoner som står ute.
-          </p>
+          <p className="page-subtitle">Hvem som har tilgang, og hvilke invitasjoner som står ute.</p>
         </div>
       </div>
 

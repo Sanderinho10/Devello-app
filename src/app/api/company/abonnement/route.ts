@@ -16,7 +16,7 @@ import { supabaseAdmin } from "@/lib/supabase/server";
  * har allerede pris, inkluderte enheter og enhetspriser den trenger.
  */
 export async function POST(request: NextRequest) {
-  const session = await sessionOr401();
+  const session = await sessionOr401({ utenAbonnement: true });
   if (session instanceof NextResponse) return session;
 
   const denied = await requireAdmin(session);

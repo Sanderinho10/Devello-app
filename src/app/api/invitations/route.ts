@@ -32,10 +32,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = (await request.json()) as { email?: string; role?: UserRole };
+    const body = (await request.json()) as { email?: string; role?: UserRole; fornavn?: string; etternavn?: string };
     const email = (body.email ?? "").trim().toLowerCase();
     const role: UserRole = body.role === "admin" ? "admin" : "standard";
+    const fornavn = (body.fornavn ?? "").trim().slice(0, 60);
+    const etternavn = (body.etternavn ?? "").trim().slice(0, 60);
 
+    if (!fornavn || !etternavn) {
+      return NextResponse.json({ error: "Skriv inn fornavn og etternavn." }, { status: 400 });
+    }
     if (!email || !email.includes("@")) {
       return NextResponse.json({ error: "Ugyldig e-postadresse." }, { status: 400 });
     }
@@ -71,6 +76,8 @@ export async function POST(request: NextRequest) {
         company_id: session.companyId,
         email,
         role,
+        fornavn,
+        etternavn,
         invited_by: session.userId,
       })
       .select("token")
@@ -85,6 +92,7 @@ export async function POST(request: NextRequest) {
       // spist av en e-postskanner. Vår egen lenke under er den pålitelige
       // veien; denne er bekvemmeligheten når den kommer fram.
       redirectTo: `${appUrl}/auth/callback`,
+      data: { full_name: `${fornavn} ${etternavn}` },
     });
 
     // Lenken går tilbake uansett hvordan e-posten gikk. Den er den pålitelige

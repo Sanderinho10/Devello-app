@@ -79,7 +79,7 @@ function LoginForm() {
           setBusy(false);
           return;
         }
-        router.push("/tilbud/leads");
+        router.push("/dashboard");
         router.refresh();
         return;
       }
