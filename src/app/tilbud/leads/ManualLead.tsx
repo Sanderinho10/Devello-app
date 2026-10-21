@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { KundeSok, type KundeForslag } from "@/components/KundeSok";
 import { Modal } from "@/components/Modal";
+import { NyKontaktDialog } from "@/app/register/kontakter/NyKontakt";
 import {
   kanBliVedlegg,
   MAKS_FILSTORRELSE,
@@ -33,6 +34,8 @@ export function ManualLead() {
   const [email, setEmail] = useState("");
   // Kunden valgt fra registeret. Slippes når navnet skrives om.
   const [kunde, setKunde] = useState<KundeForslag | null>(null);
+  // «Legg til kunde» i kundelista: kontaktkortet som egen popup, som i Go.
+  const [nyKunde, setNyKunde] = useState<{ navn: string } | null>(null);
   const [vedlegg, setVedlegg] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -278,6 +281,7 @@ export function ManualLead() {
                     if (kunde && v !== kunde.name) setKunde(null);
                   }}
                   onVelg={velgKunde}
+                  onNyKunde={(navn) => setNyKunde({ navn })}
                   placeholder="Valgfritt — Marit Aasen"
                 />
                 {kunde && <span className="hint">Fra kunderegisteret.</span>}
@@ -412,6 +416,17 @@ export function ManualLead() {
             </button>
           </div>
         </form>
+
+        {/* Utenfor henvendelsesskjemaet: kontaktkortet har sitt eget. Den
+            nye kunden velges så snart den er lagret. */}
+        <NyKontaktDialog
+          open={nyKunde !== null}
+          onClose={() => setNyKunde(null)}
+          startNavn={nyKunde?.navn ?? ""}
+          tittel="Ny kunde"
+          knapp="Opprett kunde"
+          onOpprettet={velgKunde}
+        />
       </Modal>
     </>
   );
