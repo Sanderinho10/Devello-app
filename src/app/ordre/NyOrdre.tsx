@@ -6,7 +6,7 @@ import { KundeSok, type KundeForslag } from "@/components/KundeSok";
 import { Modal } from "@/components/Modal";
 import { TilbudSok, type TilbudForslag } from "@/components/TilbudSok";
 import { AdresseFelt, type AdresseVerdier } from "@/app/register/kontakter/KontaktFelt";
-import { adresseTekst } from "@/lib/kunder/adresse";
+import { adresseTekst, delAdresse } from "@/lib/kunder/adresse";
 
 const TOM_ADRESSE: AdresseVerdier = { linje1: "", linje2: "", postnr: "", sted: "" };
 
@@ -36,8 +36,9 @@ export function NyOrdre() {
     customer_contact: "",
     customer_email: "",
     customer_phone: "",
-    customer_address: "",
   });
+  // Kundens adresse og oppdragsadressen, med de samme feltene som kontaktkortet.
+  const [kundeAdresse, setKundeAdresse] = useState<AdresseVerdier>(TOM_ADRESSE);
   const [annenAdresse, setAnnenAdresse] = useState(false);
   const [oppdrag, setOppdrag] = useState<AdresseVerdier>(TOM_ADRESSE);
   // Tilbudet ordren lages fra, og teksten i tilbudsfeltet. Skrives feltet
@@ -60,8 +61,8 @@ export function NyOrdre() {
       customer_contact: k.contact ?? f.customer_contact,
       customer_email: k.email ?? f.customer_email,
       customer_phone: k.phone ?? f.customer_phone,
-      customer_address: k.address ?? f.customer_address,
     }));
+    if (k.adresse || k.address) setKundeAdresse(k.adresse ?? delAdresse(k.address));
   }
 
   /** Tilbudsnummeret i feltet, og resten fylt ut fra tilbudet. */
@@ -75,8 +76,9 @@ export function NyOrdre() {
       customer_contact: t.felt.kontakt ?? "",
       customer_email: t.felt.epost ?? "",
       customer_phone: t.felt.telefon ?? "",
-      customer_address: t.felt.adresse ?? "",
     });
+    // Tilbudet har adressen på én linje; den deles opp i feltene.
+    setKundeAdresse(delAdresse(t.felt.adresse));
   }
 
   function close() {
@@ -96,14 +98,16 @@ export function NyOrdre() {
     setError(null);
     try {
       // Jobben står på kundens adresse, med mindre oppdraget er et annet sted.
-      const site_address = annenAdresse
-        ? adresseTekst({ ...oppdrag, land: "Norge" })
-        : felt.customer_address;
+      const site_address = adresseTekst({ ...(annenAdresse ? oppdrag : kundeAdresse), land: "Norge" });
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...felt,
+          customer_address: kundeAdresse.linje1,
+          customer_address2: kundeAdresse.linje2,
+          customer_postal_code: kundeAdresse.postnr,
+          customer_city: kundeAdresse.sted,
           site_address,
           ...(tilbud ? { draft_id: tilbud.id } : { customer_id: kunde?.id }),
         }),
@@ -183,7 +187,7 @@ export function NyOrdre() {
             {rad("Kontaktperson", "customer_contact")}
             {rad("E-post", "customer_email", { type: "email" })}
             {rad("Telefon", "customer_phone")}
-            {rad("Adresse", "customer_address", { placeholder: "Storgata 12, 0155 Oslo" })}
+            <AdresseFelt verdier={kundeAdresse} onChange={setKundeAdresse} />
 
             {/* Som i Go: avkryssingen over feltene den styrer. Feltene står
                 grå til man krysser av, så man ser hva valget betyr. */}

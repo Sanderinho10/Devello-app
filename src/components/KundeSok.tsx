@@ -10,6 +10,8 @@ export interface KundeForslag {
   email: string | null;
   phone: string | null;
   address: string | null;
+  /** Hovedadressen felt for felt, til skjemaer med adressefelt som i Go. */
+  adresse?: { linje1: string; linje2: string; postnr: string; sted: string };
   is_customer?: boolean;
   is_supplier?: boolean;
 }

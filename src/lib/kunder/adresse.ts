@@ -53,6 +53,19 @@ export function fakturaadresse(k: Partial<AdresseFelt>): Adresse {
   };
 }
 
+/**
+ * «Bjørkevegen 22, 6800 Førde» → adresse, postnummer og sted. Det som ikke
+ * ender på postnummer og sted, blir stående på linje 1 — da er det ingen
+ * grunn til å gjette. Samme regel som overføringen til Go bruker.
+ */
+export function delAdresse(tekst: string | null | undefined): Adresse {
+  const t = (tekst ?? "").trim();
+  const m = t.match(/^(.*?),?\s*(\d{4})\s+([^\d,]+)$/);
+  if (!m) return { linje1: t, linje2: "", postnr: "", sted: "", land: "Norge" };
+  const [linje1, ...resten] = m[1].split(",").map((s) => s.trim());
+  return { linje1: linje1 ?? "", linje2: resten.join(", "), postnr: m[2], sted: m[3].trim(), land: "Norge" };
+}
+
 /** «Storgata 1, 5003 Bergen». Landet tas bare med når det ikke er Norge. */
 export function adresseTekst(a: Adresse): string {
   const poststed = [a.postnr, a.sted].map((s) => s.trim()).filter(Boolean).join(" ");

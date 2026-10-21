@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
       email: k.email,
       phone: k.phone,
       address: adresseTekst(hovedadresse(k)) || null,
+      adresse: hovedadresse(k),
       is_customer: k.is_customer,
       is_supplier: k.is_supplier,
     }));
