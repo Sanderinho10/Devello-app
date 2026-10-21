@@ -5,7 +5,7 @@ import { ModulMangler } from "@/components/ModulMangler";
 import { harModul } from "@/lib/moduler";
 import { selskapetsModular } from "@/app/selskap/innstillinger/moduler";
 import { currentSession, supabaseServer } from "@/lib/supabase/server";
-import type { SupplierInvoice, SupplierInvoiceLine } from "@/lib/types";
+import { formatDate, type SupplierInvoice, type SupplierInvoiceLine } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -82,6 +82,7 @@ export default async function LeverandorfakturaerPage({
   ]);
 
   const harKopling = Boolean(kopling && kopling.status !== "kopla_fra");
+  const sistFeilet = Boolean(kopling?.last_sync_note?.startsWith("Feilet"));
   // Fakturafiler fra grossistens FTP kommer uten regnskapskopling.
   const harFakturaer = (alle ?? 0) > 0;
 
@@ -107,34 +108,46 @@ export default async function LeverandorfakturaerPage({
             </Link>
             , eller sett opp fakturafiler fra grossisten under{" "}
             <Link href="/register/grossister" style={{ textDecoration: "underline" }}>
-              Selskap → Innstillinger → Grossister
+              Register → Grossister
             </Link>
             , så hentes fakturaene hit.
           </div>
         </div>
       ) : (
-        <div className="card">
-          <div className="card-header row-between">
-            <div className="type-switch kompakt">
-              <Link href="/register/leverandorfakturaer" className={`type-option${vis === "ukopla" ? " active" : ""}`}>
-                Ukoblet {ukopla ?? 0}
-              </Link>
-              <Link
-                href="/register/leverandorfakturaer?vis=kopla"
-                className={`type-option${vis === "kopla" ? " active" : ""}`}
-              >
-                Koblet {kopla ?? 0}
-              </Link>
-              <Link
-                href="/register/leverandorfakturaer?vis=alle"
-                className={`type-option${vis === "alle" ? " active" : ""}`}
-              >
-                Alle {alle ?? 0}
-              </Link>
-            </div>
-            {kopling?.last_sync_note && <span className="tiny muted">{kopling.last_sync_note}</span>}
-          </div>
+        <>
+        <nav className="type-switch kompakt" aria-label="Vis">
+          {(
+            [
+              ["ukopla", "Ukoblet", ukopla],
+              ["kopla", "Koblet", kopla],
+              ["alle", "Alle", alle],
+            ] as [Visning, string, number | null][]
+          ).map(([verdi, etikett, antall]) => (
+            <Link
+              key={verdi}
+              href={verdi === "ukopla" ? "/register/leverandorfakturaer" : `/register/leverandorfakturaer?vis=${verdi}`}
+              className={`type-option${vis === verdi ? " active" : ""}`}
+              aria-current={vis === verdi ? "page" : undefined}
+            >
+              {etikett}
+              <span className="fane-tal">{antall ?? 0}</span>
+            </Link>
+          ))}
+        </nav>
 
+        {/* Verktøylinja som i Go: hentingen til venstre, når det sist ble
+            hentet til høyre. En feil fra siste henting får en egen linje. */}
+        <div className="verktoylinje">
+          {harKopling && <HentFakturaer />}
+          {kopling?.last_sync_at && (
+            <span className="verktoylinje-hoyre tiny muted">Sist hentet {formatDate(kopling.last_sync_at)}</span>
+          )}
+        </div>
+        {sistFeilet ? (
+          <div className="banner warning">{kopling?.last_sync_note}</div>
+        ) : null}
+
+        <div className="card allow-overflow">
           {liste.length === 0 ? (
             <div className="empty">
               <div className="empty-title">
@@ -162,6 +175,7 @@ export default async function LeverandorfakturaerPage({
             />
           )}
         </div>
+        </>
       )}
     </>
   );

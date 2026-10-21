@@ -386,24 +386,41 @@ export function FakturaFane({
         />
       )}
 
-      {draft.questions.length > 0 && (
-        <div className="banner warning" style={{ marginBottom: 0 }}>
-          <strong>Spørsmål fra agenten — avklar før overføring</strong>
-          <ul style={{ margin: "6px 0 0 18px" }}>
-            {draft.questions.map((q) => (
-              <li key={q}>{q}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {draft.notes.length > 0 && (
-        <div className="banner info" style={{ marginBottom: 0 }}>
-          <strong>Merknader</strong>
-          <ul style={{ margin: "6px 0 0 18px" }}>
-            {draft.notes.map((n) => (
-              <li key={n}>{n}</li>
-            ))}
-          </ul>
+      {/* Agentens spørsmål og merknader som to smale linjer som åpnes med et
+          klikk, så linjene kommer opp på første skjerm. Spørsmålene står
+          også i overføringsdialogen, så de blir ikke glemt. */}
+      {(draft.questions.length > 0 || draft.notes.length > 0) && (
+        <div className="agent-linjer">
+          {draft.questions.length > 0 && (
+            <details className="agent-linje sporsmal">
+              <summary>
+                <strong>
+                  {draft.questions.length} spørsmål fra agenten
+                </strong>
+                <span> — avklar før overføring</span>
+              </summary>
+              <ul>
+                {draft.questions.map((q) => (
+                  <li key={q}>{q}</li>
+                ))}
+              </ul>
+            </details>
+          )}
+          {draft.notes.length > 0 && (
+            <details className="agent-linje merknad">
+              <summary>
+                <strong>
+                  {draft.notes.length} {draft.notes.length === 1 ? "merknad" : "merknader"}
+                </strong>
+                <span> — {draft.notes[0]}</span>
+              </summary>
+              <ul>
+                {draft.notes.map((n) => (
+                  <li key={n}>{n}</li>
+                ))}
+              </ul>
+            </details>
+          )}
         </div>
       )}
 

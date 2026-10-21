@@ -2353,6 +2353,36 @@ body.drar-rad * {
   max-height: 60vh;
 }
 
+/* Kundeopplysningene på ordren: bare visning, samme rutenett som feltene. */
+.ordre-kunde-info {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 8px 12px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.ordre-kunde-info dt {
+  color: var(--text-secondary);
+}
+
+.ordre-kunde-info dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ordre-kunde-info a {
+  color: var(--link);
+}
+
+.lenke-bla {
+  color: var(--link);
+}
+
+.lenke-bla:hover {
+  text-decoration: underline;
+}
+
 /* Kunden i en smal spalte: kortere etikett-kolonne. */
 .ordre-kunde .kontakt-rad {
   grid-template-columns: 96px minmax(0, 1fr);
@@ -2379,31 +2409,13 @@ body.drar-rad * {
   background: rgba(0, 0, 0, 0.07);
 }
 
-/* Timer: dato-skille mellom gruppene, hurtigknapper under timefeltet */
+/* Timer: dato-skille mellom gruppene */
 .dato-skille {
   padding: 10px 24px 4px;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-tertiary);
   text-transform: capitalize;
-}
-
-.hurtigknappar {
-  display: flex;
-  gap: 6px;
-  margin-top: 8px;
-}
-
-.hurtigknappar .button {
-  flex: 1;
-  justify-content: center;
-  padding-left: 0;
-  padding-right: 0;
-}
-
-.hurtigknappar .button.active {
-  background: var(--accent-soft);
-  color: var(--accent);
 }
 
 /* Raden som er åpen for endring i føringslinja over. */
@@ -2458,17 +2470,7 @@ body.drar-rad * {
 }
 
 .foring-timar {
-  flex: 0 0 230px;
-}
-
-.foring-timar .hurtigknappar {
-  margin-top: 6px;
-}
-
-.foring-timar .hurtigknappar .button {
-  padding-top: 3px;
-  padding-bottom: 3px;
-  font-size: 12.5px;
+  flex: 0 0 110px;
 }
 
 .foring-note {
@@ -2629,10 +2631,6 @@ body.drar-rad * {
   .foring-knapp .button {
     width: 100%;
     justify-content: center;
-  }
-  .foring-timar .hurtigknappar .button {
-    min-height: 44px;
-    font-size: 14px;
   }
 }
 
@@ -3200,6 +3198,119 @@ tr.fakturert,
 
 .faktura-tabell .chips {
   margin: 0 0 2px 7px;
+}
+
+/* Leverandørfakturaer: rad med pil som viser linjene under. */
+.faktura-liste td {
+  vertical-align: top;
+}
+
+.faktura-liste td.utvid {
+  width: 28px;
+  padding-right: 0;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.faktura-liste tbody.open > tr:first-child td {
+  background: var(--bg);
+}
+
+.faktura-liste .faktura-detalj td {
+  padding: 0 14px 14px 42px;
+  background: var(--bg);
+  cursor: default;
+}
+
+.faktura-liste .faktura-linjer {
+  padding: 2px 0 0;
+  background: none;
+}
+
+.faktura-liste .faktura-detalj:hover td {
+  background: var(--bg);
+}
+
+/* Ordrevelgeren åpner seg mot venstre fra kolonnen helt til høyre. */
+.faktura-liste .ordre-velger-treff {
+  left: auto;
+  right: 0;
+}
+
+@media (max-width: 700px) {
+  .faktura-liste td.utvid {
+    display: none;
+  }
+  .faktura-liste .faktura-detalj td {
+    flex: 1 1 100%;
+    padding: 0;
+  }
+}
+
+/* Agentens spørsmål og merknader i Faktura: smale linjer som åpnes. */
+.agent-linjer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agent-linje {
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+
+.agent-linje.sporsmal {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.agent-linje.merknad {
+  background: var(--accent-soft);
+  color: var(--link);
+}
+
+.agent-linje summary {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 7px 12px;
+  cursor: pointer;
+  list-style: none;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.agent-linje summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Pil som snur seg når linja er åpen. */
+.agent-linje summary::before {
+  content: "▸";
+  flex: 0 0 auto;
+  margin-right: 4px;
+  transition: transform 0.15s ease;
+}
+
+.agent-linje[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.agent-linje summary span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.85;
+}
+
+.agent-linje[open] summary span {
+  display: none;
+}
+
+.agent-linje ul {
+  margin: 0;
+  padding: 0 12px 10px 34px;
+  line-height: 1.5;
 }
 
 /* Summene nederst til høyre i linjekortet, som i tilbudet. */
@@ -3790,4 +3901,23 @@ tr.fakturert,
 }
 .kunde-kort-info dd {
   margin: 0;
+  overflow-wrap: anywhere;
+}
+
+dl.kunde-kort-info {
+  margin: 0;
+}
+
+.kunde-kort-info a {
+  color: var(--link);
+}
+
+/* Notatet på kontakten, under informasjonen. */
+.kontakt-notat {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  white-space: pre-wrap;
+  font-size: 13.5px;
+  color: var(--text-secondary);
 }

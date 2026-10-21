@@ -13,15 +13,12 @@ interface Timetype {
   unit_price: number;
 }
 
-const HURTIG = [0.5, 1, 2, 4, 8];
-
 /**
  * Timer på ordren — skjemaet montøren bruker ute på jobb.
  *
  * Alt er valgt på forhånd der det går: dato er i dag, montør er en selv,
  * timetype er den første i lista. Da er det ett tall og ett trykk for det
- * vanlige tilfellet. Hurtigknappene dekker de fem tallene som faktisk blir
- * ført; feltet står der for resten.
+ * vanlige tilfellet.
  *
  * Egne føringer kan endres og slettes; en administrator kan røre alle.
  * Det er samme regel som API-et håndhever — knappene viser bare det som er
@@ -137,7 +134,7 @@ export function TimerFane({
       )}
 
       {/* Føringen som én linje over tabellen, som i Go. På telefon stables
-          feltene, og hurtigknappene får full trykkflate. */}
+          feltene med full trykkflate. */}
       {!laast && timetypar.length > 0 && (
         <form className={`card foring${redigerer ? " redigerer" : ""}`} onSubmit={lagre}>
           <div className="foring-topp">
@@ -199,18 +196,6 @@ export function TimerFane({
                   required
                 />
               </label>
-              <div className="hurtigknappar">
-                {HURTIG.map((h) => (
-                  <button
-                    key={h}
-                    type="button"
-                    className={`button secondary${Number(timar.replace(",", ".")) === h ? " active" : ""}`}
-                    onClick={() => setTimar(String(h).replace(".", ","))}
-                  >
-                    {String(h).replace(".", ",")}
-                  </button>
-                ))}
-              </div>
             </div>
             <label className="foring-note">
               <span className="label">Kommentar</span>
