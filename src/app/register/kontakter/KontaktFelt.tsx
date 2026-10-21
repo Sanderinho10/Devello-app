@@ -284,7 +284,7 @@ export function KontaktFelt({
   );
 }
 
-interface AdresseVerdier {
+export interface AdresseVerdier {
   linje1: string;
   linje2: string;
   postnr: string;
@@ -297,7 +297,7 @@ function hoved(v: KontaktVerdier): AdresseVerdier {
 }
 
 /** Adresse, linje 2, postnr./sted og land — som i Go. */
-function AdresseFelt({
+export function AdresseFelt({
   verdier,
   onChange,
   medLand,

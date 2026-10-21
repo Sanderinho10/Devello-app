@@ -5,17 +5,21 @@ import { useState } from "react";
 import { KundeSok, type KundeForslag } from "@/components/KundeSok";
 import { Modal } from "@/components/Modal";
 import { TilbudSok, type TilbudForslag } from "@/components/TilbudSok";
+import { AdresseFelt, type AdresseVerdier } from "@/app/register/kontakter/KontaktFelt";
+import { adresseTekst } from "@/lib/kunder/adresse";
+
+const TOM_ADRESSE: AdresseVerdier = { linje1: "", linje2: "", postnr: "", sted: "" };
 
 /**
- * Ny ordre uten tilbud — en servicejobb som kom på telefon.
+ * Ny ordre — fra et tilbud, eller en servicejobb som kom på telefon.
  *
- * Bare tittelen er påkrevd. Kundefeltene kan fylles inn nå eller på ordren
+ * Bare jobben er påkrevd. Kundefeltene kan fylles inn nå eller på ordren
  * etterpå; det viktigste er at jobben får et nummer med en gang, så
  * montøren har noe å skrive på bestillingen.
  *
- * Velges et tilbud, lages ordren fra det — akkurat som «Opprett ordre» på
- * tilbudsutkastet: tittel, kunde, adresse og poster hentes fra tilbudet, og
- * feltene under er grået ut.
+ * Velges et tilbud, står tilbudsnummeret i feltet og resten fylles ut fra
+ * tilbudet, men alt kan rettes. Ordren lages da som fra tilbudsutkastet —
+ * med postene og prisen fra tilbudet — og med det som står i feltene.
  *
  * Jobben gjøres på kundens adresse, med mindre man krysser av for at den er
  * et annet sted — da overstyrer oppdragsadressen. Oppdragsadressen hører til
@@ -33,11 +37,13 @@ export function NyOrdre() {
     customer_email: "",
     customer_phone: "",
     customer_address: "",
-    site_address: "",
   });
   const [annenAdresse, setAnnenAdresse] = useState(false);
-  // Tilbudet ordren lages fra. Da sendes bare utkastet, som fra tilbudssiden.
+  const [oppdrag, setOppdrag] = useState<AdresseVerdier>(TOM_ADRESSE);
+  // Tilbudet ordren lages fra, og teksten i tilbudsfeltet. Skrives feltet
+  // om etter et valg, slippes tilbudet.
   const [tilbud, setTilbud] = useState<TilbudForslag | null>(null);
+  const [tilbudTekst, setTilbudTekst] = useState("");
   // Kunden valgt fra registeret. Slippes når navnet skrives om.
   const [kunde, setKunde] = useState<KundeForslag | null>(null);
 
@@ -58,6 +64,21 @@ export function NyOrdre() {
     }));
   }
 
+  /** Tilbudsnummeret i feltet, og resten fylt ut fra tilbudet. */
+  function velgTilbud(t: TilbudForslag) {
+    setTilbud(t);
+    setTilbudTekst(String(t.quote_no));
+    setKunde(null);
+    setFelt({
+      title: t.tittel,
+      customer_name: t.kunde,
+      customer_contact: t.felt.kontakt ?? "",
+      customer_email: t.felt.epost ?? "",
+      customer_phone: t.felt.telefon ?? "",
+      customer_address: t.felt.adresse ?? "",
+    });
+  }
+
   function close() {
     if (busy) return;
     setOpen(false);
@@ -70,18 +91,21 @@ export function NyOrdre() {
       router.push(`/ordre/${tilbud.ordre.id}`);
       return;
     }
-    if (!tilbud && !felt.title.trim()) return;
+    if (!felt.title.trim()) return;
     setBusy(true);
     setError(null);
     try {
+      // Jobben står på kundens adresse, med mindre oppdraget er et annet sted.
+      const site_address = annenAdresse
+        ? adresseTekst({ ...oppdrag, land: "Norge" })
+        : felt.customer_address;
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(tilbud ? { draft_id: tilbud.id } : {
+        body: JSON.stringify({
           ...felt,
-          // Jobben står på kundens adresse, med mindre oppdraget er et annet sted.
-          site_address: annenAdresse ? felt.site_address : felt.customer_address,
-          customer_id: kunde?.id,
+          site_address,
+          ...(tilbud ? { draft_id: tilbud.id } : { customer_id: kunde?.id }),
         }),
       });
       const payload = await res.json();
@@ -93,6 +117,13 @@ export function NyOrdre() {
     }
   }
 
+  const rad = (etikett: string, navn: keyof typeof felt, ekstra?: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <label className="kontakt-rad">
+      <span className="kontakt-rad-etikett">{etikett}</span>
+      <input className="input" value={felt[navn]} onChange={(e) => sett(navn, e.target.value)} {...ekstra} />
+    </label>
+  );
+
   return (
     <>
       <button className="button" onClick={() => setOpen(true)}>
@@ -103,60 +134,38 @@ export function NyOrdre() {
         <form onSubmit={submit}>
           {error && <div className="banner error">{error}</div>}
 
-          {/* Som i Go: etiketten foran feltet, jobben øverst og kunden under.
-              Bare jobben er påkrevd. */}
+          {/* Som i Go: etiketten foran feltet. Tilbudet øverst fyller ut
+              resten; bare jobben er påkrevd. */}
           <div className="kontakt-panel ny-post-panel">
             <div className="kontakt-rad">
               <span className="kontakt-rad-etikett">Tilbud</span>
-              {tilbud ? (
-                <div className="valgt-tilbud">
-                  <div>
-                    <strong>Tilbud {tilbud.quote_no}</strong> · {tilbud.tittel}
-                    {tilbud.kunde && <div className="tiny muted">{tilbud.kunde}</div>}
-                  </div>
-                  <button type="button" className="button ghost" onClick={() => setTilbud(null)}>
-                    Fjern
-                  </button>
-                </div>
-              ) : (
-                <TilbudSok onVelg={setTilbud} placeholder="Valgfritt — tilbudsnummer eller kundenavn" />
-              )}
-            </div>
-            {tilbud && (
-              <div className="kontakt-rad">
-                <span />
-                {tilbud.ordre ? (
-                  <span className="hint" style={{ marginTop: -4 }}>
-                    Det finnes alt en ordre fra dette tilbudet: #{tilbud.ordre.order_no}.
-                  </span>
-                ) : !tilbud.bekreftet ? (
-                  <span className="hint krav" style={{ marginTop: -4 }}>
-                    Tilbudet er ikke bekreftet ennå.{" "}
-                    <a href={`/tilbud/leads/${tilbud.lead_id}`} style={{ textDecoration: "underline" }}>
-                      Åpne utkastet
-                    </a>{" "}
-                    og bekreft det først.
-                  </span>
-                ) : (
-                  <span className="hint" style={{ marginTop: -4 }}>
-                    Ordren lages fra tilbudet, som fra tilbudsutkastet: jobb, kunde, adresse og poster hentes derfra.
-                  </span>
-                )}
+              <div>
+                <TilbudSok
+                  value={tilbudTekst}
+                  onChange={(v) => {
+                    setTilbudTekst(v);
+                    if (tilbud && v !== String(tilbud.quote_no)) setTilbud(null);
+                  }}
+                  onVelg={velgTilbud}
+                  placeholder="Valgfritt — tilbudsnummer eller kundenavn"
+                />
+                {tilbud &&
+                  (tilbud.ordre ? (
+                    <span className="hint">Det finnes alt en ordre fra dette tilbudet: #{tilbud.ordre.order_no}.</span>
+                  ) : !tilbud.bekreftet ? (
+                    <span className="hint krav">
+                      Tilbudet er ikke bekreftet ennå.{" "}
+                      <a href={`/tilbud/leads/${tilbud.lead_id}`} style={{ textDecoration: "underline" }}>
+                        Åpne utkastet
+                      </a>{" "}
+                      og bekreft det først.
+                    </span>
+                  ) : (
+                    <span className="hint">Fylt ut fra tilbudet. Postene og prisen følger med.</span>
+                  ))}
               </div>
-            )}
-
-            <fieldset className="ny-post-prisfil" disabled={tilbud !== null}>
-            <label className="kontakt-rad">
-              <span className="kontakt-rad-etikett">Jobben</span>
-              <input
-                className="input"
-                autoFocus
-                required={!tilbud}
-                value={felt.title}
-                onChange={(e) => sett("title", e.target.value)}
-                placeholder="Bytte sikringsskap — Storgata 12"
-              />
-            </label>
+            </div>
+            {rad("Jobben", "title", { required: true, autoFocus: true, placeholder: "Bytte sikringsskap — Storgata 12" })}
 
             <div className="kontakt-skilje">Kunden</div>
             <div className="kontakt-rad">
@@ -171,43 +180,13 @@ export function NyOrdre() {
                 {kunde && <span className="hint">Fra kunderegisteret — resten er fylt ut.</span>}
               </div>
             </div>
-            <label className="kontakt-rad">
-              <span className="kontakt-rad-etikett">Kontaktperson</span>
-              <input
-                className="input"
-                value={felt.customer_contact}
-                onChange={(e) => sett("customer_contact", e.target.value)}
-              />
-            </label>
-            <label className="kontakt-rad">
-              <span className="kontakt-rad-etikett">E-post</span>
-              <input
-                className="input"
-                type="email"
-                value={felt.customer_email}
-                onChange={(e) => sett("customer_email", e.target.value)}
-              />
-            </label>
-            <label className="kontakt-rad">
-              <span className="kontakt-rad-etikett">Telefon</span>
-              <input
-                className="input"
-                value={felt.customer_phone}
-                onChange={(e) => sett("customer_phone", e.target.value)}
-              />
-            </label>
-            <label className="kontakt-rad">
-              <span className="kontakt-rad-etikett">Adresse</span>
-              <input
-                className="input"
-                value={felt.customer_address}
-                onChange={(e) => sett("customer_address", e.target.value)}
-                placeholder="Storgata 12, 0155 Oslo"
-              />
-            </label>
+            {rad("Kontaktperson", "customer_contact")}
+            {rad("E-post", "customer_email", { type: "email" })}
+            {rad("Telefon", "customer_phone")}
+            {rad("Adresse", "customer_address", { placeholder: "Storgata 12, 0155 Oslo" })}
 
-            {/* Som i Go: avkryssingen over feltet den styrer. Feltet står
-                grått til man krysser av, så man ser hva valget betyr. */}
+            {/* Som i Go: avkryssingen over feltene den styrer. Feltene står
+                grå til man krysser av, så man ser hva valget betyr. */}
             <div className="kontakt-skilje">Oppdraget</div>
             <div className="kontakt-rad">
               <span />
@@ -224,17 +203,7 @@ export function NyOrdre() {
               </label>
             </div>
             <fieldset className="ny-post-prisfil" disabled={!annenAdresse}>
-              <label className="kontakt-rad">
-                <span className="kontakt-rad-etikett">Oppdragsadresse</span>
-                <input
-                  className="input"
-                  value={felt.site_address}
-                  onChange={(e) => sett("site_address", e.target.value)}
-                  placeholder="Hytta — Fjellvegen 3, 3580 Geilo"
-                  required={annenAdresse && !tilbud}
-                />
-              </label>
-            </fieldset>
+              <AdresseFelt verdier={oppdrag} onChange={setOppdrag} disabled={!annenAdresse} />
             </fieldset>
           </div>
 
@@ -251,9 +220,7 @@ export function NyOrdre() {
                 ? "Oppretter…"
                 : tilbud?.ordre
                   ? `Åpne ordre #${tilbud.ordre.order_no}`
-                  : tilbud
-                    ? "Opprett ordre fra tilbudet"
-                    : "Opprett ordre"}
+                  : "Opprett ordre"}
             </button>
           </div>
         </form>

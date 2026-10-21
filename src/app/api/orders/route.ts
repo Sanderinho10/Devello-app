@@ -126,6 +126,20 @@ export async function POST(request: NextRequest) {
         quote_snapshot: { quote_type: draft.quote_type, quote_no: draft.quote_no ?? null, document, totals },
         planned_total: totals?.subtotal ?? null,
       };
+
+      // «Ny ordre» med et tilbud: feltene er fylt ut fra tilbudet, men kan
+      // være rettet før ordren ble laget. Det som er skrevet inn, vinner;
+      // poster og pris kommer fortsatt fra tilbudet.
+      const rettet = (verdi: string | undefined) => tekst(verdi) || null;
+      felt = {
+        ...felt,
+        title: rettet(body.title) ?? felt.title,
+        customer_name: rettet(body.customer_name) ?? felt.customer_name,
+        customer_contact: rettet(body.customer_contact) ?? felt.customer_contact,
+        customer_email: rettet(body.customer_email) ?? felt.customer_email,
+        customer_phone: rettet(body.customer_phone) ?? felt.customer_phone,
+        site_address: rettet(body.site_address) ?? felt.site_address,
+      };
     } else {
       const title = tekst(body.title);
       if (!title) {

@@ -14,6 +14,14 @@ export interface TilbudForslag {
   sendt: boolean;
   /** Ordren som alt er laget fra tilbudet, om noen. */
   ordre: { id: string; order_no: number } | null;
+  /** Feltene «Ny ordre» fylles ut med. Kan rettes før ordren lages. */
+  felt: {
+    customer_id: string | null;
+    kontakt: string | null;
+    epost: string | null;
+    telefon: string | null;
+    adresse: string | null;
+  };
 }
 
 /**
@@ -35,7 +43,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await admin
       .from("drafts")
       .select(
-        "id, quote_no, confirmed_at, sent_at, tittel:document->>title, kunde:document->customer->>name, leads!inner(id, company_id, subject, from_name)",
+        "id, quote_no, confirmed_at, sent_at, tittel:document->>title, kunde:document->customer->>name, kontakt:document->customer->>contact, epost:document->customer->>email, telefon:document->customer->>phone, adresse:document->customer->>address, leads!inner(id, company_id, subject, from_name, from_email, customer_id)",
       )
       .eq("leads.company_id", session.companyId)
       .not("quote_no", "is", null)
@@ -50,9 +58,19 @@ export async function GET(request: NextRequest) {
       sent_at: string | null;
       tittel: string | null;
       kunde: string | null;
+      kontakt: string | null;
+      epost: string | null;
+      telefon: string | null;
+      adresse: string | null;
       leads: LeadDel | LeadDel[];
     };
-    type LeadDel = { id: string; subject: string | null; from_name: string | null };
+    type LeadDel = {
+      id: string;
+      subject: string | null;
+      from_name: string | null;
+      from_email: string | null;
+      customer_id: string | null;
+    };
     const erTal = /^\d+$/.test(q);
     const treff = ((data ?? []) as unknown as Rad[])
       .map((r) => {
@@ -65,6 +83,13 @@ export async function GET(request: NextRequest) {
           kunde: r.kunde || lead?.from_name || "",
           bekreftet: Boolean(r.confirmed_at),
           sendt: Boolean(r.sent_at),
+          felt: {
+            customer_id: lead?.customer_id ?? null,
+            kontakt: r.kontakt || null,
+            epost: r.epost || lead?.from_email || null,
+            telefon: r.telefon || null,
+            adresse: r.adresse || null,
+          },
         };
       })
       .filter((t) =>

@@ -8,16 +8,20 @@ export type { TilbudForslag };
 /**
  * Tilbudsfelt med forslag: skriv tilbudsnummeret eller kundens navn, og
  * tilbudene som passer kommer under feltet. Samme oppførsel som KundeSok —
- * piltaster, Enter velger, Esc lukker.
+ * piltaster, Enter velger, Esc lukker. Feltet styres utenfra, så skjemaet
+ * kan sette tilbudsnummeret inn når et tilbud er valgt.
  */
 export function TilbudSok({
+  value: verdi,
+  onChange,
   onVelg,
   placeholder,
 }: {
+  value: string;
+  onChange: (tekst: string) => void;
   onVelg: (tilbud: TilbudForslag) => void;
   placeholder?: string;
 }) {
-  const [verdi, setVerdi] = useState("");
   const [forslag, setForslag] = useState<TilbudForslag[]>([]);
   const [open, setOpen] = useState(false);
   const [aktiv, setAktiv] = useState(0);
@@ -58,7 +62,6 @@ export function TilbudSok({
 
   function velg(t: TilbudForslag) {
     onVelg(t);
-    setVerdi("");
     setOpen(false);
     setForslag([]);
   }
@@ -93,7 +96,7 @@ export function TilbudSok({
         aria-expanded={vis}
         aria-autocomplete="list"
         onChange={(e) => {
-          setVerdi(e.target.value);
+          onChange(e.target.value);
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}
