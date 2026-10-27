@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * Popup bygget på <dialog>.
@@ -24,6 +24,31 @@ export function Modal({
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  // Ruller bare når innholdet er høyere enn vinduet. Ellers får nedtrekkslister
+  // (kundesøk, tilbudssøk) henge utenfor popupen, som før — en innholdsdel som
+  // alltid ruller, ville kuttet dem av.
+  const [ruller, setRuller] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const dialog = ref.current;
+    const body = bodyRef.current;
+    if (!dialog || !body) return;
+    const maal = () => {
+      const hode = dialog.querySelector(".modal-head")?.getBoundingClientRect().height ?? 0;
+      // Samme luft som max-height i CSS-en: 32 px over og under.
+      setRuller(body.scrollHeight + hode > window.innerHeight - 64);
+    };
+    maal();
+    const observer = new ResizeObserver(maal);
+    observer.observe(body);
+    window.addEventListener("resize", maal);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", maal);
+    };
+  }, [open]);
 
   useEffect(() => {
     const dialog = ref.current;
@@ -35,7 +60,7 @@ export function Modal({
   return (
     <dialog
       ref={ref}
-      className={`modal${size === "wide" ? " wide" : ""}`}
+      className={`modal${size === "wide" ? " wide" : ""}${ruller ? " ruller" : ""}`}
       // Esc lukker <dialog> selv; cancel holder React-tilstanden i takt.
       onCancel={(event) => {
         event.preventDefault();
@@ -57,7 +82,9 @@ export function Modal({
           ×
         </button>
       </div>
-      <div className="modal-body">{children}</div>
+      <div className="modal-body" ref={bodyRef}>
+        {children}
+      </div>
     </dialog>
   );
 }

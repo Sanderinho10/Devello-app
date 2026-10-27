@@ -1556,6 +1556,32 @@ body.drar-rad * {
   padding: 18px 20px 18px;
 }
 
+/* Høyere enn vinduet: tittellinja står, innholdet ruller, og knappene
+   nederst står fast så de alltid kan nås. */
+.modal.ruller[open] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal.ruller .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.modal.ruller .modal-actions {
+  position: sticky;
+  bottom: -18px;
+  z-index: 3;
+  margin: 22px -20px -18px;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
 /* Tittellinja: et eget felt over innholdet, som vinduslinja i Go. */
 .modal-head {
   display: flex;
@@ -3824,7 +3850,9 @@ tr.fakturert,
 }
 .kontakt-rad {
   display: grid;
-  grid-template-columns: 130px 1fr;
+  /* minmax(0, …): Safari på iPad gir et tekstfelt en minstebredde på ~240 px,
+     og med vanlig 1fr presset det feltene ut over kanten av popupen. */
+  grid-template-columns: 130px minmax(0, 1fr);
   align-items: center;
   gap: 12px;
   margin-bottom: 10px;
@@ -3841,8 +3869,23 @@ tr.fakturert,
 }
 .kontakt-poststed {
   display: grid;
-  grid-template-columns: 110px 1fr;
+  grid-template-columns: minmax(0, 110px) minmax(0, 1fr);
   gap: 8px;
+}
+
+/* Feltene fyller alltid kolonnen sin og kan krympe — ikke bare i Chrome. */
+.kontakt-rad > *,
+.kontakt-poststed > *,
+.kontakt-rad .picker {
+  min-width: 0;
+}
+
+.kontakt-rad .input,
+.kontakt-poststed .input,
+.kontakt-rad .picker {
+  width: 100%;
+  max-width: 100%;
+  justify-self: stretch;
 }
 .kontakt-skilje {
   margin: 18px 0 10px;
