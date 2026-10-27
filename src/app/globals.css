@@ -4454,3 +4454,20 @@ dl.kunde-kort-info {
   font-weight: 600;
   color: var(--accent);
 }
+
+/* «Glemt passord?» under passordfeltet: ser ut som en lenke, er en knapp. */
+.lenke-knapp {
+  display: block;
+  margin: 6px 0 0 auto;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--link);
+  cursor: pointer;
+}
+
+.lenke-knapp:hover {
+  text-decoration: underline;
+}

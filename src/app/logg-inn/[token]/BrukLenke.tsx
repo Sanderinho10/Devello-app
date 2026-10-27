@@ -13,7 +13,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
  * Supabase-klienten skal ha den, og vårt token må brukes opp på serveren for
  * at det skal kunne brukes bare én gang.
  */
-export function BrukLenke({ token }: { token: string }) {
+export function BrukLenke({ token, nyttPassord = false }: { token: string; nyttPassord?: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +36,8 @@ export function BrukLenke({ token }: { token: string }) {
       });
       if (verifyError) throw new Error(verifyError.message);
 
-      router.push("/dashboard");
+      // Fra «Glemt passord»: rett til siden der passordet byttes.
+      router.push(nyttPassord ? "/nytt-passord" : "/dashboard");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -46,9 +47,9 @@ export function BrukLenke({ token }: { token: string }) {
 
   return (
     <>
-      <h2>Logg inn</h2>
+      <h2>{nyttPassord ? "Velg nytt passord" : "Logg inn"}</h2>
       <p className="muted" style={{ margin: "8px 0 18px" }}>
-        Trykk under, så er du inne.
+        {nyttPassord ? "Trykk under, så logges du inn og kan velge et nytt passord." : "Trykk under, så er du inne."}
       </p>
 
       {error && <div className="banner error">{error}</div>}
@@ -59,7 +60,7 @@ export function BrukLenke({ token }: { token: string }) {
         onClick={loggInn}
         disabled={busy}
       >
-        {busy ? "Logger inn…" : "Logg inn"}
+        {busy ? "Logger inn…" : nyttPassord ? "Fortsett" : "Logg inn"}
       </button>
 
       <p className="muted tiny" style={{ marginTop: 20 }}>
