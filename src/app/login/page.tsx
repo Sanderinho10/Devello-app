@@ -13,7 +13,7 @@ import { Merke } from "@/components/Merke";
  * om dagen, og da er en e-postlenke hver gang bare friksjon. Lenke er med som
  * alternativ for første gangs pålogging og for de som ikke vil ha et passord.
  */
-type Mode = "passord" | "lenke";
+type Mode = "passord" | "lenke" | "glemt";
 
 export default function LoginPage() {
   return (
@@ -51,7 +51,7 @@ function LoginForm() {
       try {
         const { data } = await supabaseBrowser().auth.getSession();
         if (!avbrutt && data.session) {
-          router.replace("/tilbud/leads");
+          router.replace("/dashboard");
         }
       } catch {
         // Mangler oppsettet, sier skjemaet fra når noen prøver å logge inn.
@@ -96,7 +96,7 @@ function LoginForm() {
       const res = await fetch("/api/auth/lenke", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, formaal: mode === "glemt" ? "passord" : undefined }),
       });
       const payload = await res.json();
       if (!res.ok) {
@@ -116,7 +116,12 @@ function LoginForm() {
       <Shell>
         <h2>Sjekk e-posten</h2>
         <p className="muted" style={{ marginTop: 8 }}>
-          Vi sendte en innloggingslenke til {email}.
+          {mode === "glemt"
+            ? `Vi sendte en lenke til ${email}. Trykk på den for å velge nytt passord.`
+            : `Vi sendte en innloggingslenke til ${email}.`}
+        </p>
+        <p className="muted tiny" style={{ marginTop: 12 }}>
+          Lenken varer i 30 minutter. Finner du den ikke, se i søppelposten — søk etter «Devello».
         </p>
       </Shell>
     );
@@ -125,11 +130,13 @@ function LoginForm() {
   return (
     <Shell>
       <form onSubmit={submit}>
-        <h2>Logg inn</h2>
+        <h2>{mode === "glemt" ? "Glemt passord" : "Logg inn"}</h2>
         <p className="muted" style={{ margin: "6px 0 18px" }}>
           {mode === "passord"
             ? "Med e-post og passord."
-            : "Vi sender deg en lenke på e-post."}
+            : mode === "glemt"
+              ? "Skriv e-posten din, så sender vi en lenke der du kan velge nytt passord."
+              : "Vi sender deg en lenke på e-post."}
         </p>
 
         {error && <div className="banner error">{error}</div>}
@@ -159,6 +166,16 @@ function LoginForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+            <button
+              type="button"
+              className="lenke-knapp"
+              onClick={() => {
+                setMode("glemt");
+                setError(null);
+              }}
+            >
+              Glemt passord?
+            </button>
           </label>
         )}
 
@@ -174,7 +191,9 @@ function LoginForm() {
               : "Sender…"
             : mode === "passord"
               ? "Logg inn"
-              : "Send lenke"}
+              : mode === "glemt"
+                ? "Send lenke for nytt passord"
+                : "Send lenke"}
         </button>
 
         <button
@@ -186,9 +205,7 @@ function LoginForm() {
             setError(null);
           }}
         >
-          {mode === "passord"
-            ? "Send meg en lenke i stedet"
-            : "Bruk passord i stedet"}
+          {mode === "passord" ? "Send meg en lenke i stedet" : mode === "glemt" ? "Tilbake til innlogging" : "Bruk passord i stedet"}
         </button>
       </form>
 

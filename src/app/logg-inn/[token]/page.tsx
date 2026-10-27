@@ -15,10 +15,14 @@ export const dynamic = "force-dynamic";
  */
 export default async function LoggInnPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ neste?: string }>;
 }) {
   const { token } = await params;
+  // Bare én kjent verdi — aldri en vilkårlig adresse fra lenken.
+  const nyttPassord = (await searchParams).neste === "nytt-passord";
 
   const { data: rad } = await supabaseAdmin()
     .from("login_tokens")
@@ -51,7 +55,7 @@ export default async function LoggInnPage({
             tekst="Innloggingslenker varer i 30 minutter. Be om en ny."
           />
         ) : (
-          <BrukLenke token={token} />
+          <BrukLenke token={token} nyttPassord={nyttPassord} />
         )}
       </div>
     </div>
