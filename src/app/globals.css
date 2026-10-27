@@ -4514,3 +4514,13 @@ dl.kunde-kort-info {
 .lenke-knapp:hover {
   text-decoration: underline;
 }
+
+/* «Alle endringer er lagret» i handlingslinja på tilbudet */
+.lagring-status {
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.lagring-status.feil {
+  color: var(--danger, #b3261e);
+}

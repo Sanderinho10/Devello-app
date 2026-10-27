@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SendSjolv } from "./SendSjolv";
 import { Forutsetninger } from "./Forutsetninger";
@@ -192,12 +192,16 @@ export function DraftEditor({
     await generate(next, false);
   }
 
-  /** Lagrer uten modellkall. Holder databasen i takt med det som står på skjermen. */
-  async function save(type: QuoteType, snapshot: Snapshot) {
+  /**
+   * Lagrer uten modellkall. Holder databasen i takt med det som står på skjermen.
+   * `keepalive` lar kallet fullføre selv om siden lukkes eller man navigerer bort.
+   */
+  async function save(type: QuoteType, snapshot: Snapshot, keepalive = false): Promise<boolean> {
     try {
-      await fetch(`/api/drafts/${draft.id}`, {
+      const res = await fetch(`/api/drafts/${draft.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
+        keepalive,
         body: JSON.stringify({
           quote_type: type,
           email_subject: snapshot.email_subject,
@@ -205,11 +209,120 @@ export function DraftEditor({
           document: hasDocument(type) ? snapshot.document : null,
         }),
       });
+      return res.ok;
     } catch {
-      // Lagring i bakgrunnen. Feiler den, får brukeren beskjed ved bekreft,
-      // som er den handlingen som faktisk må være korrekt.
+      return false;
     }
   }
+
+  /**
+   * Automatisk lagring. Hver endring lagres et øyeblikk etter at man slutter
+   * å skrive, og det som ikke er lagret ennå, sendes når man forlater siden —
+   * også ved navigering inne i appen. Går man til innstillingene og tilbake,
+   * står tilbudet slik man forlot det.
+   */
+  const [lagring, setLagring] = useState<null | "lagrer" | "lagret" | "feil">(null);
+  const nokkelFor = (t: QuoteType, sn: Snapshot) =>
+    JSON.stringify([t, sn.email_subject, sn.email_body, hasDocument(t) ? sn.document : null]);
+  const sistLagret = useRef(
+    nokkelFor(draft.quote_type, {
+      email_subject: draft.email_subject,
+      email_body: draft.email_body,
+      document: draft.document,
+      confidence: draft.confidence,
+      confidence_note: draft.confidence_note,
+    }),
+  );
+  const ventende = useRef<{ type: QuoteType; snapshot: Snapshot; nokkel: string } | null>(null);
+  const saveRef = useRef(save);
+  saveRef.current = save;
+
+  async function lagreVentende(keepalive = false) {
+    const v = ventende.current;
+    if (!v) return;
+    ventende.current = null;
+    setLagring("lagrer");
+    const ok = await saveRef.current(v.type, v.snapshot, keepalive);
+    if (ok) {
+      sistLagret.current = v.nokkel;
+      setLagring("lagret");
+    } else {
+      // Prøv igjen om litt — eller tidligere, ved neste endring eller når
+      // siden forlates.
+      if (!ventende.current) ventende.current = v;
+      setLagring("feil");
+      if (!keepalive) window.setTimeout(() => void lagreVentendeRef.current(), 5000);
+    }
+  }
+  const lagreVentendeRef = useRef(lagreVentende);
+  lagreVentendeRef.current = lagreVentende;
+
+  useEffect(() => {
+    if (sendt) return;
+    const snapshot = currentSnapshot();
+    const nokkel = nokkelFor(quoteType, snapshot);
+    if (nokkel === sistLagret.current) return;
+    ventende.current = { type: quoteType, snapshot, nokkel };
+    const t = window.setTimeout(() => void lagreVentendeRef.current(), 800);
+    return () => window.clearTimeout(t);
+    // Snapshot-feltene er nøkkelen; confidence lagres ikke herfra.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quoteType, subject, body, document, sendt]);
+
+  // Ved åpning: er det lagret noe nyere enn det siden ble levert med (siden
+  // kom fra nettleserens mellomlager), vises det lagrede — så lenge ingenting
+  // er endret her ennå.
+  useEffect(() => {
+    let avbrutt = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/drafts/${draft.id}`, { cache: "no-store" });
+        if (!res.ok || avbrutt) return;
+        const d = (await res.json()) as {
+          quote_type: QuoteType;
+          email_subject: string;
+          email_body: string;
+          document: QuoteDocument | null;
+        };
+        const lagret = {
+          email_subject: d.email_subject,
+          email_body: d.email_body,
+          document: d.document,
+          confidence: draft.confidence,
+          confidence_note: draft.confidence_note,
+        };
+        const nokkel = nokkelFor(d.quote_type, lagret);
+        if (avbrutt || ventende.current || nokkel === sistLagret.current) return;
+        sistLagret.current = nokkel;
+        setQuoteType(d.quote_type);
+        apply(lagret);
+      } catch {
+        // Ingen fare: da vises det siden ble levert med.
+      }
+    })();
+    return () => {
+      avbrutt = true;
+    };
+    // Bare ved åpning.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const tom = () => {
+      if (ventende.current) void lagreVentendeRef.current(true);
+    };
+    const skjult = () => {
+      if (window.document.visibilityState === "hidden") tom();
+    };
+    window.addEventListener("pagehide", tom);
+    window.document.addEventListener("visibilitychange", skjult);
+    return () => {
+      window.removeEventListener("pagehide", tom);
+      window.document.removeEventListener("visibilitychange", skjult);
+      // Navigering inne i appen: komponenten forsvinner — lagre det som venter.
+      tom();
+    };
+  }, []);
 
   /**
    * PDF-ruten leser fra databasen, så vi lagrer før vi henter.
@@ -1197,6 +1310,9 @@ export function DraftEditor({
             {busy === "lagrer" ? "Lager PDF…" : "Forhåndsvis PDF"}
           </button>
         )}
+        <span className={`tiny lagring-status${lagring === "feil" ? " feil" : ""}`} aria-live="polite">
+          {lagring === "lagrer" ? "Lagrer…" : lagring === "lagret" ? "Alle endringer er lagret" : lagring === "feil" ? "Kunne ikke lagre — prøver igjen" : ""}
+        </span>
         <span className="spacer" />
         <span className="muted tiny">
           {!harPostkasse

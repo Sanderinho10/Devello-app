@@ -5,6 +5,30 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import type { QuoteDocument, QuoteType } from "@/lib/types";
 
 /**
+ * Siste lagrede innhold. Redigeringen spør ved åpning, så en side som kommer
+ * fra nettleserens mellomlager (tilbakeknappen) ikke viser en eldre versjon
+ * enn den som er lagret.
+ */
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await sessionOr401();
+  if (session instanceof NextResponse) return session;
+  const { id } = await params;
+  const { data: draft } = await supabaseAdmin()
+    .from("drafts")
+    .select("quote_type, email_subject, email_body, document, leads!inner(company_id)")
+    .eq("id", id)
+    .eq("leads.company_id", session.companyId)
+    .maybeSingle();
+  if (!draft) return NextResponse.json({ error: "Fant ikke utkastet" }, { status: 404 });
+  return NextResponse.json({
+    quote_type: draft.quote_type,
+    email_subject: draft.email_subject,
+    email_body: draft.email_body,
+    document: draft.document,
+  });
+}
+
+/**
  * Lagrer utkastet uten å kalle modellen.
  *
  * To grunner til at denne finnes: redigeringer skal overleve en sideoppdatering,
