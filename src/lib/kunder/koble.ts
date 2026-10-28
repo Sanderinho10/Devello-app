@@ -105,3 +105,18 @@ export async function kobleLeadTilKunde(
 function tekst(verdi: unknown): string {
   return typeof verdi === "string" ? verdi.trim() : "";
 }
+
+/**
+ * Kundenummeret til kunden et lead er koblet til, eller null. Til PDF-en og
+ * tilbudssiden. Feiler aldri — uten nummer står bare raden ikke der.
+ */
+export async function kundenummerForLead(admin: SupabaseClient, leadId: string): Promise<number | null> {
+  try {
+    const { data } = await admin.from("leads").select("customers(customer_no)").eq("id", leadId).maybeSingle();
+    const k = data?.customers as unknown as { customer_no: number | null } | { customer_no: number | null }[] | null;
+    const kunde = Array.isArray(k) ? k[0] : k;
+    return kunde?.customer_no ?? null;
+  } catch {
+    return null;
+  }
+}

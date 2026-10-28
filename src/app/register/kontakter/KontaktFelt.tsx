@@ -4,9 +4,14 @@ import { useState } from "react";
 import type { Customer } from "@/lib/types";
 import type { Kontaktflagg, Kundefelt } from "@/lib/kunder/felt";
 
-export type KontaktVerdier = Record<Kundefelt, string> & Record<Kontaktflagg, boolean>;
+export type KontaktVerdier = Record<Kundefelt, string> &
+  Record<Kontaktflagg, boolean> & {
+    /** Tomt på en ny kontakt: da settes neste ledige nummer ved lagring. */
+    customer_no: string;
+  };
 
 export const tomKontakt: KontaktVerdier = {
+  customer_no: "",
   name: "",
   contact: "",
   email: "",
@@ -43,6 +48,7 @@ export function tilVerdier(k: Customer): KontaktVerdier {
     else (ut as Record<string, unknown>)[navn] = typeof verdi === "string" ? verdi : "";
   }
   ut.country = k.country || "Norge";
+  ut.customer_no = k.customer_no ? String(k.customer_no) : "";
   return ut;
 }
 
@@ -64,6 +70,7 @@ export function harType(v: KontaktVerdier): boolean {
 export function manglar(v: KontaktVerdier): string | null {
   if (!v.name.trim()) return "Kontakten må ha et navn.";
   if (!harType(v)) return "Kryss av for kunde, leverandør eller begge.";
+  if (v.customer_no.trim() && !/^\d{1,9}$/.test(v.customer_no.trim())) return "Kundenummeret må være et helt tall.";
   return null;
 }
 
@@ -164,6 +171,16 @@ export function KontaktFelt({
                 </label>
               </div>
             </div>
+            <label className="kontakt-rad">
+              <span className="kontakt-rad-etikett">Kundenr.</span>
+              <input
+                className="input kontakt-kundenr"
+                inputMode="numeric"
+                value={verdier.customer_no}
+                placeholder="Settes automatisk"
+                onChange={(e) => sett("customer_no", e.target.value.replace(/\D/g, "").slice(0, 9))}
+              />
+            </label>
             {tekst("name", "Navn", { autoFocus, "aria-required": true })}
             {!verdier.is_person && tekst("contact", "Kontaktperson")}
             {tekst("phone", "Telefon", { type: "tel" })}

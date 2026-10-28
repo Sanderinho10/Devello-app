@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { lesKontakt } from "@/lib/kunder/felt";
+import { KUNDENUMMER_I_BRUK, UGYLDIG_KUNDENUMMER, erKundenummerKonflikt, lesKontakt, lesKundenummer } from "@/lib/kunder/felt";
 
 /**
  * Oppdaterer kontaktkortet. Bare feltene som sendes endres.
@@ -29,6 +29,10 @@ export async function PATCH(
       felt.accounting_customer_no = null;
       felt.accounting_connection_id = null;
     }
+    // Kundenummeret kan rettes, men ikke fjernes: tomt betyr «la det stå».
+    const kundenr = lesKundenummer(body);
+    if (kundenr === "ugyldig") return NextResponse.json({ error: UGYLDIG_KUNDENUMMER }, { status: 400 });
+    if (kundenr !== undefined) felt.customer_no = kundenr;
     if (felt.name !== undefined && !felt.name) {
       return NextResponse.json({ error: "Kontakten må ha et navn." }, { status: 400 });
     }
@@ -51,6 +55,7 @@ export async function PATCH(
 
     if (error) {
       if (error.code === "23505") {
+        if (erKundenummerKonflikt(error)) return NextResponse.json({ error: KUNDENUMMER_I_BRUK }, { status: 409 });
         return NextResponse.json(
           { error: "Det finnes allerede en kontakt med denne e-postadressen." },
           { status: 409 },

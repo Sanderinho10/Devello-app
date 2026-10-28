@@ -50,6 +50,7 @@ export default async function LeadPage({
     { data: activeLists },
     { data: mailbox },
     { data: ordre },
+    { data: kunde },
   ] = await Promise.all([
     supabase
       .from("company_brand")
@@ -77,6 +78,10 @@ export default async function LeadPage({
     draft
       ? supabase.from("orders").select("id, order_no").eq("draft_id", draft.id).maybeSingle()
       : Promise.resolve({ data: null }),
+    // Kunden i kontaktregisteret, med kundenummeret.
+    lead.customer_id
+      ? supabase.from("customers").select("id, customer_no").eq("id", lead.customer_id).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   const listIds = (activeLists ?? []).map((list) => list.id);
@@ -103,6 +108,14 @@ export default async function LeadPage({
             {lead.subject || "(uten emne)"}
           </h1>
           <p className="page-subtitle">
+            {kunde?.customer_no ? (
+              <>
+                <Link className="lenke" href={`/register/kontakter/${kunde.id}`}>
+                  Kundenr. {kunde.customer_no}
+                </Link>
+                {" · "}
+              </>
+            ) : null}
             {[lead.from_name, lead.from_email, formatDate(lead.received_at)]
               .filter(Boolean)
               .join(" · ")}

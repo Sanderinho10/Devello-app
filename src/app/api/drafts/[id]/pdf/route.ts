@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { htmlToPdf } from "@/lib/pdf/render";
 import { logoDataUri } from "@/lib/pdf/logo";
 import { renderQuoteHtml } from "@/lib/pdf/template";
+import { kundenummerForLead } from "@/lib/kunder/koble";
 import { errorResponse, sessionOr401 } from "@/lib/api";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { hasDocument, type QuoteDocument, type QuoteType } from "@/lib/types";
@@ -69,6 +70,7 @@ export async function GET(
         },
         versjon: { nr: draft.revisjon, erstatter: draft.forrige_sendt_at },
         tilbudsnr: draft.quote_no,
+        kundenr: await kundenummerForLead(admin, draft.lead_id),
       }),
     );
 

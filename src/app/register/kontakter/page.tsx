@@ -9,10 +9,11 @@ import { formatDate, type Customer } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-const KOLONNER = ["navn", "kontaktperson", "telefon", "epost", "tilbud", "ordrer", "opprettet"] as const;
+const KOLONNER = ["kundenr", "navn", "kontaktperson", "telefon", "epost", "tilbud", "ordrer", "opprettet"] as const;
 
 /** Kolonnen i databasen. Tilbud og ordrer telles og sorteres etter henting. */
 const DB_KOLONNE: Record<(typeof KOLONNER)[number], string | null> = {
+  kundenr: "customer_no",
   navn: "name",
   kontaktperson: "contact",
   telefon: "phone",
@@ -34,7 +35,7 @@ const FILTER: { verdi: KontaktFilter; etikett: string }[] = [
  * Én linje per kontakt, med hvor mange tilbud og ordrer som hører til.
  * Kundene fyller seg selv inn fra tilbud og ordrer; «Ny kontakt» er for
  * leverandørene og for den som vil ha kunden inn før første jobb. Søket går
- * på navn, e-post og kontaktperson, og kan snevres inn til kunder eller
+ * på navn, e-post, kontaktperson og kundenummer, og kan snevres inn til kunder eller
  * leverandører.
  */
 export default async function KontakterPage({
@@ -56,7 +57,8 @@ export default async function KontakterPage({
     .limit(500);
   if (q) {
     const monster = `%${q.replace(/[%_,()]/g, " ")}%`;
-    liste = liste.or(`name.ilike.${monster},email.ilike.${monster},contact.ilike.${monster}`);
+    const nummer = /^\d{1,9}$/.test(q) ? `,customer_no.eq.${q}` : "";
+    liste = liste.or(`name.ilike.${monster},email.ilike.${monster},contact.ilike.${monster}${nummer}`);
   }
   if (filter === "kunder") liste = liste.eq("is_customer", true);
   if (filter === "leverandorer") liste = liste.eq("is_supplier", true);
@@ -126,7 +128,7 @@ export default async function KontakterPage({
             name="q"
             defaultValue={q}
             placeholder="Søk"
-            title="Søk på navn, e-post eller kontaktperson"
+            title="Søk på navn, e-post, kontaktperson eller kundenummer"
             aria-label="Søk i kontakter"
           />
         </form>
@@ -151,6 +153,9 @@ export default async function KontakterPage({
             <table className="table klikkbar">
               <thead>
                 <tr>
+                  <SortKolonne kolonne="kundenr" sortering={sortering} sti="/register/kontakter" params={sortParams}>
+                    Kundenr.
+                  </SortKolonne>
                   <SortKolonne kolonne="navn" sortering={sortering} sti="/register/kontakter" params={sortParams}>
                     Navn
                   </SortKolonne>
@@ -181,6 +186,7 @@ export default async function KontakterPage({
                     kontakt.is_customer || antallTilbud.has(kontakt.id) || antallOrdrer.has(kontakt.id);
                   return (
                     <KlikkbarRad key={kontakt.id} href={`/register/kontakter/${kontakt.id}`}>
+                      <td className="muted nowrap">{kontakt.customer_no}</td>
                       <td>
                         <Link className="lenke" href={`/register/kontakter/${kontakt.id}`}>
                           {kontakt.name}

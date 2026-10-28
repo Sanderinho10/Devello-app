@@ -8,7 +8,7 @@ import type { Order } from "@/lib/types";
 type Kundefelt = Pick<
   Order,
   "customer_id" | "customer_name" | "customer_contact" | "customer_email" | "customer_phone" | "site_address"
->;
+> & { customer_no: number | null };
 
 /**
  * Kunden på ordren.
@@ -63,6 +63,12 @@ export function OrdreKunde({ orderId, kunde }: { orderId: string; kunde: Kundefe
       {error && <div className="banner error">{error}</div>}
 
       <dl className="ordre-kunde-info">
+        {kunde.customer_no ? (
+          <>
+            <dt>Kundenr.</dt>
+            <dd>{kunde.customer_no}</dd>
+          </>
+        ) : null}
         <dt>Kunde</dt>
         <dd>
           {kunde.customer_name ? (

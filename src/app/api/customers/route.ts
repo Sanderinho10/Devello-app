@@ -2,12 +2,12 @@ import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import type { Customer } from "@/lib/types";
-import { lesKontakt } from "@/lib/kunder/felt";
+import { KUNDENUMMER_I_BRUK, UGYLDIG_KUNDENUMMER, erKundenummerKonflikt, lesKontakt, lesKundenummer } from "@/lib/kunder/felt";
 import { adresseTekst, hovedadresse } from "@/lib/kunder/adresse";
 
 /**
  * Søk i kontaktregisteret, til forslagene i kundefeltene i skjemaene. Treff
- * på navn, e-post, kontaktperson og telefon; de åtte beste. Rene leverandører
+ * på navn, e-post, kontaktperson, telefon og kundenummer; de åtte beste. Rene leverandører
  * er med — velges en til et tilbud eller en ordre, blir den også kunde (se
  * finn_eller_opprett_kunde, 0050). Uten søkeord: ingen treff — en liste over
  * alle kontakter er /kontakter, ikke dette.
@@ -34,8 +34,9 @@ export async function GET(request: NextRequest) {
       // PostgREST-filteret skiller på komma og parenteser; de har ingen plass
       // i et søkeord uansett.
       const monster = `%${q.replace(/[%_,()]/g, " ")}%`;
+      const nummer = /^\d{1,9}$/.test(q) ? `,customer_no.eq.${q}` : "";
       sporring = sporring.or(
-        `name.ilike.${monster},email.ilike.${monster},contact.ilike.${monster},phone.ilike.${monster}`,
+        `name.ilike.${monster},email.ilike.${monster},contact.ilike.${monster},phone.ilike.${monster}${nummer}`,
       );
     }
     const { data, error } = await sporring;
@@ -45,6 +46,7 @@ export async function GET(request: NextRequest) {
     const kunder = ((data ?? []) as Customer[]).map((k) => ({
       id: k.id,
       name: k.name,
+      customer_no: k.customer_no,
       contact: k.contact,
       email: k.email,
       phone: k.phone,
@@ -79,6 +81,8 @@ export async function POST(request: NextRequest) {
     if (!felt.name) {
       return NextResponse.json({ error: "Kontakten må ha et navn." }, { status: 400 });
     }
+    const kundenr = lesKundenummer(body);
+    if (kundenr === "ugyldig") return NextResponse.json({ error: UGYLDIG_KUNDENUMMER }, { status: 400 });
     const is_customer = felt.is_customer ?? !felt.is_supplier;
     const is_supplier = felt.is_supplier ?? false;
     if (!is_customer && !is_supplier) {
@@ -88,12 +92,19 @@ export async function POST(request: NextRequest) {
     const admin = supabaseAdmin();
     const { data, error } = await admin
       .from("customers")
-      .insert({ ...felt, is_customer, is_supplier, company_id: session.companyId })
+      .insert({
+        ...felt,
+        ...(kundenr !== undefined ? { customer_no: kundenr } : {}),
+        is_customer,
+        is_supplier,
+        company_id: session.companyId,
+      })
       .select("id")
       .single();
 
     if (error) {
       if (error.code === "23505") {
+        if (erKundenummerKonflikt(error)) return NextResponse.json({ error: KUNDENUMMER_I_BRUK }, { status: 409 });
         return NextResponse.json(
           { error: "Det finnes allerede en kontakt med denne e-postadressen." },
           { status: 409 },

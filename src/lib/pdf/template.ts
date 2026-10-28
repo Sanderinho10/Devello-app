@@ -33,8 +33,10 @@ export function renderQuoteHtml(input: {
   versjon?: { nr: number; erstatter: string | null };
   /** Løpenummeret. Står øverst blant datoene, så kunden kan vise til det. */
   tilbudsnr?: number | null;
+  /** Kundenummeret i kontaktregisteret, når tilbudet er koblet til en kunde. */
+  kundenr?: number | null;
 }): string {
-  const { document: doc, brand, companyName, quoteType, logoSrc, address, versjon, tilbudsnr } = input;
+  const { document: doc, brand, companyName, quoteType, logoSrc, address, versjon, tilbudsnr, kundenr } = input;
   const revidert = versjon && versjon.nr > 1 ? versjon : null;
   const totals = computeTotals(doc);
   const accent = brand.primary_color || "#1d1d1f";
@@ -356,6 +358,14 @@ export function renderQuoteHtml(input: {
           ? `<div>
         <div class="label">Tilbudsnr.</div>
         <div class="strong">${tilbudsnr}</div>
+      </div>`
+          : ""
+      }
+      ${
+        kundenr
+          ? `<div>
+        <div class="label">Kundenr.</div>
+        <div>${kundenr}</div>
       </div>`
           : ""
       }

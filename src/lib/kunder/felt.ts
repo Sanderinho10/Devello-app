@@ -78,6 +78,29 @@ export function lesKontakt(body: Record<string, unknown>) {
     Partial<Record<Kontaktflagg, boolean>> & { name?: string };
 }
 
+/**
+ * Kundenummeret fra skjemaet. Tomt eller ikke sendt: undefined — da setter
+ * databasen neste ledige (ny kontakt) eller lar det stå (endring). Ellers et
+ * helt tall over null; noe annet er en feil brukeren skal få se.
+ */
+export function lesKundenummer(body: Record<string, unknown>): number | undefined | "ugyldig" {
+  const v = body.customer_no;
+  if (v === undefined || v === null) return undefined;
+  const tekst = String(v).trim();
+  if (!tekst) return undefined;
+  if (!/^\d{1,9}$/.test(tekst) || Number(tekst) <= 0) return "ugyldig";
+  return Number(tekst);
+}
+
+export const UGYLDIG_KUNDENUMMER = "Kundenummeret må være et helt tall.";
+export const KUNDENUMMER_I_BRUK = "Kundenummeret er allerede i bruk på en annen kontakt.";
+
+/** Er 23505-feilen fra kundenummeret (og ikke e-postadressen)? */
+export function erKundenummerKonflikt(error: { message?: string; details?: string | null }): boolean {
+  return `${error.message ?? ""} ${error.details ?? ""}`.includes("customer_no") ||
+    `${error.message ?? ""}`.includes("kundenummer");
+}
+
 /** Filteret i kontaktlisten, fra ?type= i adressen. */
 export type KontaktFilter = "alle" | "kunder" | "leverandorer";
 

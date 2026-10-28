@@ -46,7 +46,7 @@ export default async function OrdrePage({
 
   // PostgREST vil ha «in»-listen som «(a,b)» i not-varianten.
   const aktivListe = `(${ORDER_ACTIVE_STATUSES.join(",")})`;
-  const liste = supabase.from("orders").select("*");
+  const liste = supabase.from("orders").select("*, customers(customer_no)");
 
   const [{ data: rader }, { count: aktive }, { count: lukkede }] = await Promise.all([
     (avsluttede
@@ -65,7 +65,7 @@ export default async function OrdrePage({
       .not("status", "in", aktivListe),
   ]);
 
-  const ordrer = (rader ?? []) as Order[];
+  const ordrer = (rader ?? []) as (Order & { customers: { customer_no: number } | null })[];
   const sortParams = { vis: avsluttede ? "avsluttede" : undefined };
 
   // Fakturerte ordrer viser ordrenummeret i regnskapssystemet.
@@ -127,6 +127,7 @@ export default async function OrdrePage({
                   <SortKolonne kolonne="tittel" sortering={sortering} sti="/ordre" params={sortParams}>
                     Tittel
                   </SortKolonne>
+                  <th>Kundenr.</th>
                   <SortKolonne kolonne="kunde" sortering={sortering} sti="/ordre" params={sortParams}>
                     Kunde
                   </SortKolonne>
@@ -153,6 +154,7 @@ export default async function OrdrePage({
                         {ordre.title}
                       </Link>
                     </td>
+                    <td className="muted nowrap">{ordre.customers?.customer_no}</td>
                     <td>{ordre.customer_name}</td>
                     <td className="muted">{ordre.site_address}</td>
                     <td>

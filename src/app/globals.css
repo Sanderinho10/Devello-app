@@ -4524,3 +4524,8 @@ dl.kunde-kort-info {
 .lagring-status.feil {
   color: var(--danger, #b3261e);
 }
+
+/* Kundenummeret i kontaktskjemaet: et kort tall, ikke et helt felt. */
+.kontakt-kundenr {
+  max-width: 140px;
+}
