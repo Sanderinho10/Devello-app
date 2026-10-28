@@ -5,7 +5,7 @@
  *
  *   npm run test:kunde-go
  */
-import { foreslaaKunde, lagraKundenummer, landkodeFor } from "@/lib/faktura/overfor";
+import { foreslaaKunde, foreslaattReferanse, lagraKundenummer, landkodeFor, mottakarFelt } from "@/lib/faktura/overfor";
 import type { Customer } from "@/lib/types";
 
 let feil = 0;
@@ -127,6 +127,31 @@ const lagra = { ...KONTAKT, accounting_customer_no: " 10023 ", accounting_connec
 sjekk("samme kobling: brukes", lagraKundenummer(lagra, "kop1") === "10023");
 sjekk("annen kobling (ny klient, demo→prod): brukes ikke", lagraKundenummer(lagra, "kop2") === null);
 sjekk("kobling slettet: brukes ikke", lagraKundenummer({ ...lagra, accounting_connection_id: null }, "kop1") === null);
+
+// 9. Fakturakunden (0058): byttet ut → kontaktkortet, ellers ordrens felt.
+const ANNAN: Customer = {
+  ...KONTAKT,
+  id: "k2",
+  customer_no: 10007,
+  name: "Utleier AS",
+  contact: "Per Utleier",
+  email: "faktura@utleier.no",
+  phone: "99 88 77 66",
+  is_person: false,
+};
+const somOrdre = mottakarFelt(ORDRE, ANNAN, false);
+sjekk("ikke overstyrt: ordrens felt", somOrdre === ORDRE);
+const mot = mottakarFelt(ORDRE, ANNAN, true);
+sjekk("overstyrt: navnet fra kontakten", mot.customer_name === "Utleier AS", mot);
+sjekk("overstyrt: e-post fra kontakten", mot.customer_email === "faktura@utleier.no", mot);
+sjekk("overstyrt: kontaktpersonen fra kontakten", mot.customer_contact === "Per Utleier", mot);
+const forslagAnnan = foreslaaKunde(mot, ANNAN);
+sjekk("Go-kunden for fakturakunden har hans navn", forslagAnnan.Name === "Utleier AS", forslagAnnan);
+sjekk("Deres ref. foreslås fra fakturakunden", foreslaattReferanse(mot, ANNAN) === "Per Utleier");
+sjekk(
+  "Deres ref.: privatperson uten kontaktperson → ingen",
+  foreslaattReferanse(mottakarFelt(ORDRE, { ...ANNAN, is_person: true }, true), { ...ANNAN, is_person: true }) === null,
+);
 
 console.log(feil ? `\n${feil} feil` : "\nAlt i orden");
 process.exit(feil ? 1 : 0);

@@ -4529,3 +4529,28 @@ dl.kunde-kort-info {
 .kontakt-kundenr {
   max-width: 140px;
 }
+
+/* Fakturakunden i fakturahodet: søkefeltet og «Avbryt» på én linje. */
+.faktura-kunde {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.faktura-kunde .kunde-velger {
+  flex: 1;
+  min-width: 0;
+}
+
+.faktura-kunde-merknad {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+/* Forslag som i PowerOffice Go: grå kursiv tekst man bare skriver over. */
+.input.forslag::placeholder {
+  font-style: italic;
+  color: var(--text-secondary);
+  opacity: 1;
+}

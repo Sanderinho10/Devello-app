@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { byggSalsordre, manglandeProdukt } from "./go";
 import { loggFakturaVersjon } from "./versjon";
 import { PogoFeil, pogoClient, type PogoKunde, type PogoKundePost } from "@/lib/regnskap/poweroffice";
-import { fakturaadresse } from "@/lib/kunder/adresse";
+import { adresseTekst, fakturaadresse, hovedadresse } from "@/lib/kunder/adresse";
 import {
   ACCOUNTING_PROVIDER_LABELS,
   type Customer,
@@ -85,7 +85,11 @@ export async function overforTilRegnskap(
   }
 
   const pogo = pogoClient(kopling);
-  const kontakt = await hentKontakt(admin, ordre);
+  // Fakturakunden (0058): den fakturaen sendes til. Er den byttet ut, er det
+  // den — ikke kunden på ordren — som letes opp, opprettes og får
+  // kundenummeret lagret.
+  const kontakt = await hentKontakt(admin, ordre.company_id, draft.customer_id ?? ordre.customer_id);
+  const mottakar = mottakarFelt(ordre, kontakt, Boolean(draft.customer_id && draft.customer_id !== ordre.customer_id));
   // Kom kundenummeret fra kontakten? Da fjernes det om Go avviser ordren.
   let fraKontakt = false;
 
@@ -97,14 +101,14 @@ export async function overforTilRegnskap(
       fraKontakt = customerNo !== null;
     }
     if (!customerNo) {
-      const funne = await finnKunde(pogo, ordre, kontakt);
+      const funne = await finnKunde(pogo, mottakar, kontakt);
       if (funne.length > 1) {
         return { ok: false, status: 409, error: "Flere kunder i PowerOffice Go passer. Velg hvilken.", kandidatar: funne };
       }
       if (funne.length === 1 && funne[0].CustomerNo) {
         customerNo = funne[0].CustomerNo;
       } else if (input.createCustomer) {
-        const ny = await pogo.opprettKunde(foreslaaKunde(ordre, kontakt));
+        const ny = await pogo.opprettKunde(foreslaaKunde(mottakar, kontakt));
         if (!ny.CustomerNo) throw new Error("PowerOffice Go opprettet kunden, men svarte uten kundenummer.");
         customerNo = ny.CustomerNo;
       } else {
@@ -113,7 +117,7 @@ export async function overforTilRegnskap(
           status: 409,
           error: "Kunden finnes ikke i PowerOffice Go.",
           needsCustomer: true,
-          foreslaatt: foreslaaKunde(ordre, kontakt),
+          foreslaatt: foreslaaKunde(mottakar, kontakt),
         };
       }
     }
@@ -126,7 +130,9 @@ export async function overforTilRegnskap(
     // 3. Opprett.
     if (!go) {
       const dto = byggSalsordre({
-        draft,
+        // Deres ref. står grått som forslag i skjemaet: tomt felt betyr
+        // forslaget, kontaktpersonen hos fakturakunden.
+        draft: { ...draft, customer_reference: draft.customer_reference?.trim() || foreslaattReferanse(mottakar, kontakt) },
         ordre,
         customerNo,
         productMap: kopling.product_map ?? {},
@@ -202,19 +208,42 @@ export async function overforTilRegnskap(
   }
 }
 
+type Mottakar = Pick<Order, "customer_name" | "customer_contact" | "customer_email" | "customer_phone" | "site_address">;
+
 /**
- * Kontakten ordren er koblet til, eller null. Aldri en betingelse: finnes
- * den ikke, eller feiler oppslaget, går overføringen på ordrens kundefelt
- * som før.
+ * Hvem fakturaen går til, i ordrens kundefelt-form. Er fakturakunden den
+ * samme som på ordren, er det ordrens felt — de kan være rettet for akkurat
+ * denne jobben. Er den byttet ut, er det kontaktkortet til den nye.
  */
-async function hentKontakt(admin: SupabaseClient, ordre: Order): Promise<Customer | null> {
-  if (!ordre.customer_id) return null;
+export function mottakarFelt(ordre: Mottakar, kontakt: Customer | null, overstyrt: boolean): Mottakar {
+  if (!overstyrt || !kontakt) return ordre;
+  return {
+    customer_name: kontakt.name,
+    customer_contact: kontakt.is_person ? null : kontakt.contact,
+    customer_email: kontakt.email,
+    customer_phone: kontakt.phone,
+    site_address: adresseTekst(hovedadresse(kontakt)) || null,
+  };
+}
+
+/** Forslaget til «Deres ref.»: kontaktpersonen hos fakturakunden, eller null. */
+export function foreslaattReferanse(mottakar: Mottakar, kontakt: Customer | null): string | null {
+  const person = mottakar.customer_contact?.trim() || (kontakt && !kontakt.is_person ? kontakt.contact?.trim() : "");
+  return person || null;
+}
+
+/**
+ * Kontakten i registeret, eller null. Aldri en betingelse: finnes den ikke,
+ * eller feiler oppslaget, går overføringen på ordrens kundefelt som før.
+ */
+async function hentKontakt(admin: SupabaseClient, companyId: string, customerId: string | null): Promise<Customer | null> {
+  if (!customerId) return null;
   try {
     const { data } = await admin
       .from("customers")
       .select("*")
-      .eq("id", ordre.customer_id)
-      .eq("company_id", ordre.company_id)
+      .eq("id", customerId)
+      .eq("company_id", companyId)
       .maybeSingle();
     return (data as Customer | null) ?? null;
   } catch {
@@ -277,7 +306,7 @@ function orgnr(kontakt: Pick<Customer, "org_nr" | "is_person"> | null | undefine
 /** Kunden i Go, i den rekkefølgen kjennetegnene er til å stole på. */
 async function finnKunde(
   pogo: ReturnType<typeof pogoClient>,
-  ordre: Order,
+  ordre: Mottakar,
   kontakt: Customer | null,
 ): Promise<PogoKunde[]> {
   const org = orgnr(kontakt);
@@ -304,7 +333,8 @@ async function finnKunde(
 /**
  * Det vi ville opprettet i Go.
  *
- * Navn, e-post og telefon er ordrens — det er dem jobben ble gjort for.
+ * Navn, e-post og telefon er fakturakundens (mottakarFelt): ordrens når
+ * kunden ikke er byttet ut.
  * Med en kontakt fra registeret kommer firma/person, org.nr. og
  * fakturaadressen derfra, og e-post og telefon fylles inn om ordren mangler
  * dem. Uten kontakt gjetter vi som før: privatperson uten kontaktperson,

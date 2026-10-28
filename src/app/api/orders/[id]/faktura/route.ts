@@ -11,7 +11,8 @@ import type { Company } from "@/lib/types";
 
 /**
  * POST  — lag (eller lag på nytt) fakturaforslaget for ordren.
- * PATCH — brukerens redigering: linjer, fakturatekst, Deres ref.
+ * PATCH — brukerens redigering: linjer, fakturatekst, Deres ref. og
+ * fakturakunden.
  *
  * Redigeringen sender linjene tilbake slik brukeren vil ha dem; koden
  * regner linjesum og totaler på nytt, og merker en endret pris som
@@ -65,8 +66,32 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       lines?: unknown;
       invoice_text?: unknown;
       customer_reference?: unknown;
+      customer_id?: unknown;
     };
     const endringer: Record<string, unknown> = {};
+
+    // Fakturakunden. null: tilbake til kunden på ordren. Kundenummeret i
+    // regnskapssystemet som ble valgt for den forrige kunden, gjelder ikke
+    // lenger.
+    if (body.customer_id !== undefined) {
+      let ny: string | null = null;
+      if (typeof body.customer_id === "string" && body.customer_id) {
+        const { data: kunde } = await admin
+          .from("customers")
+          .select("id")
+          .eq("id", body.customer_id)
+          .eq("company_id", session.companyId)
+          .maybeSingle();
+        if (!kunde) return NextResponse.json({ error: "Fant ikke kunden." }, { status: 400 });
+        ny = kunde.id as string;
+      } else {
+        ny = r.ordre.customer_id ?? null;
+      }
+      if (ny !== draft.customer_id) {
+        endringer.customer_id = ny;
+        endringer.transfer_customer_no = null;
+      }
+    }
 
     if (body.invoice_text !== undefined) {
       endringer.invoice_text = typeof body.invoice_text === "string" && body.invoice_text.trim() ? body.invoice_text.trim() : null;

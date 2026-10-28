@@ -928,6 +928,12 @@ export interface InvoiceDraft {
   id: string;
   company_id: string;
   order_id: string;
+  /**
+   * Fakturakunden: den fakturaen sendes til (0058). Satt til ordrens kunde
+   * når forslaget lages, og kan overstyres. null: ordren har ingen kunde i
+   * registeret — da gjelder ordrens kundefelt.
+   */
+  customer_id: string | null;
   status: InvoiceDraftStatus;
   strategy: InvoiceStrategy;
   lines: import("./faktura/typar").InvoiceLine[];

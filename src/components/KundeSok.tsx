@@ -14,6 +14,8 @@ export interface KundeForslag {
   adresse?: { linje1: string; linje2: string; postnr: string; sted: string };
   /** Kundenummeret i regnskapssystemet, når kunden er overført dit. */
   kode?: string | null;
+  /** Kundenummeret i Devello (0057). */
+  customer_no?: number | null;
   is_customer?: boolean;
   is_supplier?: boolean;
 }
@@ -168,7 +170,7 @@ export function KundeSok({
                     onMouseEnter={() => setAktiv(i)}
                     onClick={() => velg(k)}
                   >
-                    <span className="kunde-velger-kode">{k.kode ?? ""}</span>
+                    <span className="kunde-velger-kode">{k.customer_no ?? k.kode ?? ""}</span>
                     <span className="kunde-velger-navn">
                       {k.name}
                       <span className="tiny muted">
