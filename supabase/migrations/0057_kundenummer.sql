@@ -15,18 +15,24 @@
 --   - Nummeret kan rettast for hand, t.d. så det stemmer med Go. Då blir
 --     teljaren skuva forbi, så neste nye kontakt ikkje kolliderer.
 --   - Eksisterande kontaktar får nummer i den rekkjefølgja dei vart laga.
+--   - Kan køyrast fleire gonger utan skade. Ingen semikolon i tekstane:
+--     SQL-editoren i Supabase deler på dei.
 
-alter table companies add column next_customer_no integer not null default 10000;
+alter table companies add column if not exists next_customer_no integer not null default 10000;
 comment on column companies.next_customer_no is
-  'Neste ledige kundenummer. Delt ut av triggeren på customers; aldri les og auk i to steg.';
+  'Neste ledige kundenummer. Delt ut av triggeren på customers, aldri les og auk i to steg.';
 
-alter table customers add column customer_no integer;
+alter table customers add column if not exists customer_no integer;
 comment on column customers.customer_no is
-  'Kundenummeret, løpenummer per selskap frå 10000. Set av seg sjølv; kan rettast for hand.';
+  'Kundenummeret, løpenummer per selskap frå 10000. Set av seg sjølv, kan rettast for hand.';
 
+-- Berre dei utan nummer, etter høgaste som finst. Første gong: alle, frå 10000.
 with nummerert as (
-  select id, 9999 + row_number() over (partition by company_id order by created_at, id) as nr
-    from customers
+  select k.id,
+         coalesce((select max(m.customer_no) from customers m where m.company_id = k.company_id), 9999)
+           + row_number() over (partition by k.company_id order by k.created_at, k.id) as nr
+    from customers k
+   where k.customer_no is null
 )
 update customers c set customer_no = n.nr from nummerert n where n.id = c.id;
 
@@ -37,8 +43,9 @@ update companies c
    );
 
 alter table customers alter column customer_no set not null;
+alter table customers drop constraint if exists customers_kundenummer_positivt;
 alter table customers add constraint customers_kundenummer_positivt check (customer_no > 0);
-create unique index customers_kundenummer_unik on customers (company_id, customer_no);
+create unique index if not exists customers_kundenummer_unik on customers (company_id, customer_no);
 
 create or replace function sett_kundenummer()
 returns trigger
@@ -73,6 +80,7 @@ end;
 $$;
 revoke execute on function sett_kundenummer() from public, anon, authenticated;
 
+drop trigger if exists customers_kundenummer on customers;
 create trigger customers_kundenummer
   before insert or update of customer_no on customers
   for each row execute function sett_kundenummer();
