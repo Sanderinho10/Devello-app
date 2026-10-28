@@ -475,6 +475,10 @@ export interface Order {
   boligmappa_number: string | null;
   boligmappa_property: BoligmappaEigedom | null;
   created_by: string | null;
+  /** Saksbehandler (0059). null: forslaget, den som opprettet ordren. */
+  saksbehandler_id: string | null;
+  /** Hovedansvarlig (0059). null: forslaget, den som opprettet ordren. */
+  hovedansvarlig_id: string | null;
   created_at: string;
   updated_at: string;
   closed_at: string | null;

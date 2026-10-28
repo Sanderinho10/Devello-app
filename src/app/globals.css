@@ -4554,3 +4554,24 @@ dl.kunde-kort-info {
   color: var(--text-secondary);
   opacity: 1;
 }
+
+/* Saksbehandler og hovedansvarlig på ordren. */
+.ordre-ansvar .label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.ordre-ansvar .kontakt-rad:last-child {
+  margin-bottom: 0;
+}
+
+/* Et valg som står på forslaget: grått og kursivt, som i PowerOffice Go. */
+.input.forslag-valg {
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.input.forslag-valg option {
+  font-style: normal;
+  color: var(--text);
+}

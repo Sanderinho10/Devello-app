@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
 import { finnEllerOpprettKunde } from "@/lib/kunder/koble";
 import { lovligeOverganger } from "@/lib/ordre/status";
+import { brukereISelskap } from "@/lib/selskap/medlemskap";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { ORDER_STATUS_LABELS, type Order, type OrderStatus } from "@/lib/types";
 
@@ -49,7 +50,11 @@ export async function PATCH(
     const naa = order as Order;
 
     const body = (await request.json().catch(() => ({}))) as Partial<
-      Record<Tekstfelt, string | null> & { status: OrderStatus }
+      Record<Tekstfelt, string | null> & {
+        status: OrderStatus;
+        saksbehandler_id: string | null;
+        hovedansvarlig_id: string | null;
+      }
     >;
 
     const endringer: Record<string, unknown> = {};
@@ -98,6 +103,20 @@ export async function PATCH(
       } else if ((verdi || null) !== naa[felt]) {
         endringer[felt] = verdi || null;
       }
+    }
+
+    // Saksbehandler og hovedansvarlig: en i selskapet, eller null for
+    // forslaget (den som opprettet ordren).
+    for (const felt of ["saksbehandler_id", "hovedansvarlig_id"] as const) {
+      if (body[felt] === undefined) continue;
+      const ny = typeof body[felt] === "string" && body[felt] ? body[felt] : null;
+      if (ny) {
+        const kolleger = await brukereISelskap(admin, session.companyId);
+        if (!kolleger.some((k) => k.id === ny)) {
+          return NextResponse.json({ error: "Brukeren er ikke med i selskapet." }, { status: 400 });
+        }
+      }
+      if (ny !== naa[felt]) endringer[felt] = ny;
     }
 
     if (Object.keys(endringer).length === 0) {

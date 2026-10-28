@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OrdreBeskrivelse } from "./OrdreBeskrivelse";
 import { OrdreKunde } from "./OrdreKunde";
+import { OrdreAnsvar } from "./OrdreAnsvar";
+import { brukereISelskap } from "@/lib/selskap/medlemskap";
 import { hentOrdre } from "@/lib/ordre/hent";
 import { summerMateriell, summerTimar } from "@/lib/ordre/summering";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -31,6 +33,12 @@ export default async function OrdreSide({
   const ordre = await hentOrdre(id);
   if (!ordre) notFound();
   const supabase = await supabaseServer();
+  // Saksbehandler og hovedansvarlig velges blant alle i selskapet. Den som
+  // opprettet ordren er forslaget.
+  const kolleger = (await brukereISelskap(supabase, ordre.company_id))
+    .map((k) => ({ id: k.id, navn: k.full_name?.trim() || k.email }))
+    .sort((a, b) => a.navn.localeCompare(b.navn, "nb"));
+  const forslag = kolleger.find((k) => k.id === ordre.created_by) ?? null;
   const { data: kontakt } = ordre.customer_id
     ? await supabase.from("customers").select("customer_no").eq("id", ordre.customer_id).maybeSingle()
     : { data: null };
@@ -213,6 +221,14 @@ export default async function OrdreSide({
             customer_phone: ordre.customer_phone,
             site_address: ordre.site_address,
           }}
+        />
+
+        <OrdreAnsvar
+          orderId={ordre.id}
+          saksbehandlerId={ordre.saksbehandler_id}
+          hovedansvarligId={ordre.hovedansvarlig_id}
+          forslag={forslag}
+          kolleger={kolleger}
         />
 
         <div className="card ordre-hendelser">
