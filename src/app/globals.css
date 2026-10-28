@@ -4575,3 +4575,12 @@ dl.kunde-kort-info {
   font-style: normal;
   color: var(--text);
 }
+
+/* Kundeboksen på ordren er smal: postnummeret trenger bare fire sifre. */
+.ordre-kunde .kontakt-poststed {
+  grid-template-columns: 76px minmax(0, 1fr);
+}
+
+.ordre-kunde-nr {
+  padding: 6px 0;
+}

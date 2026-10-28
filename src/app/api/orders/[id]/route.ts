@@ -52,6 +52,7 @@ export async function PATCH(
     const body = (await request.json().catch(() => ({}))) as Partial<
       Record<Tekstfelt, string | null> & {
         status: OrderStatus;
+        customer_id: string | null;
         saksbehandler_id: string | null;
         hovedansvarlig_id: string | null;
       }
@@ -119,13 +120,29 @@ export async function PATCH(
       if (ny !== naa[felt]) endringer[felt] = ny;
     }
 
+    // Kunden valgt fra registeret: den gjelder, uten å lete på navn og e-post.
+    let kundeValgt = false;
+    if (typeof body.customer_id === "string" && body.customer_id) {
+      const { data: k } = await admin
+        .from("customers")
+        .select("id")
+        .eq("id", body.customer_id)
+        .eq("company_id", session.companyId)
+        .maybeSingle();
+      if (!k) return NextResponse.json({ error: "Fant ikke kunden." }, { status: 400 });
+      kundeValgt = true;
+      if (k.id !== naa.customer_id) endringer.customer_id = k.id;
+      // En leverandør som velges som kunde på en ordre, blir også kunde.
+      await admin.from("customers").update({ is_customer: true }).eq("id", k.id).eq("is_customer", false);
+    }
+
     if (Object.keys(endringer).length === 0) {
       return NextResponse.json(naa);
     }
 
     // Ny kunde på ordren → ny kobling i registeret. Navn eller e-post må
     // ha endret seg; en ny kontaktperson på samme kunde flytter ikke ordren.
-    if (endringer.customer_name !== undefined || endringer.customer_email !== undefined) {
+    if (!kundeValgt && (endringer.customer_name !== undefined || endringer.customer_email !== undefined)) {
       const kundeId = await finnEllerOpprettKunde(admin, session.companyId, {
         name: (endringer.customer_name as string | undefined) ?? naa.customer_name,
         email: (endringer.customer_email as string | null | undefined) ?? naa.customer_email,
@@ -144,6 +161,20 @@ export async function PATCH(
       .select("*")
       .single();
     if (error) throw new Error(error.message);
+
+    // Fakturaforslaget følger kunden på ordren — så sant ingen har valgt en
+    // annen fakturakunde der (0058), og det ikke alt er overført.
+    if (endringer.customer_id !== undefined) {
+      const forrige = naa.customer_id;
+      let sporring = admin
+        .from("invoice_drafts")
+        .update({ customer_id: endringer.customer_id, transfer_customer_no: null })
+        .eq("order_id", naa.id)
+        .neq("status", "overfort");
+      sporring = forrige ? sporring.or(`customer_id.is.null,customer_id.eq.${forrige}`) : sporring.is("customer_id", null);
+      const { error: fe } = await sporring;
+      if (fe) console.error("Kunne ikke flytte fakturaforslaget til ny kunde:", fe.message);
+    }
 
     if (hendelser.length) {
       await admin.from("order_events").insert(
