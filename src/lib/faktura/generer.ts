@@ -196,7 +196,13 @@ export async function lagFakturaforslag(
     if (error) throw new Error(`Kunne ikke lagre fakturaforslaget: ${error.message}`);
     lagra = data as InvoiceDraft;
   } else {
-    const { data, error } = await admin.from("invoice_drafts").insert(rad).select("*").single();
+    // Fakturakunden starter som kunden på ordren. Et nytt forslag på et
+    // eksisterende utkast (over) beholder kunden som er valgt.
+    const { data, error } = await admin
+      .from("invoice_drafts")
+      .insert({ ...rad, customer_id: ordre.customer_id ?? null })
+      .select("*")
+      .single();
     if (error) throw new Error(`Kunne ikke lagre fakturaforslaget: ${error.message}`);
     lagra = data as InvoiceDraft;
   }

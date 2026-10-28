@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OrdreBeskrivelse } from "./OrdreBeskrivelse";
-import { OrdreKunde } from "./OrdreKunde";
+import { OrdreKunde, type Kundekort } from "./OrdreKunde";
+import { hovedadresse } from "@/lib/kunder/adresse";
+import { OrdreAnsvar } from "./OrdreAnsvar";
+import { brukereISelskap } from "@/lib/selskap/medlemskap";
 import { hentOrdre } from "@/lib/ordre/hent";
 import { summerMateriell, summerTimar } from "@/lib/ordre/summering";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -31,9 +34,31 @@ export default async function OrdreSide({
   const ordre = await hentOrdre(id);
   if (!ordre) notFound();
   const supabase = await supabaseServer();
+  // Saksbehandler og hovedansvarlig velges blant alle i selskapet. Den som
+  // opprettet ordren er forslaget.
+  const kolleger = (await brukereISelskap(supabase, ordre.company_id))
+    .map((k) => ({ id: k.id, navn: k.full_name?.trim() || k.email }))
+    .sort((a, b) => a.navn.localeCompare(b.navn, "nb"));
+  const forslag = kolleger.find((k) => k.id === ordre.created_by) ?? null;
+  // Kundekortet: forslagene i kundeboksen.
   const { data: kontakt } = ordre.customer_id
-    ? await supabase.from("customers").select("customer_no").eq("id", ordre.customer_id).maybeSingle()
+    ? await supabase
+        .from("customers")
+        .select("id, name, customer_no, contact, email, phone, is_person, address, address2, postal_code, city, country")
+        .eq("id", ordre.customer_id)
+        .maybeSingle()
     : { data: null };
+  const kort: Kundekort | null = kontakt
+    ? {
+        id: kontakt.id,
+        name: kontakt.name,
+        customer_no: kontakt.customer_no,
+        contact: kontakt.is_person ? null : kontakt.contact,
+        email: kontakt.email,
+        phone: kontakt.phone,
+        adresse: hovedadresse(kontakt),
+      }
+    : null;
 
   const [{ data: hendelser }, { data: timar }, { data: materiell }, { count: hodeFakturaer }, { data: dokument }] = await Promise.all([
     supabase
@@ -207,12 +232,20 @@ export default async function OrdreSide({
           kunde={{
             customer_id: ordre.customer_id,
             customer_name: ordre.customer_name,
-            customer_no: kontakt?.customer_no ?? null,
             customer_contact: ordre.customer_contact,
             customer_email: ordre.customer_email,
             customer_phone: ordre.customer_phone,
             site_address: ordre.site_address,
           }}
+          kort={kort}
+        />
+
+        <OrdreAnsvar
+          orderId={ordre.id}
+          saksbehandlerId={ordre.saksbehandler_id}
+          hovedansvarligId={ordre.hovedansvarlig_id}
+          forslag={forslag}
+          kolleger={kolleger}
         />
 
         <div className="card ordre-hendelser">

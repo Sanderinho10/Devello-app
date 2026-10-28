@@ -77,29 +77,30 @@ export default async function KontaktPage({
   const leads = (leadRader ?? []) as (Lead & { drafts: DraftBit | DraftBit[] | null })[];
   const ordrer = (ordreRader ?? []) as Order[];
 
-  // Fakturaforslagene ligger på ordrene.
+  // Fakturaene hører til kunden de sendes til (0058), ikke kunden på
+  // ordren. Uten fakturakunde (eldre forslag uten kunde i registeret)
+  // gjelder ordrens kunde.
   type FakturaBit = {
     id: string;
     order_id: string;
+    customer_id: string | null;
     status: InvoiceDraftStatus;
     totals: { subtotal: number; vat: number; total: number } | null;
     transfer_order_no: string | null;
     created_at: string;
+    orders: { order_no: number; title: string; customer_id: string | null } | null;
   };
-  let fakturaer: FakturaBit[] = [];
-  if (ordrer.length) {
-    const { data } = await supabase
-      .from("invoice_drafts")
-      .select("id, order_id, status, totals, transfer_order_no, created_at")
-      .in(
-        "order_id",
-        ordrer.map((o) => o.id),
-      )
-      .order("created_at", { ascending: false });
-    fakturaer = (data ?? []) as FakturaBit[];
-  }
+  const egneOrdrer = ordrer.map((o) => o.id);
+  const { data: fakturaRader } = await supabase
+    .from("invoice_drafts")
+    .select("id, order_id, customer_id, status, totals, transfer_order_no, created_at, orders(order_no, title, customer_id)")
+    .or(
+      [`customer_id.eq.${id}`, ...(egneOrdrer.length ? [`and(customer_id.is.null,order_id.in.(${egneOrdrer.join(",")}))`] : [])].join(","),
+    )
+    .order("created_at", { ascending: false });
+  const fakturaer = (fakturaRader ?? []) as unknown as FakturaBit[];
   const ordreAv = new Map(ordrer.map((o) => [o.id, o]));
-  const visKundedel = kunde.is_customer || leads.length > 0 || ordrer.length > 0;
+  const visKundedel = kunde.is_customer || leads.length > 0 || ordrer.length > 0 || fakturaer.length > 0;
 
   const fane: Fane = vis === "ordrer" || vis === "fakturaer" ? vis : "tilbud";
   const faktura = kunde.invoice_separate ? adresseTekst(fakturaadresse(kunde)) : "";
@@ -278,8 +279,10 @@ export default async function KontaktPage({
                       </thead>
                       <tbody>
                         {fakturaer.map((f) => {
-                          const ordre = ordreAv.get(f.order_id);
+                          const ordre = f.orders ?? ordreAv.get(f.order_id);
                           const href = `/ordre/${f.order_id}/faktura`;
+                          // Jobben ble gjort for en annen kunde enn den som betaler.
+                          const annanOrdrekunde = Boolean(f.orders?.customer_id && f.orders.customer_id !== id);
                           return (
                             <KlikkbarRad key={f.id} href={href}>
                               <td className="ordre-nr">{ordre?.order_no ?? ""}</td>
@@ -287,6 +290,7 @@ export default async function KontaktPage({
                                 <Link className="lenke" href={href}>
                                   {ordre?.title ?? "Ordre"}
                                 </Link>
+                                {annanOrdrekunde && <span className="tiny muted"> · ordren står på en annen kunde</span>}
                               </td>
                               <td className="muted">{f.transfer_order_no ?? ""}</td>
                               <td>

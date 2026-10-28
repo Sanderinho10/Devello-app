@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { KundeSok, type KundeForslag } from "@/components/KundeSok";
 import type { InvoiceLine } from "@/lib/faktura/typar";
 import type { PogoKunde, PogoKundePost } from "@/lib/regnskap/poweroffice";
 import {
@@ -43,6 +44,23 @@ interface Kopling {
   manglandeProdukt: ProductMapKey[];
 }
 
+/** En kunde slik fakturahodet trenger den. */
+export interface FakturaKunde {
+  id: string | null;
+  name: string;
+  contact: string | null;
+  customer_no: number | null;
+}
+
+/**
+ * Kunden på ordren (forslaget) og fakturakunden (den fakturaen faktisk går
+ * til). Er de like, er kunden ikke overstyrt.
+ */
+export interface Kundar {
+  ordre: FakturaKunde;
+  faktura: FakturaKunde;
+}
+
 type Overfoering =
   | { steg: "bekreft" }
   | { steg: "kunde"; foreslaatt: PogoKundePost }
@@ -54,12 +72,14 @@ export function FakturaFane({
   draft,
   klart,
   kopling,
+  kundar,
 }: {
   orderId: string;
   orderStatus: OrderStatus;
   draft: InvoiceDraft | null;
   klart: Klart;
   kopling: Kopling | null;
+  kundar: Kundar;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -69,6 +89,9 @@ export function FakturaFane({
   const [ref, setRef] = useState(draft?.customer_reference ?? "");
   const [dirty, setDirty] = useState(false);
   const [overfoering, setOverfoering] = useState<Overfoering | null>(null);
+  // Teksten i kundefeltet mens man søker. null: viser fakturakunden.
+  const [kundeSok, setKundeSok] = useState<string | null>(null);
+  const overstyrt = Boolean(kundar.faktura.id && kundar.faktura.id !== kundar.ordre.id);
 
   const laast = draft?.status === "overfort";
   const providerNavn = kopling ? ACCOUNTING_PROVIDER_LABELS[kopling.provider] : "regnskapssystemet";
@@ -78,7 +101,7 @@ export function FakturaFane({
     setError(null);
     try {
       const res = await fetch(url, {
-        method: nokkel === "lagre" ? "PATCH" : "POST",
+        method: nokkel === "lagre" || nokkel === "kunde" ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body ?? {}),
       });
@@ -150,6 +173,13 @@ export function FakturaFane({
       setOverfoering(null);
       router.refresh();
     }
+  }
+
+  /** Bytt fakturakunde. null: tilbake til kunden på ordren. Lagres med én gang. */
+  async function velgKunde(kunde: KundeForslag | null) {
+    setKundeSok(null);
+    const r = await kall(`/api/orders/${orderId}/faktura`, { customer_id: kunde?.id ?? null }, "kunde");
+    if (r) router.refresh();
   }
 
   function endre(id: string, patch: Partial<InvoiceLine>) {
@@ -259,6 +289,11 @@ export function FakturaFane({
               </>
             )}
             {draft.transfer_customer_no && ` · kundenr. ${draft.transfer_customer_no}`}
+          </p>
+          <p style={{ marginBottom: 6 }}>
+            Kunde: <strong>{kundar.faktura.name}</strong>
+            {kundar.faktura.customer_no ? ` (${kundar.faktura.customer_no})` : ""}
+            {overstyrt && <span className="muted"> · ordren står på {kundar.ordre.name}</span>}
           </p>
           <p className="muted tiny">
             Fakturaen ligger som ordreutkast der. Send den fra {providerNavn} — Devello sender aldri.
@@ -427,6 +462,48 @@ export function FakturaFane({
       {/* Fakturahodet over linjene, som i Go: etiketten foran feltet. */}
       <div className="card card-pad">
         <div className="utkast-felt" style={{ marginBottom: 0 }}>
+          {/* Kunden som i Go: oppslag i registeret, og den kan overstyres.
+              Fakturaen hører til kunden den sendes til, ikke kunden på ordren. */}
+          <label>Kunde</label>
+          <div className="faktura-kunde">
+            <KundeSok
+              value={kundeSok ?? kundar.faktura.name}
+              onChange={(t) => setKundeSok(t)}
+              onVelg={(k) => void velgKunde(k)}
+              placeholder={kundar.ordre.name || "Søk etter kunde"}
+            />
+            {kundeSok !== null && (
+              <button type="button" className="lenke-knapp tiny" onClick={() => setKundeSok(null)}>
+                Avbryt
+              </button>
+            )}
+          </div>
+          <label htmlFor="faktura-ref">Deres ref.</label>
+          <input
+            id="faktura-ref"
+            className="input forslag"
+            value={ref}
+            onChange={(e) => {
+              setRef(e.target.value);
+              setDirty(true);
+            }}
+            placeholder={kundar.faktura.contact || "Kontaktperson hos kunden"}
+            title={kundar.faktura.contact ? "Forslag fra kunden. Skriv over for å bruke en annen." : undefined}
+          />
+          {overstyrt && (
+            <p className="faktura-kunde-merknad tiny muted">
+              Ordren står på {kundar.ordre.name || "en annen kunde"}. Fakturaen sendes til {kundar.faktura.name}
+              {kundar.faktura.customer_no ? ` (kundenr. ${kundar.faktura.customer_no})` : ""} og hører til den kunden.{" "}
+              <button
+                type="button"
+                className="lenke-knapp"
+                disabled={busy === "kunde"}
+                onClick={() => void velgKunde(null)}
+              >
+                Bruk kunden på ordren
+              </button>
+            </p>
+          )}
           <label htmlFor="faktura-tekst" style={{ alignSelf: "start", paddingTop: 7 }}>
             Fakturatekst
           </label>
@@ -440,17 +517,6 @@ export function FakturaFane({
               setDirty(true);
             }}
             placeholder="Står øverst på fakturaen. Ingen priser her — de står i linjene."
-          />
-          <label htmlFor="faktura-ref">Deres ref.</label>
-          <input
-            id="faktura-ref"
-            className="input"
-            value={ref}
-            onChange={(e) => {
-              setRef(e.target.value);
-              setDirty(true);
-            }}
-            placeholder="Kontaktperson hos kunden"
           />
         </div>
       </div>

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { NyOrdre } from "./NyOrdre";
 import { KlikkbarRad } from "@/components/KlikkbarRad";
+import { Sokefelt } from "@/components/Sokefelt";
 import { SortKolonne } from "@/components/SortKolonne";
+import { erHeltall, iListe, kunderSomPasser, lesSokeord, likeMonster } from "@/lib/sok";
 import { lesSortering } from "@/lib/sortering";
 import { supabaseServer } from "@/lib/supabase/server";
 import {
@@ -37,16 +39,33 @@ const DB_KOLONNE: Record<(typeof KOLONNER)[number], string> = {
 export default async function OrdrePage({
   searchParams,
 }: {
-  searchParams: Promise<{ vis?: string; sort?: string; retning?: string }>;
+  searchParams: Promise<{ vis?: string; sort?: string; retning?: string; q?: string }>;
 }) {
   const supabase = await supabaseServer();
   const sp = await searchParams;
   const avsluttede = sp.vis === "avsluttede";
   const sortering = lesSortering(sp, KOLONNER, { kolonne: "opprettet", stigende: false });
+  const q = lesSokeord(sp.q);
+
+  // Søket: ordrens egne felt, ordrenummeret når søket er et tall, og kunden
+  // (navn eller kundenummer) via registeret. Gjelder listen og tallene i fanene.
+  let sokefilter: string | null = null;
+  if (q) {
+    const monster = likeMonster(q);
+    const kunder = await kunderSomPasser(supabase, q);
+    sokefilter = [
+      ...["title", "customer_name", "customer_contact", "customer_email", "customer_phone", "site_address"].map(
+        (k) => `${k}.ilike.${monster}`,
+      ),
+      ...(erHeltall(q) ? [`order_no.eq.${q}`] : []),
+      ...iListe("customer_id", kunder),
+    ].join(",");
+  }
+  const medSok = <T extends { or: (f: string) => T }>(sporring: T): T => (sokefilter ? sporring.or(sokefilter) : sporring);
 
   // PostgREST vil ha «in»-listen som «(a,b)» i not-varianten.
   const aktivListe = `(${ORDER_ACTIVE_STATUSES.join(",")})`;
-  const liste = supabase.from("orders").select("*, customers(customer_no)");
+  const liste = medSok(supabase.from("orders").select("*, customers(customer_no)"));
 
   const [{ data: rader }, { count: aktive }, { count: lukkede }] = await Promise.all([
     (avsluttede
@@ -55,18 +74,12 @@ export default async function OrdrePage({
     )
       .order(DB_KOLONNE[sortering.kolonne], { ascending: sortering.stigende, nullsFirst: false })
       .limit(200),
-    supabase
-      .from("orders")
-      .select("id", { count: "exact", head: true })
-      .in("status", ORDER_ACTIVE_STATUSES),
-    supabase
-      .from("orders")
-      .select("id", { count: "exact", head: true })
-      .not("status", "in", aktivListe),
+    medSok(supabase.from("orders").select("id", { count: "exact", head: true })).in("status", ORDER_ACTIVE_STATUSES),
+    medSok(supabase.from("orders").select("id", { count: "exact", head: true })).not("status", "in", aktivListe),
   ]);
 
   const ordrer = (rader ?? []) as (Order & { customers: { customer_no: number } | null })[];
-  const sortParams = { vis: avsluttede ? "avsluttede" : undefined };
+  const sortParams = { vis: avsluttede ? "avsluttede" : undefined, q: q || undefined };
 
   // Fakturerte ordrer viser ordrenummeret i regnskapssystemet.
   const goNr = new Map<string, string>();
@@ -92,26 +105,36 @@ export default async function OrdrePage({
       </div>
 
       <nav className="type-switch kompakt" aria-label="Vis">
-        <Link href="/ordre" className={`type-option${avsluttede ? "" : " active"}`}>
+        <Link href={`/ordre${q ? `?q=${encodeURIComponent(q)}` : ""}`} className={`type-option${avsluttede ? "" : " active"}`}>
           Aktive<span className="fane-tal">{aktive ?? 0}</span>
         </Link>
-        <Link href="/ordre?vis=avsluttede" className={`type-option${avsluttede ? " active" : ""}`}>
+        <Link href={`/ordre?vis=avsluttede${q ? `&q=${encodeURIComponent(q)}` : ""}`} className={`type-option${avsluttede ? " active" : ""}`}>
           Avsluttede<span className="fane-tal">{lukkede ?? 0}</span>
         </Link>
       </nav>
 
       <div className="verktoylinje">
         <NyOrdre />
+        <Sokefelt
+          q={q}
+          behold={{ vis: avsluttede ? "avsluttede" : undefined, sort: sp.sort, retning: sp.retning }}
+          nullstill={avsluttede ? "/ordre?vis=avsluttede" : "/ordre"}
+          tittel="Søk på ordrenummer, tittel, kunde, kundenummer, telefon, e-post eller adresse"
+          etikett="Søk i ordrer"
+          foran={q ? <span className="muted tiny">{ordrer.length} treff</span> : null}
+        />
       </div>
 
       <div className="card">
         {ordrer.length === 0 ? (
           <div className="empty">
             <div className="empty-title">
-              {avsluttede ? "Ingen avsluttede ordrer ennå" : "Ingen ordrer ennå"}
+              {q ? "Ingen ordrer passer søket" : avsluttede ? "Ingen avsluttede ordrer ennå" : "Ingen ordrer ennå"}
             </div>
             <div>
-              {avsluttede
+              {q
+                ? (avsluttede ? "Se også Aktive" : "Se også Avsluttede") + " — tallet i fanen viser treffene der."
+                : avsluttede
                 ? "Ordrer havner her når de er ferdige, fakturert eller avbrutt."
                 : "Opprett en ordre fra et bekreftet tilbud, eller trykk «Ny ordre» for en jobb uten tilbud."}
             </div>
