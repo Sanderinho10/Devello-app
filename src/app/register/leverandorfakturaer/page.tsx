@@ -4,7 +4,7 @@ import { HentFakturaer } from "@/components/HentFakturaer";
 import { ModulMangler } from "@/components/ModulMangler";
 import { harModul } from "@/lib/moduler";
 import { selskapetsModular } from "@/app/selskap/innstillinger/moduler";
-import { currentSession, supabaseServer } from "@/lib/supabase/server";
+import { currentSession, supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import { formatDate, type SupplierInvoice, type SupplierInvoiceLine } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +12,8 @@ export const dynamic = "force-dynamic";
 type Visning = "ukopla" | "kopla" | "alle";
 
 /**
- * Leverandørfakturaene fra regnskapssystemet.
+ * Leverandørfakturaene, fra begge kildene i samme liste: PowerOffice Go og
+ * grossistenes fakturafiler på FTP. «Hent fakturaer nå» henter fra begge.
  *
  * «Ukoblet» er arbeidslista: fakturaer der ordrenummeret ikke ble funnet,
  * eller var tvetydig. Alt annet gikk av seg selv. Kreditnotaer står her
@@ -33,7 +34,7 @@ export default async function LeverandorfakturaerPage({
   const visRaa = (await searchParams).vis;
   const vis: Visning = visRaa === "kopla" || visRaa === "alle" ? visRaa : "ukopla";
 
-  const [{ data: kopling }, { count: ukopla }, { count: kopla }, { count: alle }] =
+  const [{ data: kopling }, { count: ukopla }, { count: kopla }, { count: alle }, { data: ftpKilder }] =
     await Promise.all([
       supabase
         .from("accounting_connections")
@@ -49,6 +50,14 @@ export default async function LeverandorfakturaerPage({
         .select("id", { count: "exact", head: true })
         .eq("match_status", "kopla"),
       supabase.from("supplier_invoices").select("id", { count: "exact", head: true }),
+      // Grossister med fakturafiler satt opp — den andre kilden. Tabellen har
+      // passordet og er bare for service role, så bare statusfeltene hentes.
+      supabaseAdmin()
+        .from("supplier_ftp")
+        .select("last_invoice_fetch_at, last_invoice_fetch_status, last_invoice_fetch_note, suppliers!inner(name)")
+        .eq("company_id", session!.companyId)
+        .not("fakturafil_pattern", "is", null)
+        .neq("fakturafil_pattern", ""),
     ]);
 
   let sporring = supabase
@@ -82,8 +91,23 @@ export default async function LeverandorfakturaerPage({
   ]);
 
   const harKopling = Boolean(kopling && kopling.status !== "kopla_fra");
-  const sistFeilet = Boolean(kopling?.last_sync_note?.startsWith("Feilet"));
-  // Fakturafiler fra grossistens FTP kommer uten regnskapskopling.
+  const ftp = ftpKilder ?? [];
+  const harKilde = harKopling || ftp.length > 0;
+  // Feil fra siste henting, fra hver kilde for seg.
+  const feilmeldinger = [
+    ...(harKopling && kopling?.last_sync_note?.startsWith("Feilet") ? [`PowerOffice Go: ${kopling.last_sync_note}`] : []),
+    ...ftp
+      .filter((f) => f.last_invoice_fetch_status === "feil")
+      .map((f) => {
+        const s = f.suppliers as unknown as { name: string } | { name: string }[];
+        const navn = (Array.isArray(s) ? s[0]?.name : s?.name) ?? "Grossist";
+        return `${navn} (FTP): ${f.last_invoice_fetch_note ?? "henting feilet"}`;
+      }),
+  ];
+  const sistHentet = [harKopling ? kopling?.last_sync_at : null, ...ftp.map((f) => f.last_invoice_fetch_at)]
+    .filter((d): d is string => Boolean(d))
+    .sort()
+    .pop();
   const harFakturaer = (alle ?? 0) > 0;
 
   return (
@@ -95,10 +119,9 @@ export default async function LeverandorfakturaerPage({
             Fra regnskapssystemet eller grossistens fakturafiler, koblet til ordren grossisten skrev på fakturaen.
           </p>
         </div>
-        {harKopling && <HentFakturaer />}
       </div>
 
-      {!harKopling && !harFakturaer ? (
+      {!harKilde && !harFakturaer ? (
         <div className="card empty">
           <div className="empty-title">Ingen fakturakilde ennå</div>
           <div>
@@ -138,14 +161,16 @@ export default async function LeverandorfakturaerPage({
         {/* Verktøylinja som i Go: hentingen til venstre, når det sist ble
             hentet til høyre. En feil fra siste henting får en egen linje. */}
         <div className="verktoylinje">
-          {harKopling && <HentFakturaer />}
-          {kopling?.last_sync_at && (
-            <span className="verktoylinje-hoyre tiny muted">Sist hentet {formatDate(kopling.last_sync_at)}</span>
+          {harKilde && <HentFakturaer />}
+          {sistHentet && (
+            <span className="verktoylinje-hoyre tiny muted">Sist hentet {formatDate(sistHentet)}</span>
           )}
         </div>
-        {sistFeilet ? (
-          <div className="banner warning">{kopling?.last_sync_note}</div>
-        ) : null}
+        {feilmeldinger.map((m) => (
+          <div key={m} className="banner warning">
+            {m}
+          </div>
+        ))}
 
         <div className="card allow-overflow">
           {liste.length === 0 ? (
@@ -156,9 +181,9 @@ export default async function LeverandorfakturaerPage({
               <div>
                 {vis === "ukopla"
                   ? "Alt som er hentet har funnet ordren sin."
-                  : harKopling
-                    ? "Trykk «Hent fakturaer nå» for å lese inn fra regnskapssystemet."
-                    : "Fakturafilene hentes fra grossisten hver natt, eller med «Hent fakturaer nå» under Grossister."}
+                  : harKilde
+                    ? "Fakturaene hentes hver natt, eller trykk «Hent fakturaer nå»."
+                    : "Koble til PowerOffice Go eller sett opp fakturafiler på en grossist."}
               </div>
             </div>
           ) : (
