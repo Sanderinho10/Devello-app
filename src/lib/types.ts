@@ -514,6 +514,8 @@ export interface Customer {
   site_city: string | null;
   org_nr: string | null;
   notes: string | null;
+  /** Kundenummeret: løpenummer per selskap fra 10000, satt av databasen (0057). Kan rettes for hånd. */
+  customer_no: number;
   /** Kontakten er en kunde. Settes av seg selv når kontakten kobles til et tilbud eller en ordre. */
   is_customer: boolean;
   /** Kontakten er en leverandør. */

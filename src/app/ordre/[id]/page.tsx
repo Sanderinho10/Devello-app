@@ -31,6 +31,9 @@ export default async function OrdreSide({
   const ordre = await hentOrdre(id);
   if (!ordre) notFound();
   const supabase = await supabaseServer();
+  const { data: kontakt } = ordre.customer_id
+    ? await supabase.from("customers").select("customer_no").eq("id", ordre.customer_id).maybeSingle()
+    : { data: null };
 
   const [{ data: hendelser }, { data: timar }, { data: materiell }, { count: hodeFakturaer }, { data: dokument }] = await Promise.all([
     supabase
@@ -204,6 +207,7 @@ export default async function OrdreSide({
           kunde={{
             customer_id: ordre.customer_id,
             customer_name: ordre.customer_name,
+            customer_no: kontakt?.customer_no ?? null,
             customer_contact: ordre.customer_contact,
             customer_email: ordre.customer_email,
             customer_phone: ordre.customer_phone,

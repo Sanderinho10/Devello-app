@@ -121,7 +121,10 @@ export default async function KontaktPage({
             ← Kontakter
           </Link>
           <h1>{kunde.name}</h1>
-          <p className="page-subtitle">{kontakttypeTekst(kunde)}</p>
+          <p className="page-subtitle">
+            {kunde.customer_no ? `Kundenr. ${kunde.customer_no} · ` : ""}
+            {kontakttypeTekst(kunde)}
+          </p>
         </div>
         <KontaktKort kontakt={kunde} goNummerGjeld={goNummerGjeld} />
       </div>

@@ -6,6 +6,7 @@ import { medTilbudsnr, medTilbudsnrIKropp } from "@/lib/drafts/tilbudsnr";
 import { brandImageBytes } from "@/lib/brand/image-bytes";
 import { logoDataUri } from "@/lib/pdf/logo";
 import { renderQuoteHtml } from "@/lib/pdf/template";
+import { kundenummerForLead } from "@/lib/kunder/koble";
 import { diffSnapshots, logDraftVersion } from "@/lib/drafts/versions";
 import { summarizeEdits } from "@/lib/drafts/edit-summary";
 import { finnEpost } from "@/lib/leads/finn-epost";
@@ -132,6 +133,7 @@ export async function POST(
         },
         versjon: { nr: draft.revisjon, erstatter: draft.forrige_sendt_at },
         tilbudsnr: draft.quote_no,
+        kundenr: await kundenummerForLead(admin, draft.lead_id),
       });
       pdf = await htmlToPdf(html);
 

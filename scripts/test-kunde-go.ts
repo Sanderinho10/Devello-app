@@ -25,6 +25,7 @@ const ORDRE = {
 const KONTAKT: Customer = {
   id: "k1",
   company_id: "c1",
+  customer_no: 10000,
   name: "Bergen Eiendom AS",
   contact: "Kari Hansen",
   email: "post@bergeneiendom.no",
