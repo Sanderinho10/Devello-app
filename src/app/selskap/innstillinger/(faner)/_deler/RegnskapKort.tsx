@@ -1,8 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { HentFakturaer } from "@/components/HentFakturaer";
 import { Panel, Rad } from "./Panel";
 import {
   ACCOUNTING_PROVIDER_LABELS,
@@ -20,6 +20,10 @@ import {
  * Client key er kundens hemmelighet: feltet er et passordfelt, nøkkelen
  * sendes én gang og vises aldri igjen. Application key er Devello sin og
  * står i hjelpeteksten — den trenger kunden for å lage utvidelsen i Go.
+ *
+ * Her settes koplinga opp og testes. Selve hentingen av fakturaer skjer
+ * under Register → Leverandørfakturaer, der fakturaene ligger — oppsett og
+ * daglig arbeid skal ikke blandes.
  */
 export function RegnskapKort({
   kopling,
@@ -111,8 +115,15 @@ export function RegnskapKort({
               </dd>
             </dl>
             {kopling.status === "feil" && kopling.status_reason && <div className="banner error">{kopling.status_reason}</div>}
+            <p className="tiny muted" style={{ margin: "0 0 10px" }}>
+              Fakturaer hentes under{" "}
+              <Link href="/register/leverandorfakturaer" style={{ textDecoration: "underline" }}>
+                Register → Leverandørfakturaer
+              </Link>
+              .
+            </p>
             <div className="inst-knapper">
-              <HentFakturaer />
+              <TestTilkobling />
               {erAdmin && (
                 <>
                   <button type="button" className="button secondary" onClick={() => setVisSkjema(true)}>
@@ -191,6 +202,48 @@ export function RegnskapKort({
 
       {aktiv && kopling && !visSkjema && <ProdukterIGo kopling={kopling} erAdmin={erAdmin} />}
     </>
+  );
+}
+
+/**
+ * «Test tilkobling»: et token og én side fakturaer mot Go, ingenting hentes.
+ * Resultatet står ved siden av knappen, og statuspillen oppdaterer seg.
+ */
+function TestTilkobling() {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [melding, setMelding] = useState<string | null>(null);
+  const [feil, setFeil] = useState(false);
+
+  async function test() {
+    setBusy(true);
+    setMelding(null);
+    setFeil(false);
+    try {
+      const res = await fetch("/api/regnskap/connection/test", { method: "POST" });
+      const payload = (await res.json()) as { ok?: boolean; melding?: string; error?: string };
+      if (!res.ok) throw new Error(payload.error ?? "Tilkoblingen feilet");
+      setMelding(payload.melding ?? "Tilkoblingen virker.");
+    } catch (err) {
+      setMelding(err instanceof Error ? err.message : String(err));
+      setFeil(true);
+    } finally {
+      setBusy(false);
+      router.refresh();
+    }
+  }
+
+  return (
+    <span className="row" style={{ flexWrap: "wrap" }}>
+      <button type="button" className="button" onClick={test} disabled={busy}>
+        {busy ? "Tester…" : "Test tilkobling"}
+      </button>
+      {melding && (
+        <span className="tiny" style={{ color: feil ? "var(--negative)" : "var(--positive)" }}>
+          {melding}
+        </span>
+      )}
+    </span>
   );
 }
 
