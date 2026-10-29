@@ -3755,10 +3755,16 @@ tr.fakturert,
   vertical-align: top;
 }
 
-/* Grossistpopupen: FTP-fanen er lang, så panelet ruller og knappene står fast. */
+/* Grossistpopupen: samme høyde på alle fanene, så popupen ikke hopper når
+   man bytter fane. Lange faner (FTP) ruller inne i panelet, knappene står fast. */
 .kontakt-panel.grossist-panel {
-  max-height: calc(100vh - 230px);
+  height: min(620px, calc(100vh - 230px));
   overflow-y: auto;
+}
+@media (max-width: 700px) {
+  .kontakt-panel.grossist-panel {
+    height: calc(100vh - 300px);
+  }
 }
 
 @media (max-width: 700px) {
