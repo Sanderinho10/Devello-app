@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FileDrop } from "@/components/FileDrop";
 import { Modal } from "@/components/Modal";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -99,9 +99,18 @@ export function GrossistDialog({
     villeHenta: { varefil: string | null; rabattfil: string | null };
   } | null>(null);
 
-  // Nytt skjema hver gang popupen åpnes.
+  // Nytt skjema hver gang popupen åpnes — men ikke når router.refresh()
+  // gir nye grossist/ftp-objekter mens den er åpen. Da ville fanen hoppet
+  // tilbake til «Generelt» og meldingen forsvunnet rett etter et knappetrykk.
+  const aapnaFor = useRef<string | null>(null);
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      aapnaFor.current = null;
+      return;
+    }
+    const id = grossist?.id ?? "ny";
+    if (aapnaFor.current === id) return;
+    aapnaFor.current = id;
     setFane("generelt");
     setNavn(grossist?.name ?? "");
     setKundenr(grossist?.customer_no ?? "");
@@ -277,7 +286,22 @@ export function GrossistDialog({
       const res = await fetch(`/api/grossist/${grossist.id}/fakturaer/hent`, { method: "POST" });
       const payload = await lesJson(res);
       if (!res.ok) throw new Error(payload.error ?? "Kunne ikke hente fakturaer");
-      const r = payload as { filer: number; nye: number; fakturaer: number; kopla: number; ukopla: number; duplikat: number; feil: string[] };
+      const r = payload as {
+        filer: number;
+        nye: number;
+        fakturaer: number;
+        kopla: number;
+        ukopla: number;
+        duplikat: number;
+        feil: string[];
+        notat?: string;
+      };
+      // Ingen treff: vis hva som ligger i mappa i stedet for bare nuller.
+      if (r.filer === 0 && r.feil.length === 0 && r.notat) {
+        setMelding(r.notat);
+        router.refresh();
+        return;
+      }
       setMelding(
         `${r.filer} filer på serveren, ${r.nye} nye, ${r.fakturaer} fakturaer, ${r.kopla} koblet, ${r.ukopla} ukoblet` +
           (r.duplikat ? `, ${r.duplikat} duplikat` : "") +
