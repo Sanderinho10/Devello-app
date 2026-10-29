@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { HentFakturaer } from "@/components/HentFakturaer";
 import { Panel, Rad } from "./Panel";
+import { kontofilterAv, type Kontofilter as KontofilterVerdi } from "@/lib/regnskap/kontofilter";
 import {
   ACCOUNTING_PROVIDER_LABELS,
   PRODUCT_MAP_LABELS,
@@ -20,6 +21,10 @@ import {
  * Client key er kundens hemmelighet: feltet er et passordfelt, nøkkelen
  * sendes én gang og vises aldri igjen. Application key er Devello sin og
  * står i hjelpeteksten — den trenger kunden for å lage utvidelsen i Go.
+ *
+ * Her settes koplinga opp og testes. Selve hentingen av fakturaer skjer
+ * under Register → Leverandørfakturaer, der fakturaene ligger — oppsett og
+ * daglig arbeid skal ikke blandes.
  */
 export function RegnskapKort({
   kopling,
@@ -111,8 +116,15 @@ export function RegnskapKort({
               </dd>
             </dl>
             {kopling.status === "feil" && kopling.status_reason && <div className="banner error">{kopling.status_reason}</div>}
+            <p className="tiny muted" style={{ margin: "0 0 10px" }}>
+              Fakturaer hentes under{" "}
+              <Link href="/register/leverandorfakturaer" style={{ textDecoration: "underline" }}>
+                Register → Leverandørfakturaer
+              </Link>
+              .
+            </p>
             <div className="inst-knapper">
-              <HentFakturaer />
+              <TestTilkobling />
               {erAdmin && (
                 <>
                   <button type="button" className="button secondary" onClick={() => setVisSkjema(true)}>
@@ -157,8 +169,9 @@ export function RegnskapKort({
                   ) : (
                     " (ikke satt i dette miljøet)"
                   )}
-                  , gi utvidelsen tilgang til inngående faktura, bilagsdokumentasjon og leverandør (lesing) og til
-                  salgsordre, kunde og produkt (uten «send faktura»), og kopier client key hit. Nøkkelen vises aldri igjen.
+                  , gi utvidelsen tilgang til inngående faktura, bilagsdokumentasjon, kontotransaksjoner og leverandør
+                  (lesing) og til salgsordre, kunde og produkt (uten «send faktura»), og kopier client key hit. Nøkkelen
+                  vises aldri igjen.
                 </>
               }
             >
@@ -189,8 +202,160 @@ export function RegnskapKort({
         )}
       </Panel>
 
+      {aktiv && kopling && !visSkjema && <KontofilterPanel kopling={kopling} erAdmin={erAdmin} />}
       {aktiv && kopling && !visSkjema && <ProdukterIGo kopling={kopling} erAdmin={erAdmin} />}
     </>
+  );
+}
+
+/**
+ * Hvilke fakturaer som hentes. Strøm, husleie og regnskapsføreren kommer
+ * også inn i Go, og ingen av dem hører hjemme på en ordre. Standard er
+ * varekjøp, 4000–4999; den som fører underentreprenører på 45xx har dem med.
+ */
+function KontofilterPanel({ kopling, erAdmin }: { kopling: AccountingConnectionPublic; erAdmin: boolean }) {
+  const router = useRouter();
+  const lagret = kontofilterAv(kopling.settings);
+  const [verdi, setVerdi] = useState<{ enabled: boolean; from: string; to: string }>({
+    enabled: lagret.enabled,
+    from: String(lagret.from),
+    to: String(lagret.to),
+  });
+  const [busy, setBusy] = useState(false);
+  const [melding, setMelding] = useState<string | null>(null);
+  const [feil, setFeil] = useState<string | null>(null);
+
+  const dirty =
+    verdi.enabled !== lagret.enabled || verdi.from !== String(lagret.from) || verdi.to !== String(lagret.to);
+
+  async function lagre() {
+    setBusy(true);
+    setFeil(null);
+    setMelding(null);
+    try {
+      const filter: KontofilterVerdi = { enabled: verdi.enabled, from: Number(verdi.from), to: Number(verdi.to) };
+      const res = await fetch("/api/regnskap/connection", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ settings: { account_filter: filter } }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error ?? "Kunne ikke lagre");
+      setMelding("Lagret. Gjelder neste henting; fakturaer som alt er hentet blir liggende.");
+      router.refresh();
+    } catch (err) {
+      setFeil(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Panel
+      tittel="Hvilke fakturaer hentes"
+      hint="Bare bilag som er ført på disse kontoene kommer inn. Resten — strøm, husleie, regnskapsfører — hoppes over."
+      hoyre={
+        verdi.enabled ? (
+          <span className="pill ferdig">Konto {verdi.from}–{verdi.to}</span>
+        ) : (
+          <span className="pill utkast_klar">Alle fakturaer</span>
+        )
+      }
+      bunn={
+        erAdmin ? (
+          <div className="inst-lagre">
+            <span className="spacer" />
+            <span className={`tiny ${dirty ? "inst-endret" : "muted"}`}>{dirty ? "Ulagrede endringer" : ""}</span>
+            <button type="button" className="button" onClick={lagre} disabled={busy || !dirty}>
+              {busy ? "Lagrer…" : "Lagre"}
+            </button>
+          </div>
+        ) : undefined
+      }
+    >
+      {feil && <div className="banner error">{feil}</div>}
+      {melding && <div className="banner info">{melding}</div>}
+      <Rad etikett="Kontofilter" som="div">
+        <label className="row" style={{ gap: 8 }}>
+          <input
+            type="checkbox"
+            checked={verdi.enabled}
+            disabled={!erAdmin}
+            onChange={(e) => setVerdi({ ...verdi, enabled: e.target.checked })}
+          />
+          Hent bare fakturaer ført på kontoene under
+        </label>
+      </Rad>
+      <Rad
+        etikett="Kontointervall"
+        som="div"
+        hint="Varekjøp står på 4000–4999 i norsk standard kontoplan. Et bilag som ikke er bokført ennå, kommer inn når det er ført."
+      >
+        <span className="row" style={{ gap: 8 }}>
+          <input
+            className="input"
+            inputMode="numeric"
+            style={{ width: 96 }}
+            value={verdi.from}
+            disabled={!erAdmin || !verdi.enabled}
+            onChange={(e) => setVerdi({ ...verdi, from: e.target.value.replace(/\D/g, "").slice(0, 4) })}
+            aria-label="Fra konto"
+          />
+          <span className="muted">til</span>
+          <input
+            className="input"
+            inputMode="numeric"
+            style={{ width: 96 }}
+            value={verdi.to}
+            disabled={!erAdmin || !verdi.enabled}
+            onChange={(e) => setVerdi({ ...verdi, to: e.target.value.replace(/\D/g, "").slice(0, 4) })}
+            aria-label="Til konto"
+          />
+        </span>
+      </Rad>
+    </Panel>
+  );
+}
+
+/**
+ * «Test tilkobling»: et token og én side fakturaer mot Go, ingenting hentes.
+ * Resultatet står ved siden av knappen, og statuspillen oppdaterer seg.
+ */
+function TestTilkobling() {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [melding, setMelding] = useState<string | null>(null);
+  const [feil, setFeil] = useState(false);
+
+  async function test() {
+    setBusy(true);
+    setMelding(null);
+    setFeil(false);
+    try {
+      const res = await fetch("/api/regnskap/connection/test", { method: "POST" });
+      const payload = (await res.json()) as { ok?: boolean; melding?: string; error?: string };
+      if (!res.ok) throw new Error(payload.error ?? "Tilkoblingen feilet");
+      setMelding(payload.melding ?? "Tilkoblingen virker.");
+    } catch (err) {
+      setMelding(err instanceof Error ? err.message : String(err));
+      setFeil(true);
+    } finally {
+      setBusy(false);
+      router.refresh();
+    }
+  }
+
+  return (
+    <span className="row" style={{ flexWrap: "wrap" }}>
+      <button type="button" className="button" onClick={test} disabled={busy}>
+        {busy ? "Tester…" : "Test tilkobling"}
+      </button>
+      {melding && (
+        <span className="tiny" style={{ color: feil ? "var(--negative)" : "var(--positive)" }}>
+          {melding}
+        </span>
+      )}
+    </span>
   );
 }
 

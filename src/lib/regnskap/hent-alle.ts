@@ -23,6 +23,8 @@ export interface HentAlleResultat {
   delvis: number;
   ukopla: number;
   duplikat: number;
+  /** Bilag i Go som ble hoppet over av kontofilteret. */
+  utanfor: number;
   feil: string[];
 }
 
@@ -30,7 +32,7 @@ export async function hentAlleLeverandorfakturaer(
   admin: SupabaseClient,
   companyId: string,
 ): Promise<HentAlleResultat> {
-  const r: HentAlleResultat = { harKilde: false, henta: 0, nye: 0, kopla: 0, delvis: 0, ukopla: 0, duplikat: 0, feil: [] };
+  const r: HentAlleResultat = { harKilde: false, henta: 0, nye: 0, kopla: 0, delvis: 0, ukopla: 0, duplikat: 0, utanfor: 0, feil: [] };
 
   // Grossistenes fakturafiler først: kommer samme faktura etterpå fra Go,
   // er det den som blir duplikatet, og varelinjene fra filen står.
@@ -67,6 +69,7 @@ export async function hentAlleLeverandorfakturaer(
       r.kopla += go.kopla;
       r.delvis += go.delvis;
       r.ukopla += go.ukopla;
+      r.utanfor += go.utanfor;
       r.feil.push(...go.feil.map((e) => `PowerOffice Go: ${e}`));
     }
   } catch (err) {

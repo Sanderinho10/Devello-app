@@ -61,6 +61,16 @@ export interface PogoDokumentasjon {
   IsImported: boolean;
 }
 
+/** Éi postering i hovudboka, frå /AccountTransactions. */
+export interface PogoKontotransaksjon {
+  AccountNo: number | null;
+  VoucherNo: number | null;
+  VoucherId: string | null;
+  Amount: number | null;
+  TransactionDate: string | null;
+  raw: Record<string, unknown>;
+}
+
 export interface PogoLeverandoer {
   Id: string;
   Number: string | null;
@@ -305,6 +315,58 @@ export function pogoClient(kopling: PogoKopling) {
       };
     },
 
+    /**
+     * Kontotransaksjonene i et datovindu — konteringen bak bilagene.
+     *
+     * Fakturahodet sier ingenting om hvilken konto fakturaen er ført på;
+     * det gjør posteringene. Kontofilteret (sync.ts) bruker dette til å
+     * finne bilagene som har minst én linje på varekjøp. Feltnavnene er
+     * tålt i flere varianter til vi har sett svaret fra demoen.
+     */
+    async hentKontotransaksjonar(input: {
+      fromDate: string;
+      toDate?: string;
+      pageNumber: number;
+      pageSize?: number;
+    }): Promise<PogoKontotransaksjon[]> {
+      const svar = await get<unknown>("/AccountTransactions", {
+        fromDate: input.fromDate,
+        toDate: input.toDate,
+        PageNumber: input.pageNumber,
+        PageSize: input.pageSize ?? 500,
+      });
+      return liste(svar).map((o) => ({
+        AccountNo: talEllerNull(
+          felt(o, "AccountNo") ?? felt(o, "AccountCode") ?? felt(o, "GeneralLedgerAccountNo") ?? felt(o, "Account"),
+        ),
+        VoucherNo: talEllerNull(felt(o, "VoucherNo")),
+        VoucherId: strengEllerNull(felt(o, "VoucherId")),
+        Amount: talEllerNull(felt(o, "Amount")),
+        TransactionDate: strengEllerNull(felt(o, "TransactionDate") ?? felt(o, "PostingDate") ?? felt(o, "Date")),
+        raw: o,
+      }));
+    },
+
+    /**
+     * PDF-en slik den ligger i Go. Kommer som zip (første .pdf i arkivet)
+     * eller som rå PDF; vi tåler begge.
+     */
+    async lastNedPdf(voucherId: string): Promise<Uint8Array> {
+      const res = await raw("/VoucherDocumentation/Download", { id: voucherId, documentationType: "Pdf" });
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      if (bytes.length > 3 && bytes[0] === 0x50 && bytes[1] === 0x4b) {
+        const zip = await JSZip.loadAsync(bytes);
+        const fil = Object.values(zip.files).find((f) => !f.dir && /\.pdf$/i.test(f.name))
+          ?? Object.values(zip.files).find((f) => !f.dir);
+        if (!fil) throw new PogoFeil("Zip-fila fra PowerOffice inneholdt ingen PDF.", 502);
+        return fil.async("uint8array");
+      }
+      if (!(bytes.length > 4 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46)) {
+        throw new PogoFeil("PowerOffice Go sendte noe som ikke er en PDF.", 502);
+      }
+      return bytes;
+    },
+
     /** EHF-XML-en, pakket ut av zip-en Go sender. */
     async lastNedEhf(voucherId: string): Promise<string> {
       const res = await raw("/VoucherDocumentation/Download", { id: voucherId, documentationType: "Ehf" });
@@ -493,6 +555,8 @@ function forklar(status: number, tekst: string, hvor: string): string {
       ? "Inngående faktura (IncomingInvoice)"
       : /VoucherDocumentation/i.test(hvor)
         ? "Bilagsdokumentasjon (VoucherDocumentation)"
+        : /AccountTransactions/i.test(hvor)
+          ? "Kontotransaksjoner (AccountTransactions)"
         : /Suppliers/i.test(hvor)
           ? "Leverandør (Supplier)"
           : /SalesOrders/i.test(hvor)

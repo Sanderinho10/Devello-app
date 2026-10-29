@@ -161,7 +161,7 @@ const { data: koplingar } = berreFakturaer
 for (const k of (koplingar ?? []) as unknown as { company_id: string; provider: string; companies: { name: string } }[]) {
   try {
     const r = await synkroniserFakturaer(k.company_id, { trigger: "cron" });
-    const linje = `${r.henta} hentet, ${r.nye} nye, ${r.kopla} koblet, ${r.ukopla} ukoblet`;
+    const linje = `${r.henta} hentet, ${r.nye} nye, ${r.kopla} koblet, ${r.ukopla} ukoblet${r.utanfor ? `, ${r.utanfor} utenfor kontofilteret` : ""}`;
     if (r.feil.length) {
       feil += 1;
       console.log(`[nattjobb] ${k.companies.name} / ${k.provider}: ${linje} — FEIL: ${r.feil[0]}`);

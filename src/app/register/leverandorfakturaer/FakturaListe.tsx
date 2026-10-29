@@ -129,7 +129,24 @@ export function FakturaListe({
                 </td>
                 <td className="meta nowrap">
                   {kreditnota ? "Kreditnota" : "Faktura"} {f.invoice_no ?? f.voucher_no ?? ""}
-                  {f.voucher_no && <div className="tiny muted">bilag {f.voucher_no}</div>}
+                  <div className="tiny muted">
+                    {f.voucher_no ? `bilag ${f.voucher_no}` : ""}
+                    {f.account_numbers.length > 0 && ` · konto ${f.account_numbers.join(", ")}`}
+                    {f.pdf_storage_path && (
+                      <>
+                        {" · "}
+                        <a
+                          href={`/api/regnskap/fakturaer/${f.id}/pdf`}
+                          target="_blank"
+                          rel="noopener"
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ textDecoration: "underline" }}
+                        >
+                          Åpne PDF
+                        </a>
+                      </>
+                    )}
+                  </div>
                 </td>
                 <td className="meta">
                   {f.references_found.length > 0 && (
