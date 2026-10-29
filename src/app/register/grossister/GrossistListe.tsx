@@ -119,6 +119,7 @@ export function GrossistListe({
           grossist={valgt?.grossist ?? null}
           ftp={valgt?.ftp ?? null}
           live={valgt ? (liveAv[valgt.grossist.id] ?? null) : null}
+          aktiveVarer={valgt?.aktiveVarer ?? 0}
         />
       )}
       {vist && (

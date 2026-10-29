@@ -73,6 +73,7 @@ export function GrossistDialog({
   grossist,
   ftp,
   live,
+  aktiveVarer = 0,
 }: {
   open: boolean;
   onClose: () => void;
@@ -81,6 +82,8 @@ export function GrossistDialog({
   ftp: SupplierFtpPublic | null;
   /** En import som går nå. Da kan det ikke startes en til. */
   live: ImportJob | null;
+  /** Varer i katalogen — står i spørsmålet før sletting. */
+  aktiveVarer?: number;
 }) {
   const router = useRouter();
   const ny = grossist === null;
@@ -90,7 +93,7 @@ export function GrossistDialog({
   const [form, setForm] = useState(() => tomtSkjema(ftp));
   const [varefil, setVarefil] = useState<File | null>(null);
   const [rabattfil, setRabattfil] = useState<File | null>(null);
-  const [busy, setBusy] = useState<null | "lagre" | "test" | "hent" | "fakturaer">(null);
+  const [busy, setBusy] = useState<null | "lagre" | "test" | "hent" | "fakturaer" | "slett">(null);
   const [pct, setPct] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [melding, setMelding] = useState<string | null>(null);
@@ -311,6 +314,32 @@ export function GrossistDialog({
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
+      setBusy(null);
+    }
+  }
+
+  async function slett() {
+    if (!grossist) return;
+    const varer = aktiveVarer > 0 ? ` Katalogen med ${aktiveVarer.toLocaleString("nb-NO")} varer slettes også.` : "";
+    if (
+      !window.confirm(
+        `Slette «${grossist.name}»?${varer} FTP-oppsettet og importhistorikken forsvinner.\n\n` +
+          "Materiell som alt står på ordrer og leverandørfakturaer blir stående. Dette kan ikke angres.",
+      )
+    )
+      return;
+    setBusy("slett");
+    setError(null);
+    setMelding(null);
+    try {
+      const res = await fetch(`/api/grossist/${grossist.id}`, { method: "DELETE" });
+      const payload = await lesJson(res);
+      if (!res.ok) throw new Error(payload.error ?? "Kunne ikke slette grossisten");
+      setBusy(null);
+      onClose();
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
       setBusy(null);
     }
   }
@@ -566,6 +595,18 @@ export function GrossistDialog({
       )}
 
       <div className="modal-actions">
+        {!ny && (
+          <button
+            type="button"
+            className="button danger"
+            onClick={slett}
+            disabled={busy !== null || live !== null}
+            title={live ? "En import kjører — vent til den er ferdig." : undefined}
+            style={{ marginRight: "auto" }}
+          >
+            {busy === "slett" ? "Sletter…" : "Slett grossist"}
+          </button>
+        )}
         <button type="button" className="button secondary" onClick={lukk} disabled={busy !== null}>
           Avbryt
         </button>
