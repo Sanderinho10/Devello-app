@@ -4584,3 +4584,30 @@ dl.kunde-kort-info {
 .ordre-kunde-nr {
   padding: 6px 0;
 }
+
+/* Ordrevelgeren på leverandørfakturaene: alltid et oppslagsfelt, med pil
+   som kundefeltet. Lista åpner mot venstre, så den ikke havner utenfor
+   skjermen i siste kolonne. */
+.ordre-velger .input {
+  padding-right: 28px;
+}
+
+.ordre-velger .ordre-velger-treff {
+  left: auto;
+  right: 0;
+}
+
+.ordre-velger.kompakt .input {
+  width: 170px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  font-size: 13px;
+}
+
+.ordre-velger-rad.active {
+  background: var(--surface-sunken);
+}
+
+.ordre-velger .kunde-velger-pil:disabled {
+  cursor: default;
+}

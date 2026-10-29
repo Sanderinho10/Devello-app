@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatPris } from "@/components/GrossistSok";
 import {
   INVOICE_MATCH_LABELS,
@@ -308,6 +308,11 @@ export function FakturaListe({
  * Ordrevelger: skriv nummer eller tittel, trykk på treffet. Ordrene er
  * allerede lastet — det er sjelden mer enn noen hundre åpne.
  */
+/**
+ * Oppslagsfeltet for ordren, som i Go: alltid synlig. Klikk eller skriv, så
+ * kommer ordrene; ordrenummer, tittel eller kunde snevrer inn. Piltaster og
+ * Enter velger, Escape eller klikk utenfor lukker.
+ */
 function OrdreVelger({
   ordrar,
   onVelg,
@@ -321,74 +326,108 @@ function OrdreVelger({
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
+  const [aktiv, setAktiv] = useState(0);
+  const rot = useRef<HTMLSpanElement>(null);
+  const felt = useRef<HTMLInputElement>(null);
 
-  const treff = q.trim()
-    ? ordrar
-        .filter((o) => {
-          const s = q.trim().toLowerCase();
-          return (
-            String(o.order_no).startsWith(s.replace("#", "")) ||
-            o.title.toLowerCase().includes(s) ||
-            o.customer_name.toLowerCase().includes(s)
-          );
-        })
-        .slice(0, 8)
-    : ordrar.slice(0, 8);
+  useEffect(() => {
+    if (!open) return;
+    function lukk(e: MouseEvent) {
+      if (!rot.current?.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", lukk);
+    return () => document.removeEventListener("mousedown", lukk);
+  }, [open]);
 
-  if (!open) {
-    return (
-      <button
-        type="button"
-        className={kompakt ? "linkish" : "button secondary"}
-        onClick={() => setOpen(true)}
-        disabled={busy}
-      >
-        {busy ? "Kobler…" : "Velg ordre"}
-      </button>
-    );
+  const s = q.trim().toLowerCase().replace(/^#/, "");
+  const treff = (
+    s
+      ? ordrar.filter(
+          (o) => String(o.order_no).startsWith(s) || o.title.toLowerCase().includes(s) || o.customer_name.toLowerCase().includes(s),
+        )
+      : ordrar
+  ).slice(0, 8);
+
+  function velg(o: OrdreValg) {
+    onVelg(o.id);
+    setOpen(false);
+    setQ("");
+  }
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!open) setOpen(true);
+      else setAktiv((a) => (treff.length ? (a + 1) % treff.length : 0));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setAktiv((a) => (treff.length ? (a - 1 + treff.length) % treff.length : 0));
+    } else if (e.key === "Enter" && open && treff[aktiv]) {
+      e.preventDefault();
+      velg(treff[aktiv]);
+    } else if (e.key === "Escape") {
+      setOpen(false);
+    }
   }
 
   return (
-    <span className="ordre-velger">
+    <span className={`ordre-velger picker${kompakt ? " kompakt" : ""}`} ref={rot}>
       <input
+        ref={felt}
         className="input"
-        autoFocus
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="#1042 eller tittel"
-        onKeyDown={(e) => {
-          if (e.key === "Escape") setOpen(false);
-          if (e.key === "Enter" && treff.length === 1) {
-            onVelg(treff[0].id);
-            setOpen(false);
-          }
+        value={busy ? "Kobler…" : q}
+        disabled={busy}
+        placeholder="Velg ordre"
+        title="Søk på ordrenummer, tittel eller kunde"
+        autoComplete="off"
+        role="combobox"
+        aria-expanded={open}
+        aria-autocomplete="list"
+        onChange={(e) => {
+          setQ(e.target.value);
+          setAktiv(0);
+          setOpen(true);
         }}
+        onFocus={() => setOpen(true)}
+        onKeyDown={onKeyDown}
       />
-      <span className="ordre-velger-treff">
-        {treff.length === 0 && <span className="tiny muted" style={{ padding: 8 }}>Ingen treff</span>}
-        {treff.map((o) => (
-          <button
-            key={o.id}
-            type="button"
-            className="ordre-velger-rad"
-            onClick={() => {
-              onVelg(o.id);
-              setOpen(false);
-            }}
-          >
-            <span className="ordre-nr">#{o.order_no}</span>
-            <span className="lead-main">
-              <span style={{ display: "block", fontWeight: 550 }}>{o.title}</span>
-              <span className="tiny muted">
-                {o.customer_name || "(ingen kunde)"} · {ORDER_STATUS_LABELS[o.status]}
-              </span>
-            </span>
-          </button>
-        ))}
-      </span>
-      <button type="button" className="button ghost" onClick={() => setOpen(false)}>
-        ×
+      <button
+        type="button"
+        className="kunde-velger-pil"
+        tabIndex={-1}
+        aria-label="Vis ordrene"
+        disabled={busy}
+        onClick={() => {
+          setOpen((o) => !o);
+          felt.current?.focus();
+        }}
+      >
+        ▾
       </button>
+      {open && (
+        <span className="ordre-velger-treff" role="listbox">
+          {treff.length === 0 && <span className="tiny muted" style={{ padding: 8 }}>Ingen ordrer passer</span>}
+          {treff.map((o, i) => (
+            <button
+              key={o.id}
+              type="button"
+              role="option"
+              aria-selected={i === aktiv}
+              className={`ordre-velger-rad${i === aktiv ? " active" : ""}`}
+              onMouseEnter={() => setAktiv(i)}
+              onClick={() => velg(o)}
+            >
+              <span className="ordre-nr">#{o.order_no}</span>
+              <span className="lead-main">
+                <span style={{ display: "block", fontWeight: 550 }}>{o.title}</span>
+                <span className="tiny muted">
+                  {o.customer_name || "(ingen kunde)"} · {ORDER_STATUS_LABELS[o.status]}
+                </span>
+              </span>
+            </button>
+          ))}
+        </span>
+      )}
     </span>
   );
 }
