@@ -806,6 +806,12 @@ export const PRODUCT_MAP_LABELS: Record<ProductMapKey, string> = {
 export interface ConnectionSettings {
   /** Bruk ordrenummeret som prosjektkode på salgsordren i regnskapssystemet. */
   project_per_order?: boolean;
+  /**
+   * Hent bare fakturaer ført på disse hovudbokskontoene (minst én linje i
+   * intervallet). Mangler feltet, gjelder standarden: på, 4000–4999 —
+   * varekjøp. Se lib/regnskap/kontofilter.ts.
+   */
+  account_filter?: { enabled: boolean; from: number; to: number };
 }
 
 export type InvoiceMatchStatus = "kopla" | "delvis" | "ukopla" | "ignorert";
@@ -850,6 +856,12 @@ export interface SupplierInvoice {
   ehf_storage_path: string | null;
   ehf_parsed_at: string | null;
   parse_error: string | null;
+  /** PDF-en slik den ligger i regnskapssystemet. Null når Go ikke har noen. */
+  has_pdf: boolean;
+  pdf_storage_path: string | null;
+  doc_checked_at: string | null;
+  /** Hovedbokskontoene bilaget er ført på. Tomt for fakturafiler fra grossist. */
+  account_numbers: number[];
   match_status: InvoiceMatchStatus;
   order_id: string | null;
   line_count: number;

@@ -29,11 +29,13 @@ export function HentFakturaer() {
         delvis: number;
         ukopla: number;
         duplikat?: number;
+        utanfor?: number;
         feil: string[];
       };
       setMelding(
         `${r.henta} hentet, ${r.nye} nye, ${r.kopla} koblet, ${r.ukopla} ukoblet` +
           (r.duplikat ? `, ${r.duplikat} duplikat` : "") +
+          (r.utanfor ? `, ${r.utanfor} utenfor kontofilteret` : "") +
           (r.feil.length ? ` — ${r.feil.length} feil: ${r.feil[0]}` : ""),
       );
       setFeil(r.feil.length > 0);
