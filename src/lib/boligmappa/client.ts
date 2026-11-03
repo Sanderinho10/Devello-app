@@ -30,6 +30,8 @@ export class BoligmappaFeil extends Error {
 
 export interface BmAdresse {
   id: string;
+  /** «address» eller «unit» (bruksenhet) — søket gir begge. */
+  type: string | null;
   street: string | null;
   houseNumber: string | null;
   houseSubNumber: string | null;
@@ -160,19 +162,17 @@ export async function boligmappaClient(admin: SupabaseClient, companyId: string)
 
   return {
     async sokAdresser(q: string): Promise<BmAdresse[]> {
-      const sti = `/search/addresses?q=${encodeURIComponent(q)}&limit=10`;
+      // Søket gir både adresser og bruksenheter (type «unit»), og en blokk
+      // med ti leiligheter fyller en liste på ti alene. Hent flere, og la
+      // ruta sortere adressene først. Svaret er verifisert mot staging
+      // 2026-11-03: id, type, street, houseNumber, houseSubNumber, postCode,
+      // city, detailedAddress, streetId. /addresses/{id}/properties bruker
+      // streetName, postalCode, postalPlace — begge settene tåles.
+      const sti = `/search/addresses?q=${encodeURIComponent(q)}&limit=40`;
       const { data } = await json<unknown>("GET", sti);
-      // Feltnavnene slik dokumentasjonen viser dem (streetName, postalCode,
-      // postalPlace); de gamle gjetningene tåles i tilfelle.
-      // Adresse-id-en har formen «301-15999-1-A» (dokumentasjonen); id-feltet
-      // i søketreffet kan være noe annet (enhet). Prøv de navngitte først.
       return listeEllerForklar(data, sti).map((o) => ({
-        id: String(
-          o.addressId ??
-            (o.address && typeof o.address === "object" ? (o.address as Record<string, unknown>).id : undefined) ??
-            o.id ??
-            "",
-        ),
+        id: String(o.addressId ?? o.id ?? ""),
+        type: str(o.type),
         street: str(o.streetName ?? o.street),
         houseNumber: str(o.houseNumber),
         houseSubNumber: str(o.houseSubNumber),
