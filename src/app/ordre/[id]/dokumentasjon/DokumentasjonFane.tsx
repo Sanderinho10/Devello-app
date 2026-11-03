@@ -32,7 +32,6 @@ interface OrdreInfo {
 
 interface AdresseTreff {
   id: string;
-  type?: string | null;
   tekst: string;
 }
 
@@ -349,7 +348,7 @@ function BoligmappaKort({
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState(ordre.site_address ?? "");
   const [adresser, setAdresser] = useState<AdresseTreff[] | null>(null);
-  const [eksempel, setEksempel] = useState<string | null>(null);
+  const [utenHusnummer, setUtenHusnummer] = useState(false);
   const [eigedomar, setEigedomar] = useState<EigedomTreff[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -378,7 +377,7 @@ function BoligmappaKort({
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.error ?? "Søket feilet");
       setAdresser(payload.adresser ?? []);
-      setEksempel(typeof payload.eksempel === "string" ? payload.eksempel : null);
+      setUtenHusnummer(Boolean(payload.utenHusnummer));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -501,17 +500,12 @@ function BoligmappaKort({
                   {adresser.length === 0 && <div className="empty">Ingen treff. Prøv gatenavn, nummer og sted.</div>}
                   {adresser.map((a, i) => (
                     <button key={`${a.id}-${i}`} type="button" className="ordre-velger-rad" disabled={busy} onClick={() => velgAdresse(a)}>
-                      <span className="lead-main">
-                        {a.tekst}
-                        {(a.type ?? "").toLowerCase() === "unit" && <span className="pill" style={{ marginLeft: 8 }}>Enhet</span>}
-                      </span>
-                      {/* Adresse-id-en skiller like adresser fra hverandre, og er det Boligmappa får når man velger. */}
-                      <span className="tiny muted">{a.id || "(uten id)"}</span>
+                      <span className="lead-main">{a.tekst}</span>
                     </button>
                   ))}
-                  {eksempel && (
-                    <div className="tiny muted" style={{ padding: "8px 10px", wordBreak: "break-all", whiteSpace: "pre-wrap" }}>
-                      Svar fra Boligmappa (ett treff per type): {eksempel}
+                  {utenHusnummer && (
+                    <div className="tiny muted" style={{ padding: "8px 10px" }}>
+                      Viser de første 20. Ta med husnummeret for å finne riktig adresse.
                     </div>
                   )}
                 </div>
