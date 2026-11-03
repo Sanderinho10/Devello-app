@@ -162,21 +162,24 @@ export async function boligmappaClient(admin: SupabaseClient, companyId: string)
     async sokAdresser(q: string): Promise<BmAdresse[]> {
       const sti = `/search/addresses?q=${encodeURIComponent(q)}&limit=10`;
       const { data } = await json<unknown>("GET", sti);
+      // Feltnavnene slik dokumentasjonen viser dem (streetName, postalCode,
+      // postalPlace); de gamle gjetningene tåles i tilfelle.
       return listeEllerForklar(data, sti).map((o) => ({
         id: String(o.id ?? ""),
-        street: str(o.street),
+        street: str(o.streetName ?? o.street),
         houseNumber: str(o.houseNumber),
         houseSubNumber: str(o.houseSubNumber),
-        postCode: str(o.postCode),
-        city: str(o.city),
+        postCode: str(o.postalCode ?? o.postCode ?? o.zipCode),
+        city: str(o.postalPlace ?? o.city),
         detailedAddress: str(o.detailedAddress),
         raw: o,
       }));
     },
 
     async eigedomar(addressId: string): Promise<BmEigedom[]> {
-      const { data } = await json<unknown>("GET", `/addresses/${encodeURIComponent(addressId)}/properties`);
-      return liste(data).map((o) => ({
+      const sti = `/addresses/${encodeURIComponent(addressId)}/properties`;
+      const { data } = await json<unknown>("GET", sti);
+      return listeEllerForklar(data, sti).map((o) => ({
         boligmappaNumber: String(o.boligmappaNumber ?? ""),
         propertyType: str(o.propertyType),
         unitNumber: str(o.unitNumber),
@@ -309,8 +312,8 @@ function str(v: unknown): string | null {
 function adresseTekst(a: unknown): string | null {
   if (!a || typeof a !== "object") return null;
   const o = a as Record<string, unknown>;
-  const linje = [o.street ?? o.streetName, o.houseNumber, o.houseSubNumber].filter(Boolean).join(" ");
-  const sted = [o.postCode ?? o.zipCode, o.city].filter(Boolean).join(" ");
+  const linje = [o.streetName ?? o.street, o.houseNumber, o.houseSubNumber].filter(Boolean).join(" ");
+  const sted = [o.postalCode ?? o.postCode ?? o.zipCode, o.postalPlace ?? o.city].filter(Boolean).join(" ");
   return [linje, sted].filter(Boolean).join(", ") || null;
 }
 
