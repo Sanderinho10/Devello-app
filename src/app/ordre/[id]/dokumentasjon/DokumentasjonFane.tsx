@@ -496,9 +496,11 @@ function BoligmappaKort({
               {adresser && !eigedomar && (
                 <div className="lead-list boligmappa-treff">
                   {adresser.length === 0 && <div className="empty">Ingen treff. Prøv gatenavn, nummer og sted.</div>}
-                  {adresser.map((a) => (
-                    <button key={a.id} type="button" className="ordre-velger-rad" disabled={busy} onClick={() => velgAdresse(a)}>
+                  {adresser.map((a, i) => (
+                    <button key={`${a.id}-${i}`} type="button" className="ordre-velger-rad" disabled={busy} onClick={() => velgAdresse(a)}>
                       <span className="lead-main">{a.tekst}</span>
+                      {/* Adresse-id-en skiller like adresser fra hverandre, og er det Boligmappa får når man velger. */}
+                      <span className="tiny muted">{a.id || "(uten id)"}</span>
                     </button>
                   ))}
                 </div>
