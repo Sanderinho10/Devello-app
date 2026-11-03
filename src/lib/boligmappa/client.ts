@@ -28,16 +28,23 @@ export class BoligmappaFeil extends Error {
   }
 }
 
+/** En gate fra /search/streets — slik Boligmappa sin egen søkekomponent leser den. */
+export interface BmGate {
+  id: string;
+  streetName: string;
+  postalCode: string | null;
+  postalPlace: string | null;
+  municipalityName: string | null;
+}
+
+/** En adresse fra /streets/{id}/addresses. id-en er den /addresses/{id}/properties tar. */
 export interface BmAdresse {
   id: string;
-  /** «address» eller «unit» (bruksenhet) — søket gir begge. */
-  type: string | null;
-  street: string | null;
+  streetName: string | null;
   houseNumber: string | null;
   houseSubNumber: string | null;
-  postCode: string | null;
-  city: string | null;
-  detailedAddress: string | null;
+  postalCode: string | null;
+  postalPlace: string | null;
   raw: Record<string, unknown>;
 }
 
@@ -161,26 +168,46 @@ export async function boligmappaClient(admin: SupabaseClient, companyId: string)
   }
 
   return {
-    async sokAdresser(q: string): Promise<BmAdresse[]> {
-      // Søket gir både adresser og bruksenheter (type «unit»), og en blokk
-      // med ti leiligheter fyller en liste på ti alene. Hent flere, og la
-      // ruta sortere adressene først. Svaret er verifisert mot staging
-      // 2026-11-03: id, type, street, houseNumber, houseSubNumber, postCode,
-      // city, detailedAddress, streetId. /addresses/{id}/properties bruker
-      // streetName, postalCode, postalPlace — begge settene tåles.
-      const sti = `/search/addresses?q=${encodeURIComponent(q)}&limit=40`;
+    /**
+     * Adressesøket går i to steg, slik Boligmappa sin egen søkekomponent
+     * (@boligmappa/web-component-search) gjør det: først gatene som
+     * matcher teksten, så adressene på gaten. /search/addresses gir
+     * bruksenheter med egne id-er, og de tar ikke /addresses/{id}/properties.
+     * Gater med postnummer 0000 eller uten poststed er filtrert bort, som
+     * i komponenten.
+     */
+    async sokGater(q: string): Promise<BmGate[]> {
+      const sti = `/search/streets?q=${encodeURIComponent(q)}&pagesize=10&page=1`;
       const { data } = await json<unknown>("GET", sti);
-      return listeEllerForklar(data, sti).map((o) => ({
-        id: String(o.addressId ?? o.id ?? ""),
-        type: str(o.type),
-        street: str(o.streetName ?? o.street),
-        houseNumber: str(o.houseNumber),
-        houseSubNumber: str(o.houseSubNumber),
-        postCode: str(o.postalCode ?? o.postCode ?? o.zipCode),
-        city: str(o.postalPlace ?? o.city),
-        detailedAddress: str(o.detailedAddress),
-        raw: o,
-      }));
+      return listeEllerForklar(data, sti)
+        .map((o) => ({
+          id: String(o.id ?? ""),
+          streetName: String(o.streetName ?? o.street ?? ""),
+          postalCode: str(o.postalCode),
+          postalPlace: str(o.postalPlace),
+          municipalityName: str(o.municipalityName),
+        }))
+        .filter((g) => g.id && g.streetName && g.postalCode !== "0000" && g.postalPlace);
+    },
+
+    async adresserPaaGate(streetId: string): Promise<BmAdresse[]> {
+      const ut: BmAdresse[] = [];
+      for (let side = 1; side <= 5; side++) {
+        const sti = `/streets/${encodeURIComponent(streetId)}/addresses?pagesize=100&page=${side}`;
+        const { data } = await json<unknown>("GET", sti);
+        const del = listeEllerForklar(data, sti).map((o) => ({
+          id: String(o.id ?? ""),
+          streetName: str(o.streetName),
+          houseNumber: str(o.houseNumber),
+          houseSubNumber: str(o.houseSubNumber),
+          postalCode: str(o.postalCode),
+          postalPlace: str(o.postalPlace),
+          raw: o,
+        }));
+        ut.push(...del.filter((a) => a.id));
+        if (del.length < 100) break;
+      }
+      return ut;
     },
 
     async eigedomar(addressId: string): Promise<BmEigedom[]> {
