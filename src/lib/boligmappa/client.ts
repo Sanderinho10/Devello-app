@@ -386,9 +386,23 @@ function listeEllerForklar(svar: unknown, sti: string): Record<string, unknown>[
 
 function tilTypar(svar: unknown): BmType[] {
   return liste(svar)
+    // Verifisert mot staging 2026-11-03: chapterTags har { id, tagName,
+    // tagDescription }. De andre listene tåles i flere varianter.
     .map((o) => ({
       id: Number(o.id ?? o.typeId ?? o.code),
-      name: String(o.name ?? o.title ?? o.description ?? o.label ?? o.text ?? ""),
+      name: String(
+        o.tagName ??
+          o.name ??
+          o.typeName ??
+          o.documentTypeName ??
+          o.professionTypeName ??
+          o.professionName ??
+          o.title ??
+          o.description ??
+          o.label ??
+          o.text ??
+          "",
+      ),
     }))
     .filter((t) => Number.isFinite(t.id) && t.name);
 }
@@ -412,6 +426,8 @@ export function velgType(typer: BmType[], namn: string, fallback?: string): BmTy
   return (
     typer.find((t) => t.name.trim().toLowerCase() === n) ??
     typer.find((t) => t.name.toLowerCase().includes(n)) ??
+    // «Samsvarserklæringer og garantibevis» i malen mot «Samsvarserklæringer» hos Boligmappa.
+    typer.find((t) => t.name.trim().length >= 6 && n.includes(t.name.trim().toLowerCase())) ??
     (fallback ? typer.find((t) => t.name.toLowerCase().includes(fallback.toLowerCase())) ?? null : null) ??
     typer[0] ??
     null
