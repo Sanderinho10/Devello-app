@@ -225,14 +225,21 @@ export async function boligmappaClient(admin: SupabaseClient, companyId: string)
 
     /** Plant for eiendommen: opprett, eller hent den som finnes (409). */
     async finnEllerOpprettPlant(boligmappaNumber: string): Promise<number> {
-      const opprett = await json<Record<string, unknown>>("POST", "/plants", { boligmappaNumber }, [409]);
-      if (opprett.status !== 409 && opprett.data) {
-        const id = Number(opprett.data.plantId ?? opprett.data.id);
-        if (Number.isFinite(id)) return id;
+      // Svarene er pakket som { success, response: {…} } (verifisert mot
+      // staging for adresser og eiendommer); objekt() pakker ut.
+      const opprett = await json<unknown>("POST", "/plants", { boligmappaNumber }, [409]);
+      if (opprett.status !== 409) {
+        const id = plantId(objekt(opprett.data));
+        if (id !== null) return id;
       }
-      const hent = await json<Record<string, unknown>>("GET", `/plants/${encodeURIComponent(boligmappaNumber)}`);
-      const id = Number(hent.data?.plantId ?? hent.data?.id);
-      if (!Number.isFinite(id)) throw new BoligmappaFeil("Boligmappa svarte uten plant-id.", 502);
+      const hent = await json<unknown>("GET", `/plants/${encodeURIComponent(boligmappaNumber)}`);
+      const id = plantId(objekt(hent.data));
+      if (id === null) {
+        throw new BoligmappaFeil(
+          `Boligmappa svarte uten plant-id. POST /plants → ${opprett.status}: ${kort(opprett.data)}; GET /plants/${boligmappaNumber} → ${hent.status}: ${kort(hent.data)}`,
+          502,
+        );
+      }
       return id;
     },
 
@@ -265,7 +272,7 @@ export async function boligmappaClient(admin: SupabaseClient, companyId: string)
       bytes: Buffer,
       contentType: string,
     ): Promise<string> {
-      const { data } = await json<Record<string, unknown>>("POST", `/plants/${encodeURIComponent(boligmappaNumber)}/files`, {
+      const { data: raa } = await json<unknown>("POST", `/plants/${encodeURIComponent(boligmappaNumber)}/files`, {
         fileName: meta.fileName,
         title: meta.title,
         description: meta.description,
@@ -276,9 +283,12 @@ export async function boligmappaClient(admin: SupabaseClient, companyId: string)
         documentType: { id: meta.documentTypeId },
         rooms: [],
       });
-      const id = data?.id !== undefined ? String(data.id) : null;
-      const uploadLink = str(data?.uploadLink);
-      if (!id || !uploadLink) throw new BoligmappaFeil("Boligmappa svarte uten opplastingslenke.", 502);
+      const data = objekt(raa);
+      const id = data?.id !== undefined ? String(data.id) : data?.fileId !== undefined ? String(data.fileId) : null;
+      const uploadLink = str(data?.uploadLink ?? data?.uploadUrl ?? data?.url);
+      if (!id || !uploadLink) {
+        throw new BoligmappaFeil(`Boligmappa svarte uten opplastingslenke: ${kort(raa)}`, 502);
+      }
       const put = await fetch(uploadLink, { method: "PUT", headers: { "Content-Type": contentType }, body: new Uint8Array(bytes) });
       if (!put.ok) throw new BoligmappaFeil(`Opplastingen til Boligmappa feilet (${put.status}).`, 502);
       return id;
@@ -295,6 +305,35 @@ function forklar(status: number, tekst: string, hvor: string): string {
 }
 
 const LISTENØKLAR = ["data", "items", "results", "result", "value", "response", "addresses", "properties", "content"];
+
+/** Ett objekt ut av svaret: { success, response: {…} } → {…}; en liste → første. */
+function objekt(svar: unknown): Record<string, unknown> | null {
+  if (!svar || typeof svar !== "object") return null;
+  if (Array.isArray(svar)) return (svar[0] as Record<string, unknown>) ?? null;
+  const o = svar as Record<string, unknown>;
+  for (const k of ["response", "data", "result"]) {
+    const indre = o[k];
+    if (Array.isArray(indre)) return (indre[0] as Record<string, unknown>) ?? null;
+    if (indre && typeof indre === "object") return indre as Record<string, unknown>;
+  }
+  return o;
+}
+
+function plantId(o: Record<string, unknown> | null): number | null {
+  if (!o) return null;
+  const id = Number(o.plantId ?? o.id);
+  return Number.isFinite(id) && id > 0 ? id : null;
+}
+
+/** De første 300 tegnene av et svar, til feilmeldinger. */
+function kort(svar: unknown): string {
+  if (svar === null || svar === undefined) return "(tomt)";
+  try {
+    return JSON.stringify(svar).slice(0, 300);
+  } catch {
+    return String(svar).slice(0, 300);
+  }
+}
 
 function liste(svar: unknown): Record<string, unknown>[] {
   if (Array.isArray(svar)) return svar as Record<string, unknown>[];
