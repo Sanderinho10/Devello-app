@@ -21,6 +21,9 @@ export async function GET(request: NextRequest) {
         id: a.id,
         tekst: a.detailedAddress ?? [[a.street, a.houseNumber, a.houseSubNumber].filter(Boolean).join(" "), [a.postCode, a.city].filter(Boolean).join(" ")].filter(Boolean).join(", "),
       })),
+      // Første treff slik Boligmappa sendte det — til vi har sett formen på
+      // svaret i staging. Fjernes når feltnavnene er bekreftet.
+      eksempel: adresser[0] ? JSON.stringify(adresser[0].raw).slice(0, 600) : null,
     });
   } catch (err) {
     return errorResponse(err, err instanceof BoligmappaFeil ? (err.status === 401 || err.status === 400 ? 400 : 502) : 500);

@@ -164,8 +164,15 @@ export async function boligmappaClient(admin: SupabaseClient, companyId: string)
       const { data } = await json<unknown>("GET", sti);
       // Feltnavnene slik dokumentasjonen viser dem (streetName, postalCode,
       // postalPlace); de gamle gjetningene tåles i tilfelle.
+      // Adresse-id-en har formen «301-15999-1-A» (dokumentasjonen); id-feltet
+      // i søketreffet kan være noe annet (enhet). Prøv de navngitte først.
       return listeEllerForklar(data, sti).map((o) => ({
-        id: String(o.id ?? ""),
+        id: String(
+          o.addressId ??
+            (o.address && typeof o.address === "object" ? (o.address as Record<string, unknown>).id : undefined) ??
+            o.id ??
+            "",
+        ),
         street: str(o.streetName ?? o.street),
         houseNumber: str(o.houseNumber),
         houseSubNumber: str(o.houseSubNumber),

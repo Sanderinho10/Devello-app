@@ -348,6 +348,7 @@ function BoligmappaKort({
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState(ordre.site_address ?? "");
   const [adresser, setAdresser] = useState<AdresseTreff[] | null>(null);
+  const [eksempel, setEksempel] = useState<string | null>(null);
   const [eigedomar, setEigedomar] = useState<EigedomTreff[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -376,6 +377,7 @@ function BoligmappaKort({
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.error ?? "Søket feilet");
       setAdresser(payload.adresser ?? []);
+      setEksempel(typeof payload.eksempel === "string" ? payload.eksempel : null);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -503,6 +505,11 @@ function BoligmappaKort({
                       <span className="tiny muted">{a.id || "(uten id)"}</span>
                     </button>
                   ))}
+                  {eksempel && (
+                    <div className="tiny muted" style={{ padding: "8px 10px", wordBreak: "break-all" }}>
+                      Svar fra Boligmappa (første treff): {eksempel}
+                    </div>
+                  )}
                 </div>
               )}
               {eigedomar && (
