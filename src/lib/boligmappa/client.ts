@@ -160,8 +160,9 @@ export async function boligmappaClient(admin: SupabaseClient, companyId: string)
 
   return {
     async sokAdresser(q: string): Promise<BmAdresse[]> {
-      const { data } = await json<unknown>("GET", `/search/addresses?q=${encodeURIComponent(q)}&limit=10`);
-      return liste(data).map((o) => ({
+      const sti = `/search/addresses?q=${encodeURIComponent(q)}&limit=10`;
+      const { data } = await json<unknown>("GET", sti);
+      return listeEllerForklar(data, sti).map((o) => ({
         id: String(o.id ?? ""),
         street: str(o.street),
         houseNumber: str(o.houseNumber),
@@ -256,13 +257,42 @@ function forklar(status: number, tekst: string, hvor: string): string {
   return `Boligmappa svarte ${status}${kort ? `: ${kort}` : ""}`;
 }
 
+const LISTENØKLAR = ["data", "items", "results", "result", "value", "response", "addresses", "properties", "content"];
+
 function liste(svar: unknown): Record<string, unknown>[] {
   if (Array.isArray(svar)) return svar as Record<string, unknown>[];
   if (svar && typeof svar === "object") {
     const o = svar as Record<string, unknown>;
-    for (const k of ["data", "items", "results", "value"]) if (Array.isArray(o[k])) return o[k] as Record<string, unknown>[];
+    for (const k of LISTENØKLAR) if (Array.isArray(o[k])) return o[k] as Record<string, unknown>[];
+    // Ett nivå til: { data: { addresses: [...] } } og { response: { items: [...] } }.
+    for (const k of LISTENØKLAR) {
+      const indre = o[k];
+      if (indre && typeof indre === "object" && !Array.isArray(indre)) {
+        const i = indre as Record<string, unknown>;
+        for (const k2 of LISTENØKLAR) if (Array.isArray(i[k2])) return i[k2] as Record<string, unknown>[];
+      }
+    }
   }
   return [];
+}
+
+/**
+ * Som liste(), men et svar med innhold vi ikke kjenner formen på blir en
+ * feil som sier hva Boligmappa sendte — ikke et stille «Ingen treff».
+ * Tom liste og tomt svar er fortsatt ingen treff.
+ */
+function listeEllerForklar(svar: unknown, sti: string): Record<string, unknown>[] {
+  const ut = liste(svar);
+  if (ut.length > 0 || svar === null || svar === undefined) return ut;
+  if (Array.isArray(svar)) return ut;
+  if (svar && typeof svar === "object") {
+    const o = svar as Record<string, unknown>;
+    const tomListe = LISTENØKLAR.some((k) => Array.isArray(o[k]));
+    if (tomListe) return ut;
+    const kort = JSON.stringify(svar).slice(0, 300);
+    throw new BoligmappaFeil(`Boligmappa svarte i et format vi ikke kjenner på ${sti}: ${kort}`, 502);
+  }
+  return ut;
 }
 
 function tilTypar(svar: unknown): BmType[] {
