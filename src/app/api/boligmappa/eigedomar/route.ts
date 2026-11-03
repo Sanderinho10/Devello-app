@@ -26,6 +26,10 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (err) {
-    return errorResponse(err, err instanceof BoligmappaFeil ? (err.status === 401 || err.status === 400 ? 400 : 502) : 500);
+    // Id-en inn i meldingen: «ugyldige tegn» fra Boligmappa sier ingenting
+    // uten å vise hva vi faktisk sendte.
+    const id = (request.nextUrl.searchParams.get("addressId") ?? "").trim();
+    const m = `${err instanceof Error ? err.message : String(err)} (adresse-id «${id}»)`;
+    return errorResponse(new Error(m), err instanceof BoligmappaFeil ? (err.status === 401 || err.status === 400 ? 400 : 502) : 500);
   }
 }
