@@ -165,7 +165,12 @@ export async function sendTilBoligmappa(
     const dokType = velgType(typer.documentTypes, mal?.boligmappa.documentTypeName ?? "Undefinert", "Annet");
     const fag = velgType(typer.professionTypes, fagNamn);
     if (!kapittel || !dokType || !fag) {
-      return { ok: false, error: "Fant ikke kapittel, dokumenttype eller fag i Boligmappa.", status: 502 };
+      const mangler = [!kapittel && "kapittel", !dokType && "dokumenttype", !fag && "fag"].filter(Boolean).join(", ");
+      return {
+        ok: false,
+        error: `Fant ikke ${mangler} i Boligmappa. Lette etter «${valg.chapterTagName ?? mal?.boligmappa.chapterTagName ?? "Samsvarserklæringer"}», «${mal?.boligmappa.documentTypeName ?? "Undefinert"}», «${fagNamn}». Boligmappa har kapitler: ${typer.chapterTags.slice(0, 8).map((t) => t.name).join(", ") || "(ingen)"}; fag: ${typer.professionTypes.slice(0, 8).map((t) => t.name).join(", ") || "(ingen)"}.`,
+        status: 502,
+      };
     }
 
     const { data: fil, error: nedlastFeil } = await admin.storage.from(BUCKET).download(sti);

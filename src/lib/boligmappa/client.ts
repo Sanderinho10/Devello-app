@@ -253,6 +253,19 @@ export async function boligmappaClient(admin: SupabaseClient, companyId: string)
         json<unknown>("GET", "/types/professionTypes"),
       ]);
       const typer = { documentTypes: tilTypar(d.data), chapterTags: tilTypar(c.data), professionTypes: tilTypar(p.data) };
+      // En tom liste er ikke noe å cache — og ikke noe å gjette på. Si
+      // hva Boligmappa faktisk svarte, så stien eller feltnavnene kan rettes.
+      const tomme = [
+        ["documentTypes", typer.documentTypes, d.data],
+        ["chapterTags", typer.chapterTags, c.data],
+        ["professionTypes", typer.professionTypes, p.data],
+      ].filter(([, t]) => (t as BmType[]).length === 0) as [string, BmType[], unknown][];
+      if (tomme.length) {
+        throw new BoligmappaFeil(
+          `Boligmappa ga ingen ${tomme.map(([n]) => n).join(", ")}. Svar: ${tomme.map(([n, , r]) => `/types/${n} → ${kort(r)}`).join("; ")}`,
+          502,
+        );
+      }
       typeCache.set(key, { henta: Date.now(), typer });
       return typer;
     },
@@ -373,7 +386,10 @@ function listeEllerForklar(svar: unknown, sti: string): Record<string, unknown>[
 
 function tilTypar(svar: unknown): BmType[] {
   return liste(svar)
-    .map((o) => ({ id: Number(o.id), name: String(o.name ?? o.title ?? "") }))
+    .map((o) => ({
+      id: Number(o.id ?? o.typeId ?? o.code),
+      name: String(o.name ?? o.title ?? o.description ?? o.label ?? o.text ?? ""),
+    }))
     .filter((t) => Number.isFinite(t.id) && t.name);
 }
 
