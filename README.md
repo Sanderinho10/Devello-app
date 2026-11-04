@@ -99,6 +99,7 @@ Eller lim inn migrasjonene i SQL-editoren i rekkefølge, så `seed.sql`.
 | `0046_montorapp.sql` | `client_id` på timer/materiell/dokument (idempotens), `order_notes`, `order_documents.note_id`, GTIN-treff i `sok_grossistvarer` |
 | `0047_prismodell.sql` | éi pakke per selskap (`package_id`, `billing_interval`, `included_units`, `unit_prices`, app-brukarar), `usage_events.kind/user_id/period_start`, `companies.moduler_overstyrt` |
 | `0063_fjern_invitasjonstrigger.sql` | Fjerner `handle_new_user`-triggeren — invitasjoner kobles i API-et, ikke når auth-brukeren opprettes |
+| `0064_invitasjon_namn_lesbart.sql` | `fornavn`/`etternavn` på invitasjonar lesbare for kollegaer — utan dei vart ventande invitasjonar aldri viste |
 | `0048_tilbudsnummer.sql` | løpenummer på tilbud: `companies.next_quote_no`, `drafts.company_id/quote_no`, `neste_tilbudsnummer()`, `tildel_tilbudsnummer()`; eksisterende tilbud nummerert i rekkefølge |
 | `0049_kunderegister.sql` | kunderegister: `customers` (RLS lesing per selskap), `customer_id` på `leads` og `orders`, `finn_eller_opprett_kunde()`; eksisterende tilbud og ordrer koblet på e-post og navn |
 | `0060_fakturapdf_og_konto.sql` | leverandørfakturaer: `has_pdf`, `pdf_storage_path`, `doc_checked_at` (PDF-en fra Go) og `account_numbers` (konteringen, til kontofilteret 4000–4999 i `accounting_connections.settings.account_filter`) |
