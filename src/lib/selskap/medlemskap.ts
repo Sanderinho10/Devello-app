@@ -111,8 +111,15 @@ export async function harBrukerIAnnetSelskap(admin: SupabaseClient, email: strin
 
 /** Har brukeren med denne adressen alt medlemskap i selskapet? */
 export async function erMedlem(admin: SupabaseClient, email: string, companyId: string): Promise<boolean> {
+  const id = await medlemsId(admin, email, companyId);
+  if (!id) return false;
+  // Aldri logga inn = invitert, ikkje medlem. Sjå harLoggaInn.
+  return harLoggaInn(admin, id);
+}
+
+async function medlemsId(admin: SupabaseClient, email: string, companyId: string): Promise<string | null> {
   const { data: finst } = await admin.from("users").select("id, company_id").ilike("email", email.trim()).maybeSingle();
-  if (!finst) return false;
+  if (!finst) return null;
   if (finst.company_id === companyId) {
     // Før 0056 er users.company_id hele svaret. Etterpå kan raden være en
     // ny invitert fra triggeren — da er medlemskapet det som avgjør.
@@ -122,7 +129,18 @@ export async function erMedlem(admin: SupabaseClient, email: string, companyId: 
       .eq("user_id", finst.id)
       .eq("company_id", companyId)
       .maybeSingle();
-    return error ? true : Boolean(m);
+    return error || m ? (finst.id as string) : null;
   }
-  return (await mineSelskap(admin, finst.id as string)).some((s) => s.id === companyId);
+  return (await mineSelskap(admin, finst.id as string)).some((s) => s.id === companyId) ? (finst.id as string) : null;
+}
+
+/**
+ * Har brukaren med denne adressen nokon gong logga inn? Ein brukar som aldri
+ * har det, vart oppretta av den gamle Supabase-invitasjonen og har ikkje valt
+ * passord. Dei skal kunne inviterast på nytt.
+ */
+export async function harLoggaInn(admin: SupabaseClient, userId: string): Promise<boolean> {
+  const { data, error } = await admin.auth.admin.getUserById(userId);
+  if (error || !data.user) return true; // ved tvil: rør ikkje ein ekte brukar
+  return Boolean(data.user.last_sign_in_at);
 }

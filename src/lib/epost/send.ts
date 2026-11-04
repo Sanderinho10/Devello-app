@@ -121,5 +121,10 @@ export function epostRamme(innhold: {
 }
 
 function stripHtml(s: string): string {
-  return s.replace(/<[^>]+>/g, "");
+  return s
+    .replace(/<[^>]+>/g, "")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&");
 }

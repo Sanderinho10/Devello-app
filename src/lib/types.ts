@@ -92,6 +92,11 @@ export interface Member {
   email: string;
   full_name: string | null;
   role: UserRole;
+  /**
+   * Har aldri logga inn. Gamle invitasjonar via Supabase oppretta brukaren
+   * med ein gong, før personen hadde valt passord — dei er ikkje aktive enno.
+   */
+  aldri_innlogga?: boolean;
 }
 
 export interface Invitation {

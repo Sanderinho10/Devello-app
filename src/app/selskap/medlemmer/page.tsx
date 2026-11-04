@@ -1,6 +1,6 @@
 import { Members } from "./Members";
-import { brukereISelskap } from "@/lib/selskap/medlemskap";
-import { currentSession, supabaseServer } from "@/lib/supabase/server";
+import { brukereISelskap, harLoggaInn } from "@/lib/selskap/medlemskap";
+import { currentSession, supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import type { Invitation, Member } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +22,12 @@ export default async function MedlemmerPage() {
       .order("created_at", { ascending: false }),
   ]);
 
+  // Kven har aldri logga inn? Dei står som invitert, ikkje aktiv.
+  const admin = supabaseAdmin();
+  const medStatus: Member[] = await Promise.all(
+    (members ?? []).map(async (m) => ({ ...(m as Member), aldri_innlogga: !(await harLoggaInn(admin, m.id)) })),
+  );
+
   const me = (members ?? []).find((member) => member.id === session!.userId);
 
   return (
@@ -34,7 +40,7 @@ export default async function MedlemmerPage() {
       </div>
 
       <Members
-        members={(members ?? []) as Member[]}
+        members={medStatus}
         invitations={(invitations ?? []) as Invitation[]}
         isAdmin={me?.role === "admin"}
       />
