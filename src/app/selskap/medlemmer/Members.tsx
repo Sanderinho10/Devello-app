@@ -41,6 +41,8 @@ export function Members({
   // på nytt — e-posten er ikke til å stole på alene, se kommentaren i
   // /api/invitations.
   const [link, setLink] = useState<string | null>(null);
+  const [sendt, setSendt] = useState(false);
+  const [sender, setSender] = useState<string | null>(null);
   const [kopiert, setKopiert] = useState(false);
 
   function aapne() {
@@ -68,6 +70,7 @@ export function Members({
 
       setOpen(false);
       setLink(payload.link ?? null);
+      setSendt(Boolean(payload.sendt));
       setKopiert(false);
       if (payload.warning) setWarning(payload.warning);
       router.refresh();
@@ -75,6 +78,36 @@ export function Members({
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
+    }
+  }
+
+  // Ny invitasjon til samme adresse erstatter den gamle, så «send på nytt»
+  // er bare en ny invitasjon med de samme opplysningene.
+  async function sendPaaNytt(invitation: Invitation) {
+    setSender(invitation.id);
+    setWarning(null);
+    try {
+      const res = await fetch("/api/invitations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fornavn: invitation.fornavn,
+          etternavn: invitation.etternavn,
+          email: invitation.email,
+          role: invitation.role,
+        }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error ?? "Kunne ikke sende på nytt");
+      setLink(payload.link ?? null);
+      setSendt(Boolean(payload.sendt));
+      setKopiert(false);
+      if (payload.warning) setWarning(payload.warning);
+      router.refresh();
+    } catch (err) {
+      setWarning(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSender(null);
     }
   }
 
@@ -106,8 +139,9 @@ export function Members({
       {link && (
         <div className="banner info">
           <div style={{ marginBottom: 8 }}>
-            Invitasjonen er sendt på e-post. Kommer den ikke fram — eller virker ikke lenken i den — send denne i
-            stedet. Den virker like godt i en melding eller en SMS.
+            {sendt
+              ? "Invitasjonen er sendt på e-post. Kommer den ikke fram, send denne lenken i stedet — den virker like godt i en melding eller en SMS."
+              : "Send denne lenken til personen, for eksempel på SMS."}
           </div>
           <div className="row" style={{ gap: 8, alignItems: "center" }}>
             <input className="input" readOnly value={link} onFocus={(e) => e.target.select()} />
@@ -166,9 +200,19 @@ export function Members({
                   </td>
                   <td className="handling">
                     {isAdmin && (
-                      <button type="button" className="button ghost" onClick={() => withdraw(invitation)}>
-                        Trekk
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          className="button ghost"
+                          disabled={sender === invitation.id}
+                          onClick={() => sendPaaNytt(invitation)}
+                        >
+                          {sender === invitation.id ? "Sender…" : "Send på nytt"}
+                        </button>
+                        <button type="button" className="button ghost" onClick={() => withdraw(invitation)}>
+                          Trekk
+                        </button>
+                      </>
                     )}
                   </td>
                 </tr>
