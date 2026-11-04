@@ -19,7 +19,12 @@ export default async function MedlemmerPage() {
       .from("invitations")
       .select("id, email, fornavn, etternavn, role, accepted_at, expires_at, created_at")
       .is("accepted_at", null)
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false })
+      .then((r) => {
+        // Ein feil her gir ei tom liste som ser riktig ut. Sjå 0064.
+        if (r.error) console.error(`medlemmer: kunne ikkje hente invitasjonar: ${r.error.message}`);
+        return r;
+      }),
   ]);
 
   // Kven har aldri logga inn? Dei står som invitert, ikkje aktiv.
