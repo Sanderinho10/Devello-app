@@ -97,9 +97,9 @@ export async function brukereISelskap(client: SupabaseClient, companyId: string)
  * selskap enn `companyId`? Da er personen en eksisterende bruker som skal
  * legges til, ikke en ny som skal velge passord.
  *
- * En helt ny invitert kan også ha en users-rad: triggeren i 0010 lager den
- * når Supabase sin invitasjonsmail oppretter auth-brukeren. Men den raden
- * peker på det inviterende selskapet, så den teller ikke her.
+ * En invitert fra før overgangen til Resend kan også ha en users-rad, laget
+ * da Supabase opprettet auth-brukeren. Den raden peker på det inviterende
+ * selskapet, så den teller ikke her.
  */
 export async function harBrukerIAnnetSelskap(admin: SupabaseClient, email: string, companyId: string): Promise<boolean> {
   const { data: finst } = await admin.from("users").select("id, company_id").ilike("email", email.trim()).maybeSingle();
@@ -121,8 +121,8 @@ async function medlemsId(admin: SupabaseClient, email: string, companyId: string
   const { data: finst } = await admin.from("users").select("id, company_id").ilike("email", email.trim()).maybeSingle();
   if (!finst) return null;
   if (finst.company_id === companyId) {
-    // Før 0056 er users.company_id hele svaret. Etterpå kan raden være en
-    // ny invitert fra triggeren — da er medlemskapet det som avgjør.
+    // Før 0056 er users.company_id hele svaret. Etterpå er det medlemskapet
+    // som avgjør.
     const { data: m, error } = await admin
       .from("company_memberships")
       .select("user_id")
