@@ -4,8 +4,9 @@ import { OrdreBeskrivelse } from "./OrdreBeskrivelse";
 import { OrdreKunde, type Kundekort } from "./OrdreKunde";
 import { hovedadresse } from "@/lib/kunder/adresse";
 import { OrdreAnsvar } from "./OrdreAnsvar";
+import { OrdrePlan } from "./OrdrePlan";
 import { brukereISelskap } from "@/lib/selskap/medlemskap";
-import { hentOrdre } from "@/lib/ordre/hent";
+import { hentOrdre, ordreErLaast } from "@/lib/ordre/hent";
 import { summerMateriell, summerTimar } from "@/lib/ordre/summering";
 import { supabaseServer } from "@/lib/supabase/server";
 import {
@@ -246,6 +247,17 @@ export default async function OrdreSide({
           hovedansvarligId={ordre.hovedansvarlig_id}
           forslag={forslag}
           kolleger={kolleger}
+        />
+
+        <OrdrePlan
+          ordre={{
+            id: ordre.id,
+            order_no: ordre.order_no,
+            title: ordre.title,
+            customer_name: ordre.customer_name,
+            site_address: ordre.site_address,
+          }}
+          laast={ordreErLaast(ordre)}
         />
 
         <div className="card ordre-hendelser">

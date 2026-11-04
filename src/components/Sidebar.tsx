@@ -11,7 +11,7 @@ import { harModul } from "@/lib/moduler";
 /**
  * Navigasjon etter hvor ofte man er der.
  *
- * Over skillelinjen står det daglige: Tilbud, Ordre og Register — bare
+ * Over skillelinjen står det daglige: Tilbud, Ordre, Kalender og Register — bare
  * hovedoverskriftene. Undersidene (som kontakter, leverandørfakturaer og
  * grossister under Register) er faner inne på siden, ikke i menyen, så
  * menyen holder seg kort.
@@ -72,6 +72,16 @@ const ORDRE: NavSection = {
   tabs: [],
 };
 
+/** Hvem er hvor: oppdrag, møter og fravær. Hører til ordremodulen. */
+const KALENDER: NavSection = {
+  key: "kalender",
+  label: "Kalender",
+  icon: "◷",
+  basePath: "/kalender",
+  href: "/kalender",
+  tabs: [],
+};
+
 /** Registrene. Fanene (kontakter, leverandørfakturaer, grossister) står på siden — se app/register. */
 const REGISTER: NavSection = {
   key: "register",
@@ -85,7 +95,7 @@ const REGISTER: NavSection = {
 /** Det daglige, i rekkefølgen jobben går: startsiden, tilbud → ordre, og registrene. */
 function agentSections(moduler: string[]): NavSection[] {
   const sections = [DASHBOARD, TILBUD];
-  if (harModul(moduler, "ordre")) sections.push(ORDRE);
+  if (harModul(moduler, "ordre")) sections.push(ORDRE, KALENDER);
   sections.push(REGISTER);
   return sections;
 }
