@@ -83,7 +83,7 @@ export function Members({
 
   // Ny invitasjon til samme adresse erstatter den gamle, så «send på nytt»
   // er bare en ny invitasjon med de samme opplysningene.
-  async function sendPaaNytt(invitation: Invitation) {
+  async function sendPaaNytt(invitation: Pick<Invitation, "id" | "email" | "fornavn" | "etternavn" | "role">) {
     setSender(invitation.id);
     setWarning(null);
     try {
@@ -117,7 +117,13 @@ export function Members({
     router.refresh();
   }
 
-  const pending = invitations.filter((invitation) => !invitation.accepted_at);
+  // Den som alt står i lista som invitert (brukar utan innlogging), skal ikkje
+  // stå ein gong til fordi invitasjonen vart send på nytt.
+  const iLista = new Set(members.map((m) => m.email.toLowerCase()));
+  const pending = invitations.filter(
+    (invitation) => !invitation.accepted_at && !iLista.has(invitation.email.toLowerCase()),
+  );
+  const aktive = members.filter((m) => !m.aldri_innlogga).length;
   const kanSende = fornavn.trim() && etternavn.trim() && email.trim();
 
   return (
@@ -129,8 +135,8 @@ export function Members({
           </button>
         )}
         <span className="verktoylinje-hoyre tiny muted">
-          {members.length} {members.length === 1 ? "medlem" : "medlemmer"}
-          {pending.length > 0 && ` · ${pending.length} invitert`}
+          {aktive} {aktive === 1 ? "medlem" : "medlemmer"}
+          {pending.length + members.length - aktive > 0 && ` · ${pending.length + members.length - aktive} invitert`}
         </span>
       </div>
 
@@ -179,9 +185,35 @@ export function Members({
                 <td className="meta">{member.email}</td>
                 <td className="meta">{USER_ROLE_LABELS[member.role]}</td>
                 <td className="meta">
-                  <span className="pill ferdig">Aktiv</span>
+                  {member.aldri_innlogga ? (
+                    <span className="pill utkast_klar" title="Har ikkje valt passord og logga inn enno">
+                      Invitert
+                    </span>
+                  ) : (
+                    <span className="pill ferdig">Aktiv</span>
+                  )}
                 </td>
-                <td className="handling" />
+                <td className="handling">
+                  {isAdmin && member.aldri_innlogga && (
+                    <button
+                      type="button"
+                      className="button ghost"
+                      disabled={sender === member.id}
+                      onClick={() => {
+                        const [forste, ...resten] = (member.full_name ?? "").trim().split(/\s+/);
+                        sendPaaNytt({
+                          id: member.id,
+                          email: member.email,
+                          fornavn: forste || member.email.split("@")[0],
+                          etternavn: resten.join(" ") || "-",
+                          role: member.role,
+                        });
+                      }}
+                    >
+                      {sender === member.id ? "Sender…" : "Send på nytt"}
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
 
