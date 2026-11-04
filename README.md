@@ -98,6 +98,7 @@ Eller lim inn migrasjonene i SQL-editoren i rekkefølge, så `seed.sql`.
 | `0045_fakturafiler_fra_grossist.sql` | `supplier_invoice_files` (fakturafiler fra FTP), `supplier_invoices.source/supplier_id/file_id/duplicate_of`, fakturafil-mønster på `supplier_ftp` |
 | `0046_montorapp.sql` | `client_id` på timer/materiell/dokument (idempotens), `order_notes`, `order_documents.note_id`, GTIN-treff i `sok_grossistvarer` |
 | `0047_prismodell.sql` | éi pakke per selskap (`package_id`, `billing_interval`, `included_units`, `unit_prices`, app-brukarar), `usage_events.kind/user_id/period_start`, `companies.moduler_overstyrt` |
+| `0063_fjern_invitasjonstrigger.sql` | Fjerner `handle_new_user`-triggeren — invitasjoner kobles i API-et, ikke når auth-brukeren opprettes |
 | `0048_tilbudsnummer.sql` | løpenummer på tilbud: `companies.next_quote_no`, `drafts.company_id/quote_no`, `neste_tilbudsnummer()`, `tildel_tilbudsnummer()`; eksisterende tilbud nummerert i rekkefølge |
 | `0049_kunderegister.sql` | kunderegister: `customers` (RLS lesing per selskap), `customer_id` på `leads` og `orders`, `finn_eller_opprett_kunde()`; eksisterende tilbud og ordrer koblet på e-post og navn |
 | `0060_fakturapdf_og_konto.sql` | leverandørfakturaer: `has_pdf`, `pdf_storage_path`, `doc_checked_at` (PDF-en fra Go) og `account_numbers` (konteringen, til kontofilteret 4000–4999 i `accounting_connections.settings.account_filter`) |
@@ -223,9 +224,10 @@ selskaper allerede på steg 1, så feilen kommer der den hører hjemme. Nummeret
 lagres normalisert (bare sifre), og en unik indeks sammenligner på sifrene, slik
 at «912 345 678» og «912345678» er samme selskap.
 
-Selskapstilhørighet kommer nå fra invitasjoner. Databasetriggeren
-`handle_new_user` slår opp en åpen invitasjon på e-postadressen når en ny bruker
-logger inn første gang. Finnes ingen, skjer ingenting — en ukjent bruker skal
+Selskapstilhørighet kommer fra registreringen eller fra invitasjoner. Invitasjonen
+sendes på e-post via Resend med lenke til `/invitasjon/[token]`; den inviterte
+blir medlem først når de velger passord (`/api/invitations/aktiver`). Den gamle
+databasetriggeren `handle_new_user` er fjernet i `0063` — en ukjent bruker skal
 ikke havne i et tilfeldig selskap.
 
 > **E-postbekreftelse** er styrt av `AUTH_REQUIRE_EMAIL_CONFIRMATION`. Står den

@@ -14,10 +14,9 @@ import {
 /**
  * Medlemmer og åpne invitasjoner, i én tabell som i Go.
  *
- * Invitasjonen kobles til selskapet på e-postadressen når den inviterte logger
- * inn første gang — se databasetriggeren i 0010 og 0055. Derfor står raden
- * igjen som «invitert» til det skjer, og ikke bare til e-posten er sendt.
- * Navnet skrives ved invitasjonen og følger med inn på brukeren.
+ * Den inviterte blir medlem når de velger passord (/api/invitations/aktiver)
+ * eller godtar innlogget (/api/invitations/godta). Til da står de som
+ * «invitert». Navnet skrives ved invitasjonen og følger med inn på brukeren.
  */
 export function Members({
   members,

@@ -73,11 +73,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Brukeren kan finnes fra før: invitasjonsmailen fra Supabase oppretter
-    // en auth-bruker med én gang, uten passord. Da setter vi passordet på
-    // den i stedet for å lage en ny.
-    const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
-    const eksisterende = list?.users.find((u) => u.email?.toLowerCase() === email);
+    // Brukeren kan finnes fra før: invitasjoner sendt før vi gikk over til
+    // Resend, opprettet en auth-bruker med én gang, uten passord. Da setter vi
+    // passordet på den i stedet for å lage en ny.
+    const { data: rad } = await admin.from("users").select("id").ilike("email", email).maybeSingle();
+    const eksisterende = rad ? (await admin.auth.admin.getUserById(rad.id as string)).data.user : null;
 
     let userId: string;
     if (eksisterende) {
@@ -101,9 +101,7 @@ export async function POST(request: NextRequest) {
       userId = created.user.id;
     }
 
-    // Triggeren kobler nye auth-brukere til selskapet, men den kjørte
-    // eventuelt før — og en invitert som alt fantes, treffer den ikke i det
-    // hele tatt. Vi skriver raden selv, så tilhørigheten er sikker uansett vei.
+    // Raden og medlemskapet skrives her og ingen andre steder.
     const { error: userError } = await admin.from("users").upsert({
       id: userId,
       company_id: invite.company_id,
