@@ -1,10 +1,11 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, after, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
-import { lagreDeltakarar, lesHendingInput, sjekkTilhoyrsle } from "@/lib/kalender/hent";
+import { hentForVarsel, lagreDeltakarar, lesHendingInput, sjekkTilhoyrsle } from "@/lib/kalender/hent";
 import { erAdmin } from "@/lib/ordre/api";
 import { ordreModulEllers403 } from "@/lib/ordre/tilgang";
 import type { SessionContext } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { varsleKalenderendring } from "@/lib/varsel/send";
 
 type Admin = ReturnType<typeof supabaseAdmin>;
 
@@ -42,6 +43,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const tilhoyrsle = await sjekkTilhoyrsle(admin, session.companyId, input);
     if ("feil" in tilhoyrsle) return NextResponse.json({ error: tilhoyrsle.feil }, { status: 400 });
 
+    const foer = await hentForVarsel(admin, session.companyId, id);
     const { deltakarar, ...rad } = input;
     const { error } = await admin
       .from("calendar_events")
@@ -50,6 +52,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       .eq("company_id", session.companyId);
     if (error) throw new Error(error.message);
     await lagreDeltakarar(admin, session.companyId, id, deltakarar);
+
+    after(async () => {
+      const etter = await hentForVarsel(admin, session.companyId, id);
+      await varsleKalenderendring(admin, { companyId: session.companyId, avsenderId: session.userId, eventId: id, foer, etter });
+    });
 
     return NextResponse.json({ id });
   } catch (err) {
@@ -67,8 +74,10 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
     const avvist = await sjekk(admin, session, id);
     if (avvist) return avvist;
 
+    const foer = await hentForVarsel(admin, session.companyId, id);
     const { error } = await admin.from("calendar_events").delete().eq("id", id).eq("company_id", session.companyId);
     if (error) throw new Error(error.message);
+    after(() => varsleKalenderendring(admin, { companyId: session.companyId, avsenderId: session.userId, eventId: id, foer, etter: null }));
     return NextResponse.json({ ok: true });
   } catch (err) {
     return errorResponse(err);

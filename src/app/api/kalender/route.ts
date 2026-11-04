@@ -1,6 +1,7 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, after, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
 import {
+  hentForVarsel,
   hentHendingar,
   hentKolleger,
   lagreDeltakarar,
@@ -11,6 +12,7 @@ import {
 import { erAdmin } from "@/lib/ordre/api";
 import { ordreModulEllers403 } from "@/lib/ordre/tilgang";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { varsleKalenderendring } from "@/lib/varsel/send";
 
 const MAKS_SPENN_MS = 120 * 24 * 60 * 60 * 1000;
 
@@ -106,6 +108,13 @@ export async function POST(request: NextRequest) {
         created_by: session.userId,
       });
     }
+
+    // Montørane får vite det etter at svaret er sendt — sjefen ventar ikkje på e-post.
+    const eventId = data.id as string;
+    after(async () => {
+      const etter = await hentForVarsel(admin, session.companyId, eventId);
+      await varsleKalenderendring(admin, { companyId: session.companyId, avsenderId: session.userId, eventId, foer: null, etter });
+    });
 
     return NextResponse.json({ id: data.id }, { status: 201 });
   } catch (err) {

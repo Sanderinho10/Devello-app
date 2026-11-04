@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { summerTimar } from "@/lib/ordre/summering";
+import type { TimeforslagUt } from "@/lib/kalender/hent-timeforslag";
 import { formatNok, type TimeEntry } from "@/lib/types";
+import { Timeforslag } from "./Timeforslag";
 
 interface Timetype {
   id: string;
@@ -74,6 +76,18 @@ export function TimerFane({
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  /** Forslag frå kalenderen inn i skjemaet, så det kan rettast før lagring. */
+  function brukForslag(f: TimeforslagUt) {
+    setRedigerer(null);
+    setDato(f.work_date);
+    setUserId(meg.erAdmin ? f.user_id : meg.id);
+    if (f.price_item_id) setTypeId(f.price_item_id);
+    setTimar(String(f.timar).replace(".", ","));
+    setNote("");
+    setError(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   async function lagre(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
@@ -131,6 +145,11 @@ export function TimerFane({
             Gå til prisfilen →
           </Link>
         </div>
+      )}
+
+      {!laast && timetypar.length > 0 && (
+        // Ny nøkkel når timelista endrar seg: forslaga blir henta på nytt.
+        <Timeforslag key={entries.length} orderId={orderId} erAdmin={meg.erAdmin} onJuster={brukForslag} />
       )}
 
       {/* Føringen som én linje over tabellen, som i Go. På telefon stables

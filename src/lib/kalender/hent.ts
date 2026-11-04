@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { brukereISelskap } from "@/lib/selskap/medlemskap";
 import type { OrderStatus } from "@/lib/types";
 import { erHendingType, type HendingType } from "./tid";
+import { naarTekst, type HendingForVarsel } from "./varsel";
 
 /**
  * Kalenderen frå databasen. Service role og eksplisitt company_id, som
@@ -54,7 +55,7 @@ export async function hentKolleger(admin: SupabaseClient, companyId: string): Pr
 export async function hentHendingar(
   admin: SupabaseClient,
   companyId: string,
-  opts: { fra: Date | null; til: Date | null; brukarId?: string | null; orderId?: string | null },
+  opts: { fra: Date | null; til: Date | null; brukarId?: string | null; orderId?: string | null; id?: string },
 ): Promise<KalenderHending[]> {
   let eventIds: string[] | null = null;
   if (opts.brukarId) {
@@ -79,6 +80,7 @@ export async function hentHendingar(
   if (opts.til) q = q.lt("starts_at", opts.til.toISOString());
   if (opts.fra) q = q.gt("ends_at", opts.fra.toISOString());
   if (opts.orderId) q = q.eq("order_id", opts.orderId);
+  if (opts.id) q = q.eq("id", opts.id);
   if (eventIds) q = q.in("id", eventIds);
 
   const [{ data, error }, kolleger] = await Promise.all([q, hentKolleger(admin, companyId)]);
@@ -213,16 +215,27 @@ export async function lagreDeltakarar(
 
 /** «Noah Hansen · man. 9. nov. 10:00–15:00» til hendingsloggen på ordren. Norsk tid. */
 export function loggTekst(input: HendingInput, namn: Map<string, string>): string {
-  const tz = "Europe/Oslo";
-  const start = new Date(input.starts_at);
-  const slutt = new Date(input.ends_at);
-  const dag = new Intl.DateTimeFormat("nb-NO", { timeZone: tz, weekday: "short", day: "numeric", month: "short" });
-  const kl = new Intl.DateTimeFormat("nb-NO", { timeZone: tz, hour: "2-digit", minute: "2-digit" });
   const kven = input.deltakarar.map((id) => namn.get(id) ?? "").filter(Boolean).join(", ");
-  const naar = input.all_day
-    ? dag.format(start)
-    : dag.format(start) === dag.format(slutt)
-      ? `${dag.format(start)} ${kl.format(start)}–${kl.format(slutt)}`
-      : `${dag.format(start)} ${kl.format(start)} – ${dag.format(slutt)} ${kl.format(slutt)}`;
-  return [kven, naar].filter(Boolean).join(" · ");
+  return [kven, naarTekst(input)].filter(Boolean).join(" · ");
+}
+
+/** Éin avtale, i forma varsla treng. Null når han ikkje finst. */
+export async function hentForVarsel(admin: SupabaseClient, companyId: string, id: string): Promise<HendingForVarsel | null> {
+  const [h] = await hentHendingar(admin, companyId, { fra: null, til: null, id });
+  return h ? tilVarsel(h) : null;
+}
+
+export function tilVarsel(h: KalenderHending): HendingForVarsel {
+  return {
+    kind: h.kind,
+    order_id: h.order?.id ?? null,
+    order_no: h.order?.order_no ?? null,
+    title: h.title,
+    location: h.location,
+    site_address: h.order?.site_address ?? null,
+    starts_at: h.starts_at,
+    ends_at: h.ends_at,
+    all_day: h.all_day,
+    deltakarar: h.deltakarar.map((d) => d.id),
+  };
 }
