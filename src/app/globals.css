@@ -4611,3 +4611,395 @@ dl.kunde-kort-info {
 .ordre-velger .kunde-velger-pil:disabled {
   cursor: default;
 }
+
+/* ── Kalender ────────────────────────────────────────────────────────────
+   Fargene per type går igjen i prikkene, brikkene og blokkene: oppdrag er
+   aksentblå, møte lilla, fravær oransje, annet grått. */
+:root {
+  --kal-oppdrag: var(--accent);
+  --kal-oppdrag-soft: var(--accent-soft);
+  --kal-mote: #8944ab;
+  --kal-mote-soft: #f4ebf9;
+  --kal-fravaer: var(--warning);
+  --kal-fravaer-soft: var(--warning-soft);
+  --kal-annet: #6e6e73;
+  --kal-annet-soft: #f0f0f3;
+}
+
+.kal-verktoy {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.kal-periode {
+  font-size: 15px;
+  margin-left: 6px;
+}
+.kal-verktoy .verktoylinje-hoyre {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.verktoylinje .input.kal-filter {
+  width: auto;
+  min-width: 160px;
+  max-width: 100%;
+}
+@media (max-width: 700px) {
+  .kal-verktoy .verktoylinje-hoyre {
+    margin-left: 0;
+  }
+  .kal-montorer .kal-person {
+    width: 110px;
+  }
+}
+.kal-forklaring {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0 0 10px;
+}
+
+.kal-prikk {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  vertical-align: middle;
+  background: var(--kal-annet);
+}
+.kal-prikk.oppdrag { background: var(--kal-oppdrag); }
+.kal-prikk.mote { background: var(--kal-mote); }
+.kal-prikk.fravaer { background: var(--kal-fravaer); }
+
+.kal-merke {
+  font-size: 12px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--kal-annet-soft);
+  color: var(--kal-annet);
+}
+.kal-merke.oppdrag { background: var(--kal-oppdrag-soft); color: var(--kal-oppdrag); }
+.kal-merke.mote { background: var(--kal-mote-soft); color: var(--kal-mote); }
+.kal-merke.fravaer { background: var(--kal-fravaer-soft); color: var(--kal-fravaer); }
+
+/* Montørvisningen: én rad per ansatt, én kolonne per dag. */
+.kal-montorer {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 13px;
+}
+.kal-montorer th,
+.kal-montorer td {
+  border-bottom: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  vertical-align: top;
+  text-align: left;
+}
+.kal-montorer thead th {
+  padding: 10px 8px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--surface-sunken);
+}
+.kal-montorer .kal-person {
+  width: 150px;
+  padding: 10px 12px;
+  border-left: none;
+  font-weight: 500;
+}
+.kal-montorer th.i-dag {
+  color: var(--accent);
+}
+.kal-dagnamn {
+  text-transform: capitalize;
+}
+.kal-celle {
+  height: 64px;
+  padding: 4px;
+}
+.kal-celle.helg,
+.kal-montorer thead th.helg {
+  background: var(--surface-sunken);
+}
+.kal-celle.i-dag {
+  background: rgba(0, 113, 227, 0.035);
+}
+.kal-celle.ledig {
+  cursor: copy;
+}
+.kal-celle.ledig:hover {
+  background: var(--accent-soft);
+}
+
+.kal-brikke {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 4px 6px;
+  border: none;
+  border-left: 3px solid var(--kal-annet);
+  border-radius: 5px;
+  background: var(--kal-annet-soft);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+}
+.kal-brikke:hover { filter: brightness(0.96); }
+.kal-brikke.oppdrag { border-left-color: var(--kal-oppdrag); background: var(--kal-oppdrag-soft); }
+.kal-brikke.mote { border-left-color: var(--kal-mote); background: var(--kal-mote-soft); }
+.kal-brikke.fravaer { border-left-color: var(--kal-fravaer); background: var(--kal-fravaer-soft); }
+.kal-brikke-tid {
+  font-weight: 600;
+}
+.kal-brikke-tittel,
+.kal-brikke-stad {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kal-brikke-stad {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.kal-ordrenr {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+/* Ukevisningen: klokkeslett nedover, dager bortover. */
+.kal-uke {
+  min-width: 760px;
+  font-size: 12px;
+}
+.kal-uke-hovud,
+.kal-uke-heildag,
+.kal-uke-kropp {
+  display: grid;
+  grid-template-columns: 56px repeat(7, minmax(0, 1fr));
+}
+.kal-uke-hovud {
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-sunken);
+}
+.kal-uke-dag {
+  padding: 10px 8px;
+  color: var(--text-secondary);
+  border-left: 1px solid var(--border);
+}
+.kal-uke-dag strong {
+  font-size: 15px;
+  color: var(--text);
+}
+.kal-uke-dag.i-dag strong {
+  color: var(--accent);
+}
+.kal-uke-heildag {
+  border-bottom: 1px solid var(--border);
+}
+.kal-uke-heildag > * {
+  padding: 4px;
+  border-left: 1px solid var(--border);
+}
+.kal-uke-heildag > :first-child {
+  border-left: none;
+  padding-top: 8px;
+}
+.kal-uke-kropp {
+  position: relative;
+}
+.kal-uke-klokke > div {
+  padding: 2px 8px 0 0;
+  text-align: right;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  transform: translateY(-8px);
+}
+.kal-uke-klokke > div:first-child {
+  transform: none;
+}
+.kal-uke-kolonne {
+  position: relative;
+  border-left: 1px solid var(--border);
+  background-image: linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+}
+.kal-uke-kolonne.i-dag {
+  background-color: rgba(0, 113, 227, 0.035);
+}
+.kal-uke-kolonne.ledig {
+  cursor: copy;
+}
+.kal-blokk {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 3px 6px;
+  border: none;
+  border-left: 3px solid var(--kal-annet);
+  border-radius: 5px;
+  background: var(--kal-annet-soft);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.25;
+  text-align: left;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px var(--surface);
+}
+.kal-blokk:hover { filter: brightness(0.96); z-index: 2; }
+.kal-blokk.oppdrag { border-left-color: var(--kal-oppdrag); background: var(--kal-oppdrag-soft); }
+.kal-blokk.mote { border-left-color: var(--kal-mote); background: var(--kal-mote-soft); }
+.kal-blokk.fravaer { border-left-color: var(--kal-fravaer); background: var(--kal-fravaer-soft); }
+.kal-blokk-tid {
+  font-weight: 600;
+}
+.kal-blokk-kven {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.kal-no {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--negative);
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* Skjemaet */
+.kal-typeval .type-option {
+  padding: 6px 8px;
+}
+.kal-deltakarar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.kal-deltakar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 13px;
+  cursor: pointer;
+}
+.kal-deltakar.valt {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.kal-deltakar input {
+  margin: 0;
+}
+.kal-tid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 120px);
+  gap: 8px;
+}
+.kal-kollisjonar {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+/* Planlagt-kortet på ordren */
+.kal-ordre-rad {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.kal-ordre-rad:hover {
+  background: var(--surface-sunken);
+}
+.kal-tidlegare > summary {
+  padding: 7px 16px;
+  cursor: pointer;
+}
+
+/* Timeforslag frå kalenderen, over timeføringa */
+.timeforslag {
+  border-left: 3px solid var(--kal-oppdrag);
+}
+.timeforslag .card-header {
+  padding: 12px 16px;
+}
+.timeforslag-rad {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+}
+
+/* Dra og slepp i kalenderen */
+body.kal-drar,
+body.kal-drar * {
+  user-select: none;
+  cursor: grabbing !important;
+}
+.kal-brikke.flyttbar,
+.kal-blokk.flyttbar {
+  cursor: grab;
+}
+.kal-brikke.drar,
+.kal-blokk.drar {
+  opacity: 0.35;
+}
+.kal-celle.slepp-her {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.kal-blokk-handtak {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 7px;
+  cursor: ns-resize;
+}
+.kal-blokk-handtak::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 18px;
+  height: 2px;
+  margin-left: -9px;
+  border-radius: 1px;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.kal-blokk:hover .kal-blokk-handtak::after {
+  opacity: 0.35;
+}
+.kal-blokk.forhand {
+  z-index: 4;
+  border: 2px dashed var(--accent);
+  border-left-width: 2px;
+  background: rgba(232, 242, 253, 0.85);
+  pointer-events: none;
+}
+.kal-angre {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}

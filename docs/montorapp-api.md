@@ -384,12 +384,132 @@ Uten `format=json` svarer ruta med redirect til samme lenke (nettappen).
 curl -H "Authorization: Bearer $TOKEN" "https://app.devello.no/api/orders/$ORDER_ID/dokumenter/$DOC_ID/fil?format=json"
 ```
 
+## GET /api/app/kalender — programmet mitt
+
+Avtalene montøren er satt opp på. Uten `fra`/`til`: i dag og 14 dager fram
+(maks 120 dager). `alle=1` tar med hele firmaets kalender.
+
+```
+GET /api/app/kalender?fra=2026-11-09T00:00:00Z&til=2026-11-16T00:00:00Z
+```
+
+```json
+{
+  "hendingar": [
+    {
+      "id": "uuid",
+      "kind": "oppdrag",
+      "title": "Nytt sikringsskap",
+      "egen_tittel": "",
+      "description": "Nøkkel i postkassen",
+      "location": null,
+      "starts_at": "2026-11-09T09:00:00+00:00",
+      "ends_at": "2026-11-09T14:00:00+00:00",
+      "all_day": false,
+      "order": { "id": "uuid", "order_no": 1001, "title": "Nytt sikringsskap", "customer_name": "Kari Nordmann", "site_address": "Storgata 12, Bergen", "status": "opna" },
+      "deltakarar": [{ "id": "uuid", "navn": "Noah Berg" }]
+    }
+  ]
+}
+```
+
+`kind` er `oppdrag`, `mote`, `fravaer` eller `annet`. `order` er satt bare for
+oppdrag — trykk åpner ordren. `location` tom på et oppdrag: bruk
+`order.site_address`. Heldagsavtaler (`all_day`) går fra midnatt til midnatt
+norsk tid; vis dem uten klokkeslett. Kalenderen endres bare fra nettappen
+(administrator).
+
+## GET /api/app/timeforslag — før timer fra kalenderen
+
+Oppdrag montøren var satt opp på, men ikke har ført timer for. Vis dem
+øverst på startsiden: «Mandag 10–15 på #1001 — før 5 t?»
+
+```
+GET /api/app/timeforslag?fra=2026-11-03&til=2026-11-09
+```
+
+Uten datoer: de siste 7 dagene til og med i dag (maks 31).
+
+```json
+{
+  "forslag": [
+    {
+      "user_id": "uuid",
+      "user_name": "Noah Berg",
+      "order": { "id": "uuid", "order_no": 1001, "title": "Nytt sikringsskap", "customer_name": "Kari Nordmann" },
+      "work_date": "2026-11-09",
+      "fra": "2026-11-09T09:00:00.000Z",
+      "til": "2026-11-09T14:00:00.000Z",
+      "timar": 5,
+      "event_ids": ["uuid"],
+      "price_item_id": "uuid",
+      "time_type_name": "Elektriker"
+    }
+  ]
+}
+```
+
+Ett trykk fører forslaget med vanlig `POST /api/orders/{order.id}/timer`
+(`work_date`, `price_item_id`, `hours: timar`, gjerne med `client_id`). La
+montøren justere timene først om han vil — f.eks. minus lunsj. Forslaget
+forsvinner så snart noe er ført på ordren den dagen. Bare oppdrag (ikke
+møter eller fravær), avrundet til nærmeste kvarter. `price_item_id` er
+timetypen montøren brukte sist (helst på samme ordre); `null` når selskapet
+ikke har timetyper.
+
+## POST /api/app/push-token — varsler
+
+Når sjefen setter montøren på et oppdrag, flytter det eller tar ham av det,
+får montøren push. Uten registrert token går varselet på e-post i stedet.
+
+Registrer Expo-tokenet etter innlogging og hver gang appen starter
+(idempotent):
+
+```ts
+import * as Notifications from "expo-notifications";
+const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
+await fetch(`${BASE}/api/app/push-token`, {
+  method: "POST",
+  headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+  body: JSON.stringify({ token, platform: Platform.OS }),
+});
+```
+
+Ved utlogging: `DELETE /api/app/push-token` med `{ "token": "…" }` — ellers
+får telefonen varslene til forrige bruker.
+
+Pushen har `data: { type, event_id, order_id }`. `type` er `nytt_oppdrag`,
+`endra_oppdrag` eller `fjerna_oppdrag`. Trykk på varselet: åpne ordren når
+`order_id` er satt og typen ikke er `fjerna_oppdrag`, ellers kalenderen.
+
+## GET /api/app/varsel og POST /api/app/varsel/lest
+
+Alle varsler, også de som ikke kom fram som push. `ulest` er tallet til
+merket på ikonet.
+
+```json
+{
+  "varsel": [
+    { "id": "uuid", "kind": "nytt_oppdrag", "title": "Nytt oppdrag: #1001 Nytt sikringsskap",
+      "body": "man. 9. nov. 10:00–15:00 · Storgata 12, Bergen", "event_id": "uuid",
+      "order_id": "uuid", "read_at": null, "created_at": "…" }
+  ],
+  "ulest": 1
+}
+```
+
+`POST /api/app/varsel/lest` med `{ "ids": ["uuid"] }` merker de valgte som
+lest; med `{}` merkes alle.
+
 ## Anbefalt flyt i appen
 
-1. Innlogging → `GET /api/app/meg` (cache `timetyper` og påslag).
-2. `GET /api/app/ordrar` → liste. Pull-to-refresh.
-3. Ordre → `GET /api/app/ordrar/{id}`. Knapper fra `lovlege_overgangar`.
-4. Føringer legges i en lokal kø med `client_id` og sendes i rekkefølge når
+1. Innlogging → `GET /api/app/meg` (cache `timetyper` og påslag), og
+   `POST /api/app/push-token`.
+2. Startside: `GET /api/app/kalender` (i dag først) og
+   `GET /api/app/timeforslag` øverst.
+3. `GET /api/app/ordrar` → liste. Pull-to-refresh.
+4. Ordre → `GET /api/app/ordrar/{id}`. Knapper fra `lovlege_overgangar`.
+5. Føringer legges i en lokal kø med `client_id` og sendes i rekkefølge når
    nettet er tilbake. Notat før bildene som hører til det (bildene trenger
    `note_id` fra svaret).
-5. Etter vellykket sending: hent ordren på nytt.
+6. Etter vellykket sending: hent ordren på nytt.
