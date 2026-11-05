@@ -116,9 +116,9 @@ export default async function LeadPage({
                 {" · "}
               </>
             ) : null}
-            {[lead.from_name, lead.from_email, formatDate(lead.received_at)]
-              .filter(Boolean)
-              .join(" · ")}
+            {/* Avsenderen på leadet står ikke her: den er ofte en
+                leadportal, og kunden og mottakeren står i tilbudet. */}
+            {formatDate(lead.received_at)}
           </p>
         </div>
       </div>
