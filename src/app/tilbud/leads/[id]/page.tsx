@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DraftEditor } from "./DraftEditor";
+import { Versjonshistorikk } from "./Versjonshistorikk";
+import { hentSendteVersjoner } from "@/lib/drafts/historikk";
 import { harModul } from "@/lib/moduler";
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import { vedleggFor, velgTilModell } from "@/lib/leads/vedlegg";
@@ -84,6 +86,10 @@ export default async function LeadPage({
       : Promise.resolve({ data: null }),
   ]);
 
+  // Sendte versjoner av tilbudet. Utkastet over er hentet med brukerens
+  // tilgang, så selskapet er sjekket.
+  const versjoner = draft ? await hentSendteVersjoner(supabaseAdmin(), draft) : [];
+
   const listIds = (activeLists ?? []).map((list) => list.id);
   const { data: priceItems } = listIds.length
     ? await supabase
@@ -149,6 +155,12 @@ export default async function LeadPage({
             stikkontakter?» er spørsmålet man stiller hele veien.
           */}
           <aside className="inquiry">
+            <Versjonshistorikk
+              leadId={lead.id}
+              draftId={draft.id}
+              versjoner={versjoner}
+              gjeldende={{ revisjon: draft.revisjon, sendt: Boolean(draft.sent_at) }}
+            />
             <div className="inquiry-head">
               {lead.source === "manuell" ? "Manuell henvendelse" : "Henvendelsen"}
             </div>

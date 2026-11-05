@@ -5003,3 +5003,196 @@ body.kal-drar * {
   justify-content: space-between;
   gap: 12px;
 }
+
+/* ---------------------------------------------------------------------------
+ * Versjonshistorikk for tilbud
+ *
+ * Sendte versjoner i sidespalten, og en skrivebeskyttet side per versjon med
+ * endringene fra forrige øverst.
+ * ------------------------------------------------------------------------- */
+
+.versjonshistorikk {
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.versjonshistorikk ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.versjonshistorikk li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.versjon-rad {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+  padding: 6px 8px;
+  margin: 0 -8px;
+  border-radius: var(--radius-sm);
+  color: inherit;
+  text-decoration: none;
+}
+
+.versjon-rad:hover {
+  background: var(--bg);
+}
+
+.versjon-navn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  font-size: 13.5px;
+}
+
+.versjon-meta {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.versjon-pdf {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.versjon-pdf:hover {
+  color: var(--link);
+  border-color: var(--border-strong);
+}
+
+.versjon-knapper {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.versjon-faner {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.versjon-fane {
+  padding: 5px 12px;
+  border-radius: 980px;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  background: var(--surface);
+}
+
+.versjon-fane:hover {
+  color: var(--text);
+}
+
+.versjon-fane.aktiv {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--surface);
+}
+
+.versjon-tittel {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  margin: 0 0 4px;
+}
+
+.versjon-seksjon {
+  font-weight: 600;
+  font-size: 13.5px;
+  margin-bottom: 4px;
+}
+
+.versjon-tabell td {
+  padding: 7px 8px 7px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.versjon-forutsetninger {
+  margin: 4px 0 12px;
+  padding-left: 18px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.versjon-epost {
+  max-height: none;
+}
+
+.versjon-total {
+  margin: 0 0 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.endring-ned {
+  color: var(--positive);
+}
+
+.endring-opp {
+  color: var(--warning);
+}
+
+.endringsliste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 13.5px;
+}
+
+.endringsliste:empty {
+  display: none;
+}
+
+.endringsliste + .endringsliste {
+  margin-top: 6px;
+}
+
+.endring-merke {
+  display: inline-block;
+  min-width: 56px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.endring-ny .endring-merke {
+  color: var(--positive);
+}
+
+.endring-fjernet .endring-merke {
+  color: var(--negative);
+}
+
+.endring-fjernet {
+  color: var(--text-secondary);
+}
+
+@media (max-width: 700px) {
+  .versjon-knapper {
+    width: 100%;
+  }
+}
