@@ -38,6 +38,7 @@ export function KundeSok({
   onNyKunde,
   placeholder,
   autoFocus,
+  id,
 }: {
   value: string;
   onChange: (tekst: string) => void;
@@ -46,6 +47,8 @@ export function KundeSok({
   onNyKunde?: (navn: string) => void;
   placeholder?: string;
   autoFocus?: boolean;
+  /** Til en <label htmlFor> utenfor feltet. */
+  id?: string;
 }) {
   const [forslag, setForslag] = useState<KundeForslag[]>([]);
   const [lastet, setLastet] = useState(false);
@@ -124,6 +127,7 @@ export function KundeSok({
     <div className="picker kunde-velger" ref={rot}>
       <input
         ref={felt}
+        id={id}
         className="input"
         value={value}
         autoFocus={autoFocus}
