@@ -5,7 +5,7 @@
  *
  *   npm run test:kunde-go
  */
-import { foreslaaKunde, foreslaattReferanse, lagraKundenummer, landkodeFor, mottakarFelt } from "@/lib/faktura/overfor";
+import { foreslaaKunde, foreslaattReferanse, lagraKundenummer, landkodeFor, mottakarFelt, utkastMottakar } from "@/lib/faktura/overfor";
 import type { Customer } from "@/lib/types";
 
 let feil = 0;
@@ -152,6 +152,26 @@ sjekk(
   "Deres ref.: privatperson uten kontaktperson → ingen",
   foreslaattReferanse(mottakarFelt(ORDRE, { ...ANNAN, is_person: true }, true), { ...ANNAN, is_person: true }) === null,
 );
+
+// Faktura uten ordre (0065): kundefeltene på utkastet er mottakeren.
+const fraUtkast = utkastMottakar({
+  customer_name: "Fjord Eiendom AS",
+  customer_contact: "Ola",
+  customer_email: "ola@fjord.no",
+  customer_phone: null,
+  customer_address: "Strandkaien 2, 5013 Bergen",
+});
+const forslagUtkast = foreslaaKunde(fraUtkast);
+sjekk(
+  "uten ordre: kunden fra utkastets felt, adressen delt opp",
+  forslagUtkast.Name === "Fjord Eiendom AS" &&
+    !forslagUtkast.IsPerson &&
+    forslagUtkast.EmailAddress === "ola@fjord.no" &&
+    forslagUtkast.MailAddress?.ZipCode === "5013" &&
+    forslagUtkast.MailAddress?.City === "Bergen",
+  forslagUtkast,
+);
+sjekk("uten ordre: Deres ref. fra kontaktpersonen", foreslaattReferanse(fraUtkast, null) === "Ola");
 
 console.log(feil ? `\n${feil} feil` : "\nAlt i orden");
 process.exit(feil ? 1 : 0);

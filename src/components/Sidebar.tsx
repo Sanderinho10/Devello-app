@@ -11,7 +11,7 @@ import { harModul } from "@/lib/moduler";
 /**
  * Navigasjon etter hvor ofte man er der.
  *
- * Over skillelinjen står det daglige: Tilbud, Ordre, Kalender og Register — bare
+ * Over skillelinjen står det daglige: Tilbud, Ordre, Fakturaer, Kalender og Register — bare
  * hovedoverskriftene. Undersidene (som kontakter, leverandørfakturaer og
  * grossister under Register) er faner inne på siden, ikke i menyen, så
  * menyen holder seg kort.
@@ -23,7 +23,7 @@ import { harModul } from "@/lib/moduler";
  * app/selskap/innstillinger).
  *
  * Hvilke moduler som vises styres av companies.moduler (lib/moduler.ts):
- * Ordre, leverandørfakturaer og grossister bare når selskapet har
+ * Ordre, fakturaer, leverandørfakturaer og grossister bare når selskapet har
  * ordremodulen. Det er samme bryter som sidene og API-et sjekker, så menyen
  * og tilgangen kan ikke sprike.
  */
@@ -72,6 +72,16 @@ const ORDRE: NavSection = {
   tabs: [],
 };
 
+/** Fakturaene: fra ordrene, og de som lages rett i fakturafanen. */
+const FAKTURA: NavSection = {
+  key: "faktura",
+  label: "Fakturaer",
+  icon: "▥",
+  basePath: "/fakturaer",
+  href: "/fakturaer",
+  tabs: [],
+};
+
 /** Hvem er hvor: oppdrag, møter og fravær. Hører til ordremodulen. */
 const KALENDER: NavSection = {
   key: "kalender",
@@ -92,10 +102,10 @@ const REGISTER: NavSection = {
   tabs: [],
 };
 
-/** Det daglige, i rekkefølgen jobben går: startsiden, tilbud → ordre, og registrene. */
+/** Det daglige, i rekkefølgen jobben går: startsiden, tilbud → ordre → faktura, og registrene. */
 function agentSections(moduler: string[]): NavSection[] {
   const sections = [DASHBOARD, TILBUD];
-  if (harModul(moduler, "ordre")) sections.push(ORDRE, KALENDER);
+  if (harModul(moduler, "ordre")) sections.push(ORDRE, FAKTURA, KALENDER);
   sections.push(REGISTER);
   return sections;
 }

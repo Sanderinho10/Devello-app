@@ -21,12 +21,15 @@ export function OrdreSok({
   onVelg,
   placeholder,
   autoFocus,
+  status = "aktive",
 }: {
   value: string;
   onChange: (tekst: string) => void;
   onVelg: (ordre: OrdreValg) => void;
   placeholder?: string;
   autoFocus?: boolean;
+  /** «alle»: også ferdige og avsluttede ordrer — til fakturering. */
+  status?: "aktive" | "alle";
 }) {
   const [forslag, setForslag] = useState<OrdreValg[]>([]);
   const [open, setOpen] = useState(false);
@@ -43,7 +46,7 @@ export function OrdreSok({
     const t = setTimeout(async () => {
       sist.current = q;
       try {
-        const res = await fetch(`/api/app/ordrar?status=aktive&limit=8&q=${encodeURIComponent(q)}`);
+        const res = await fetch(`/api/app/ordrar?status=${status}&limit=8&q=${encodeURIComponent(q)}`);
         if (!res.ok) return;
         const payload = (await res.json()) as { ordrar: OrdreValg[] };
         // Et tregt svar på et gammelt søkeord skal ikke skrive over det nye.
@@ -55,7 +58,7 @@ export function OrdreSok({
       }
     }, 180);
     return () => clearTimeout(t);
-  }, [verdi, open]);
+  }, [verdi, open, status]);
 
   useEffect(() => {
     if (!open) return;

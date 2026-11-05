@@ -936,19 +936,30 @@ export const INVOICE_DRAFT_STATUS_LABELS: Record<InvoiceDraftStatus, string> = {
   feil: "Feil ved overføring",
 };
 
-export type InvoiceStrategy = "fastpris" | "fastpris_med_tillegg" | "tid_og_materiell";
+/** «manuell»: en faktura uten ordre, med linjer et menneske har skrevet (0065). */
+export type InvoiceStrategy = "fastpris" | "fastpris_med_tillegg" | "tid_og_materiell" | "manuell";
 
 export const INVOICE_STRATEGY_LABELS: Record<InvoiceStrategy, string> = {
   fastpris: "Fastpris",
   fastpris_med_tillegg: "Fastpris med tillegg",
   tid_og_materiell: "Tid og materiell",
+  manuell: "Manuell",
 };
 
 /** Formen på linjene og kildene ligger i lib/faktura/typar.ts. */
 export interface InvoiceDraft {
   id: string;
   company_id: string;
-  order_id: string;
+  /** Ordren fakturaen er laget fra. null: laget rett i fakturafanen (0065). */
+  order_id: string | null;
+  /** Bare for fakturaer uten ordre: tittel og kundefelt i ordrens form. */
+  title: string | null;
+  customer_name: string | null;
+  customer_contact: string | null;
+  customer_email: string | null;
+  customer_phone: string | null;
+  /** Én linje: «Storgata 12, 5003 Bergen». */
+  customer_address: string | null;
   /**
    * Fakturakunden: den fakturaen sendes til (0058). Satt til ordrens kunde
    * når forslaget lages, og kan overstyres. null: ordren har ingen kunde i
