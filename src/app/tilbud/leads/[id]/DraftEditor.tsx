@@ -11,6 +11,7 @@ import { erOverskrift } from "@/lib/pricelist/koder";
 import Link from "next/link";
 import { PriceItemPicker } from "@/components/PriceItemPicker";
 import { ConfidenceBadge } from "@/components/ConfidenceBadge";
+import { KundeSok, type KundeForslag } from "@/components/KundeSok";
 import {
   QUOTE_TYPE_HELP,
   QUOTE_TYPE_LABELS,
@@ -82,6 +83,20 @@ export function DraftEditor({
   const [subject, setSubject] = useState(draft.email_subject);
   const [body, setBody] = useState(draft.email_body);
   const [document, setDocument] = useState<QuoteDocument | null>(draft.document);
+
+  /**
+   * Kunden i registeret tilbudet hører til. Velges en kunde fra listen,
+   * kobles tilbudet til akkurat den — uten å gjette på navn og e-post, og
+   * uten at det som rettes i tilbudet etterpå skrives tilbake på kundekortet.
+   * Null: navnet er skrevet fritt, og koblingen gjøres på navn og e-post.
+   */
+  const [kundeId, setKundeId] = useState<string | null>(lead.customer_id);
+  const kundeIdRef = useRef(kundeId);
+  kundeIdRef.current = kundeId;
+  /** Navnet slik det stod på kundekortet da kunden ble valgt. */
+  const valgtKundenavn = useRef<string | null>(
+    lead.customer_id ? (draft.document?.customer.name ?? null) : null,
+  );
 
   const [confidence, setConfidence] = useState<QuoteConfidence>(draft.confidence);
   const [confidenceNote, setConfidenceNote] = useState(draft.confidence_note);
@@ -207,6 +222,7 @@ export function DraftEditor({
           email_subject: snapshot.email_subject,
           email_body: snapshot.email_body,
           document: hasDocument(type) ? snapshot.document : null,
+          customer_id: kundeIdRef.current,
         }),
       });
       return res.ok;
@@ -223,7 +239,13 @@ export function DraftEditor({
    */
   const [lagring, setLagring] = useState<null | "lagrer" | "lagret" | "feil">(null);
   const nokkelFor = (t: QuoteType, sn: Snapshot) =>
-    JSON.stringify([t, sn.email_subject, sn.email_body, hasDocument(t) ? sn.document : null]);
+    JSON.stringify([
+      t,
+      sn.email_subject,
+      sn.email_body,
+      hasDocument(t) ? sn.document : null,
+      kundeIdRef.current,
+    ]);
   const sistLagret = useRef(
     nokkelFor(draft.quote_type, {
       email_subject: draft.email_subject,
@@ -234,6 +256,7 @@ export function DraftEditor({
     }),
   );
   const ventende = useRef<{ type: QuoteType; snapshot: Snapshot; nokkel: string } | null>(null);
+  const lagretKunde = useRef(lead.customer_id);
   const saveRef = useRef(save);
   saveRef.current = save;
 
@@ -246,6 +269,11 @@ export function DraftEditor({
     if (ok) {
       sistLagret.current = v.nokkel;
       setLagring("lagret");
+      // Ny kunde: kundenummeret øverst på siden hører til den forrige.
+      if (!keepalive && kundeIdRef.current !== lagretKunde.current) {
+        lagretKunde.current = kundeIdRef.current;
+        router.refresh();
+      }
     } else {
       // Prøv igjen om litt — eller tidligere, ved neste endring eller når
       // siden forlates.
@@ -267,7 +295,7 @@ export function DraftEditor({
     return () => window.clearTimeout(t);
     // Snapshot-feltene er nøkkelen; confidence lagres ikke herfra.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quoteType, subject, body, document, sendt]);
+  }, [quoteType, subject, body, document, kundeId, sendt]);
 
   // Ved åpning: er det lagret noe nyere enn det siden ble levert med (siden
   // kom fra nettleserens mellomlager), vises det lagrede — så lenge ingenting
@@ -447,6 +475,30 @@ export function DraftEditor({
 
   function updateDocument(patch: Partial<QuoteDocument>) {
     setDocument((current) => (current ? { ...current, ...patch } : current));
+  }
+
+  /**
+   * Kunden valgt fra registeret: opplysningene på kundekortet fyller
+   * tilbudet. Det som rettes etterpå — en annen adresse for akkurat denne
+   * jobben — gjelder bare tilbudet; kundekortet står som det står.
+   */
+  function velgKunde(k: KundeForslag) {
+    valgtKundenavn.current = k.name;
+    setKundeId(k.id);
+    setDocument((current) =>
+      current
+        ? {
+            ...current,
+            customer: {
+              name: k.name,
+              contact: k.contact,
+              email: k.email,
+              phone: k.phone,
+              address: k.address,
+            },
+          }
+        : current,
+    );
   }
 
   /** Alle endringer på poster går gjennom denne, så formen holder seg. */
@@ -903,15 +955,21 @@ export function DraftEditor({
               onChange={(e) => updateDocument({ title: e.target.value })}
             />
             <label htmlFor="utkast-kunde">Kunde</label>
-              <input
+              <KundeSok
                 id="utkast-kunde"
-                className="input"
                 value={document.customer.name}
-                onChange={(e) =>
+                onChange={(navn) => {
                   updateDocument({
-                    customer: { ...document.customer, name: e.target.value },
-                  })
-                }
+                    customer: { ...document.customer, name: navn },
+                  });
+                  // Skriver man et annet navn uten å velge, er det ikke
+                  // lenger kunden i registeret — den kobles på nytt ved lagring.
+                  if (kundeId && navn.trim() !== (valgtKundenavn.current ?? "").trim()) {
+                    setKundeId(null);
+                  }
+                }}
+                onVelg={velgKunde}
+                placeholder="Søk etter kunde"
               />
             <label htmlFor="utkast-adresse">Adresse</label>
               <input
