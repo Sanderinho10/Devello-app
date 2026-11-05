@@ -248,6 +248,29 @@ const KJELDER: Kjelder = {
     kasta = true;
   }
   sjekk("mangler mapping → kaster", kasta);
+
+  // Faktura uten ordre (0065): tittelen er referansen, aldri prosjektkode.
+  const uten = byggSalsordre({
+    draft: { ...draft, title: "Vidarefakturering av container" },
+    ordre: null,
+    customerNo: 5,
+    productMap: map,
+    settings: { project_per_order: true },
+  });
+  sjekk("uten ordre: tittelen som referanse", uten.PurchaseOrderReference === "Vidarefakturering av container");
+  sjekk("uten ordre: ingen ProjectCode", uten.ProjectCode === undefined);
+  const utenTittel = byggSalsordre({ draft, ordre: null, customerNo: 5, productMap: map, settings: {} });
+  sjekk("uten ordre og tittel: ingen referanse", utenTittel.PurchaseOrderReference === undefined);
+}
+
+{
+  // Manuelle linjer på en faktura uten ordre: tekst med pris går på «annet».
+  const linjer = reknOmLinjer([
+    { id: "a", kind: "tekst", description: "Konsulenttime", quantity: 3, unit: "t", unit_price: 950, unit_price_manual: true, line_total: 0, vat_pct: 25, included: true, sources: [], ai_reason: null },
+    { id: "b", kind: "tekst", description: "Merknad", quantity: 1, unit: "stk", unit_price: null, line_total: 0, vat_pct: 25, included: true, sources: [], ai_reason: null },
+  ]);
+  sjekk("manuell linje: sum regnet av koden", linjer.lines[0].line_total === 2850 && linjer.totals.subtotal === 2850);
+  sjekk("manuell linje: krever «annet» i mappingen", manglandeProdukt(linjer.lines, { arbeid: "A" }).join(",") === "annet");
 }
 
 console.log(feil === 0 ? "\nAlle sjekker grønne." : `\n${feil} sjekk(er) feilet.`);

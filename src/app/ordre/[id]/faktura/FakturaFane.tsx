@@ -20,7 +20,11 @@ import {
 } from "@/lib/types";
 
 /**
- * Fakturaforslaget på ordren.
+ * Fakturaen — på ordren, eller laget rett i fakturafanen (orderId null).
+ *
+ * Uten ordre er det ingen agent og ingen kilder: fakturaen starter tom, og
+ * linjene skrives for hånd. Ellers er alt likt, og alle endringer går
+ * gjennom /api/fakturaer/[id].
  *
  * Tre tilstander: ingenting ennå (kortet sier hva som ligger klart), et
  * forslag (redigerbart, med agentens spørsmål og merknader øverst), og
@@ -74,8 +78,9 @@ export function FakturaFane({
   kopling,
   kundar,
 }: {
-  orderId: string;
-  orderStatus: OrderStatus;
+  /** null: en faktura uten ordre. Da finnes alltid et utkast. */
+  orderId: string | null;
+  orderStatus: OrderStatus | null;
   draft: InvoiceDraft | null;
   klart: Klart;
   kopling: Kopling | null;
@@ -84,14 +89,19 @@ export function FakturaFane({
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [lines, setLines] = useState<InvoiceLine[]>(draft?.lines ?? []);
+  // En ny faktura uten ordre starter med én tom linje å skrive i.
+  const [lines, setLines] = useState<InvoiceLine[]>(() =>
+    draft && !orderId && draft.lines.length === 0 && draft.status !== "overfort" ? [tomLinje(25)] : (draft?.lines ?? []),
+  );
+  const [tittel, setTittel] = useState(draft?.title ?? "");
   const [tekst, setTekst] = useState(draft?.invoice_text ?? "");
   const [ref, setRef] = useState(draft?.customer_reference ?? "");
   const [dirty, setDirty] = useState(false);
   const [overfoering, setOverfoering] = useState<Overfoering | null>(null);
   // Teksten i kundefeltet mens man søker. null: viser fakturakunden.
   const [kundeSok, setKundeSok] = useState<string | null>(null);
-  const overstyrt = Boolean(kundar.faktura.id && kundar.faktura.id !== kundar.ordre.id);
+  const overstyrt = Boolean(orderId && kundar.faktura.id && kundar.faktura.id !== kundar.ordre.id);
+  const api = draft ? `/api/fakturaer/${draft.id}` : null;
 
   const laast = draft?.status === "overfort";
   const providerNavn = kopling ? ACCOUNTING_PROVIDER_LABELS[kopling.provider] : "regnskapssystemet";
@@ -101,7 +111,7 @@ export function FakturaFane({
     setError(null);
     try {
       const res = await fetch(url, {
-        method: nokkel === "lagre" || nokkel === "kunde" ? "PATCH" : "POST",
+        method: nokkel === "lagre" || nokkel === "kunde" ? "PATCH" : nokkel === "slett" ? "DELETE" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body ?? {}),
       });
@@ -128,6 +138,7 @@ export function FakturaFane({
   }
 
   async function generer() {
+    if (!orderId) return;
     if (draft && !window.confirm("Lage et nytt forslag? Redigeringene dine erstattes. Den gamle versjonen ligger i loggen.")) return;
     const r = await kall(`/api/orders/${orderId}/faktura`, {}, "generer");
     if (r) {
@@ -141,9 +152,11 @@ export function FakturaFane({
   }
 
   async function lagre(): Promise<boolean> {
+    // Tomme linjer uten pris er bare plassholdere; de lagres ikke.
+    const aaLagre = lines.filter((l) => l.description.trim() || l.unit_price !== null);
     const r = await kall(
-      `/api/orders/${orderId}/faktura`,
-      { lines, invoice_text: tekst, customer_reference: ref },
+      `${api}`,
+      { lines: aaLagre, invoice_text: tekst, customer_reference: ref, ...(orderId ? {} : { title: tittel }) },
       "lagre",
     );
     if (r) {
@@ -158,17 +171,17 @@ export function FakturaFane({
 
   async function godkjenn() {
     if (dirty && !(await lagre())) return;
-    const r = await kall(`/api/orders/${orderId}/faktura/godkjenn`, {}, "godkjenn");
+    const r = await kall(`${api}/godkjenn`, {}, "godkjenn");
     if (r) router.refresh();
   }
 
   async function angre() {
-    const r = await kall(`/api/orders/${orderId}/faktura/angre-godkjenning`, {}, "angre");
+    const r = await kall(`${api}/angre-godkjenning`, {}, "angre");
     if (r) router.refresh();
   }
 
   async function overfor(body: { createCustomer?: boolean; customerNo?: string } = {}) {
-    const r = await kall(`/api/orders/${orderId}/faktura/overfor`, body, "overfor");
+    const r = await kall(`${api}/overfor`, body, "overfor");
     if (r) {
       setOverfoering(null);
       router.refresh();
@@ -178,8 +191,18 @@ export function FakturaFane({
   /** Bytt fakturakunde. null: tilbake til kunden på ordren. Lagres med én gang. */
   async function velgKunde(kunde: KundeForslag | null) {
     setKundeSok(null);
-    const r = await kall(`/api/orders/${orderId}/faktura`, { customer_id: kunde?.id ?? null }, "kunde");
+    const r = await kall(`${api}`, { customer_id: kunde?.id ?? null }, "kunde");
     if (r) router.refresh();
+  }
+
+  /** Bare uten ordre: et utkast som ikke skal faktureres likevel. */
+  async function slett() {
+    if (!window.confirm("Slette dette fakturautkastet?")) return;
+    const r = await kall(`${api}`, {}, "slett");
+    if (r) {
+      router.push("/fakturaer");
+      router.refresh();
+    }
   }
 
   function endre(id: string, patch: Partial<InvoiceLine>) {
@@ -193,22 +216,7 @@ export function FakturaFane({
   }
 
   function leggTil() {
-    setLines((ls) => [
-      ...ls,
-      {
-        id: crypto.randomUUID(),
-        kind: "tekst",
-        description: "",
-        quantity: 1,
-        unit: "stk",
-        unit_price: null,
-        line_total: 0,
-        vat_pct: ls[0]?.vat_pct ?? 25,
-        included: true,
-        sources: [],
-        ai_reason: null,
-      },
-    ]);
+    setLines((ls) => [...ls, tomLinje(ls[0]?.vat_pct ?? 25)]);
     setDirty(true);
   }
 
@@ -220,8 +228,8 @@ export function FakturaFane({
   const vat = round2(subtotal * (vatPct / 100));
   const medLinjer = lines.filter((l) => l.included && l.unit_price !== null).length;
 
-  // ---- Ingen forslag ennå ---------------------------------------------------
-  if (!draft) {
+  // ---- Ingen forslag ennå (bare på en ordre) --------------------------------
+  if (!draft || !api) {
     const kanLage = orderStatus === "paagaar" || orderStatus === "ferdig";
     return (
       <div className="card card-pad fane-mobil">
@@ -297,16 +305,18 @@ export function FakturaFane({
           </p>
           <p className="muted tiny">
             Fakturaen ligger som ordreutkast der. Send den fra {providerNavn} — Devello sender aldri.
-            Timene og materiellet som er med er låst, og ordren er fakturert.
+            {orderId && " Timene og materiellet som er med er låst, og ordren er fakturert."}
           </p>
-          <div className="row" style={{ marginTop: 10 }}>
-            <Link className="button secondary" href={`/ordre/${orderId}/timer`}>
-              Timer
-            </Link>
-            <Link className="button secondary" href={`/ordre/${orderId}/materiell`}>
-              Materiell
-            </Link>
-          </div>
+          {orderId && (
+            <div className="row" style={{ marginTop: 10 }}>
+              <Link className="button secondary" href={`/ordre/${orderId}/timer`}>
+                Timer
+              </Link>
+              <Link className="button secondary" href={`/ordre/${orderId}/materiell`}>
+                Materiell
+              </Link>
+            </div>
+          )}
         </div>
         <LinjeTabell lines={draft.lines} laast onEndre={() => {}} onFjern={() => {}}>
           <Summer subtotal={draft.totals.subtotal} vat={draft.totals.vat} total={draft.totals.total} vatPct={vatPct} />
@@ -363,15 +373,21 @@ export function FakturaFane({
             Angre godkjenning
           </button>
         )}
-        <button type="button" className="button secondary" onClick={generer} disabled={busy !== null}>
-          {busy === "generer" ? "Lager…" : "Nytt forslag"}
-        </button>
+        {orderId ? (
+          <button type="button" className="button secondary" onClick={generer} disabled={busy !== null}>
+            {busy === "generer" ? "Lager…" : "Nytt forslag"}
+          </button>
+        ) : (
+          <button type="button" className="button ghost" onClick={slett} disabled={busy !== null}>
+            {busy === "slett" ? "Sletter…" : "Slett utkast"}
+          </button>
+        )}
         <span className="verktoylinje-hoyre" style={{ flexWrap: "wrap" }}>
           <span className="tiny muted">
-            Forslag {formatDate(draft.generated_at)}
+            {draft.generated_at ? `Forslag ${formatDate(draft.generated_at)}` : `Opprettet ${formatDate(draft.created_at)}`}
             {draft.approved_at && ` · godkjent ${formatDate(draft.approved_at)}`}
           </span>
-          <span className="pill paagaar">{INVOICE_STRATEGY_LABELS[draft.strategy]}</span>
+          {draft.strategy !== "manuell" && <span className="pill paagaar">{INVOICE_STRATEGY_LABELS[draft.strategy]}</span>}
           <span className={`pill ${draft.status === "godkjent" ? "ferdig" : draft.status === "feil" ? "avbrutt" : "opna"}`}>
             {INVOICE_DRAFT_STATUS_LABELS[draft.status]}
           </span>
@@ -462,6 +478,21 @@ export function FakturaFane({
       {/* Fakturahodet over linjene, som i Go: etiketten foran feltet. */}
       <div className="card card-pad">
         <div className="utkast-felt" style={{ marginBottom: 0 }}>
+          {!orderId && (
+            <>
+              <label htmlFor="faktura-tittel">Tittel</label>
+              <input
+                id="faktura-tittel"
+                className="input"
+                value={tittel}
+                onChange={(e) => {
+                  setTittel(e.target.value);
+                  setDirty(true);
+                }}
+                placeholder="Til eget bruk — vises i fakturalisten"
+              />
+            </>
+          )}
           {/* Kunden som i Go: oppslag i registeret, og den kan overstyres.
               Fakturaen hører til kunden den sendes til, ikke kunden på ordren. */}
           <label>Kunde</label>
@@ -814,6 +845,22 @@ function OverforDialog({
       )}
     </div>
   );
+}
+
+function tomLinje(vatPct: number): InvoiceLine {
+  return {
+    id: crypto.randomUUID(),
+    kind: "tekst",
+    description: "",
+    quantity: 1,
+    unit: "stk",
+    unit_price: null,
+    line_total: 0,
+    vat_pct: vatPct,
+    included: true,
+    sources: [],
+    ai_reason: null,
+  };
 }
 
 function formatPris(n: number): string {
