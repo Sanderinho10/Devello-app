@@ -7,6 +7,7 @@ import { Forutsetninger } from "./Forutsetninger";
 import { OpprettOrdre } from "./OpprettOrdre";
 import { NyPost } from "./NyPost";
 import { useRadDra } from "./useRadDra";
+import { mottakerFor } from "@/lib/drafts/mottaker";
 import { erOverskrift } from "@/lib/pricelist/koder";
 import Link from "next/link";
 import { PriceItemPicker } from "@/components/PriceItemPicker";
@@ -161,6 +162,11 @@ export function DraftEditor({
   });
 
   const wantsDocument = hasDocument(quoteType);
+  /** Samme regel som bekreft bruker: kunden i tilbudet, ellers avsenderen. */
+  const sendesTil = mottakerFor(
+    lead,
+    wantsDocument && draft.agent_status !== "trenger_avklaring" ? document : null,
+  ).epost;
   const totals = useMemo(
     () => (document ? computeTotals(document) : null),
     [document],
@@ -1372,6 +1378,11 @@ export function DraftEditor({
           {lagring === "lagrer" ? "Lagrer…" : lagring === "lagret" ? "Alle endringer er lagret" : lagring === "feil" ? "Kunne ikke lagre — prøver igjen" : ""}
         </span>
         <span className="spacer" />
+        {sendesTil && (
+          <span className="tiny" title="Mottakeren følger kunden i tilbudet">
+            Til: {sendesTil}
+          </span>
+        )}
         <span className="muted tiny">
           {!harPostkasse
             ? wantsDocument

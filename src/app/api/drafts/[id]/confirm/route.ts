@@ -7,6 +7,7 @@ import { brandImageBytes } from "@/lib/brand/image-bytes";
 import { logoDataUri } from "@/lib/pdf/logo";
 import { renderQuoteHtml } from "@/lib/pdf/template";
 import { kundenummerForLead } from "@/lib/kunder/koble";
+import { mottakerFor } from "@/lib/drafts/mottaker";
 import { diffSnapshots, logDraftVersion } from "@/lib/drafts/versions";
 import { summarizeEdits } from "@/lib/drafts/edit-summary";
 import { finnEpost } from "@/lib/leads/finn-epost";
@@ -85,6 +86,8 @@ export async function POST(
   // avklaringsspørsmål i e-posten, og bekreft skal lage kladden uten PDF.
   const isClarification = draft.agent_status === "trenger_avklaring";
   const wantsDocument = !isClarification && hasDocument(payload.quote_type);
+  // Mottakeren følger kunden i tilbudet; uten dokument, avsenderen.
+  const mottaker = mottakerFor(lead, wantsDocument ? payload.document : null);
 
   if (wantsDocument && !payload.document) {
     return NextResponse.json(
@@ -167,11 +170,13 @@ export async function POST(
         outlook = await createDraft(token, {
           subject: payload.email_subject,
           body: payload.email_body,
-          toEmail: lead.from_email,
-          toName: lead.from_name,
+          toEmail: mottaker.epost,
+          toName: mottaker.navn,
           // Bare e-postleads har en melding å svare på. Den syntetiske id-en
-          // til et manuelt lead ville fått createReply til å feile.
-          replyToMessageId: lead.source === "epost" ? lead.external_message_id : null,
+          // til et manuelt lead ville fått createReply til å feile. Og går
+          // tilbudet til en annen kunde enn den som skrev, blir det en ny
+          // e-post — ikke et svar som tar med seg henvendelsen.
+          replyToMessageId: mottaker.svarITraden ? lead.external_message_id : null,
           // Bildet i signaturen, som inline-vedlegg. Har firmaet ikke lagt inn
           // noe, blir e-posten som før.
           signatureImage: await brandImageBytes(admin, brand?.signature_image_path),
@@ -303,11 +308,8 @@ export async function POST(
       // Tre kilder, i den rekkefølgen vi stoler på dem: feltet på leadet,
       // adressen agenten leste ut av henvendelsen, og til slutt et søk i
       // teksten selv. Et manuelt lead har ofte adressen bare i beskrivelsen.
-      mottaker:
-        lead.from_email ||
-        payload.document?.customer.email ||
-        finnEpost(lead.body_text || lead.body_preview),
-      mottaker_navn: lead.from_name || payload.document?.customer.name || null,
+      mottaker: mottaker.epost || finnEpost(lead.body_text || lead.body_preview),
+      mottaker_navn: mottaker.navn,
       emne: payload.email_subject,
       tekst: payload.email_body,
       har_pdf: pdf !== null,
