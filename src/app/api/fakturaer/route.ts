@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
+import { loggAktivitet } from "@/lib/aktivitet";
 import { kundefeltFra } from "@/lib/faktura/handlingar";
 import { ordreModulEllers403 } from "@/lib/ordre/tilgang";
 import { supabaseAdmin } from "@/lib/supabase/server";
@@ -79,6 +80,13 @@ export async function POST(request: NextRequest) {
       .select("id")
       .single();
     if (error) throw new Error(error.message);
+    await loggAktivitet(admin, {
+      companyId: session.companyId,
+      objekt: "faktura",
+      objektId: data.id,
+      handling: "opprettet",
+      userId: session.userId,
+    });
     return NextResponse.json({ id: data.id });
   } catch (err) {
     return errorResponse(err);
