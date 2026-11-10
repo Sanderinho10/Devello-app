@@ -9,6 +9,14 @@ export type PriceItemKind = "punktpris" | "materiell" | "time";
  */
 export type LeadStatus = "ny" | "genererer" | "utkast_klar" | "bekrefta" | "sendt";
 
+export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
+  ny: "Ny",
+  genererer: "Genererer…",
+  utkast_klar: "Utkast klart",
+  bekrefta: "Bekreftet",
+  sendt: "Sendt",
+};
+
 /** Hvor henvendelsen kom fra. Manuelle er skrevet inn etter en telefon. */
 export type LeadSource = "epost" | "manuell";
 
@@ -84,11 +92,18 @@ export interface Member {
   email: string;
   full_name: string | null;
   role: UserRole;
+  /**
+   * Har aldri logga inn. Gamle invitasjonar via Supabase oppretta brukaren
+   * med ein gong, før personen hadde valt passord — dei er ikkje aktive enno.
+   */
+  aldri_innlogga?: boolean;
 }
 
 export interface Invitation {
   id: string;
   email: string;
+  fornavn: string | null;
+  etternavn: string | null;
   role: UserRole;
   accepted_at: string | null;
   expires_at: string;
@@ -202,6 +217,8 @@ export interface Lead {
   status: LeadStatus;
   /** Hvorfor en bakgrunnsgenerering feilet. Null når alt gikk bra. */
   generation_error: string | null;
+  /** Kunden i registeret. Settes når utkastet genereres; null for leads uten navn og e-post. */
+  customer_id: string | null;
   created_at: string;
 }
 
@@ -270,6 +287,9 @@ export type DraftAgentStatus = "utkast" | "trenger_avklaring";
 export interface Draft {
   id: string;
   lead_id: string;
+  company_id: string | null;
+  /** Løpenummer per selskap, fra 1000. Satt første gang agenten lager utkastet; står gjennom nye versjoner. */
+  quote_no: number | null;
   quote_type: QuoteType;
   /** Agentens begrunnelse for typevalget, forankret i referansene. */
   typebegrunnelse: string | null;
@@ -424,6 +444,8 @@ export const ORDER_ACTIVE_STATUSES: OrderStatus[] = ["opna", "paagaar"];
  */
 export interface OrderQuoteSnapshot {
   quote_type: QuoteType;
+  /** Tilbudsnummeret ordren kom fra. */
+  quote_no?: number | null;
   document: QuoteDocument | null;
   totals: QuoteTotals | null;
 }
@@ -445,6 +467,8 @@ export interface Order {
   customer_phone: string | null;
   /** Adressen der jobben gjøres. */
   site_address: string | null;
+  /** Kunden i registeret. Kundefeltene over er ordrens egne og står selv om kunden endres. */
+  customer_id: string | null;
   /** Hvor ordren kom fra. Begge null for en ordre uten tilbud. */
   lead_id: string | null;
   draft_id: string | null;
@@ -456,9 +480,60 @@ export interface Order {
   boligmappa_number: string | null;
   boligmappa_property: BoligmappaEigedom | null;
   created_by: string | null;
+  /** Saksbehandler (0059). null: forslaget, den som opprettet ordren. */
+  saksbehandler_id: string | null;
+  /** Hovedansvarlig (0059). null: forslaget, den som opprettet ordren. */
+  hovedansvarlig_id: string | null;
   created_at: string;
   updated_at: string;
   closed_at: string | null;
+}
+
+/**
+ * En kontakt i kontaktregisteret — kunde, leverandør eller begge. Én rad per
+ * kontakt per selskap; leads og ordrer peker hit via customer_id. Opprettes automatisk første gang et tilbud eller en
+ * ordre har et navn eller en e-post vi ikke har sett før (lib/kunder/koble.ts).
+ */
+export interface Customer {
+  id: string;
+  company_id: string;
+  name: string;
+  contact: string | null;
+  email: string | null;
+  phone: string | null;
+  website: string | null;
+  /** Firma eller privatperson. */
+  is_person: boolean;
+  /** Hovedadressen. Fakturaadresse og oppdragsadresse: se lib/kunder/adresse.ts. */
+  address: string | null;
+  address2: string | null;
+  postal_code: string | null;
+  city: string | null;
+  country: string;
+  invoice_separate: boolean;
+  invoice_address: string | null;
+  invoice_address2: string | null;
+  invoice_postal_code: string | null;
+  invoice_city: string | null;
+  invoice_country: string | null;
+  site_separate: boolean;
+  site_address: string | null;
+  site_address2: string | null;
+  site_postal_code: string | null;
+  site_city: string | null;
+  org_nr: string | null;
+  notes: string | null;
+  /** Kundenummeret: løpenummer per selskap fra 10000, satt av databasen (0057). Kan rettes for hånd. */
+  customer_no: number;
+  /** Kontakten er en kunde. Settes av seg selv når kontakten kobles til et tilbud eller en ordre. */
+  is_customer: boolean;
+  /** Kontakten er en leverandør. */
+  is_supplier: boolean;
+  /** Kundenummeret i PowerOffice Go, lagret etter første overføring. Gjelder bare for koblingen under. */
+  accounting_customer_no: string | null;
+  accounting_connection_id: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 /** Det brukeren bekreftet: adresse, enhet og matrikkel. */
@@ -639,6 +714,8 @@ export interface TimeEntry {
   updated_at: string;
   /** Satt når timene er med på et overført fakturaforslag. Låst. */
   invoice_draft_id: string | null;
+  /** UUID laget i montørappen — samme client_id igjen gir samme rad. */
+  client_id: string | null;
 }
 
 /** manuell = ført i appen. faktura og pakkseddel kommer fra POGO i steg 3. */
@@ -678,6 +755,8 @@ export interface MaterialEntry {
   replaced_by: string | null;
   /** Satt når linjen er med på et overført fakturaforslag. Låst. */
   invoice_draft_id: string | null;
+  /** UUID laget i montørappen — samme client_id igjen gir samme rad. */
+  client_id: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -732,6 +811,12 @@ export const PRODUCT_MAP_LABELS: Record<ProductMapKey, string> = {
 export interface ConnectionSettings {
   /** Bruk ordrenummeret som prosjektkode på salgsordren i regnskapssystemet. */
   project_per_order?: boolean;
+  /**
+   * Hent bare fakturaer ført på disse hovudbokskontoene (minst én linje i
+   * intervallet). Mangler feltet, gjelder standarden: på, 4000–4999 —
+   * varekjøp. Se lib/regnskap/kontofilter.ts.
+   */
+  account_filter?: { enabled: boolean; from: number; to: number };
 }
 
 export type InvoiceMatchStatus = "kopla" | "delvis" | "ukopla" | "ignorert";
@@ -776,6 +861,12 @@ export interface SupplierInvoice {
   ehf_storage_path: string | null;
   ehf_parsed_at: string | null;
   parse_error: string | null;
+  /** PDF-en slik den ligger i regnskapssystemet. Null når Go ikke har noen. */
+  has_pdf: boolean;
+  pdf_storage_path: string | null;
+  doc_checked_at: string | null;
+  /** Hovedbokskontoene bilaget er ført på. Tomt for fakturafiler fra grossist. */
+  account_numbers: number[];
   match_status: InvoiceMatchStatus;
   order_id: string | null;
   line_count: number;
@@ -845,19 +936,36 @@ export const INVOICE_DRAFT_STATUS_LABELS: Record<InvoiceDraftStatus, string> = {
   feil: "Feil ved overføring",
 };
 
-export type InvoiceStrategy = "fastpris" | "fastpris_med_tillegg" | "tid_og_materiell";
+/** «manuell»: en faktura uten ordre, med linjer et menneske har skrevet (0065). */
+export type InvoiceStrategy = "fastpris" | "fastpris_med_tillegg" | "tid_og_materiell" | "manuell";
 
 export const INVOICE_STRATEGY_LABELS: Record<InvoiceStrategy, string> = {
   fastpris: "Fastpris",
   fastpris_med_tillegg: "Fastpris med tillegg",
   tid_og_materiell: "Tid og materiell",
+  manuell: "Manuell",
 };
 
 /** Formen på linjene og kildene ligger i lib/faktura/typar.ts. */
 export interface InvoiceDraft {
   id: string;
   company_id: string;
-  order_id: string;
+  /** Ordren fakturaen er laget fra. null: laget rett i fakturafanen (0065). */
+  order_id: string | null;
+  /** Bare for fakturaer uten ordre: tittel og kundefelt i ordrens form. */
+  title: string | null;
+  customer_name: string | null;
+  customer_contact: string | null;
+  customer_email: string | null;
+  customer_phone: string | null;
+  /** Én linje: «Storgata 12, 5003 Bergen». */
+  customer_address: string | null;
+  /**
+   * Fakturakunden: den fakturaen sendes til (0058). Satt til ordrens kunde
+   * når forslaget lages, og kan overstyres. null: ordren har ingen kunde i
+   * registeret — da gjelder ordrens kundefelt.
+   */
+  customer_id: string | null;
   status: InvoiceDraftStatus;
   strategy: InvoiceStrategy;
   lines: import("./faktura/typar").InvoiceLine[];
@@ -909,6 +1017,21 @@ export interface OrderDocument {
   boligmappa_sent_at: string | null;
   boligmappa_error: string | null;
   created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  /** Bildet hører til et notat på ordren (montørappen). */
+  note_id: string | null;
+  client_id: string | null;
+}
+
+/** Notat på ordren — fritekst fra montøren, ofte med bilder knyttet til. */
+export interface OrderNote {
+  id: string;
+  company_id: string;
+  order_id: string;
+  user_id: string;
+  text: string;
+  client_id: string | null;
   created_at: string;
   updated_at: string;
 }

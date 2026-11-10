@@ -1,8 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
+import { registrerAppBrukar } from "@/lib/billing/subscription";
 import { BUCKET, ordreOgDokument, prefillKontekst } from "@/lib/dokumentasjon/dokument";
 import { finnMal, malarForFag } from "@/lib/dokumentasjon/malar";
 import { prefillData } from "@/lib/dokumentasjon/motor";
+import { erUnikBrot, finstMedClientId, uuid } from "@/lib/ordre/api";
+import { ordreModulEllers403 } from "@/lib/ordre/tilgang";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
 const MAKS_FIL = 25 * 1024 * 1024;
@@ -12,7 +15,9 @@ const MAKS_FIL = 25 * 1024 * 1024;
  *
  * JSON { kind: "skjema", template_key } → skjema fra mal, forhåndsutfylt.
  * Multipart { kind: "fil", file } → fila lastes opp til order-documents
- * (bilde fra mobilkameraet, PDF, datablad).
+ * (bilde fra mobilkameraet, PDF, datablad). Fra montørappen også
+ * note_id (bildet hører til et notat på samme ordre) og client_id
+ * (samme client_id igjen → 200 med raden som alt finnes).
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await sessionOr401();
@@ -21,14 +26,29 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   try {
     const { id } = await params;
     const admin = supabaseAdmin();
-    const r = await ordreOgDokument(admin, session, id);
-    if (r instanceof NextResponse) return r;
-    if (r.ordre.status === "avbrutt") return NextResponse.json({ error: "Ordren er avbrutt." }, { status: 400 });
-
     const contentType = request.headers.get("content-type") ?? "";
 
     if (contentType.includes("multipart/form-data")) {
       const form = await request.formData();
+
+      const clientId = uuid(form.get("client_id"));
+      if (clientId) {
+        const avvist = await ordreModulEllers403(admin, session.companyId);
+        if (avvist) return avvist;
+        const finst = await finstMedClientId<{ order_id: string }>(admin, "order_documents", session.companyId, clientId);
+        if (finst && finst.order_id === id) return NextResponse.json(finst, { status: 200 });
+      }
+
+      const r = await ordreOgDokument(admin, session, id);
+      if (r instanceof NextResponse) return r;
+      if (r.ordre.status === "avbrutt") return NextResponse.json({ error: "Ordren er avbrutt." }, { status: 400 });
+
+      const noteId = uuid(form.get("note_id"));
+      if (noteId) {
+        const { data: notat } = await admin.from("order_notes").select("id").eq("id", noteId).eq("order_id", r.ordre.id).eq("company_id", session.companyId).maybeSingle();
+        if (!notat) return NextResponse.json({ error: "Notatet hører ikke til denne ordren." }, { status: 400 });
+      }
+
       const file = form.get("file");
       if (!(file instanceof File) || file.size === 0) return NextResponse.json({ error: "Fil er påkrevd." }, { status: 400 });
       if (file.size > MAKS_FIL) return NextResponse.json({ error: "Fila er større enn 25 MB." }, { status: 400 });
@@ -48,10 +68,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           file_name: file.name,
           mime_type: mime,
           created_by: session.userId,
+          note_id: noteId,
+          client_id: clientId,
         })
         .select("*")
         .single();
-      if (error) throw new Error(error.message);
+      if (error) {
+        if (erUnikBrot(error) && clientId) {
+          const finst = await finstMedClientId(admin, "order_documents", session.companyId, clientId);
+          if (finst) return NextResponse.json(finst, { status: 200 });
+        }
+        throw new Error(error.message);
+      }
 
       const sti = `${session.companyId}/${r.ordre.id}/${rad.id}-${sanitize(file.name)}`;
       const bytes = Buffer.from(await file.arrayBuffer());
@@ -61,8 +89,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         throw new Error(`Opplasting feilet: ${uploadError.message}`);
       }
       const { data: ferdig } = await admin.from("order_documents").update({ storage_path: sti }).eq("id", rad.id).select("*").single();
-      return NextResponse.json(ferdig);
+      if (session.via === "bearer") await registrerAppBrukar(admin, { companyId: session.companyId, userId: session.userId });
+      return NextResponse.json(ferdig, { status: 201 });
     }
+
+    const r = await ordreOgDokument(admin, session, id);
+    if (r instanceof NextResponse) return r;
+    if (r.ordre.status === "avbrutt") return NextResponse.json({ error: "Ordren er avbrutt." }, { status: 400 });
 
     const body = (await request.json().catch(() => ({}))) as { kind?: unknown; template_key?: unknown };
     if (body.kind !== "skjema") return NextResponse.json({ error: "kind må være «skjema», eller send fila som multipart." }, { status: 400 });

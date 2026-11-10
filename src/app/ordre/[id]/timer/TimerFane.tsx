@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { summerTimar } from "@/lib/ordre/summering";
+import type { TimeforslagUt } from "@/lib/kalender/hent-timeforslag";
 import { formatNok, type TimeEntry } from "@/lib/types";
+import { Timeforslag } from "./Timeforslag";
 
 interface Timetype {
   id: string;
@@ -13,15 +15,12 @@ interface Timetype {
   unit_price: number;
 }
 
-const HURTIG = [0.5, 1, 2, 4, 8];
-
 /**
  * Timer på ordren — skjemaet montøren bruker ute på jobb.
  *
  * Alt er valgt på forhånd der det går: dato er i dag, montør er en selv,
  * timetype er den første i lista. Da er det ett tall og ett trykk for det
- * vanlige tilfellet. Hurtigknappene dekker de fem tallene som faktisk blir
- * ført; feltet står der for resten.
+ * vanlige tilfellet.
  *
  * Egne føringer kan endres og slettes; en administrator kan røre alle.
  * Det er samme regel som API-et håndhever — knappene viser bare det som er
@@ -73,6 +72,18 @@ export function TimerFane({
     setTypeId(e.price_item_id ?? "");
     setTimar(String(e.hours).replace(".", ","));
     setNote(e.note ?? "");
+    setError(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  /** Forslag frå kalenderen inn i skjemaet, så det kan rettast før lagring. */
+  function brukForslag(f: TimeforslagUt) {
+    setRedigerer(null);
+    setDato(f.work_date);
+    setUserId(meg.erAdmin ? f.user_id : meg.id);
+    if (f.price_item_id) setTypeId(f.price_item_id);
+    setTimar(String(f.timar).replace(".", ","));
+    setNote("");
     setError(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -130,15 +141,22 @@ export function TimerFane({
       {!laast && timetypar.length === 0 && (
         <div className="banner warning" style={{ marginBottom: 0 }}>
           Legg inn timepriser i prisfilen først.{" "}
-          <Link href="/tilbud/prisfil" style={{ textDecoration: "underline" }}>
+          <Link href="/selskap/innstillinger/prisfil" style={{ textDecoration: "underline" }}>
             Gå til prisfilen →
           </Link>
         </div>
       )}
 
       {!laast && timetypar.length > 0 && (
-        <form className="card card-pad" onSubmit={lagre}>
-          <div className="row-between" style={{ marginBottom: 12 }}>
+        // Ny nøkkel når timelista endrar seg: forslaga blir henta på nytt.
+        <Timeforslag key={entries.length} orderId={orderId} erAdmin={meg.erAdmin} onJuster={brukForslag} />
+      )}
+
+      {/* Føringen som én linje over tabellen, som i Go. På telefon stables
+          feltene med full trykkflate. */}
+      {!laast && timetypar.length > 0 && (
+        <form className={`card foring${redigerer ? " redigerer" : ""}`} onSubmit={lagre}>
+          <div className="foring-topp">
             <span className="label" style={{ marginBottom: 0 }}>
               {redigerer ? "Endre timeføring" : "Før timer"}
             </span>
@@ -150,8 +168,8 @@ export function TimerFane({
           </div>
           {error && <div className="banner error">{error}</div>}
 
-          <div className="grid-2">
-            <label className="field">
+          <div className="foring-felt">
+            <label className="foring-dato">
               <span className="label">Dato</span>
               <input
                 className="input"
@@ -161,7 +179,7 @@ export function TimerFane({
                 required
               />
             </label>
-            <label className="field">
+            <label className="foring-montor">
               <span className="label">Montør</span>
               {meg.erAdmin ? (
                 <select className="input" value={userId} onChange={(e) => setUserId(e.target.value)}>
@@ -175,7 +193,7 @@ export function TimerFane({
                 <input className="input" value={navn.get(meg.id) ?? "Meg"} readOnly />
               )}
             </label>
-            <label className="field">
+            <label className="foring-type">
               <span className="label">Timetype</span>
               <select className="input" value={typeId} onChange={(e) => setTypeId(e.target.value)}>
                 {timetypar.map((t) => (
@@ -185,114 +203,122 @@ export function TimerFane({
                 ))}
               </select>
             </label>
-            <label className="field">
-              <span className="label">Timer</span>
+            <div className="foring-timar">
+              <label>
+                <span className="label">Timer</span>
+                <input
+                  className="input"
+                  inputMode="decimal"
+                  value={timar}
+                  onChange={(e) => setTimar(e.target.value)}
+                  placeholder="1,5"
+                  required
+                />
+              </label>
+            </div>
+            <label className="foring-note">
+              <span className="label">Kommentar</span>
               <input
                 className="input"
-                inputMode="decimal"
-                value={timar}
-                onChange={(e) => setTimar(e.target.value)}
-                placeholder="1,5"
-                required
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Valgfritt — trekking i kjeller"
               />
-              <div className="hurtigknappar">
-                {HURTIG.map((h) => (
-                  <button
-                    key={h}
-                    type="button"
-                    className={`button secondary${Number(timar.replace(",", ".")) === h ? " active" : ""}`}
-                    onClick={() => setTimar(String(h).replace(".", ","))}
-                  >
-                    {String(h).replace(".", ",")}
-                  </button>
-                ))}
-              </div>
             </label>
+            <div className="foring-knapp">
+              <button className="button" type="submit" disabled={busy || !timar}>
+                {busy ? "Lagrer…" : redigerer ? "Lagre" : "Legg til"}
+              </button>
+            </div>
           </div>
-          <label className="field">
-            <span className="label">Kommentar (valgfritt)</span>
-            <input
-              className="input"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Trekking i kjeller, venter på gips"
-            />
-          </label>
-          <button className="button" type="submit" disabled={busy || !timar}>
-            {busy ? "Lagrer…" : redigerer ? "Lagre endringer" : "Legg til"}
-          </button>
         </form>
       )}
 
       <div className="card">
-        <div className="card-header">
-          <span className="label" style={{ marginBottom: 0 }}>
-            Førte timer
-          </span>
-          <span className="tiny muted">
-            {formatTimar(sum.timar)} · {formatNok(sum.kr)}
-          </span>
-        </div>
-
         {entries.length === 0 ? (
           <div className="empty">
             <div className="empty-title">Ingen timer ført</div>
             <div>{laast ? "Ordren er avsluttet." : "Det første tallet over blir første linje her."}</div>
           </div>
         ) : (
-          perDato.map(([d, rader]) => (
-            <div key={d}>
-              <div className="dato-skille">{formatDato(d)}</div>
-              <div className="lead-list">
-                {rader.map((e) => (
-                  <div
-                    key={e.id}
-                    className={`lead-row time-rad${redigerer?.id === e.id ? " redigerer" : ""}${e.invoice_draft_id ? " fakturert" : ""}`}
-                  >
-                    <div className="lead-main">
-                      <div className="lead-subject" style={{ cursor: "default" }}>
-                        {navn.get(e.user_id) ?? "Ukjent"} · {e.time_type_name}
-                        {e.invoice_draft_id && <span className="chip fakturert-merke">fakturert</span>}
-                      </div>
-                      {e.note && <div className="lead-meta">{e.note}</div>}
-                    </div>
-                    <span className="ordre-sum">
-                      <strong>{formatTimar(Number(e.hours))}</strong>
-                      <span className="tiny muted"> · {formatNok(Number(e.hours) * Number(e.unit_price))}</span>
-                    </span>
-                    {!laast && !e.invoice_draft_id && kanRoere(e) && (
-                      <span className="row">
-                        <button type="button" className="button ghost" onClick={() => startRedigering(e)}>
-                          Rediger
-                        </button>
-                        <button type="button" className="button ghost" onClick={() => slett(e)}>
-                          Slett
-                        </button>
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))
-        )}
-
-        {sum.perType.length > 0 && (
-          <div className="card-pad" style={{ borderTop: "1px solid var(--border)" }}>
-            {sum.perType.map((t) => (
-              <div key={t.name} className="row-between tiny" style={{ padding: "3px 0" }}>
-                <span className="muted">{t.name}</span>
-                <span>
-                  {formatTimar(t.timar)} · {formatNok(t.kr)}
-                </span>
-              </div>
-            ))}
-            <div className="row-between" style={{ marginTop: 8, fontWeight: 600 }}>
-              <span>Sum</span>
-              <span>
-                {formatTimar(sum.timar)} · {formatNok(sum.kr)}
-              </span>
-            </div>
+          <div className="tabell-rull">
+            <table className="table tabell-mobil">
+              <thead>
+                <tr>
+                  <th>Montør</th>
+                  <th>Timetype</th>
+                  <th>Kommentar</th>
+                  <th className="num">Timer</th>
+                  <th className="num">Beløp</th>
+                  <th aria-label="Handling" />
+                </tr>
+              </thead>
+              {/* Én tbody per dag, med dagen som overskriftsrad og dagens sum,
+                  som gruppene i reskontroen i Go. */}
+              {perDato.map(([d, rader]) => {
+                const dag = summerTimar(rader);
+                return (
+                  <tbody key={d}>
+                    <tr className="gruppe-rad">
+                      <td colSpan={3}>{formatDato(d)}</td>
+                      <td className="num">{formatTimar(dag.timar)}</td>
+                      <td className="num">{formatNok(dag.kr)}</td>
+                      <td />
+                    </tr>
+                    {rader.map((e) => (
+                      <tr
+                        key={e.id}
+                        className={`${redigerer?.id === e.id ? "redigerer" : ""}${e.invoice_draft_id ? " fakturert" : ""}`}
+                      >
+                        <td className="hoved">{navn.get(e.user_id) ?? "Ukjent"}</td>
+                        <td className="meta">
+                          {e.time_type_name}
+                          {e.invoice_draft_id && <span className="chip fakturert-merke">fakturert</span>}
+                        </td>
+                        <td className="meta muted">{e.note}</td>
+                        <td className="num belop">
+                          <strong>{formatTimar(Number(e.hours))}</strong>
+                        </td>
+                        <td className="num muted meta">
+                          {formatNok(Number(e.hours) * Number(e.unit_price))}
+                        </td>
+                        <td className="handling">
+                          {!laast && !e.invoice_draft_id && kanRoere(e) && (
+                            <>
+                              <button type="button" className="button ghost" onClick={() => startRedigering(e)}>
+                                Rediger
+                              </button>
+                              <button type="button" className="button ghost" onClick={() => slett(e)}>
+                                Slett
+                              </button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                );
+              })}
+              <tfoot>
+                {sum.perType.length > 1 &&
+                  sum.perType.map((t) => (
+                    <tr key={t.name} className="sum-type">
+                      <td colSpan={3} className="muted">
+                        {t.name}
+                      </td>
+                      <td className="num">{formatTimar(t.timar)}</td>
+                      <td className="num">{formatNok(t.kr)}</td>
+                      <td />
+                    </tr>
+                  ))}
+                <tr className="sum-rad">
+                  <td colSpan={3}>Sum</td>
+                  <td className="num">{formatTimar(sum.timar)}</td>
+                  <td className="num">{formatNok(sum.kr)}</td>
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
           </div>
         )}
       </div>

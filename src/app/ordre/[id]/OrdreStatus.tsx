@@ -73,7 +73,7 @@ export function OrdreStatus({ orderId, status }: { orderId: string; status: Orde
           {busy === "avbrutt" ? "Lagrer…" : OVERGANG_TEKST.avbrutt}
         </button>
       )}
-      {error && <span className="tiny" style={{ color: "#a4271b" }}>{error}</span>}
+      {error && <span className="tiny" style={{ color: "var(--negative)" }}>{error}</span>}
     </div>
   );
 }

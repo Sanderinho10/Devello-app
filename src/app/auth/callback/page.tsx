@@ -11,7 +11,8 @@ import { Merke } from "@/components/Merke";
  * Den finnes fordi lenkene kommer i to former, og ingen av dem kom fram før:
  *
  * 1. «#access_token=…» i adressen (implicit). Slik ser lenker ut som er laget
- *    server-side — invitasjoner og bekreftelsesmailer. Nettleserklienten vår
+ *    server-side — som bekreftelsesmailen ved registrering. (Invitasjoner går
+ *    ikke hit lenger; de har egen side, /invitasjon/[token].) Nettleserklienten vår
  *    er satt opp for PKCE, og auth-js avviser da et implicit-svar med «Not a
  *    valid PKCE flow url» og gjør ingenting. Her tar vi tokenene ut av
  *    adressen selv og setter sesjonen med dem.
@@ -45,7 +46,7 @@ export default function AuthCallbackPage() {
         return;
       }
 
-      const videre = url.searchParams.get("next") || "/tilbud/leads";
+      const videre = url.searchParams.get("next") || "/dashboard";
 
       try {
         const code = url.searchParams.get("code");

@@ -1,7 +1,32 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
+import { kobleLeadTilKunde } from "@/lib/kunder/koble";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import type { QuoteDocument, QuoteType } from "@/lib/types";
+
+/**
+ * Siste lagrede innhold. Redigeringen spør ved åpning, så en side som kommer
+ * fra nettleserens mellomlager (tilbakeknappen) ikke viser en eldre versjon
+ * enn den som er lagret.
+ */
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await sessionOr401();
+  if (session instanceof NextResponse) return session;
+  const { id } = await params;
+  const { data: draft } = await supabaseAdmin()
+    .from("drafts")
+    .select("quote_type, email_subject, email_body, document, leads!inner(company_id)")
+    .eq("id", id)
+    .eq("leads.company_id", session.companyId)
+    .maybeSingle();
+  if (!draft) return NextResponse.json({ error: "Fant ikke utkastet" }, { status: 404 });
+  return NextResponse.json({
+    quote_type: draft.quote_type,
+    email_subject: draft.email_subject,
+    email_body: draft.email_body,
+    document: draft.document,
+  });
+}
 
 /**
  * Lagrer utkastet uten å kalle modellen.
@@ -26,13 +51,19 @@ export async function PATCH(
     email_subject: string;
     email_body: string;
     document: QuoteDocument | null;
+    /**
+     * Kunden valgt fra registeret. En id kobler tilbudet til akkurat den
+     * kunden; null betyr at navnet er skrevet fritt. Mangler feltet (en
+     * eldre fane), kobles det på navn og e-post som før.
+     */
+    customer_id?: string | null;
   };
 
   const admin = supabaseAdmin();
 
   const { data: draft } = await admin
     .from("drafts")
-    .select("*, leads!inner(company_id)")
+    .select("*, leads!inner(company_id, customer_id)")
     .eq("id", id)
     .eq("leads.company_id", session.companyId)
     .maybeSingle();
@@ -70,17 +101,64 @@ export async function PATCH(
       before.email_body !== after.email_body ||
       JSON.stringify(before.document) !== JSON.stringify(after.document);
 
-    if (!changed) return NextResponse.json({ ok: true, changed: false });
+    const lead = (Array.isArray(draft.leads) ? draft.leads[0] : draft.leads) as {
+      customer_id: string | null;
+    } | null;
+    const valgtKunde = typeof payload.customer_id === "string" && payload.customer_id ? payload.customer_id : null;
+    const nyKunde = valgtKunde !== null && valgtKunde !== (lead?.customer_id ?? null);
 
-    const { error } = await admin
-      .from("drafts")
-      .update({
-        ...after,
-        // En lagret PDF hører til det gamle innholdet.
-        pdf_path: null,
-      })
-      .eq("id", draft.id);
-    if (error) throw new Error(error.message);
+    if (!changed && !nyKunde) return NextResponse.json({ ok: true, changed: false });
+
+    if (changed) {
+      const { error } = await admin
+        .from("drafts")
+        .update({
+          ...after,
+          // En lagret PDF hører til det gamle innholdet.
+          pdf_path: null,
+        })
+        .eq("id", draft.id);
+      if (error) throw new Error(error.message);
+    }
+
+    // Kunden valgt fra registeret: tilbudet kobles til akkurat den. Kundekortet
+    // røres ikke — en adresse rettet i tilbudet gjelder bare tilbudet.
+    if (valgtKunde) {
+      if (nyKunde) {
+        const { data: kunde } = await admin
+          .from("customers")
+          .select("id")
+          .eq("id", valgtKunde)
+          .eq("company_id", session.companyId)
+          .maybeSingle();
+        if (!kunde) return NextResponse.json({ error: "Fant ikke kunden" }, { status: 404 });
+        const { error: koblingsfeil } = await admin
+          .from("leads")
+          .update({ customer_id: kunde.id })
+          .eq("id", draft.lead_id)
+          .eq("company_id", session.companyId);
+        if (koblingsfeil) throw new Error(koblingsfeil.message);
+      }
+      return NextResponse.json({ ok: true, changed: true });
+    }
+
+    // Endret kunde i dokumentet → ny kobling i registeret. Nøkkelen er navn
+    // og e-post; en rettet telefon flytter ikke tilbudet til en annen kunde.
+    const forKunde = before.document?.customer;
+    const etterKunde = after.document?.customer;
+    if (
+      changed &&
+      etterKunde &&
+      ((forKunde?.name ?? "").trim() !== (etterKunde.name ?? "").trim() ||
+        (forKunde?.email ?? "").trim() !== (etterKunde.email ?? "").trim())
+    ) {
+      await kobleLeadTilKunde(
+        admin,
+        session.companyId,
+        { id: draft.lead_id, from_name: null, from_email: null },
+        after.document,
+      );
+    }
 
     // Med vilje ingen versjonslogg her. To versjoner er nok per tilbud:
     // AI-ens originale utkast (kilden) og det som faktisk gikk ut (fasiten).

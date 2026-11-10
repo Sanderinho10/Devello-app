@@ -313,6 +313,17 @@ sjekk("tomt mønster: returnerer 0 uten å koble til", r7.filer === 0 && !lista)
 
 // notat ----------------------------------------------------------------------------
 sjekk("notat: ingen ny fil", notat({ filer: 3, nye: 0, fakturaer: 0, kopla: 0, delvis: 0, ukopla: 0, duplikat: 0, feil: [] }) === "Ingen ny fil (3 på serveren).");
+const tomR = { filer: 0, nye: 0, fakturaer: 0, kopla: 0, delvis: 0, ukopla: 0, duplikat: 0, feil: [] as string[], monster: "F4*", mappe: "/" };
+sjekk(
+  "notat: ingen treff viser filene i mappa",
+  notat({ ...tomR, iMappa: ["R4rabatt.txt", "V4priser.all"], iMappaTal: 2 }) === "Ingen filer matcher «F4*» i mappa /. Fant 2: R4rabatt.txt, V4priser.all.",
+  notat({ ...tomR, iMappa: ["R4rabatt.txt", "V4priser.all"], iMappaTal: 2 }),
+);
+sjekk("notat: tom mappe", notat({ ...tomR, iMappa: [], iMappaTal: 0 }) === "Ingen filer i mappa /.");
+sjekk(
+  "notat: mange filer kortes ned",
+  notat({ ...tomR, iMappa: ["a", "b", "c", "d", "e", "f"], iMappaTal: 80 }) === "Ingen filer matcher «F4*» i mappa /. Fant 80: a, b, c, d, e og 75 til.",
+);
 sjekk("notat: full linje", notat({ filer: 3, nye: 3, fakturaer: 3, kopla: 2, delvis: 0, ukopla: 1, duplikat: 0, feil: [] }) === "3 nye filer, 3 fakturaer, 2 koblet, 1 ukoblet");
 
 console.log(feil === 0 ? "\nAlt i orden." : `\n${feil} feil.`);

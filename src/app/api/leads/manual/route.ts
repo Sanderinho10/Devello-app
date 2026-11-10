@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse, after, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
+import { loggAktivitet } from "@/lib/aktivitet";
 import { generateForLead } from "@/lib/drafts/generate-for-lead";
 import { finnEpost } from "@/lib/leads/finn-epost";
 import { lagreVedlegg } from "@/lib/leads/vedlegg";
@@ -22,7 +23,13 @@ export async function POST(request: NextRequest) {
   try {
     // JSON når det bare er tekst; skjema med filer når det følger med bilder
     // eller PDF-er — fra en e-post som ble dratt inn, eller lagt til direkte.
-    let body: { description?: string; customer_name?: string; customer_email?: string };
+    let body: {
+      description?: string;
+      customer_name?: string;
+      customer_email?: string;
+      /** Valgt fra kunderegisteret i skjemaet. Må tilhøre selskapet. */
+      customer_id?: string;
+    };
     let filer: File[] = [];
     if ((request.headers.get("content-type") ?? "").includes("multipart/form-data")) {
       const form = await request.formData();
@@ -30,6 +37,7 @@ export async function POST(request: NextRequest) {
         description: String(form.get("description") ?? ""),
         customer_name: String(form.get("customer_name") ?? ""),
         customer_email: String(form.get("customer_email") ?? ""),
+        customer_id: String(form.get("customer_id") ?? "") || undefined,
       };
       filer = form.getAll("vedlegg").filter((f): f is File => f instanceof File && f.size > 0);
     } else {
@@ -52,10 +60,25 @@ export async function POST(request: NextRequest) {
       (body.customer_email ?? "").trim() || finnEpost(description);
 
     const admin = supabaseAdmin();
+
+    // Valgte brukeren en kunde fra registeret, er koblingen gitt. Ellers
+    // kobler genereringen leadet når utkastet er klart.
+    let customerId: string | null = null;
+    if (body.customer_id) {
+      const { data: kunde } = await admin
+        .from("customers")
+        .select("id")
+        .eq("id", body.customer_id)
+        .eq("company_id", session.companyId)
+        .maybeSingle();
+      customerId = kunde?.id ?? null;
+    }
+
     const { data: lead, error } = await admin
       .from("leads")
       .insert({
         company_id: session.companyId,
+        customer_id: customerId,
         source: "manuell",
         // Ingen postkasse og ingen ekte melding å svare på.
         mailbox_connection_id: null,
@@ -73,6 +96,14 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) throw new Error(error.message);
+
+    await loggAktivitet(admin, {
+      companyId: session.companyId,
+      objekt: "tilbud",
+      objektId: lead.id,
+      handling: "opprettet_manuelt",
+      userId: session.userId,
+    });
 
     // Vedleggene lagres FØR genereringen starter, ellers kunne agenten ha
     // begynt uten dem. Det tar et sekund per bilde; en avvist fil (for stor,

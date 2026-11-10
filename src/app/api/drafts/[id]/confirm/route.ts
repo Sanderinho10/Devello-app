@@ -2,14 +2,18 @@ import { NextResponse, type NextRequest } from "next/server";
 import { attachPdf, createDraft } from "@/lib/graph/drafts";
 import { accessTokenFor } from "@/lib/graph/oauth";
 import { htmlToPdf } from "@/lib/pdf/render";
+import { medTilbudsnr, medTilbudsnrIKropp } from "@/lib/drafts/tilbudsnr";
 import { brandImageBytes } from "@/lib/brand/image-bytes";
 import { logoDataUri } from "@/lib/pdf/logo";
 import { renderQuoteHtml } from "@/lib/pdf/template";
+import { kundenummerForLead } from "@/lib/kunder/koble";
+import { mottakerFor } from "@/lib/drafts/mottaker";
 import { diffSnapshots, logDraftVersion } from "@/lib/drafts/versions";
 import { summarizeEdits } from "@/lib/drafts/edit-summary";
 import { finnEpost } from "@/lib/leads/finn-epost";
 import { saveQuoteReference } from "@/lib/referanser";
 import { sessionOr401, errorResponse } from "@/lib/api";
+import { loggAktivitet } from "@/lib/aktivitet";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { hasDocument, type QuoteDocument, type QuoteType } from "@/lib/types";
 
@@ -83,6 +87,8 @@ export async function POST(
   // avklaringsspørsmål i e-posten, og bekreft skal lage kladden uten PDF.
   const isClarification = draft.agent_status === "trenger_avklaring";
   const wantsDocument = !isClarification && hasDocument(payload.quote_type);
+  // Mottakeren følger kunden i tilbudet; uten dokument, avsenderen.
+  const mottaker = mottakerFor(lead, wantsDocument ? payload.document : null);
 
   if (wantsDocument && !payload.document) {
     return NextResponse.json(
@@ -105,6 +111,14 @@ export async function POST(
         .maybeSingle(),
     ]);
 
+    // Tilbud laget før løpenummeret fantes har det ikke i teksten. Da legges
+    // det på her, så det som sendes alltid bærer nummeret. Står det der
+    // alt — fra genereringen eller skrevet av brukeren — røres ingenting.
+    if (draft.quote_no != null) {
+      payload.email_subject = medTilbudsnr(payload.email_subject, draft.quote_no);
+      payload.email_body = medTilbudsnrIKropp(payload.email_body, draft.quote_no);
+    }
+
     // 1. PDF — bare for punktpris og fastpris.
     let pdf: Buffer | null = null;
     let pdfPath: string | null = null;
@@ -122,6 +136,8 @@ export async function POST(
           city: company!.billing_city,
         },
         versjon: { nr: draft.revisjon, erstatter: draft.forrige_sendt_at },
+        tilbudsnr: draft.quote_no,
+        kundenr: await kundenummerForLead(admin, draft.lead_id),
       });
       pdf = await htmlToPdf(html);
 
@@ -155,11 +171,13 @@ export async function POST(
         outlook = await createDraft(token, {
           subject: payload.email_subject,
           body: payload.email_body,
-          toEmail: lead.from_email,
-          toName: lead.from_name,
+          toEmail: mottaker.epost,
+          toName: mottaker.navn,
           // Bare e-postleads har en melding å svare på. Den syntetiske id-en
-          // til et manuelt lead ville fått createReply til å feile.
-          replyToMessageId: lead.source === "epost" ? lead.external_message_id : null,
+          // til et manuelt lead ville fått createReply til å feile. Og går
+          // tilbudet til en annen kunde enn den som skrev, blir det en ny
+          // e-post — ikke et svar som tar med seg henvendelsen.
+          replyToMessageId: mottaker.svarITraden ? lead.external_message_id : null,
           // Bildet i signaturen, som inline-vedlegg. Har firmaet ikke lagt inn
           // noe, blir e-posten som før.
           signatureImage: await brandImageBytes(admin, brand?.signature_image_path),
@@ -169,7 +187,7 @@ export async function POST(
           await attachPdf(
             token,
             outlook.id,
-            pdfFileName(payload.document!, draft.revisjon),
+            pdfFileName(payload.document!, draft.revisjon, draft.quote_no),
             pdf,
           );
         }
@@ -237,6 +255,15 @@ export async function POST(
       pdfPath,
     });
 
+    await loggAktivitet(admin, {
+      companyId: session.companyId,
+      objekt: "tilbud",
+      objektId: lead.id,
+      handling: "bekreftet",
+      detalj: draft.revisjon > 1 ? `Versjon ${draft.revisjon}` : null,
+      userId: session.userId,
+    });
+
     // Uten kladd i Outlook har ingenting forlatt huset ennå. Da er tilbudet
     // fortsatt et utkast: PDF-en er laget og versjonen lagret, men «Bekreftet»
     // ville sagt at det er gjort noe det ikke er. Statusen flytter seg først
@@ -291,11 +318,8 @@ export async function POST(
       // Tre kilder, i den rekkefølgen vi stoler på dem: feltet på leadet,
       // adressen agenten leste ut av henvendelsen, og til slutt et søk i
       // teksten selv. Et manuelt lead har ofte adressen bare i beskrivelsen.
-      mottaker:
-        lead.from_email ||
-        payload.document?.customer.email ||
-        finnEpost(lead.body_text || lead.body_preview),
-      mottaker_navn: lead.from_name || payload.document?.customer.name || null,
+      mottaker: mottaker.epost || finnEpost(lead.body_text || lead.body_preview),
+      mottaker_navn: mottaker.navn,
       emne: payload.email_subject,
       tekst: payload.email_body,
       har_pdf: pdf !== null,
@@ -305,7 +329,8 @@ export async function POST(
   }
 }
 
-function pdfFileName(document: QuoteDocument, revisjon: number): string {
+function pdfFileName(document: QuoteDocument, revisjon: number, tilbudsnr?: number | null): string {
+  const nr = tilbudsnr ? `${tilbudsnr}-` : "";
   const slug = document.title
     .toLowerCase()
     .replace(/[æå]/g, "a")
@@ -314,7 +339,7 @@ function pdfFileName(document: QuoteDocument, revisjon: number): string {
     .replace(/^-|-$/g, "")
     .slice(0, 50);
   const versjon = revisjon > 1 ? `-v${revisjon}` : "";
-  return `tilbud-${slug || "dokument"}${versjon}.pdf`;
+  return `tilbud-${nr}${slug || "dokument"}${versjon}.pdf`;
 }
 
 /** Selskapets aktive postkasse — brukt når leadet ikke bærer en selv. */

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { GrossistSok, formatPris, type GrossistTreff } from "@/components/GrossistSok";
+import { Modal } from "@/components/Modal";
 import { salspris, summerMateriell } from "@/lib/ordre/summering";
 import { formatNok, type MaterialEntry } from "@/lib/types";
 
@@ -177,18 +178,14 @@ export function MateriellFane({
     const fakturert = Boolean(e.invoice_draft_id);
 
     return (
-      <div key={e.id} className={`lead-row materiell-rad${erstatta ? " erstatta" : ""}${fakturert ? " fakturert" : ""}`}>
-        <span className="ordre-nr">{e.item_no ?? "—"}</span>
-        <div className="lead-main">
-          <div className="lead-subject" style={{ cursor: "default" }}>
+      <tr key={e.id} className={`materiell-rad${erstatta ? " erstatta" : ""}${fakturert ? " fakturert" : ""}`}>
+        <td className="ordre-nr meta">{e.item_no ?? "—"}</td>
+        <td className="hoved">
+          <div>
             {e.name}
             {fakturert && <span className="chip fakturert-merke">fakturert</span>}
           </div>
-          <div className="lead-meta">
-            {q.toLocaleString("nb-NO")} {e.unit} × {formatPris(sal)}
-            {kost !== null && ` · kost ${formatPris(kost)}`}
-            {!info && e.note && ` · ${e.note}`}
-          </div>
+          {!info && e.note && <div className="tiny muted">{e.note}</div>}
           {info && (
             <div className="chips">
               <span className="chip faktura">
@@ -203,8 +200,12 @@ export function MateriellFane({
               Erstattet av faktura{erstattaInfo ? ` ${erstattaInfo.invoice_no}` : ""} — teller ikke i summen.
             </div>
           )}
-        </div>
-        <span className="materiell-paaslag">
+        </td>
+        <td className="num meta nowrap">
+          {q.toLocaleString("nb-NO")} {e.unit}
+        </td>
+        <td className="num meta muted nowrap">{kost === null ? "—" : formatPris(kost)}</td>
+        <td className="num meta materiell-paaslag">
           {redigerPaaslag?.id === e.id ? (
             <form
               className="row"
@@ -239,22 +240,25 @@ export function MateriellFane({
               {Number(e.markup_pct).toLocaleString("nb-NO")} %
             </button>
           )}
-        </span>
-        <span className="ordre-sum">
+        </td>
+        <td className="num meta nowrap">{formatPris(sal)}</td>
+        <td className="num belop nowrap">
           <strong>{formatNok(q * sal)}</strong>
-        </span>
-        {!laast && !erstatta && !fakturert && (
-          info ? (
-            <button type="button" className="button ghost" onClick={() => loys(e)}>
-              Løs fra ordre
-            </button>
-          ) : (
-            <button type="button" className="button ghost" onClick={() => slett(e)}>
-              Slett
-            </button>
-          )
-        )}
-      </div>
+        </td>
+        <td className="handling">
+          {!laast && !erstatta && !fakturert && (
+            info ? (
+              <button type="button" className="button ghost" onClick={() => loys(e)}>
+                Løs fra ordre
+              </button>
+            ) : (
+              <button type="button" className="button ghost" onClick={() => slett(e)}>
+                Slett
+              </button>
+            )
+          )}
+        </td>
+      </tr>
     );
   }
 
@@ -266,94 +270,27 @@ export function MateriellFane({
             <span className="label" style={{ marginBottom: 0 }}>
               Legg til materiell
             </span>
+            {/* Det som ikke står i katalogen — en vare fra byggevarehuset, en
+                leiebil — føres i en popup, som i Go. Søket blir stående. */}
             <button
               type="button"
-              className="button ghost"
+              className="button secondary"
               onClick={() => {
-                setFritekst((v) => !v);
-                setValgt(null);
+                setError(null);
+                setFritekst(true);
               }}
             >
-              {fritekst ? "Søk i katalogen" : "Fritekstlinje"}
+              Fritekstlinje
             </button>
           </div>
-          {error && <div className="banner error">{error}</div>}
-          {!harKatalog && !fritekst && (
+          {error && !fritekst && <div className="banner error">{error}</div>}
+          {!harKatalog && (
             <div className="banner info">
               Ingen grossistkatalog ennå — bruk fritekstlinje, eller send prisfilen til Devello.
             </div>
           )}
 
-          {fritekst ? (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                post({
-                  name: fri.name,
-                  unit: fri.unit,
-                  quantity: fri.quantity,
-                  sale_price: fri.sale_price || undefined,
-                  cost_price: fri.cost_price || undefined,
-                });
-              }}
-            >
-              <div className="grid-2">
-                <label className="field" style={{ gridColumn: "1 / -1" }}>
-                  <span className="label">Vare</span>
-                  <input
-                    className="input"
-                    value={fri.name}
-                    onChange={(e) => setFri({ ...fri, name: e.target.value })}
-                    placeholder="Byggevarehus: gipsplate 12 mm"
-                    autoFocus
-                    required
-                  />
-                </label>
-                <label className="field">
-                  <span className="label">Mengde</span>
-                  <input
-                    className="input"
-                    inputMode="decimal"
-                    value={fri.quantity}
-                    onChange={(e) => setFri({ ...fri, quantity: e.target.value })}
-                    required
-                  />
-                </label>
-                <label className="field">
-                  <span className="label">Enhet</span>
-                  <input
-                    className="input"
-                    value={fri.unit}
-                    onChange={(e) => setFri({ ...fri, unit: e.target.value })}
-                  />
-                </label>
-                <label className="field">
-                  <span className="label">Kostpris per enhet (valgfritt)</span>
-                  <input
-                    className="input"
-                    inputMode="decimal"
-                    value={fri.cost_price}
-                    onChange={(e) => setFri({ ...fri, cost_price: e.target.value })}
-                    placeholder="Regner salgspris med påslag"
-                  />
-                </label>
-                <label className="field">
-                  <span className="label">Salgspris per enhet eks. mva</span>
-                  <input
-                    className="input"
-                    inputMode="decimal"
-                    value={fri.sale_price}
-                    onChange={(e) => setFri({ ...fri, sale_price: e.target.value })}
-                    placeholder={fri.cost_price ? `${salspris(tal(fri.cost_price) ?? 0, standardPaaslag)}` : "Påkrevd uten kostpris"}
-                  />
-                </label>
-              </div>
-              <button className="button" type="submit" disabled={busy || !fri.name || (!fri.sale_price && !fri.cost_price)}>
-                {busy ? "Legger til…" : "Legg til"}
-              </button>
-            </form>
-          ) : (
-            <>
+          <>
               <GrossistSok
                 onVelg={(t) => {
                   setValgt(t);
@@ -413,10 +350,108 @@ export function MateriellFane({
                   </button>
                 </form>
               )}
-            </>
-          )}
+          </>
         </div>
       )}
+
+      <Modal
+        open={fritekst}
+        onClose={() => {
+          if (!busy) setFritekst(false);
+        }}
+        title="Fritekstlinje"
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            post({
+              name: fri.name,
+              unit: fri.unit,
+              quantity: fri.quantity,
+              sale_price: fri.sale_price || undefined,
+              cost_price: fri.cost_price || undefined,
+            });
+          }}
+        >
+          {error && <div className="banner error">{error}</div>}
+          {/* Som i Go: etiketten foran feltet. Kostprisen gir salgsprisen
+              med standardpåslaget; uten kostpris må salgsprisen skrives. */}
+          <div className="kontakt-panel ny-post-panel">
+            <label className="kontakt-rad">
+              <span className="kontakt-rad-etikett">Vare</span>
+              <input
+                className="input"
+                value={fri.name}
+                onChange={(e) => setFri({ ...fri, name: e.target.value })}
+                placeholder="Byggevarehus: gipsplate 12 mm"
+                autoFocus
+                required
+              />
+            </label>
+            <label className="kontakt-rad">
+              <span className="kontakt-rad-etikett">Mengde</span>
+              <span className="kort-felt">
+                <input
+                  className="input"
+                  inputMode="decimal"
+                  value={fri.quantity}
+                  onChange={(e) => setFri({ ...fri, quantity: e.target.value })}
+                  required
+                />
+              </span>
+            </label>
+            <label className="kontakt-rad">
+              <span className="kontakt-rad-etikett">Enhet</span>
+              <span className="kort-felt">
+                <input className="input" value={fri.unit} onChange={(e) => setFri({ ...fri, unit: e.target.value })} />
+              </span>
+            </label>
+
+            <div className="kontakt-skilje">Pris per enhet eks. mva</div>
+            <label className="kontakt-rad">
+              <span className="kontakt-rad-etikett">Kostpris</span>
+              <span className="kort-felt">
+                <input
+                  className="input"
+                  inputMode="decimal"
+                  value={fri.cost_price}
+                  onChange={(e) => setFri({ ...fri, cost_price: e.target.value })}
+                  placeholder="Valgfritt"
+                />
+              </span>
+            </label>
+            <label className="kontakt-rad">
+              <span className="kontakt-rad-etikett">Salgspris</span>
+              <span className="kort-felt">
+                <input
+                  className="input"
+                  inputMode="decimal"
+                  value={fri.sale_price}
+                  onChange={(e) => setFri({ ...fri, sale_price: e.target.value })}
+                  placeholder={fri.cost_price ? `${salspris(tal(fri.cost_price) ?? 0, standardPaaslag)}` : "Påkrevd"}
+                />
+              </span>
+            </label>
+            <div className="kontakt-rad">
+              <span />
+              <span className="hint" style={{ marginTop: -4 }}>
+                {fri.cost_price && !fri.sale_price
+                  ? `Salgsprisen regnes med ${standardPaaslag} % påslag.`
+                  : "Skriv kostpris for å regne salgsprisen med påslag, eller skriv salgsprisen selv."}
+              </span>
+            </div>
+          </div>
+
+          <div className="modal-actions">
+            <button type="button" className="button secondary" onClick={() => setFritekst(false)} disabled={busy}>
+              Avbryt
+            </button>
+            <button className="button" type="submit" disabled={busy || !fri.name || (!fri.sale_price && !fri.cost_price)}>
+              {busy ? "Legger til…" : "Legg til"}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       {hodeFakturaer.length > 0 && (
         <div className="card">
@@ -424,7 +459,7 @@ export function MateriellFane({
             <span className="label" style={{ marginBottom: 0 }}>
               Leverandørfakturaer uten linjer
             </span>
-            <Link href="/ordre/leverandorfakturaer" className="tiny">
+            <Link href="/register/leverandorfakturaer" className="tiny">
               Alle leverandørfakturaer →
             </Link>
           </div>
@@ -462,14 +497,6 @@ export function MateriellFane({
       )}
 
       <div className="card">
-        <div className="card-header">
-          <span className="label" style={{ marginBottom: 0 }}>
-            Materiell på ordren
-          </span>
-          <span className="tiny muted">
-            kost {formatNok(sum.kost)} · salg {formatNok(sum.sal)}
-          </span>
-        </div>
         {laast && error && <div className="banner error" style={{ margin: 16 }}>{error}</div>}
 
         {entries.length === 0 ? (
@@ -478,32 +505,56 @@ export function MateriellFane({
             <div>{laast ? "Ordren er avsluttet." : "Søk opp en vare over, eller legg til en fritekstlinje."}</div>
           </div>
         ) : (
-          <>
-            {fraFaktura.length > 0 && (
-              <>
-                <div className="dato-skille">Fra leverandørfakturaer</div>
-                <div className="lead-list">{fraFaktura.map((e) => rad(e))}</div>
-                {manuelle.length > 0 && <div className="dato-skille">Ført manuelt</div>}
-              </>
-            )}
-            <div className="lead-list">{manuelle.map((e) => rad(e))}</div>
-          </>
-        )}
-
-        {entries.length > 0 && (
-          <div className="card-pad" style={{ borderTop: "1px solid var(--border)" }}>
-            <div className="row-between tiny" style={{ padding: "3px 0" }}>
-              <span className="muted">
-                Sum kost
-                {sum.fraFaktura > 0 && ` · ${sum.fraFaktura} ${sum.fraFaktura === 1 ? "linje" : "linjer"} fra faktura`}
-                {sum.erstatta > 0 && ` · ${sum.erstatta} erstattet`}
-              </span>
-              <span>{formatNok(sum.kost)}</span>
-            </div>
-            <div className="row-between" style={{ marginTop: 6, fontWeight: 600 }}>
-              <span>Sum salg eks. mva</span>
-              <span>{formatNok(sum.sal)}</span>
-            </div>
+          <div className="tabell-rull">
+            <table className="table tabell-mobil">
+              <thead>
+                <tr>
+                  <th>Varenr</th>
+                  <th>Vare</th>
+                  <th className="num">Mengde</th>
+                  <th className="num">Kost</th>
+                  <th className="num">Påslag</th>
+                  <th className="num">Pris</th>
+                  <th className="num">Sum</th>
+                  <th aria-label="Handling" />
+                </tr>
+              </thead>
+              {/* Gruppene som overskriftsrader, som i reskontroen i Go. */}
+              {fraFaktura.length > 0 && (
+                <tbody>
+                  <tr className="gruppe-rad">
+                    <td colSpan={8}>Fra leverandørfakturaer</td>
+                  </tr>
+                  {fraFaktura.map((e) => rad(e))}
+                </tbody>
+              )}
+              {manuelle.length > 0 && (
+                <tbody>
+                  {fraFaktura.length > 0 && (
+                    <tr className="gruppe-rad">
+                      <td colSpan={8}>Ført manuelt</td>
+                    </tr>
+                  )}
+                  {manuelle.map((e) => rad(e))}
+                </tbody>
+              )}
+              <tfoot>
+                <tr className="sum-type">
+                  <td colSpan={6} className="muted">
+                    Sum kost
+                    {sum.fraFaktura > 0 && ` · ${sum.fraFaktura} ${sum.fraFaktura === 1 ? "linje" : "linjer"} fra faktura`}
+                    {sum.erstatta > 0 && ` · ${sum.erstatta} erstattet`}
+                  </td>
+                  <td className="num">{formatNok(sum.kost)}</td>
+                  <td />
+                </tr>
+                <tr className="sum-rad">
+                  <td colSpan={6}>Sum salg eks. mva</td>
+                  <td className="num">{formatNok(sum.sal)}</td>
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
           </div>
         )}
       </div>

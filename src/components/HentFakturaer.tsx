@@ -5,7 +5,8 @@ import { useState } from "react";
 
 /**
  * «Hent fakturaer nå». Samme form som «Hent leads»: én knapp, resultatet
- * som en kort linje ved siden av, og sida oppdaterer seg.
+ * som en kort linje ved siden av, og sida oppdaterer seg. Henter fra både
+ * PowerOffice Go og grossistenes fakturafiler.
  */
 export function HentFakturaer() {
   const router = useRouter();
@@ -21,9 +22,20 @@ export function HentFakturaer() {
       const res = await fetch("/api/regnskap/sync", { method: "POST" });
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.error ?? "Kunne ikke hente");
-      const r = payload as { henta: number; nye: number; kopla: number; delvis: number; ukopla: number; feil: string[] };
+      const r = payload as {
+        henta: number;
+        nye: number;
+        kopla: number;
+        delvis: number;
+        ukopla: number;
+        duplikat?: number;
+        utanfor?: number;
+        feil: string[];
+      };
       setMelding(
         `${r.henta} hentet, ${r.nye} nye, ${r.kopla} koblet, ${r.ukopla} ukoblet` +
+          (r.duplikat ? `, ${r.duplikat} duplikat` : "") +
+          (r.utanfor ? `, ${r.utanfor} utenfor kontofilteret` : "") +
           (r.feil.length ? ` — ${r.feil.length} feil: ${r.feil[0]}` : ""),
       );
       setFeil(r.feil.length > 0);
@@ -42,7 +54,7 @@ export function HentFakturaer() {
         {busy ? "Henter…" : "Hent fakturaer nå"}
       </button>
       {melding && (
-        <span className="tiny" style={{ color: feil ? "#a4271b" : "var(--text-secondary)" }}>
+        <span className="tiny" style={{ color: feil ? "var(--negative)" : "var(--text-secondary)" }}>
           {melding}
         </span>
       )}

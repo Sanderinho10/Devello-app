@@ -1,7 +1,14 @@
 /*
  * Devello — designsystem.
  *
- * Rent, Apple-inspirert: systemfont, lite fargebruk, myke skygger, luftig.
+ * Oppsettet er lånt fra PowerOffice Go: tette tabeller med mørk
+ * overskriftsrad, understrekede faner og en verktøylinje med handlingene til
+ * venstre og søket til høyre. Et arbeidsverktøy man skal se mye på samtidig.
+ *
+ * Form, skrift og farger er Apple: San Francisco (Inter der den ikke finnes),
+ * stram bokstavavstand på titler, kapselknapper, myke, runde hjørner og
+ * Apples palett — lyst og grått, én blå aksent, og grønt, oransje og rødt
+ * bare der noe skal sies.
  * Mockupene i design/ lenker til den samme filen, slik at mockup og app aldri
  * driver fra hverandre.
  */
@@ -17,25 +24,32 @@
   --text-secondary: #6e6e73;
   --text-tertiary: #86868b;
 
+  /* Apples systemfarger, i de mørkere variantene som holder kontrast på
+     tekst. De lyse flatene er de samme fargene, tonet ned. */
   --accent: #0071e3;
+  --accent-hover: #0077ed;
   --accent-soft: #e8f2fd;
-  --positive: #1d8a4e;
-  --positive-soft: #e6f4ec;
-  --warning: #b25000;
-  --warning-soft: #fdf0e5;
-  --negative: #b3261e;
-  --negative-soft: #fdecea;
+  --link: #0066cc;
+  --positive: #248a3d;
+  --positive-soft: #e5f6e9;
+  --warning: #c93400;
+  --warning-soft: #fff1e5;
+  --negative: #d70015;
+  --negative-soft: #ffebed;
 
-  --radius: 12px;
-  --radius-lg: 18px;
+  --radius: 10px;
+  --radius-lg: 12px;
   --radius-sm: 8px;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.03);
-  --shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.06), 0 16px 48px rgba(0, 0, 0, 0.07);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.18);
 
-  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
-    Helvetica, Arial, sans-serif;
+
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", var(--font-inter, "Inter"),
+    "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+    var(--font-inter, "Inter"), "Segoe UI", Helvetica, Arial, sans-serif;
 
   --sidebar-width: 244px;
 }
@@ -56,6 +70,7 @@ body {
   font-family: var(--font);
   font-size: 14px;
   line-height: 1.55;
+  letter-spacing: -0.006em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -180,7 +195,7 @@ p {
   padding: 1px 7px;
 }
 
-/* Agent-faner: leads / prisfil / referansefiler / innstillinger */
+/* Faner under en seksjon: leads / ordrer / abonnement … */
 .nav-tabs {
   display: flex;
   flex-direction: column;
@@ -258,10 +273,9 @@ p {
   margin-bottom: 5px;
 }
 
-/* Abonnement per agent: én seksjon per agent, pakkene som kort inni. */
-.agent-abo-head {
-  align-items: flex-start;
-  gap: 16px;
+/* Fire pakker på rad der det er plass, som POGO viser sine. */
+.plan-grid.pakkar {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 /* «Større behov» står i pakkeraden, men er ikke en pakke man velger.
@@ -346,8 +360,10 @@ p {
 .main {
   flex: 1;
   min-width: 0;
-  padding: 34px 40px 64px;
-  max-width: 1320px;
+  padding: 28px 32px 64px;
+  /* Bredt nok til at lange posttekster og tabeller får plass, som i Go,
+     men ikke så bredt at en linje tekst blir umulig å følge. */
+  max-width: 1600px;
 }
 
 .page-header {
@@ -358,16 +374,25 @@ p {
   margin-bottom: 26px;
 }
 
+.page-header h1 {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
 .page-subtitle {
   color: var(--text-secondary);
-  margin-top: 5px;
-  font-size: 14px;
+  margin-top: 4px;
+  font-size: 13px;
 }
 
 /* ----------------------------------------------------------- components -- */
 
 .card {
   background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
   overflow: hidden;
@@ -398,7 +423,7 @@ p {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 8px 16px;
+  padding: 7px 16px;
   border-radius: 980px;
   border: 1px solid transparent;
   background: var(--accent);
@@ -406,13 +431,23 @@ p {
   font: inherit;
   font-weight: 500;
   font-size: 13.5px;
+  letter-spacing: -0.01em;
   cursor: pointer;
   transition: opacity 0.15s ease, background 0.15s ease;
   white-space: nowrap;
 }
 
 .button:hover:not(:disabled) {
-  opacity: 0.88;
+  background: var(--accent-hover);
+}
+
+.button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.3);
 }
 
 .button:disabled {
@@ -421,13 +456,13 @@ p {
 }
 
 .button.secondary {
-  background: var(--surface);
+  background: rgba(0, 0, 0, 0.06);
   color: var(--text);
-  border-color: var(--border-strong);
+  border-color: transparent;
 }
 
 .button.secondary:hover:not(:disabled) {
-  background: var(--surface-sunken);
+  background: rgba(0, 0, 0, 0.1);
   opacity: 1;
 }
 
@@ -444,7 +479,7 @@ p {
 
 .button.danger {
   background: transparent;
-  color: #c0392b;
+  color: var(--negative);
   border-color: transparent;
   padding: 6px 10px;
 }
@@ -539,6 +574,12 @@ p {
 
 /* Referansefiler: har agenten den, eller har den den ikke. Grønt betyr at
    fila står i den søkbare poolen — alt annet er usynlig ved generering. */
+/* Kontoen er sperret: skal synes i lista, ikke gli inn som «avbrutt». */
+.pill.sperret {
+  background: #fdecea;
+  color: #b3261e;
+}
+
 .pill.lest {
   background: var(--positive-soft);
   color: var(--positive);
@@ -559,7 +600,7 @@ p {
   flex-wrap: wrap;
   align-items: center;
   gap: 16px;
-  padding: 15px 24px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--border);
   transition: background 0.12s ease;
 }
@@ -575,7 +616,7 @@ p {
 }
 
 .lead-row:hover {
-  background: var(--surface-sunken);
+  background: var(--accent-soft);
 }
 
 .lead-main {
@@ -632,8 +673,9 @@ p {
  */
 .detail-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 24px;
+  /* Henvendelsen krymper litt på en laptop, så postene beholder plassen. */
+  grid-template-columns: minmax(0, 1fr) clamp(280px, 24vw, 380px);
+  gap: 16px;
   align-items: start;
 }
 
@@ -645,11 +687,12 @@ p {
 
 .inquiry {
   position: sticky;
-  top: 24px;
+  top: 16px;
   background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
-  padding: 18px 20px;
+  padding: 14px 16px;
 }
 
 .inquiry-head {
@@ -675,7 +718,7 @@ p {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-size: 13.5px;
-  line-height: 1.6;
+  line-height: 1.5;
   max-height: calc(100vh - 200px);
   overflow-y: auto;
 }
@@ -774,7 +817,7 @@ p {
   gap: 3px;
   padding: 3px;
   background: rgba(0, 0, 0, 0.05);
-  border-radius: 11px;
+  border-radius: var(--radius);
   max-width: 520px;
 }
 
@@ -783,7 +826,7 @@ p {
   padding: 7px 14px;
   border: none;
   background: transparent;
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   font: inherit;
   font-size: 13.5px;
   font-weight: 500;
@@ -800,15 +843,99 @@ p {
   box-shadow: var(--shadow-sm);
 }
 
-/* Samme bryter, men som en visningsvelger: fanene skal ta plassen de
-   trenger og ikke deles likt over hele bredden. */
+/* Samme bryter brukt som visningsvelger blir faner som i Go: tekst på rad,
+   en mørk strek under den aktive, en tynn linje under hele raden. */
 .type-switch.kompakt {
   max-width: none;
+  gap: 28px;
+  padding: 0;
+  background: none;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border-strong);
 }
 
 .type-switch.kompakt .type-option {
   flex: 0 0 auto;
+  padding: 8px 2px;
+  font-size: 14px;
+  margin-bottom: -1px;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
   text-decoration: none;
+  font-weight: 400;
+}
+
+.type-switch.kompakt .type-option:hover {
+  color: var(--text);
+}
+
+.type-switch.kompakt .type-option.active {
+  background: none;
+  box-shadow: none;
+  color: var(--text);
+  font-weight: 600;
+  border-bottom-color: var(--text);
+}
+
+/* Faner øverst i et kort: streken under aktiv fane skal ligge på kortets egen
+   skillelinje, ikke på en linje nummer to rett over den. */
+.card-header:has(> .type-switch.kompakt) {
+  padding-top: 8px;
+  padding-bottom: 0;
+  align-items: flex-end;
+}
+
+.card-header:has(> .type-switch.kompakt) > :not(.type-switch) {
+  padding-bottom: 10px;
+}
+
+.card-header > .type-switch.kompakt {
+  border-bottom: none;
+}
+
+/* Antallet bak fanenavnet: med, men dempet. */
+.fane-tal {
+  margin-left: 6px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Verktøylinja over en liste: handlingene til venstre, filter og søk til
+   høyre. Samme rekkefølge på hver side, så hånda finner fram. */
+.verktoylinje {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 18px 0 12px;
+}
+
+.verktoylinje-hoyre {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.verktoylinje .input {
+  width: 240px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+/* Søkefeltet som i macOS: grå flate, forstørrelsesglass, ingen kant før
+   man klikker i det. */
+.verktoylinje .input[type="search"] {
+  padding-left: 30px;
+  border-color: transparent;
+  background: rgba(0, 0, 0, 0.05)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2386868b' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E")
+    no-repeat 10px center;
+}
+
+.verktoylinje .input[type="search"]:focus {
+  background-color: var(--surface);
+  border-color: var(--accent);
 }
 
 .suggestion-note {
@@ -842,7 +969,7 @@ p {
 .textarea,
 .select {
   width: 100%;
-  padding: 9px 12px;
+  padding: 7px 10px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
@@ -878,24 +1005,116 @@ p {
 /* Dokument-forhåndsvisning */
 .doc-preview {
   background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  padding: 34px 38px;
+  box-shadow: var(--shadow);
+  padding: 16px 20px 20px;
 }
 
+/* Avsenderen på én linje over tittelen. */
 .doc-head {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding-bottom: 16px;
-  border-bottom: 2px solid var(--text);
-  margin-bottom: 22px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+  font-size: 14px;
 }
 
 .doc-sender {
-  text-align: right;
+  margin-left: auto;
   font-size: 12px;
   color: var(--text-secondary);
+}
+
+/* Felt med etiketten til venstre: Tittel over hele bredden, Kunde og
+   Adresse side om side. Fire etikettrader blir til to. */
+.utkast-felt {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 14px;
+}
+
+.utkast-felt > label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  min-width: 52px;
+}
+
+.utkast-felt .input {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.utkast-felt .input.bred {
+  grid-column: span 3;
+}
+
+@media (max-width: 700px) {
+  .utkast-felt {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .utkast-felt .input.bred {
+    grid-column: auto;
+  }
+}
+
+/* Tilbudstypen som én slank linje over utkastet. */
+.utkast-topp {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 8px 14px;
+}
+
+.utkast-topp-etikett {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.utkast-topp-hjelp {
+  flex: 1;
+  min-width: 160px;
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.type-switch.liten {
+  flex: 0 0 auto;
+  padding: 2px;
+}
+
+.type-switch.liten .type-option {
+  flex: 0 0 auto;
+  padding: 4px 14px;
+  font-size: 13px;
+}
+
+/* Enheten og prosenten ved siden av tallet i stedet for under det —
+   halverer høyden på hver postrad. */
+.celle-enhet {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.celle-enhet .cell-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.celle-enhet-tekst {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
 }
 
 .doc-table {
@@ -906,17 +1125,22 @@ p {
 
 .doc-table th {
   text-align: left;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--text-tertiary);
-  padding: 8px 8px 8px 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding: 7px 8px 7px 0;
+  background: var(--surface-sunken);
   border-bottom: 1px solid var(--border);
 }
 
 .doc-table td {
-  padding: 8px 8px 8px 0;
-  border-bottom: 1px solid var(--surface-sunken);
+  padding: 3px 8px 3px 0;
+  border-bottom: 1px solid var(--border);
   vertical-align: middle;
+}
+
+.doc-table:not(.drar) tbody tr:hover td {
+  background: var(--bg);
 }
 
 .doc-table .num,
@@ -928,7 +1152,7 @@ p {
   width: 100%;
   border: 1px solid transparent;
   border-radius: 6px;
-  padding: 5px 7px;
+  padding: 4px 7px;
   font: inherit;
   background: transparent;
   color: var(--text);
@@ -978,7 +1202,7 @@ p {
   color: var(--positive);
 }
 .pris-celle-status.feil {
-  color: #c0392b;
+  color: var(--negative);
   text-align: right;
 }
 
@@ -1013,14 +1237,123 @@ p {
   color: var(--accent);
 }
 
-/* Viser hver raden blir sleppt */
-.doc-table tr.drag-over td {
-  box-shadow: inset 0 2px 0 var(--accent);
+/* Mens en rad dras: raden løftes med skygge og følger musa, de andre glir
+   unna med en kort, myk bevegelse. Ved slipp glir den løftede på plass. */
+.grip {
+  touch-action: none;
+}
+
+.doc-table tbody tr {
+  position: relative;
+}
+
+.doc-table.drar tbody tr:not(.loftet) {
+  transition: transform 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.doc-table tr.loftet {
+  z-index: 2;
+  background: var(--surface);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14), 0 0 0 1px var(--border);
+}
+
+.doc-table tr.loftet td {
+  background: var(--surface);
+  border-bottom-color: transparent;
+}
+
+.doc-table tr.loftet .cell-input {
+  border-color: transparent;
+}
+
+.doc-table tr.loftet .grip {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text);
+}
+
+.doc-table tr.loftet.setter {
+  transition: transform 160ms cubic-bezier(0.2, 0, 0, 1), box-shadow 160ms ease;
+  box-shadow: 0 0 0 1px transparent;
+}
+
+/* Samme løft for forutsetninger og hele seksjoner. */
+.drar > [data-dra-rad]:not(.loftet) {
+  transition: transform 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+[data-dra-rad].loftet:not(tr) {
+  position: relative;
+  z-index: 3;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  /* Den hvite ringen gir luft rundt innholdet uten å flytte det. */
+  box-shadow: 0 0 0 6px var(--surface), 0 0 0 7px var(--border), 0 14px 34px rgba(0, 0, 0, 0.16);
+}
+
+[data-dra-rad].loftet.setter:not(tr) {
+  transition: transform 160ms cubic-bezier(0.2, 0, 0, 1), box-shadow 160ms ease;
+  box-shadow: 0 0 0 6px transparent, 0 0 0 7px transparent, 0 0 0 transparent;
+}
+
+/* Bare håndtaket man drar i — ikke håndtakene på postene inni en seksjon. */
+[data-dra-rad].loftet > .grip,
+[data-dra-rad].loftet > .seksjon-topp > .grip {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text);
+}
+
+[data-dra-rad].loftet .punkt-felt,
+[data-dra-rad].loftet .seksjon-tittel {
+  border-color: transparent;
+}
+
+/* Seksjonene i utkastet. Avstanden står her og ikke inline, så
+   forskyvningen mens man drar kan bruke style-attributtet. */
+.seksjon {
+  margin-bottom: 16px;
+}
+
+/* Håndtaket på en forutsetning ligger i margen til venstre og kommer fram
+   når man er innom punktet, så lista leser som lista kunden får. */
+.punkt-grip {
+  position: absolute;
+  left: -20px;
+  top: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.punkt-rad:hover .punkt-grip,
+.punkt-grip:focus-visible,
+.loftet .punkt-grip {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .punkt-grip {
+    opacity: 1;
+  }
+}
+
+/* Ingen tekstmarkering og «gripende» peker over hele siden mens man drar. */
+body.drar-rad,
+body.drar-rad * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .doc-table.drar tbody tr:not(.loftet),
+  .doc-table tr.loftet.setter,
+  .drar > [data-dra-rad]:not(.loftet),
+  [data-dra-rad].loftet.setter:not(tr) {
+    transition: none;
+  }
 }
 
 .add-line {
-  margin-top: 10px;
-  max-width: 460px;
+  margin-top: 8px;
+  max-width: 520px;
 }
 
 /* Filslepp for Excel-import */
@@ -1084,7 +1417,7 @@ p {
 }
 
 .file-row-error {
-  color: #c0392b;
+  color: var(--negative);
   padding: 2px 4px;
 }
 
@@ -1206,24 +1539,65 @@ p {
   overflow: visible;
 }
 
+/* Popupen kan bo inni en tabellcelle (leads-tabellen). Da skal den ikke arve
+   cellens høyrejustering, nowrap og mindre skrift. */
+.modal {
+  text-align: left;
+  white-space: normal;
+  font-size: 14px;
+  cursor: auto;
+}
+
 .modal::backdrop {
   background: rgba(0, 0, 0, 0.28);
 }
 
 .modal-body {
-  padding: 22px 24px 20px;
+  padding: 18px 20px 18px;
 }
 
+/* Høyere enn vinduet: tittellinja står, innholdet ruller, og knappene
+   nederst står fast så de alltid kan nås. */
+.modal.ruller[open] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal.ruller .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.modal.ruller .modal-actions {
+  position: sticky;
+  bottom: -18px;
+  z-index: 3;
+  margin: 22px -20px -18px;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+/* Tittellinja: et eget felt over innholdet, som vinduslinja i Go. */
 .modal-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 18px;
+  padding: 10px 12px 10px 20px;
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
 .modal-head h2 {
-  font-size: 17px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .modal-head .button.ghost {
@@ -1368,17 +1742,165 @@ p {
 }
 
 /* Skjemaet for en post som ikke finnes i prisfilen. */
-.ny-post {
-  margin-top: 10px;
-  padding: 14px;
-  max-width: 620px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-sunken);
+/* «Ny post»-popupen: samme felt som kontaktkortet, men panelet trenger ikke
+   kontaktkortets høyde. */
+.kontakt-panel.ny-post-panel {
+  min-height: 0;
 }
 
-.ny-post-valg {
-  margin-bottom: 6px;
+/* Kundefeltet som nedtrekksliste, som i Go: pil i feltet, en liten tabell
+   med kundenummer og navn, og «Legg til kunde» nederst. */
+.kunde-velger .input {
+  padding-right: 30px;
+}
+
+.kunde-velger-pil {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  width: 28px;
+  border: none;
+  background: none;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.kunde-velger-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.kunde-velger-hode,
+.kunde-velger-rad {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  padding: 7px 12px;
+}
+
+.kunde-velger-hode {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border);
+}
+
+.kunde-velger-rader {
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.kunde-velger-rad {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.kunde-velger-rad.active {
+  background: var(--accent-soft);
+}
+
+.kunde-velger-kode {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.kunde-velger-navn {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.kunde-velger-tom {
+  padding: 10px 12px;
+}
+
+.kunde-velger-ny {
+  display: block;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  border-top: 1px solid var(--border);
+  background: var(--surface-sunken);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--link);
+  cursor: pointer;
+}
+
+.kunde-velger-ny:hover {
+  background: var(--accent-soft);
+}
+
+/* Tilbud i søkelista: nummer og tittel som én linje, kunde og status under. */
+.tilbud-valg {
+  grid-template-columns: 1fr;
+}
+
+.tilbud-valg .picker-name {
+  display: block;
+}
+
+/* Grå inni grå skal ikke bli dobbelt så blek. */
+.ny-post-prisfil:disabled .ny-post-prisfil:disabled {
+  opacity: 1;
+}
+
+/* Feltene for prisfilen er grået ut til man krysser av for dem. */
+.ny-post-prisfil {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-inline-size: 0;
+  transition: opacity 0.15s ease;
+}
+
+.ny-post-prisfil:disabled {
+  opacity: 0.5;
+}
+
+.ny-post-prisfil:disabled .input {
+  background: var(--surface-sunken);
+  cursor: not-allowed;
+}
+
+.ny-post-lagre {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 4px;
+  cursor: pointer;
+}
+
+.ny-post-lagre input {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.ny-post-lagre .hint {
+  display: block;
+  margin-top: 1px;
+}
+
+/* Korte verdier (enhet, pris, kode) får et kort felt, så det ser ut som det
+   de er og ikke som et sted å skrive en setning. */
+.kort-felt {
+  display: block;
+  max-width: 160px;
 }
 
 .ny-post-rad {
@@ -1419,23 +1941,33 @@ p {
   }
 }
 
+.utkast-bunn {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 4px;
+}
+
 .doc-totals {
-  margin: 22px 0 0 auto;
-  width: 300px;
+  margin: 0 0 0 auto;
+  width: 280px;
 }
 
 .doc-total-row {
   display: flex;
   justify-content: space-between;
-  padding: 5px 0;
+  padding: 3px 0;
   color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 
 .doc-total-row.grand {
-  border-top: 2px solid var(--text);
-  margin-top: 6px;
-  padding-top: 11px;
-  font-size: 18px;
+  border-top: 1px solid var(--text);
+  margin-top: 4px;
+  padding-top: 8px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--text);
   letter-spacing: -0.02em;
@@ -1449,19 +1981,114 @@ p {
 
 .table th {
   text-align: left;
-  font-size: 11.5px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-tertiary);
-  padding: 12px 24px;
-  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--text-secondary);
+  padding: 9px 14px;
   background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
 }
 
 .table td {
-  padding: 12px 24px;
+  padding: 9px 14px;
   border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+/* Sorterbare kolonner: hele overskrifta er lenka. Pila står alltid på
+   plass, men er bare synlig (og blå) på kolonnen lista er sortert på. */
+.sort-kolonne {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: inherit;
+}
+
+.sort-kolonne:hover,
+.sort-kolonne.aktiv {
+  color: var(--text);
+}
+
+.sort-pil {
+  font-size: 9px;
+  color: var(--accent);
+  visibility: hidden;
+}
+
+.sort-kolonne.aktiv .sort-pil {
+  visibility: visible;
+}
+
+.sort-kolonne:hover .sort-pil {
+  visibility: visible;
+  opacity: 0.5;
+}
+
+.sort-kolonne.aktiv:hover .sort-pil {
+  opacity: 1;
+}
+
+/* Rader som åpner noe: grå markering under musa, navnet som blå lenke. */
+.table.klikkbar tbody tr {
+  cursor: pointer;
+}
+
+.table.klikkbar tbody tr:hover td {
+  background: var(--bg);
+}
+
+/* Knapp som ser ut som vanlig celletekst — avsenderen i leads-tabellen,
+   som åpner e-posten. Den er der for tastaturet; musa klikker på raden. */
+.table .celle-knapp {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: inherit;
+}
+
+.table .celle-knapp:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Emnet i leads-tabellen er en knapp, men skal se ut som lenkene. */
+.table .lenke.knapp {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.table td .button {
+  padding: 3px 12px;
+  font-size: 12.5px;
+}
+
+.table td.handling {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.table .lenke {
+  color: var(--link);
+}
+
+.table .lenke:hover {
+  text-decoration: underline;
+}
+
+/* Tabellen blir for brei på telefon: den ruller sidelengs i kortet. */
+.tabell-rull {
+  overflow-x: auto;
 }
 
 .table tr:last-child td {
@@ -1471,6 +2098,10 @@ p {
 .table .num,
 .table th.num {
   text-align: right;
+}
+
+.nowrap {
+  white-space: nowrap;
 }
 
 /* Tilstandar */
@@ -1495,7 +2126,7 @@ p {
 
 .banner.info {
   background: var(--accent-soft);
-  color: #0a4b8f;
+  color: var(--link);
 }
 
 .banner.warning {
@@ -1504,8 +2135,8 @@ p {
 }
 
 .banner.error {
-  background: #fdecea;
-  color: #a4271b;
+  background: var(--negative-soft);
+  color: var(--negative);
 }
 
 .banner.success {
@@ -1582,6 +2213,15 @@ p {
   flex-wrap: wrap;
 }
 
+/* Innstillinger under Selskap: oversikten som kort, og seksjonene på den
+   samlede siden — Selskap, Tilbud, Ordre — med hopp-lenker øverst. */
+
+
+.innstillinger-seksjon > p.muted {
+  font-size: 14px;
+  margin-bottom: 18px;
+}
+
 /* Fanene inne på ordren. De fire som ikke finnes ennå er skrudd av, men
    står der: de sier hva ordren kommer til å samle. */
 .ordre-faner .type-option:disabled {
@@ -1641,11 +2281,110 @@ p {
   letter-spacing: -0.01em;
 }
 
+/* Ordreoversikten: tallene som en tett stripe, felt skilt med en strek i
+   stedet for hver sin boks. */
+.ordre-oversikt.stack {
+  gap: 12px;
+}
+
+.ordre-tall .oppsummering {
+  gap: 0;
+  margin: 0;
+}
+
+.ordre-tall .oppsummering-post {
+  padding: 10px 16px;
+  border-radius: 0;
+  background: none;
+  border-left: 1px solid var(--border);
+  color: inherit;
+}
+
+.ordre-tall .oppsummering-post:first-child {
+  border-left: none;
+}
+
+.ordre-tall .oppsummering-post strong {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ordre-tall .oppsummering-post.clickable:hover {
+  background: var(--bg);
+}
+
+.ordre-oversikt .stack {
+  gap: 12px;
+}
+
+.ordre-oversikt .card-pad {
+  padding: 14px 18px;
+}
+
+/* Beskrivelsen vokser med teksten, så hele står synlig (der nettleseren
+   støtter det; ellers kan feltet dras større som før). */
+.ordre-oversikt .textarea {
+  field-sizing: content;
+  max-height: 60vh;
+}
+
+/* Kundeopplysningene på ordren: bare visning, samme rutenett som feltene. */
+.ordre-kunde-info {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 8px 12px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.ordre-kunde-info dt {
+  color: var(--text-secondary);
+}
+
+.ordre-kunde-info dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ordre-kunde-info a {
+  color: var(--link);
+}
+
+.lenke-bla {
+  color: var(--link);
+}
+
+.lenke-bla:hover {
+  text-decoration: underline;
+}
+
+/* Kunden i en smal spalte: kortere etikett-kolonne. */
+.ordre-kunde .kontakt-rad {
+  grid-template-columns: 96px minmax(0, 1fr);
+  margin-bottom: 8px;
+}
+
+.ordre-kunde .input {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+/* Loggen er til å slå opp i, ikke til å lese: små rader. */
+.ordre-hendelser .card-header {
+  padding: 10px 16px;
+}
+
+.ordre-hendelser .lead-row {
+  padding: 7px 16px;
+  font-size: 13px;
+  gap: 10px;
+}
+
 .oppsummering-post.clickable:hover {
   background: rgba(0, 0, 0, 0.07);
 }
 
-/* Timer: dato-skille mellom gruppene, hurtigknapper under timefeltet */
+/* Timer: dato-skille mellom gruppene */
 .dato-skille {
   padding: 10px 24px 4px;
   font-size: 12px;
@@ -1654,26 +2393,220 @@ p {
   text-transform: capitalize;
 }
 
-.hurtigknappar {
+/* Raden som er åpen for endring i føringslinja over. */
+.tabell-mobil tr.redigerer td {
+  background: var(--accent-soft);
+}
+
+/* Timeføringen som én linje over tabellen, som i Go. Feltene brytes til
+   neste linje når det ikke er plass, og stables på telefon. */
+.foring {
+  padding: 12px 16px 14px;
+}
+
+.foring.redigerer {
+  box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow);
+}
+
+.foring-topp {
   display: flex;
-  gap: 6px;
-  margin-top: 8px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 28px;
+  margin-bottom: 8px;
 }
 
-.hurtigknappar .button {
-  flex: 1;
-  justify-content: center;
-  padding-left: 0;
-  padding-right: 0;
+.foring-felt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px 12px;
 }
 
-.hurtigknappar .button.active {
-  background: var(--accent-soft);
-  color: var(--accent);
+.foring-felt .label {
+  margin-bottom: 4px;
 }
 
-.time-rad.redigerer {
-  background: var(--accent-soft);
+.foring-felt .input {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.foring-dato {
+  flex: 0 0 150px;
+}
+
+.foring-montor {
+  flex: 1 1 150px;
+}
+
+.foring-type {
+  flex: 1.4 1 200px;
+}
+
+.foring-timar {
+  flex: 0 0 110px;
+}
+
+.foring-note {
+  flex: 2 1 220px;
+}
+
+.foring-knapp {
+  align-self: flex-start;
+  /* På linje med feltene, under etiketthøyden. */
+  padding-top: 21px;
+}
+
+/* Gruppene i tabellen (dag, fra faktura / manuelt), som i reskontroen i Go. */
+.table .gruppe-rad td {
+  padding-top: 12px;
+  padding-bottom: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--link);
+  background: var(--surface);
+}
+
+/* «tir. 20. okt.» → «Tir. 20. okt.»: bare første bokstav i gruppenavnet. */
+.table .gruppe-rad td:first-child::first-letter {
+  text-transform: uppercase;
+}
+
+.table tbody + tbody .gruppe-rad td {
+  border-top: 1px solid var(--border);
+}
+
+/* Summer nederst i tabellen. */
+.table tfoot td {
+  padding: 6px 14px;
+  border-bottom: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.table tfoot .sum-type td {
+  font-size: 12.5px;
+}
+
+.table tfoot tr:first-child td {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.table tfoot .sum-rad td {
+  font-weight: 600;
+  padding-bottom: 12px;
+}
+
+.tabell-mobil td.handling {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.tabell-mobil td.handling .button.ghost {
+  padding: 3px 8px;
+  font-size: 12.5px;
+}
+
+/*
+ * Telefon: tabellen blir en liste med små kort. Hovedteksten står øverst,
+ * beløpet til høyre, detaljene på linja under og knappene nederst — slik
+ * montøren leste lista før den ble tabell.
+ */
+@media (max-width: 700px) {
+  .tabell-mobil thead {
+    display: none;
+  }
+  .tabell-mobil,
+  .tabell-mobil tbody,
+  .tabell-mobil tfoot {
+    display: block;
+  }
+  .tabell-mobil tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tabell-mobil td {
+    display: block;
+    padding: 0;
+    border: none;
+  }
+  .tabell-mobil td:empty {
+    display: none;
+  }
+  /* Hovedteksten og beløpet fyller første linje, så detaljene alltid
+     havner på linja under. */
+  .tabell-mobil td.hoved {
+    flex: 0 0 calc(100% - 108px);
+    min-width: 0;
+    order: 1;
+    font-weight: 500;
+  }
+  .tabell-mobil td.hoved .chip {
+    max-width: 100%;
+  }
+  .tabell-mobil td.belop {
+    flex: 0 0 100px;
+    order: 2;
+    text-align: right;
+  }
+  .tabell-mobil td.meta {
+    order: 3;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+  }
+  .tabell-mobil td.handling {
+    order: 4;
+    flex-basis: 100%;
+    width: auto;
+    text-align: left;
+  }
+  .tabell-mobil td.handling .button.ghost {
+    min-height: 40px;
+    padding: 6px 12px;
+  }
+  .tabell-mobil .gruppe-rad,
+  .tabell-mobil tfoot tr {
+    justify-content: space-between;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .tabell-mobil .gruppe-rad td,
+  .tabell-mobil tfoot td,
+  .tabell-mobil tbody + tbody .gruppe-rad td,
+  .tabell-mobil tfoot tr:first-child td {
+    padding: 0;
+    border: none;
+  }
+  .tabell-mobil .gruppe-rad td:first-child,
+  .tabell-mobil tfoot td:first-child {
+    flex: 1;
+  }
+  .tabell-mobil tfoot tr {
+    border-bottom: none;
+  }
+  .tabell-mobil tfoot tr:first-child {
+    border-top: 1px solid var(--border);
+  }
+  .tabell-mobil .gruppe-rad td.num,
+  .tabell-mobil tfoot td.num {
+    margin-left: auto;
+  }
+  .foring-felt > * {
+    flex: 1 1 100%;
+  }
+  .foring-knapp {
+    padding-top: 0;
+  }
+  .foring-knapp .button {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 /* Materiell: valgt vare under søket, påslaget som trykkbar prosent */
@@ -1761,10 +2694,12 @@ p {
   .fane-mobil .dato-skille {
     padding-left: 16px;
   }
-  .ordre-faner {
+  .ordre-faner,
+  .innstillinger-faner {
     flex-wrap: wrap;
   }
-  .ordre-faner .type-option {
+  .ordre-faner .type-option,
+  .innstillinger-faner .type-option {
     flex: 1 1 auto;
     text-align: center;
   }
@@ -1868,8 +2803,8 @@ p {
   opacity: 0.55;
 }
 
-.materiell-rad.erstatta .lead-subject,
-.materiell-rad.erstatta .ordre-sum {
+.materiell-rad.erstatta .hoved > div:first-child,
+.materiell-rad.erstatta .belop {
   text-decoration: line-through;
 }
 
@@ -1925,13 +2860,13 @@ p {
   background: none;
   font: inherit;
   font-size: 11px;
-  color: #c0392b;
+  color: var(--negative);
   text-decoration: underline;
   cursor: pointer;
 }
 
 .cell-reset:hover {
-  color: #a4271b;
+  color: var(--negative);
 }
 
 /* Fila man drar inn i e-posten. Skal se ut som noe man tar tak i. */
@@ -1960,9 +2895,43 @@ p {
   min-inline-size: 0;
 }
 
+/* Tettere mellom kortene i utkastet, så mer av tilbudet får plass. */
+.editor-felt.stack {
+  gap: 12px;
+}
+
+.editor-felt .card-pad {
+  padding: 14px 18px;
+}
+
+.editor-felt .banner {
+  margin-bottom: 0;
+  padding: 10px 14px;
+}
+
+/* Detaljsider: lenke tilbake, tittel og nøkkelinfo i et stramt hode. */
+.page-header.kompakt {
+  margin-bottom: 16px;
+}
+
+.page-header.kompakt h1 {
+  font-size: 22px;
+  margin-top: 2px;
+}
+
+.tilbake {
+  font-size: 13px;
+  color: var(--link);
+}
+
+.tilbake:hover {
+  text-decoration: underline;
+}
+
 /* Dra-håndtakene er ikke skjemafelt, saa de maa slaas av for seg. */
-.editor-felt:disabled [draggable="true"] {
+.editor-felt:disabled .grip {
   pointer-events: none;
+  opacity: 0.4;
 }
 
 /* Seksjonsoverskriften i utkastet.
@@ -1973,7 +2942,7 @@ p {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .seksjon-knapper {
@@ -2089,7 +3058,7 @@ p {
 
 /* Opplaeringsstatus paa referansefil-sida. */
 .opplaering {
-  margin-bottom: 20px;
+  margin-bottom: 0;
 }
 
 .opplaering-topp {
@@ -2170,7 +3139,7 @@ p {
 }
 
 /* Fakturaforslag (steg 4) */
-.time-rad.fakturert,
+tr.fakturert,
 .materiell-rad.fakturert {
   opacity: 0.6;
 }
@@ -2184,19 +3153,144 @@ p {
 
 .faktura-tabell {
   overflow-x: auto;
+  padding: 0 16px;
+}
+
+.faktura-tabell .doc-table {
+  margin-top: 0;
 }
 
 .faktura-tabell .doc-table td {
   vertical-align: top;
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 
-.faktura-tabell .input {
-  padding: 5px 8px;
-  font-size: 13.5px;
+/* Celler uten felt (sum, tekstlinjens strek) på linje med tallene i feltene. */
+.faktura-tabell .doc-table td:not(:has(input)) {
+  padding-top: 9px;
 }
 
-.faktura-tabell .input.num {
-  text-align: right;
+.faktura-tabell .chips {
+  margin: 0 0 2px 7px;
+}
+
+/* Leverandørfakturaer: rad med pil som viser linjene under. */
+.faktura-liste td {
+  vertical-align: top;
+}
+
+.faktura-liste td.utvid {
+  width: 28px;
+  padding-right: 0;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.faktura-liste tbody.open > tr:first-child td {
+  background: var(--bg);
+}
+
+.faktura-liste .faktura-detalj td {
+  padding: 0 14px 14px 42px;
+  background: var(--bg);
+  cursor: default;
+}
+
+.faktura-liste .faktura-linjer {
+  padding: 2px 0 0;
+  background: none;
+}
+
+.faktura-liste .faktura-detalj:hover td {
+  background: var(--bg);
+}
+
+/* Ordrevelgeren åpner seg mot venstre fra kolonnen helt til høyre. */
+.faktura-liste .ordre-velger-treff {
+  left: auto;
+  right: 0;
+}
+
+@media (max-width: 700px) {
+  .faktura-liste td.utvid {
+    display: none;
+  }
+  .faktura-liste .faktura-detalj td {
+    flex: 1 1 100%;
+    padding: 0;
+  }
+}
+
+/* Agentens spørsmål og merknader i Faktura: smale linjer som åpnes. */
+.agent-linjer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agent-linje {
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+
+.agent-linje.sporsmal {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.agent-linje.merknad {
+  background: var(--accent-soft);
+  color: var(--link);
+}
+
+.agent-linje summary {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 7px 12px;
+  cursor: pointer;
+  list-style: none;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.agent-linje summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Pil som snur seg når linja er åpen. */
+.agent-linje summary::before {
+  content: "▸";
+  flex: 0 0 auto;
+  margin-right: 4px;
+  transition: transform 0.15s ease;
+}
+
+.agent-linje[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.agent-linje summary span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.85;
+}
+
+.agent-linje[open] summary span {
+  display: none;
+}
+
+.agent-linje ul {
+  margin: 0;
+  padding: 0 12px 10px 34px;
+  line-height: 1.5;
+}
+
+/* Summene nederst til høyre i linjekortet, som i tilbudet. */
+.faktura-summer {
+  margin: 10px 16px 16px auto;
 }
 
 .faktura-tabell tr.utelatt td {
@@ -2319,6 +3413,21 @@ p {
 .epost-slipp-hint {
   margin: -4px 0 14px;
 }
+
+/* Rader med høyt innhold (tekstfelt, vedleggsliste): etiketten står øverst
+   ved feltet, ikke midt på. */
+.kontakt-rad.topp {
+  align-items: start;
+}
+
+.kontakt-rad.topp > .kontakt-rad-etikett {
+  padding-top: 8px;
+}
+
+.kontakt-rad .epost-slipp-hint {
+  margin: 0;
+  padding-top: 8px;
+}
 .button.slipp-maal {
   border-style: dashed;
   border-color: var(--accent);
@@ -2377,6 +3486,7 @@ p {
 }
 .vedlegg-kort.ikke-lest {
   opacity: 0.45;
+}
 
 /* Dokumentasjon (steg 5) */
 .mal-liste {
@@ -2386,6 +3496,9 @@ p {
 }
 
 .mal-valg {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   text-align: left;
   padding: 12px 14px;
   border: 1px solid var(--border);
@@ -2406,8 +3519,21 @@ p {
   cursor: default;
 }
 
-.dokument-rad .chips {
-  margin-top: 6px;
+.celle-knapper {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+}
+
+.dokument-tabell td.handling .button {
+  padding: 3px 10px;
+  font-size: 12.5px;
+}
+
+/* Boligmappa som en slank linje over dokumentene. */
+.boligmappa-kort.card-pad {
+  padding: 10px 16px;
 }
 
 .boligmappa-treff .ordre-velger-rad {
@@ -2439,7 +3565,7 @@ p {
 }
 
 .paakravd {
-  color: #a4271b;
+  color: var(--negative);
 }
 
 .check3 {
@@ -2462,15 +3588,15 @@ p {
 }
 
 .check3-knapp.valgt.ok {
-  background: #e6f4ea;
-  border-color: #1f7a3a;
-  color: #1f7a3a;
+  background: var(--positive-soft);
+  border-color: var(--positive);
+  color: var(--positive);
 }
 
 .check3-knapp.valgt.avvik {
-  background: #fbe9e7;
-  border-color: #a4271b;
-  color: #a4271b;
+  background: var(--negative-soft);
+  border-color: var(--negative);
+  color: var(--negative);
 }
 
 .check3-knapp.valgt.ia {
@@ -2501,9 +3627,14 @@ p {
   .mal-liste {
     grid-template-columns: 1fr;
   }
-  .dokument-rad .row {
-    flex: 0 0 100%;
+  .dokument-tabell .celle-knapper {
     flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .dokument-tabell td.handling .button {
+    min-height: 40px;
+    padding: 6px 12px;
+    font-size: 14px;
   }
 }
 
@@ -2553,21 +3684,1638 @@ p {
   font-weight: 600;
 }
 
-.jobb-rad {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 12px;
-  padding: 7px 0;
-  border-top: 1px solid var(--border);
-}
-
-.jobb-rad:first-of-type {
-  border-top: none;
+/* Etikett som bare vises når tabellraden er et kort på mobil. */
+.mobil-etikett {
+  display: none;
 }
 
 @media (max-width: 700px) {
-  .grossist-kort .grid-2 {
+  .tabell-mobil .mobil-etikett {
+    display: inline;
+  }
+}
+
+/* Grossistlista: katalogsøket i verktøylinja, treffene som nedtrekksliste */
+.verktoylinje .grossist-sok {
+  position: relative;
+}
+
+.verktoylinje .grossist-sok .input {
+  width: 320px;
+}
+
+.verktoylinje .grossist-sok > .grossist-treff,
+.verktoylinje .grossist-sok > p,
+.verktoylinje .grossist-sok > .banner {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 30;
+  width: min(560px, calc(100vw - 32px));
+  margin-top: 6px !important;
+  background: var(--surface, #fff);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
+}
+
+.verktoylinje .grossist-sok > p {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.grossist-liste .grossist-siste {
+  min-width: 170px;
+}
+
+.grossist-framdrift {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.grossist-framdrift .framdrift {
+  display: block;
+  margin-top: 2px;
+}
+
+.grossist-framdrift .framdrift-fyll {
+  display: block;
+}
+
+.grossist-liste td.handling {
+  text-align: right;
+}
+
+.grossist-liste td.handling .button {
+  padding: 3px 12px;
+  font-size: 13px;
+}
+
+.historikk-tabell td {
+  vertical-align: top;
+}
+
+/* Grossistpopupen: FTP-fanen er lang, så panelet ruller og knappene står fast. */
+.kontakt-panel.grossist-panel {
+  max-height: calc(100vh - 230px);
+  overflow-y: auto;
+}
+
+@media (max-width: 700px) {
+  .verktoylinje .grossist-sok,
+  .verktoylinje .grossist-sok .input {
+    width: 100%;
+  }
+  .verktoylinje:has(.grossist-sok) .verktoylinje-hoyre {
+    flex: 1 1 100%;
+  }
+}
+
+/* Kontaktregisteret */
+.kontakt-type-valg {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.kontakt-type-valg input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+}
+.kontakt-go {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  font-size: 14px;
+}
+.kontakt-skjema {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+.kontakt-faner {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.kontakt-fane {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+.kontakt-fane:hover {
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+.kontakt-fane.aktiv {
+  background: var(--accent);
+  color: #fff;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  font-weight: 500;
+  /* Pila peker mot panelet, som i Go. */
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%);
+  padding-right: 20px;
+}
+.kontakt-fane-tal {
+  min-width: 20px;
+  padding: 0 6px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 12px;
+  text-align: center;
+}
+.kontakt-panel {
+  min-width: 0;
+  min-height: 420px;
+  padding: 16px 20px;
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+}
+.kontakt-rad {
+  display: grid;
+  /* minmax(0, …): Safari på iPad gir et tekstfelt en minstebredde på ~240 px,
+     og med vanlig 1fr presset det feltene ut over kanten av popupen. */
+  grid-template-columns: 130px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+.kontakt-rad-etikett {
+  color: var(--text-secondary);
+}
+.kontakt-valg {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+.kontakt-poststed {
+  display: grid;
+  grid-template-columns: minmax(0, 110px) minmax(0, 1fr);
+  gap: 8px;
+}
+
+/* Feltene fyller alltid kolonnen sin og kan krympe — ikke bare i Chrome. */
+.kontakt-rad > *,
+.kontakt-poststed > *,
+.kontakt-rad .picker {
+  min-width: 0;
+}
+
+.kontakt-rad .input,
+.kontakt-poststed .input,
+.kontakt-rad .picker {
+  width: 100%;
+  max-width: 100%;
+  justify-self: stretch;
+}
+.kontakt-skilje {
+  margin: 18px 0 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+}
+.kontakt-adresse + .kontakt-adresse {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.kontakt-adresse-hode {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.kontakt-adresse-hode h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.kontakt-adresse-forklaring {
+  margin: 4px 0 12px;
+  font-size: 13px;
+}
+.kontakt-panel .input:disabled {
+  background: var(--surface-sunken);
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+@media (max-width: 700px) {
+  .kontakt-skjema {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .kontakt-faner {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+  .kontakt-panel {
+    min-height: 0;
+    padding: 12px;
+  }
+  .kontakt-rad {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+.kontakt-merke {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.kontakt-merke.leverandor {
+  font-weight: 500;
+}
+.kunde-tall {
+  font-size: 13px;
+  white-space: nowrap;
+}
+.kunde-kort-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px 20px;
+  font-size: 14px;
+}
+.kunde-kort-info dt {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.kunde-kort-info dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+dl.kunde-kort-info {
+  margin: 0;
+}
+
+.kunde-kort-info a {
+  color: var(--link);
+}
+
+/* Notatet på kontakten, under informasjonen. */
+.kontakt-notat {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  white-space: pre-wrap;
+  font-size: 13.5px;
+  color: var(--text-secondary);
+}
+
+/* Dashboard: nøkkeltall øverst, to lister side om side, forbruket nederst */
+.dash-tal {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin: 18px 0 16px;
+}
+
+.dash-tal-kort {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  color: inherit;
+  text-decoration: none;
+  border-top: 3px solid transparent;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.dash-tal-kort:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+.dash-tal-kort.varsle {
+  border-top-color: var(--accent);
+}
+
+.dash-tal-etikett {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.dash-tal-verdi {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.dash-grid.en {
+  grid-template-columns: 1fr;
+}
+
+.dash-kort-topp {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dash-kort-topp > .lenke:last-child,
+.dash-kort-topp .dash-hoyre {
+  margin-left: auto;
+}
+
+.dash-tom {
+  padding: 16px;
+  margin: 0;
+}
+
+.dash-linje {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 340px;
+}
+
+.dash-forbruk-tal {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+.dash-forbruk-celle,
+.dash-forbruk-sum {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  border-right: 1px solid var(--border);
+}
+
+.dash-forbruk-sum {
+  border-right: none;
+  background: var(--surface-sunken);
+}
+
+.dash-forbruk-verdi {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+@media (max-width: 900px) {
+  .dash-grid {
     grid-template-columns: 1fr;
   }
+  .dash-linje {
+    max-width: none;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 700px) {
+  .dash-tal {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .dash-tal-kort {
+    padding: 10px 12px;
+  }
+  .dash-tal-verdi {
+    font-size: 24px;
+  }
+  .dash-forbruk-celle {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+/* Betalingsvarselet: kan ikke lukkes, står øverst til fakturaen er betalt */
+.betalings-varsel {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  background: #fff1f0;
+  border: 1px solid #f5c2bd;
+  color: #8a1c12;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.betalings-varsel a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+/* Sperren uten aktivt abonnement */
+.abonnement-sperre {
+  max-width: 520px;
+  margin: 48px auto;
+  padding: 32px 28px;
+  text-align: center;
+}
+
+.abonnement-sperre h2 {
+  margin: 8px 0 8px;
+  font-size: 20px;
+}
+
+.abonnement-sperre p {
+  margin: 0 0 20px;
+}
+
+.abonnement-sperre-ikon {
+  font-size: 28px;
+  color: var(--text-tertiary);
+}
+
+
+/* Innstillinger som i Go: meny til venstre, punktet til høyre */
+.inst-oppsett {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+  margin-top: 14px;
+}
+
+.inst-meny {
+  position: sticky;
+  top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.inst-meny-gruppe {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.inst-meny-tittel {
+  padding: 0 12px 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.inst-meny .kontakt-fane {
+  text-decoration: none;
+}
+
+.inst-innhold {
+  min-width: 0;
+  max-width: 860px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.inst-tittel h2 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: -0.01em;
+}
+
+.inst-tittel p {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+
+.inst-panel-topp {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.inst-panel-hoyre {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.inst-panel-innhold {
+  padding: 16px 20px 6px;
+}
+
+.inst-panel-flat > .table {
+  margin: 0;
+}
+
+.inst-rad {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 16px;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.inst-rad.topp {
+  align-items: start;
+}
+
+.inst-rad.topp .inst-rad-etikett,
+.inst-rad:has(.inst-rad-felt > .hint) .inst-rad-etikett {
+  padding-top: 9px;
+}
+
+/* Med hjelpetekst under feltet: etiketten på høyde med feltet, ikke midt i. */
+.inst-rad:has(.inst-rad-felt > .hint) {
+  align-items: start;
+}
+
+.inst-rad-etikett {
+  color: var(--text-secondary);
+}
+
+.inst-rad-felt {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.inst-rad-felt > .hint {
+  margin: 0;
+}
+
+.inst-smal {
+  max-width: 220px;
+}
+
+.inst-postnr {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.inst-farge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 220px;
+}
+
+.inst-farge input[type="color"] {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 36px;
+  padding: 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.inst-med-enhet {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 140px;
+}
+
+.inst-skille {
+  margin: 18px 0 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.inst-lagre {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-sunken);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.inst-lagre.flytende {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: saturate(180%) blur(20px);
+  box-shadow: var(--shadow);
+}
+
+.inst-lagre.flytende.fast {
+  position: sticky;
+  bottom: 12px;
+  z-index: 5;
+}
+
+.inst-endret {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.inst-status {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 6px 16px;
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+
+.inst-status dt {
+  color: var(--text-secondary);
+}
+
+.inst-status dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.inst-knapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 0 14px;
+}
+
+@media (max-width: 900px) {
+  .inst-oppsett {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .inst-meny {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 4px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .inst-meny-gruppe {
+    flex-direction: row;
+  }
+  .inst-meny-tittel {
+    display: none;
+  }
+  .inst-meny .kontakt-fane {
+    white-space: nowrap;
+  }
+  .inst-meny .kontakt-fane.aktiv {
+    clip-path: none;
+    border-radius: 999px;
+    padding-right: 12px;
+  }
+}
+
+@media (max-width: 700px) {
+  .inst-rad,
+  .inst-status {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .inst-rad.topp .inst-rad-etikett {
+    padding-top: 0;
+  }
+  .inst-panel-topp,
+  .inst-panel-innhold,
+  .inst-lagre {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}
+
+
+/* Bytt selskap øverst i sidemenyen */
+.selskap-velger {
+  position: relative;
+  margin: 0 0 14px;
+}
+
+.selskap-velger-knapp {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.selskap-velger-knapp:hover {
+  border-color: var(--border-strong);
+}
+
+.selskap-velger-etikett {
+  grid-column: 1;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.selskap-velger-navn {
+  grid-column: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.selskap-velger-pil {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  color: var(--text-tertiary);
+}
+
+.selskap-velger-liste {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.selskap-velger-valg {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 8px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.selskap-velger-valg:hover {
+  background: var(--surface-sunken);
+}
+
+.selskap-velger-valg.aktiv {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* «Glemt passord?» under passordfeltet: ser ut som en lenke, er en knapp. */
+.lenke-knapp {
+  display: block;
+  margin: 6px 0 0 auto;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--link);
+  cursor: pointer;
+}
+
+.lenke-knapp:hover {
+  text-decoration: underline;
+}
+
+/* «Alle endringer er lagret» i handlingslinja på tilbudet */
+.lagring-status {
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.lagring-status.feil {
+  color: var(--danger, #b3261e);
+}
+
+/* Kundenummeret i kontaktskjemaet: et kort tall, ikke et helt felt. */
+.kontakt-kundenr {
+  max-width: 140px;
+}
+
+/* Fakturakunden i fakturahodet: søkefeltet og «Avbryt» på én linje. */
+.faktura-kunde {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.faktura-kunde .kunde-velger {
+  flex: 1;
+  min-width: 0;
+}
+
+.faktura-kunde-merknad {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+/* Forslag som i PowerOffice Go: grå kursiv tekst man bare skriver over. */
+.input.forslag::placeholder {
+  font-style: italic;
+  color: var(--text-secondary);
+  opacity: 1;
+}
+
+/* Saksbehandler og hovedansvarlig på ordren. */
+.ordre-ansvar .label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.ordre-ansvar .kontakt-rad:last-child {
+  margin-bottom: 0;
+}
+
+/* Et valg som står på forslaget: grått og kursivt, som i PowerOffice Go. */
+.input.forslag-valg {
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.input.forslag-valg option {
+  font-style: normal;
+  color: var(--text);
+}
+
+/* Kundeboksen på ordren er smal: postnummeret trenger bare fire sifre. */
+.ordre-kunde .kontakt-poststed {
+  grid-template-columns: 76px minmax(0, 1fr);
+}
+
+.ordre-kunde-nr {
+  padding: 6px 0;
+}
+
+/* Ordrevelgeren på leverandørfakturaene: alltid et oppslagsfelt, med pil
+   som kundefeltet. Lista åpner mot venstre, så den ikke havner utenfor
+   skjermen i siste kolonne. */
+.ordre-velger .input {
+  padding-right: 28px;
+}
+
+.ordre-velger .ordre-velger-treff {
+  left: auto;
+  right: 0;
+}
+
+.ordre-velger.kompakt .input {
+  width: 170px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  font-size: 13px;
+}
+
+.ordre-velger-rad.active {
+  background: var(--surface-sunken);
+}
+
+.ordre-velger .kunde-velger-pil:disabled {
+  cursor: default;
+}
+
+/* ── Kalender ────────────────────────────────────────────────────────────
+   Fargene per type går igjen i prikkene, brikkene og blokkene: oppdrag er
+   aksentblå, møte lilla, fravær oransje, annet grått. */
+:root {
+  --kal-oppdrag: var(--accent);
+  --kal-oppdrag-soft: var(--accent-soft);
+  --kal-mote: #8944ab;
+  --kal-mote-soft: #f4ebf9;
+  --kal-fravaer: var(--warning);
+  --kal-fravaer-soft: var(--warning-soft);
+  --kal-annet: #6e6e73;
+  --kal-annet-soft: #f0f0f3;
+}
+
+.kal-verktoy {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.kal-periode {
+  font-size: 15px;
+  margin-left: 6px;
+}
+.kal-verktoy .verktoylinje-hoyre {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.verktoylinje .input.kal-filter {
+  width: auto;
+  min-width: 160px;
+  max-width: 100%;
+}
+@media (max-width: 700px) {
+  .kal-verktoy .verktoylinje-hoyre {
+    margin-left: 0;
+  }
+  .kal-montorer .kal-person {
+    width: 110px;
+  }
+}
+.kal-forklaring {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0 0 10px;
+}
+
+.kal-prikk {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  vertical-align: middle;
+  background: var(--kal-annet);
+}
+.kal-prikk.oppdrag { background: var(--kal-oppdrag); }
+.kal-prikk.mote { background: var(--kal-mote); }
+.kal-prikk.fravaer { background: var(--kal-fravaer); }
+
+.kal-merke {
+  font-size: 12px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--kal-annet-soft);
+  color: var(--kal-annet);
+}
+.kal-merke.oppdrag { background: var(--kal-oppdrag-soft); color: var(--kal-oppdrag); }
+.kal-merke.mote { background: var(--kal-mote-soft); color: var(--kal-mote); }
+.kal-merke.fravaer { background: var(--kal-fravaer-soft); color: var(--kal-fravaer); }
+
+/* Montørvisningen: én rad per ansatt, én kolonne per dag. */
+.kal-montorer {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 13px;
+}
+.kal-montorer th,
+.kal-montorer td {
+  border-bottom: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  vertical-align: top;
+  text-align: left;
+}
+.kal-montorer thead th {
+  padding: 10px 8px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--surface-sunken);
+}
+.kal-montorer .kal-person {
+  width: 150px;
+  padding: 10px 12px;
+  border-left: none;
+  font-weight: 500;
+}
+.kal-montorer th.i-dag {
+  color: var(--accent);
+}
+.kal-dagnamn {
+  text-transform: capitalize;
+}
+.kal-celle {
+  height: 64px;
+  padding: 4px;
+}
+.kal-celle.helg,
+.kal-montorer thead th.helg {
+  background: var(--surface-sunken);
+}
+.kal-celle.i-dag {
+  background: rgba(0, 113, 227, 0.035);
+}
+.kal-celle.ledig {
+  cursor: copy;
+}
+.kal-celle.ledig:hover {
+  background: var(--accent-soft);
+}
+
+.kal-brikke {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 4px 6px;
+  border: none;
+  border-left: 3px solid var(--kal-annet);
+  border-radius: 5px;
+  background: var(--kal-annet-soft);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+}
+.kal-brikke:hover { filter: brightness(0.96); }
+.kal-brikke.oppdrag { border-left-color: var(--kal-oppdrag); background: var(--kal-oppdrag-soft); }
+.kal-brikke.mote { border-left-color: var(--kal-mote); background: var(--kal-mote-soft); }
+.kal-brikke.fravaer { border-left-color: var(--kal-fravaer); background: var(--kal-fravaer-soft); }
+.kal-brikke-tid {
+  font-weight: 600;
+}
+.kal-brikke-tittel,
+.kal-brikke-stad {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kal-brikke-stad {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.kal-ordrenr {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+/* Ukevisningen: klokkeslett nedover, dager bortover. */
+.kal-uke {
+  min-width: 760px;
+  font-size: 12px;
+}
+.kal-uke-hovud,
+.kal-uke-heildag,
+.kal-uke-kropp {
+  display: grid;
+  grid-template-columns: 56px repeat(7, minmax(0, 1fr));
+}
+.kal-uke-hovud {
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-sunken);
+}
+.kal-uke-dag {
+  padding: 10px 8px;
+  color: var(--text-secondary);
+  border-left: 1px solid var(--border);
+}
+.kal-uke-dag strong {
+  font-size: 15px;
+  color: var(--text);
+}
+.kal-uke-dag.i-dag strong {
+  color: var(--accent);
+}
+.kal-uke-heildag {
+  border-bottom: 1px solid var(--border);
+}
+.kal-uke-heildag > * {
+  padding: 4px;
+  border-left: 1px solid var(--border);
+}
+.kal-uke-heildag > :first-child {
+  border-left: none;
+  padding-top: 8px;
+}
+.kal-uke-kropp {
+  position: relative;
+}
+.kal-uke-klokke > div {
+  padding: 2px 8px 0 0;
+  text-align: right;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  transform: translateY(-8px);
+}
+.kal-uke-klokke > div:first-child {
+  transform: none;
+}
+.kal-uke-kolonne {
+  position: relative;
+  border-left: 1px solid var(--border);
+  background-image: linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+}
+.kal-uke-kolonne.i-dag {
+  background-color: rgba(0, 113, 227, 0.035);
+}
+.kal-uke-kolonne.ledig {
+  cursor: copy;
+}
+.kal-blokk {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 3px 6px;
+  border: none;
+  border-left: 3px solid var(--kal-annet);
+  border-radius: 5px;
+  background: var(--kal-annet-soft);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.25;
+  text-align: left;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px var(--surface);
+}
+.kal-blokk:hover { filter: brightness(0.96); z-index: 2; }
+.kal-blokk.oppdrag { border-left-color: var(--kal-oppdrag); background: var(--kal-oppdrag-soft); }
+.kal-blokk.mote { border-left-color: var(--kal-mote); background: var(--kal-mote-soft); }
+.kal-blokk.fravaer { border-left-color: var(--kal-fravaer); background: var(--kal-fravaer-soft); }
+.kal-blokk-tid {
+  font-weight: 600;
+}
+.kal-blokk-kven {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.kal-no {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--negative);
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* Skjemaet */
+.kal-typeval .type-option {
+  padding: 6px 8px;
+}
+.kal-deltakarar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.kal-deltakar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 13px;
+  cursor: pointer;
+}
+.kal-deltakar.valt {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.kal-deltakar input {
+  margin: 0;
+}
+.kal-tid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 120px);
+  gap: 8px;
+}
+.kal-kollisjonar {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+/* Planlagt-kortet på ordren */
+.kal-ordre-rad {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.kal-ordre-rad:hover {
+  background: var(--surface-sunken);
+}
+.kal-tidlegare > summary {
+  padding: 7px 16px;
+  cursor: pointer;
+}
+
+/* Timeforslag frå kalenderen, over timeføringa */
+.timeforslag {
+  border-left: 3px solid var(--kal-oppdrag);
+}
+.timeforslag .card-header {
+  padding: 12px 16px;
+}
+.timeforslag-rad {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+}
+
+/* Dra og slepp i kalenderen */
+body.kal-drar,
+body.kal-drar * {
+  user-select: none;
+  cursor: grabbing !important;
+}
+.kal-brikke.flyttbar,
+.kal-blokk.flyttbar {
+  cursor: grab;
+}
+.kal-brikke.drar,
+.kal-blokk.drar {
+  opacity: 0.35;
+}
+.kal-celle.slepp-her {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.kal-blokk-handtak {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 7px;
+  cursor: ns-resize;
+}
+.kal-blokk-handtak::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 18px;
+  height: 2px;
+  margin-left: -9px;
+  border-radius: 1px;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.kal-blokk:hover .kal-blokk-handtak::after {
+  opacity: 0.35;
+}
+.kal-blokk.forhand {
+  z-index: 4;
+  border: 2px dashed var(--accent);
+  border-left-width: 2px;
+  background: rgba(232, 242, 253, 0.85);
+  pointer-events: none;
+}
+.kal-angre {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Versjonshistorikk for tilbud
+ *
+ * Sendte versjoner i sidespalten, og en skrivebeskyttet side per versjon med
+ * endringene fra forrige øverst.
+ * ------------------------------------------------------------------------- */
+
+.versjonshistorikk {
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.versjonshistorikk ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.versjonshistorikk li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.versjon-rad {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+  padding: 6px 8px;
+  margin: 0 -8px;
+  border-radius: var(--radius-sm);
+  color: inherit;
+  text-decoration: none;
+}
+
+.versjon-rad:hover {
+  background: var(--bg);
+}
+
+.versjon-navn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  font-size: 13.5px;
+}
+
+.versjon-meta {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.versjon-pdf {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.versjon-pdf:hover {
+  color: var(--link);
+  border-color: var(--border-strong);
+}
+
+.versjon-knapper {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.versjon-faner {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.versjon-fane {
+  padding: 5px 12px;
+  border-radius: 980px;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  background: var(--surface);
+}
+
+.versjon-fane:hover {
+  color: var(--text);
+}
+
+.versjon-fane.aktiv {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--surface);
+}
+
+.versjon-tittel {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  margin: 0 0 4px;
+}
+
+.versjon-seksjon {
+  font-weight: 600;
+  font-size: 13.5px;
+  margin-bottom: 4px;
+}
+
+.versjon-tabell td {
+  padding: 7px 8px 7px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.versjon-forutsetninger {
+  margin: 4px 0 12px;
+  padding-left: 18px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.versjon-epost {
+  max-height: none;
+}
+
+.versjon-total {
+  margin: 0 0 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.endring-ned {
+  color: var(--positive);
+}
+
+.endring-opp {
+  color: var(--warning);
+}
+
+.endringsliste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 13.5px;
+}
+
+.endringsliste:empty {
+  display: none;
+}
+
+.endringsliste + .endringsliste {
+  margin-top: 6px;
+}
+
+.endring-merke {
+  display: inline-block;
+  min-width: 56px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.endring-ny .endring-merke {
+  color: var(--positive);
+}
+
+.endring-fjernet .endring-merke {
+  color: var(--negative);
+}
+
+.endring-fjernet {
+  color: var(--text-secondary);
+}
+
+@media (max-width: 700px) {
+  .versjon-knapper {
+    width: 100%;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Historikk: klokke-knappen øverst til høyre på tilbud, ordre og faktura.
+ * Et trykk åpner en liste over hvem som gjorde hva, nyeste først.
+ * ------------------------------------------------------------------------- */
+
+.page-header-handlinger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.historikk {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.historikk-knapp {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.historikk-knapp:hover,
+.historikk-knapp[aria-expanded="true"] {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.historikk-knapp:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.historikk-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  width: min(340px, calc(100vw - 32px));
+  max-height: min(420px, 70vh);
+  overflow-y: auto;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  text-align: left;
+}
+
+.historikk-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.historikk-liste li {
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+
+.historikk-liste li:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.historikk-tekst {
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+.historikk-meta {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Når sidehodet legger seg i en kolonne, står knappen til venstre. Da åpner
+   panelet seg mot høyre, ellers ville det gått ut av skjermen. */
+@media (max-width: 700px) {
+  .historikk-panel {
+    right: auto;
+    left: 0;
+  }
+  .page-header-handlinger {
+    justify-content: flex-start;
+  }
+}
+
+/* «Gi tilbakemelding»: etter Selskap, rett over brukeren og Logg ut. */
+.nav-tilbakemelding {
+  margin-top: 12px;
+}
+
+/* Devello → Tilbakemeldinger */
+.tilbakemelding-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tilbakemelding.behandlet {
+  opacity: 0.6;
+}
+
+.tilbakemelding-tekst {
+  margin: 12px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
 }

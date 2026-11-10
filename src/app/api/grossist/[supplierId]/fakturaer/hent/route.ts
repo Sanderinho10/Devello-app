@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
 import { requireAdmin } from "@/lib/api-admin";
 import { grossistForSkriving } from "@/lib/grossist/api";
-import { hentFakturafiler } from "@/lib/regnskap/ftp-faktura";
+import { hentFakturafiler, notat } from "@/lib/regnskap/ftp-faktura";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
 export const maxDuration = 300;
@@ -25,7 +25,7 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
     if (!ftp.fakturafil_pattern) return NextResponse.json({ error: "Legg inn filmønster for fakturafiler først." }, { status: 400 });
 
     const resultat = await hentFakturafiler(admin, g.id, { trigger: "manuell" });
-    return NextResponse.json(resultat);
+    return NextResponse.json({ ...resultat, notat: notat(resultat) });
   } catch (err) {
     return errorResponse(err);
   }

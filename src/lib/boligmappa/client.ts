@@ -28,14 +28,23 @@ export class BoligmappaFeil extends Error {
   }
 }
 
+/** En gate fra /search/streets — slik Boligmappa sin egen søkekomponent leser den. */
+export interface BmGate {
+  id: string;
+  streetName: string;
+  postalCode: string | null;
+  postalPlace: string | null;
+  municipalityName: string | null;
+}
+
+/** En adresse fra /streets/{id}/addresses. id-en er den /addresses/{id}/properties tar. */
 export interface BmAdresse {
   id: string;
-  street: string | null;
+  streetName: string | null;
   houseNumber: string | null;
   houseSubNumber: string | null;
-  postCode: string | null;
-  city: string | null;
-  detailedAddress: string | null;
+  postalCode: string | null;
+  postalPlace: string | null;
   raw: Record<string, unknown>;
 }
 
@@ -78,7 +87,7 @@ export async function boligmappaClient(admin: SupabaseClient, companyId: string)
     .select("id, company_id, environment, access_token, refresh_token, expires_at, status")
     .eq("company_id", companyId)
     .maybeSingle();
-  if (!data) throw new BoligmappaFeil("Boligmappa er ikke koblet til. Koble til under Ordre → Innstillinger.", 400);
+  if (!data) throw new BoligmappaFeil("Boligmappa er ikke koblet til. Koble til under Selskap → Innstillinger → Ordre.", 400);
   const kopling = data as Kopling;
   const urls = boligmappaUrlar((kopling.environment as BoligmappaMiljo) ?? "production");
 
@@ -102,7 +111,7 @@ export async function boligmappaClient(admin: SupabaseClient, companyId: string)
         .eq("id", kopling.id);
       return kopling.access_token;
     } catch (err) {
-      const m = "Logg inn i Boligmappa på nytt under Ordre → Innstillinger.";
+      const m = "Logg inn i Boligmappa på nytt under Selskap → Innstillinger → Ordre.";
       await admin.from("boligmappa_connections").update({ status: "feil", status_reason: m }).eq("id", kopling.id);
       throw new BoligmappaFeil(`${m} (${err instanceof Error ? err.message : String(err)})`, 401);
     }
@@ -137,7 +146,7 @@ export async function boligmappaClient(admin: SupabaseClient, companyId: string)
       return kall(method, path, body, 1);
     }
     if (res.status === 401) {
-      const m = "Logg inn i Boligmappa på nytt under Ordre → Innstillinger.";
+      const m = "Logg inn i Boligmappa på nytt under Selskap → Innstillinger → Ordre.";
       await admin.from("boligmappa_connections").update({ status: "feil", status_reason: m }).eq("id", kopling.id);
       throw new BoligmappaFeil(m, 401);
     }
@@ -159,23 +168,52 @@ export async function boligmappaClient(admin: SupabaseClient, companyId: string)
   }
 
   return {
-    async sokAdresser(q: string): Promise<BmAdresse[]> {
-      const { data } = await json<unknown>("GET", `/search/addresses?q=${encodeURIComponent(q)}&limit=10`);
-      return liste(data).map((o) => ({
-        id: String(o.id ?? ""),
-        street: str(o.street),
-        houseNumber: str(o.houseNumber),
-        houseSubNumber: str(o.houseSubNumber),
-        postCode: str(o.postCode),
-        city: str(o.city),
-        detailedAddress: str(o.detailedAddress),
-        raw: o,
-      }));
+    /**
+     * Adressesøket går i to steg, slik Boligmappa sin egen søkekomponent
+     * (@boligmappa/web-component-search) gjør det: først gatene som
+     * matcher teksten, så adressene på gaten. /search/addresses gir
+     * bruksenheter med egne id-er, og de tar ikke /addresses/{id}/properties.
+     * Gater med postnummer 0000 eller uten poststed er filtrert bort, som
+     * i komponenten.
+     */
+    async sokGater(q: string): Promise<BmGate[]> {
+      const sti = `/search/streets?q=${encodeURIComponent(q)}&pagesize=10&page=1`;
+      const { data } = await json<unknown>("GET", sti);
+      return listeEllerForklar(data, sti)
+        .map((o) => ({
+          id: String(o.id ?? ""),
+          streetName: String(o.streetName ?? o.street ?? ""),
+          postalCode: str(o.postalCode),
+          postalPlace: str(o.postalPlace),
+          municipalityName: str(o.municipalityName),
+        }))
+        .filter((g) => g.id && g.streetName && g.postalCode !== "0000" && g.postalPlace);
+    },
+
+    async adresserPaaGate(streetId: string): Promise<BmAdresse[]> {
+      const ut: BmAdresse[] = [];
+      for (let side = 1; side <= 5; side++) {
+        const sti = `/streets/${encodeURIComponent(streetId)}/addresses?pagesize=100&page=${side}`;
+        const { data } = await json<unknown>("GET", sti);
+        const del = listeEllerForklar(data, sti).map((o) => ({
+          id: String(o.id ?? ""),
+          streetName: str(o.streetName),
+          houseNumber: str(o.houseNumber),
+          houseSubNumber: str(o.houseSubNumber),
+          postalCode: str(o.postalCode),
+          postalPlace: str(o.postalPlace),
+          raw: o,
+        }));
+        ut.push(...del.filter((a) => a.id));
+        if (del.length < 100) break;
+      }
+      return ut;
     },
 
     async eigedomar(addressId: string): Promise<BmEigedom[]> {
-      const { data } = await json<unknown>("GET", `/addresses/${encodeURIComponent(addressId)}/properties`);
-      return liste(data).map((o) => ({
+      const sti = `/addresses/${encodeURIComponent(addressId)}/properties`;
+      const { data } = await json<unknown>("GET", sti);
+      return listeEllerForklar(data, sti).map((o) => ({
         boligmappaNumber: String(o.boligmappaNumber ?? ""),
         propertyType: str(o.propertyType),
         unitNumber: str(o.unitNumber),
@@ -187,14 +225,21 @@ export async function boligmappaClient(admin: SupabaseClient, companyId: string)
 
     /** Plant for eiendommen: opprett, eller hent den som finnes (409). */
     async finnEllerOpprettPlant(boligmappaNumber: string): Promise<number> {
-      const opprett = await json<Record<string, unknown>>("POST", "/plants", { boligmappaNumber }, [409]);
-      if (opprett.status !== 409 && opprett.data) {
-        const id = Number(opprett.data.plantId ?? opprett.data.id);
-        if (Number.isFinite(id)) return id;
+      // Svarene er pakket som { success, response: {…} } (verifisert mot
+      // staging for adresser og eiendommer); objekt() pakker ut.
+      const opprett = await json<unknown>("POST", "/plants", { boligmappaNumber }, [409]);
+      if (opprett.status !== 409) {
+        const id = plantId(objekt(opprett.data));
+        if (id !== null) return id;
       }
-      const hent = await json<Record<string, unknown>>("GET", `/plants/${encodeURIComponent(boligmappaNumber)}`);
-      const id = Number(hent.data?.plantId ?? hent.data?.id);
-      if (!Number.isFinite(id)) throw new BoligmappaFeil("Boligmappa svarte uten plant-id.", 502);
+      const hent = await json<unknown>("GET", `/plants/${encodeURIComponent(boligmappaNumber)}`);
+      const id = plantId(objekt(hent.data));
+      if (id === null) {
+        throw new BoligmappaFeil(
+          `Boligmappa svarte uten plant-id. POST /plants → ${opprett.status}: ${kort(opprett.data)}; GET /plants/${boligmappaNumber} → ${hent.status}: ${kort(hent.data)}`,
+          502,
+        );
+      }
       return id;
     },
 
@@ -208,6 +253,19 @@ export async function boligmappaClient(admin: SupabaseClient, companyId: string)
         json<unknown>("GET", "/types/professionTypes"),
       ]);
       const typer = { documentTypes: tilTypar(d.data), chapterTags: tilTypar(c.data), professionTypes: tilTypar(p.data) };
+      // En tom liste er ikke noe å cache — og ikke noe å gjette på. Si
+      // hva Boligmappa faktisk svarte, så stien eller feltnavnene kan rettes.
+      const tomme = [
+        ["documentTypes", typer.documentTypes, d.data],
+        ["chapterTags", typer.chapterTags, c.data],
+        ["professionTypes", typer.professionTypes, p.data],
+      ].filter(([, t]) => (t as BmType[]).length === 0) as [string, BmType[], unknown][];
+      if (tomme.length) {
+        throw new BoligmappaFeil(
+          `Boligmappa ga ingen ${tomme.map(([n]) => n).join(", ")}. Svar: ${tomme.map(([n, , r]) => `/types/${n} → ${kort(r)}`).join("; ")}`,
+          502,
+        );
+      }
       typeCache.set(key, { henta: Date.now(), typer });
       return typer;
     },
@@ -227,7 +285,7 @@ export async function boligmappaClient(admin: SupabaseClient, companyId: string)
       bytes: Buffer,
       contentType: string,
     ): Promise<string> {
-      const { data } = await json<Record<string, unknown>>("POST", `/plants/${encodeURIComponent(boligmappaNumber)}/files`, {
+      const { data: raa } = await json<unknown>("POST", `/plants/${encodeURIComponent(boligmappaNumber)}/files`, {
         fileName: meta.fileName,
         title: meta.title,
         description: meta.description,
@@ -238,9 +296,12 @@ export async function boligmappaClient(admin: SupabaseClient, companyId: string)
         documentType: { id: meta.documentTypeId },
         rooms: [],
       });
-      const id = data?.id !== undefined ? String(data.id) : null;
-      const uploadLink = str(data?.uploadLink);
-      if (!id || !uploadLink) throw new BoligmappaFeil("Boligmappa svarte uten opplastingslenke.", 502);
+      const data = objekt(raa);
+      const id = data?.id !== undefined ? String(data.id) : data?.fileId !== undefined ? String(data.fileId) : null;
+      const uploadLink = str(data?.uploadLink ?? data?.uploadUrl ?? data?.url);
+      if (!id || !uploadLink) {
+        throw new BoligmappaFeil(`Boligmappa svarte uten opplastingslenke: ${kort(raa)}`, 502);
+      }
       const put = await fetch(uploadLink, { method: "PUT", headers: { "Content-Type": contentType }, body: new Uint8Array(bytes) });
       if (!put.ok) throw new BoligmappaFeil(`Opplastingen til Boligmappa feilet (${put.status}).`, 502);
       return id;
@@ -256,18 +317,93 @@ function forklar(status: number, tekst: string, hvor: string): string {
   return `Boligmappa svarte ${status}${kort ? `: ${kort}` : ""}`;
 }
 
+const LISTENØKLAR = ["data", "items", "results", "result", "value", "response", "addresses", "properties", "content"];
+
+/** Ett objekt ut av svaret: { success, response: {…} } → {…}; en liste → første. */
+function objekt(svar: unknown): Record<string, unknown> | null {
+  if (!svar || typeof svar !== "object") return null;
+  if (Array.isArray(svar)) return (svar[0] as Record<string, unknown>) ?? null;
+  const o = svar as Record<string, unknown>;
+  for (const k of ["response", "data", "result"]) {
+    const indre = o[k];
+    if (Array.isArray(indre)) return (indre[0] as Record<string, unknown>) ?? null;
+    if (indre && typeof indre === "object") return indre as Record<string, unknown>;
+  }
+  return o;
+}
+
+function plantId(o: Record<string, unknown> | null): number | null {
+  if (!o) return null;
+  const id = Number(o.plantId ?? o.id);
+  return Number.isFinite(id) && id > 0 ? id : null;
+}
+
+/** De første 300 tegnene av et svar, til feilmeldinger. */
+function kort(svar: unknown): string {
+  if (svar === null || svar === undefined) return "(tomt)";
+  try {
+    return JSON.stringify(svar).slice(0, 300);
+  } catch {
+    return String(svar).slice(0, 300);
+  }
+}
+
 function liste(svar: unknown): Record<string, unknown>[] {
   if (Array.isArray(svar)) return svar as Record<string, unknown>[];
   if (svar && typeof svar === "object") {
     const o = svar as Record<string, unknown>;
-    for (const k of ["data", "items", "results", "value"]) if (Array.isArray(o[k])) return o[k] as Record<string, unknown>[];
+    for (const k of LISTENØKLAR) if (Array.isArray(o[k])) return o[k] as Record<string, unknown>[];
+    // Ett nivå til: { data: { addresses: [...] } } og { response: { items: [...] } }.
+    for (const k of LISTENØKLAR) {
+      const indre = o[k];
+      if (indre && typeof indre === "object" && !Array.isArray(indre)) {
+        const i = indre as Record<string, unknown>;
+        for (const k2 of LISTENØKLAR) if (Array.isArray(i[k2])) return i[k2] as Record<string, unknown>[];
+      }
+    }
   }
   return [];
 }
 
+/**
+ * Som liste(), men et svar med innhold vi ikke kjenner formen på blir en
+ * feil som sier hva Boligmappa sendte — ikke et stille «Ingen treff».
+ * Tom liste og tomt svar er fortsatt ingen treff.
+ */
+function listeEllerForklar(svar: unknown, sti: string): Record<string, unknown>[] {
+  const ut = liste(svar);
+  if (ut.length > 0 || svar === null || svar === undefined) return ut;
+  if (Array.isArray(svar)) return ut;
+  if (svar && typeof svar === "object") {
+    const o = svar as Record<string, unknown>;
+    const tomListe = LISTENØKLAR.some((k) => Array.isArray(o[k]));
+    if (tomListe) return ut;
+    const kort = JSON.stringify(svar).slice(0, 300);
+    throw new BoligmappaFeil(`Boligmappa svarte i et format vi ikke kjenner på ${sti}: ${kort}`, 502);
+  }
+  return ut;
+}
+
 function tilTypar(svar: unknown): BmType[] {
   return liste(svar)
-    .map((o) => ({ id: Number(o.id), name: String(o.name ?? o.title ?? "") }))
+    // Verifisert mot staging 2026-11-03: chapterTags har { id, tagName,
+    // tagDescription }. De andre listene tåles i flere varianter.
+    .map((o) => ({
+      id: Number(o.id ?? o.typeId ?? o.code),
+      name: String(
+        o.tagName ??
+          o.name ??
+          o.typeName ??
+          o.documentTypeName ??
+          o.professionTypeName ??
+          o.professionName ??
+          o.title ??
+          o.description ??
+          o.label ??
+          o.text ??
+          "",
+      ),
+    }))
     .filter((t) => Number.isFinite(t.id) && t.name);
 }
 
@@ -279,8 +415,8 @@ function str(v: unknown): string | null {
 function adresseTekst(a: unknown): string | null {
   if (!a || typeof a !== "object") return null;
   const o = a as Record<string, unknown>;
-  const linje = [o.street ?? o.streetName, o.houseNumber, o.houseSubNumber].filter(Boolean).join(" ");
-  const sted = [o.postCode ?? o.zipCode, o.city].filter(Boolean).join(" ");
+  const linje = [o.streetName ?? o.street, o.houseNumber, o.houseSubNumber].filter(Boolean).join(" ");
+  const sted = [o.postalCode ?? o.postCode ?? o.zipCode, o.postalPlace ?? o.city].filter(Boolean).join(" ");
   return [linje, sted].filter(Boolean).join(", ") || null;
 }
 
@@ -290,6 +426,8 @@ export function velgType(typer: BmType[], namn: string, fallback?: string): BmTy
   return (
     typer.find((t) => t.name.trim().toLowerCase() === n) ??
     typer.find((t) => t.name.toLowerCase().includes(n)) ??
+    // «Samsvarserklæringer og garantibevis» i malen mot «Samsvarserklæringer» hos Boligmappa.
+    typer.find((t) => t.name.trim().length >= 6 && n.includes(t.name.trim().toLowerCase())) ??
     (fallback ? typer.find((t) => t.name.toLowerCase().includes(fallback.toLowerCase())) ?? null : null) ??
     typer[0] ??
     null

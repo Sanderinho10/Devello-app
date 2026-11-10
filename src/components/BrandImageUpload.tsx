@@ -25,6 +25,7 @@ export function BrandImageUpload({
   harBilde,
   hoyde = 38,
   kanEndre = true,
+  utenEtikett = false,
 }: {
   /** «logo» eller «signatur» — styrer hvilken kolonne den havner i. */
   type: "logo" | "signatur";
@@ -34,6 +35,8 @@ export function BrandImageUpload({
   /** Visningshøyde i forhåndsvisningen. */
   hoyde?: number;
   kanEndre?: boolean;
+  /** Etiketten står utenfor (en rad i innstillingene). */
+  utenEtikett?: boolean;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -92,8 +95,8 @@ export function BrandImageUpload({
   }
 
   return (
-    <div className="field">
-      <span className="label">{label}</span>
+    <div className={utenEtikett ? undefined : "field"}>
+      {!utenEtikett && <span className="label">{label}</span>}
 
       {harBilde ? (
         <div className="file-row">

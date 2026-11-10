@@ -96,6 +96,13 @@ Eller lim inn migrasjonene i SQL-editoren i rekkefølge, så `seed.sql`.
 | `0043_rabatt_i_eitt_kall.sql` | indeks på rabattgruppe, `sett_rabattar(jsonb)` — rabatt for 500 grupper per kall |
 | `0044_avtalt_pris_per_vare.sql` | `sett_nettoprisar(jsonb)` — avtalt nettopris/rabatt per varenummer fra rabattfila |
 | `0045_fakturafiler_fra_grossist.sql` | `supplier_invoice_files` (fakturafiler fra FTP), `supplier_invoices.source/supplier_id/file_id/duplicate_of`, fakturafil-mønster på `supplier_ftp` |
+| `0046_montorapp.sql` | `client_id` på timer/materiell/dokument (idempotens), `order_notes`, `order_documents.note_id`, GTIN-treff i `sok_grossistvarer` |
+| `0047_prismodell.sql` | éi pakke per selskap (`package_id`, `billing_interval`, `included_units`, `unit_prices`, app-brukarar), `usage_events.kind/user_id/period_start`, `companies.moduler_overstyrt` |
+| `0063_fjern_invitasjonstrigger.sql` | Fjerner `handle_new_user`-triggeren — invitasjoner kobles i API-et, ikke når auth-brukeren opprettes |
+| `0064_invitasjon_namn_lesbart.sql` | `fornavn`/`etternavn` på invitasjonar lesbare for kollegaer — utan dei vart ventande invitasjonar aldri viste |
+| `0048_tilbudsnummer.sql` | løpenummer på tilbud: `companies.next_quote_no`, `drafts.company_id/quote_no`, `neste_tilbudsnummer()`, `tildel_tilbudsnummer()`; eksisterende tilbud nummerert i rekkefølge |
+| `0049_kunderegister.sql` | kunderegister: `customers` (RLS lesing per selskap), `customer_id` på `leads` og `orders`, `finn_eller_opprett_kunde()`; eksisterende tilbud og ordrer koblet på e-post og navn |
+| `0060_fakturapdf_og_konto.sql` | leverandørfakturaer: `has_pdf`, `pdf_storage_path`, `doc_checked_at` (PDF-en fra Go) og `account_numbers` (konteringen, til kontofilteret 4000–4999 i `accounting_connections.settings.account_filter`) |
 
 ### 3. Azure
 
@@ -191,8 +198,8 @@ supabase/migrations/            Skjema og RLS
 Tilbudsagenten finnes i to versjoner side om side (`src/lib/claude/motor.ts`).
 Hvilken et selskap kjører er en innstilling, ikke en utrulling:
 
-1. `companies.motor_versjon` — selskapets eget valg, satt under Tilbud →
-   Innstillinger → Motor.
+1. `companies.motor_versjon` — selskapets eget valg, satt under Selskap →
+   Innstillinger → Tilbud → Motor.
 2. `MOTOR_DEFAULT` i miljøet — standarden for selskaper uten eget valg.
 3. Ingen av delene → `v2`.
 
@@ -218,9 +225,10 @@ selskaper allerede på steg 1, så feilen kommer der den hører hjemme. Nummeret
 lagres normalisert (bare sifre), og en unik indeks sammenligner på sifrene, slik
 at «912 345 678» og «912345678» er samme selskap.
 
-Selskapstilhørighet kommer nå fra invitasjoner. Databasetriggeren
-`handle_new_user` slår opp en åpen invitasjon på e-postadressen når en ny bruker
-logger inn første gang. Finnes ingen, skjer ingenting — en ukjent bruker skal
+Selskapstilhørighet kommer fra registreringen eller fra invitasjoner. Invitasjonen
+sendes på e-post via Resend med lenke til `/invitasjon/[token]`; den inviterte
+blir medlem først når de velger passord (`/api/invitations/aktiver`). Den gamle
+databasetriggeren `handle_new_user` er fjernet i `0063` — en ukjent bruker skal
 ikke havne i et tilfeldig selskap.
 
 > **E-postbekreftelse** er styrt av `AUTH_REQUIRE_EMAIL_CONFIRMATION`. Står den
@@ -253,7 +261,7 @@ i `src/lib/grossist/import.ts`:
 1. **FTP-henting hver natt.** Grossisten legger prisfil (`V4…`) og
    rabattfil (`R4…`) på et FTP-område per kunde. Admin legger inn
    protokoll, vert, brukernavn, passord, katalog og filmønster under
-   Ordre → Grossister → Automatisk henting, tester tilkoblingen (fillista
+   Selskap → Innstillinger → Grossister → Automatisk henting, tester tilkoblingen (fillista
    vises, og hvilken fil som ville blitt hentet) og kan trykke «Hent nå».
    Passordet ligger i `supplier_ftp`, som ikke har noen policy — det kan
    aldri leses fra nettleseren. Nyeste fil som matcher mønsteret hentes;
@@ -315,7 +323,7 @@ Oppsettet:
    Legg til utvidelse → «Egendefinert utvidelse», limer inn Devello sin
    application key, gir lesetilgang til inngående faktura,
    bilagsdokumentasjon og leverandør, og får en **client key**.
-3. Client key limes inn under Ordre → Innstillinger → Regnskapssystem.
+3. Client key limes inn under Selskap → Innstillinger → Ordre → Regnskapssystem.
    Den lagres i `accounting_connections.client_key`, som ingen nettleser
    kan lese (kolonnerettigheter, samme grep som postkasse-tokenene).
 
@@ -326,7 +334,7 @@ Ordre → Leverandørfakturaer → Ukoblet, der de kobles for hånd eller
 ignoreres. Kreditnotaer hentes og vises, men kobles aldri automatisk.
 
 Privilegiene Devello-utvidelsen trenger i Go: inngående faktura,
-bilagsdokumentasjon og leverandør (lesing), og for fakturaforslagene
+bilagsdokumentasjon, kontotransaksjoner og leverandør (lesing), og for fakturaforslagene
 salgsordre, kunde og produkt — **uten** `sendInvoice`. Devello skal ikke
 kunne sende en faktura selv om koden prøvde.
 
@@ -337,7 +345,7 @@ grossistvarene inn likevel: grossisten legger fakturafiler på samme
 FTP-område som prisfilene — i formatet EFO/NELFO Fakturaformat 4.0, noen
 også som EHF-XML — og det er slik Cordel «Autofakt», Tripletex og Elinn
 får varene inn. Admin setter filmønster (og eventuelt egen katalog) under
-Ordre → Grossister → Automatisk henting → Fakturafiler; nattjobben og
+Selskap → Innstillinger → Grossister → Automatisk henting → Fakturafiler; nattjobben og
 «Hent fakturaer nå» lister området, henter **alle** nye filer som matcher
 (hver fil er én faktura eller én bunt), legger dem i Storage
 (`supplier-invoices/{company}/ftp/{supplier}/`), leser dem og skriver
@@ -427,7 +435,7 @@ merket «Signert i Devello av …» på arket — ingen BankID, som i fagsysteme
 En administrator kan gjenåpne; da slettes PDF-en og Boligmappa-statusen
 nullstilles.
 
-Boligmappa: kunden kobler til under Ordre → Innstillinger med sin egen
+Boligmappa: kunden kobler til under Selskap → Innstillinger → Ordre med sin egen
 Boligmappa Bedrift-bruker (OAuth authorization code, `offline_access`).
 Client id og secret er Devello sine (`BOLIGMAPPA_CLIENT_ID`,
 `BOLIGMAPPA_CLIENT_SECRET`, `BOLIGMAPPA_ENV` staging/production,
@@ -444,6 +452,18 @@ bare borte. Før produksjon må integrasjonen verifiseres av Boligmappa
 påkrevde felt, rensing av innsendte data og PDF-HTML-en for hver mal —
 uten database og uten Playwright.
 
+### Montørapp-API-et
+
+Montørappen (eget repo, Expo) bruker nettappens API med
+`Authorization: Bearer <supabase-jwt>` i stedet for cookies —
+`currentSession()` leser begge. Lese-endepunktene ligger under
+`/api/app/*` (`meg`, `ordrar`, `ordrar/[id]`), skrive-rutene er de samme
+som nettappen bruker, med `client_id` for idempotens: samme `client_id`
+igjen gir 200 med raden som finnes, aldri to rader. Notat på ordren
+(`order_notes`) og bilder knyttet til notat (`order_documents.note_id`)
+kom med appen; nettappen viser dem under Ordre → Notater. Kontrakten står
+i [docs/montorapp-api.md](docs/montorapp-api.md).
+
 ### Navigasjonsmønsteret
 
 Sidebar er organisert **per agent**, ikke per funksjon. Alt som hører til
@@ -455,10 +475,13 @@ Hvilke seksjoner et selskap ser, styres av `companies.moduler` (`tilbud`,
 `ordre`): Tilbud står alltid, Ordre bare når modulen er på, og samme flagg
 sjekkes i `/api/orders` og i `ordre/layout.tsx` — se `src/lib/moduler.ts`.
 
-Under agentene ligger **Selskap**: abonnement, medlemmer og firmaopplysninger.
-Skillet går på hvem som eier innstillingen. Postkasse, merkevare og tone hører
-til tilbudsagenten og blir værende der. Navn, organisasjonsnummer og
-fakturaadresse hører til kontoen.
+Under agentene ligger **Selskap**: abonnement, medlemmer og innstillinger.
+Innstillinger er én inngang med egen fanestripe: den samlede innstillingssiden,
+prisfil, referansefiler og grossister (`src/app/selskap/innstillinger`). På den
+samlede siden står alt sortert etter hvem som eier innstillingen — Selskap,
+Tilbud, Ordre. Postkasse, merkevare og tone hører til tilbudsagenten; navn,
+organisasjonsnummer og fakturaadresse hører til kontoen. De gamle adressene
+(`/tilbud/prisfil`, `/ordre/innstillinger` …) sendes videre fra `next.config.ts`.
 
 To skjemaer må aldri eie samme felt. `/api/settings` skriver bare tone og
 merkevare; navn og organisasjonsnummer går gjennom `/api/company`. Ellers ville
@@ -478,6 +501,8 @@ npm run test:faktura           # fakturaforslaget: resolver, redigering, Go-payl
 npm run test:dokumentasjon     # dokumentasjonsmalene: validering, prefill, påkrevde felt, PDF-HTML — uten database
 npm run test:ftp-monster       # filmønster og «nyeste fil» for FTP-henting, uten nettverk
 npm run test:fakturafil        # fakturafil-adaptere, FTP-henting mot stubb (idempotens, duplikat), prøvefiler i prover/
+npm run test:app-api           # montørapp-API-et mot lokal server, som en ekte bruker (TEST_EMAIL/TEST_PASSWORD)
+npm run test:prismodell        # prismodellen: periodekostnad per pakke, bedre pakke, årsperiode, konvertering av gamle rader
 npm run nattjobb               # prisfiler fra FTP + leverandørfakturaer fra Go, for alle selskap — det Railway kjører hver natt
 npm run test:gullsett          # målingen bak gullsettet, uten database
 npm run evaluer                # evalueringssuiten — 15 saker med fasit, se evaluering/LES_MEG.md
@@ -500,7 +525,7 @@ til selskapet som skal måles. Uten den lister scriptene selskapene og stopper.
 - **Fase 3 — selvbetjent onboarding og konto:** registrering med organisasjonsnummer-
   sjekk, admin/standard-roller, invitasjoner og partnerkoder for
   regnskapsførere, og en Selskap-seksjon med abonnement, medlemmer og
-  firmaopplysninger. Klart.
+  innstillinger. Klart.
 
   Betaling gjenstår: pakkevalget blir lagret, men ingen faktura sendes og
   ingenting trekkes. **Prisene i `src/lib/billing/plans.ts` er plassholdere**

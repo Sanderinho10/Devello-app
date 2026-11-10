@@ -1,5 +1,10 @@
 import Link from "next/link";
 import { NyOrdre } from "./NyOrdre";
+import { KlikkbarRad } from "@/components/KlikkbarRad";
+import { Sokefelt } from "@/components/Sokefelt";
+import { SortKolonne } from "@/components/SortKolonne";
+import { erHeltall, iListe, kunderSomPasser, lesSokeord, likeMonster } from "@/lib/sok";
+import { lesSortering } from "@/lib/sortering";
 import { supabaseServer } from "@/lib/supabase/server";
 import {
   ORDER_ACTIVE_STATUSES,
@@ -10,6 +15,18 @@ import {
 } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+
+const KOLONNER = ["nr", "tittel", "kunde", "adresse", "status", "sum", "opprettet"] as const;
+
+const DB_KOLONNE: Record<(typeof KOLONNER)[number], string> = {
+  nr: "order_no",
+  tittel: "title",
+  kunde: "customer_name",
+  adresse: "site_address",
+  status: "status",
+  sum: "planned_total",
+  opprettet: "created_at",
+};
 
 /**
  * Ordrelisten.
@@ -22,33 +39,47 @@ export const dynamic = "force-dynamic";
 export default async function OrdrePage({
   searchParams,
 }: {
-  searchParams: Promise<{ vis?: string }>;
+  searchParams: Promise<{ vis?: string; sort?: string; retning?: string; q?: string }>;
 }) {
   const supabase = await supabaseServer();
-  const avsluttede = (await searchParams).vis === "avsluttede";
+  const sp = await searchParams;
+  const avsluttede = sp.vis === "avsluttede";
+  const sortering = lesSortering(sp, KOLONNER, { kolonne: "opprettet", stigende: false });
+  const q = lesSokeord(sp.q);
+
+  // Søket: ordrens egne felt, ordrenummeret når søket er et tall, og kunden
+  // (navn eller kundenummer) via registeret. Gjelder listen og tallene i fanene.
+  let sokefilter: string | null = null;
+  if (q) {
+    const monster = likeMonster(q);
+    const kunder = await kunderSomPasser(supabase, q);
+    sokefilter = [
+      ...["title", "customer_name", "customer_contact", "customer_email", "customer_phone", "site_address"].map(
+        (k) => `${k}.ilike.${monster}`,
+      ),
+      ...(erHeltall(q) ? [`order_no.eq.${q}`] : []),
+      ...iListe("customer_id", kunder),
+    ].join(",");
+  }
+  const medSok = <T extends { or: (f: string) => T }>(sporring: T): T => (sokefilter ? sporring.or(sokefilter) : sporring);
 
   // PostgREST vil ha «in»-listen som «(a,b)» i not-varianten.
   const aktivListe = `(${ORDER_ACTIVE_STATUSES.join(",")})`;
-  const liste = supabase.from("orders").select("*");
+  const liste = medSok(supabase.from("orders").select("*, customers(customer_no)"));
 
   const [{ data: rader }, { count: aktive }, { count: lukkede }] = await Promise.all([
     (avsluttede
       ? liste.not("status", "in", aktivListe)
       : liste.in("status", ORDER_ACTIVE_STATUSES)
     )
-      .order("created_at", { ascending: false })
+      .order(DB_KOLONNE[sortering.kolonne], { ascending: sortering.stigende, nullsFirst: false })
       .limit(200),
-    supabase
-      .from("orders")
-      .select("id", { count: "exact", head: true })
-      .in("status", ORDER_ACTIVE_STATUSES),
-    supabase
-      .from("orders")
-      .select("id", { count: "exact", head: true })
-      .not("status", "in", aktivListe),
+    medSok(supabase.from("orders").select("id", { count: "exact", head: true })).in("status", ORDER_ACTIVE_STATUSES),
+    medSok(supabase.from("orders").select("id", { count: "exact", head: true })).not("status", "in", aktivListe),
   ]);
 
-  const ordrer = (rader ?? []) as Order[];
+  const ordrer = (rader ?? []) as (Order & { customers: { customer_no: number } | null })[];
+  const sortParams = { vis: avsluttede ? "avsluttede" : undefined, q: q || undefined };
 
   // Fakturerte ordrer viser ordrenummeret i regnskapssystemet.
   const goNr = new Map<string, string>();
@@ -71,59 +102,101 @@ export default async function OrdrePage({
           <h1>Ordrer</h1>
           <p className="page-subtitle">Alt som skjer på en jobb, samlet på ett nummer.</p>
         </div>
+      </div>
+
+      <nav className="type-switch kompakt" aria-label="Vis">
+        <Link href={`/ordre${q ? `?q=${encodeURIComponent(q)}` : ""}`} className={`type-option${avsluttede ? "" : " active"}`}>
+          Aktive<span className="fane-tal">{aktive ?? 0}</span>
+        </Link>
+        <Link href={`/ordre?vis=avsluttede${q ? `&q=${encodeURIComponent(q)}` : ""}`} className={`type-option${avsluttede ? " active" : ""}`}>
+          Avsluttede<span className="fane-tal">{lukkede ?? 0}</span>
+        </Link>
+      </nav>
+
+      <div className="verktoylinje">
         <NyOrdre />
+        <Sokefelt
+          q={q}
+          behold={{ vis: avsluttede ? "avsluttede" : undefined, sort: sp.sort, retning: sp.retning }}
+          nullstill={avsluttede ? "/ordre?vis=avsluttede" : "/ordre"}
+          tittel="Søk på ordrenummer, tittel, kunde, kundenummer, telefon, e-post eller adresse"
+          etikett="Søk i ordrer"
+          foran={q ? <span className="muted tiny">{ordrer.length} treff</span> : null}
+        />
       </div>
 
       <div className="card">
-        <div className="card-header row-between">
-          <div className="type-switch kompakt">
-            <Link href="/ordre" className={`type-option${avsluttede ? "" : " active"}`}>
-              Aktive {aktive ?? 0}
-            </Link>
-            <Link
-              href="/ordre?vis=avsluttede"
-              className={`type-option${avsluttede ? " active" : ""}`}
-            >
-              Avsluttede {lukkede ?? 0}
-            </Link>
-          </div>
-        </div>
-
         {ordrer.length === 0 ? (
           <div className="empty">
             <div className="empty-title">
-              {avsluttede ? "Ingen avsluttede ordrer ennå" : "Ingen ordrer ennå"}
+              {q ? "Ingen ordrer passer søket" : avsluttede ? "Ingen avsluttede ordrer ennå" : "Ingen ordrer ennå"}
             </div>
             <div>
-              {avsluttede
+              {q
+                ? (avsluttede ? "Se også Aktive" : "Se også Avsluttede") + " — tallet i fanen viser treffene der."
+                : avsluttede
                 ? "Ordrer havner her når de er ferdige, fakturert eller avbrutt."
                 : "Opprett en ordre fra et bekreftet tilbud, eller trykk «Ny ordre» for en jobb uten tilbud."}
             </div>
           </div>
         ) : (
-          <div className="lead-list">
-            {ordrer.map((ordre) => (
-              <Link key={ordre.id} href={`/ordre/${ordre.id}`} className="lead-row clickable">
-                <span className="ordre-nr">#{ordre.order_no}</span>
-                <div className="lead-main">
-                  <div className="lead-subject" style={{ cursor: "inherit" }}>
-                    {ordre.title}
-                  </div>
-                  <div className="lead-meta">
-                    {[ordre.customer_name, ordre.site_address].filter(Boolean).join(" · ") ||
-                      "(ingen kunde)"}
-                  </div>
-                </div>
-                <span className={`pill ${ordre.status}`} title={goNr.has(ordre.id) ? "Ordreutkast i regnskapssystemet" : undefined}>
-                  {ORDER_STATUS_LABELS[ordre.status]}
-                  {goNr.get(ordre.id) && ` · Go ${goNr.get(ordre.id)}`}
-                </span>
-                <span className="ordre-sum">
-                  {ordre.planned_total === null ? "—" : formatNok(Number(ordre.planned_total))}
-                </span>
-                <span className="lead-time">{formatDate(ordre.created_at)}</span>
-              </Link>
-            ))}
+          <div className="tabell-rull">
+            <table className="table klikkbar">
+              <thead>
+                <tr>
+                  <SortKolonne kolonne="nr" sortering={sortering} sti="/ordre" params={sortParams}>
+                    Nr
+                  </SortKolonne>
+                  <SortKolonne kolonne="tittel" sortering={sortering} sti="/ordre" params={sortParams}>
+                    Tittel
+                  </SortKolonne>
+                  <th>Kundenr.</th>
+                  <SortKolonne kolonne="kunde" sortering={sortering} sti="/ordre" params={sortParams}>
+                    Kunde
+                  </SortKolonne>
+                  <SortKolonne kolonne="adresse" sortering={sortering} sti="/ordre" params={sortParams}>
+                    Adresse
+                  </SortKolonne>
+                  <SortKolonne kolonne="status" sortering={sortering} sti="/ordre" params={sortParams}>
+                    Status
+                  </SortKolonne>
+                  <SortKolonne kolonne="sum" sortering={sortering} sti="/ordre" params={sortParams} className="num">
+                    Planlagt sum
+                  </SortKolonne>
+                  <SortKolonne kolonne="opprettet" sortering={sortering} sti="/ordre" params={sortParams} className="num">
+                    Opprettet
+                  </SortKolonne>
+                </tr>
+              </thead>
+              <tbody>
+                {ordrer.map((ordre) => (
+                  <KlikkbarRad key={ordre.id} href={`/ordre/${ordre.id}`}>
+                    <td className="ordre-nr">{ordre.order_no}</td>
+                    <td>
+                      <Link className="lenke" href={`/ordre/${ordre.id}`}>
+                        {ordre.title}
+                      </Link>
+                    </td>
+                    <td className="muted nowrap">{ordre.customers?.customer_no}</td>
+                    <td>{ordre.customer_name}</td>
+                    <td className="muted">{ordre.site_address}</td>
+                    <td>
+                      <span
+                        className={`pill ${ordre.status}`}
+                        title={goNr.has(ordre.id) ? "Ordreutkast i regnskapssystemet" : undefined}
+                      >
+                        {ORDER_STATUS_LABELS[ordre.status]}
+                        {goNr.get(ordre.id) && ` · Go ${goNr.get(ordre.id)}`}
+                      </span>
+                    </td>
+                    <td className="num nowrap">
+                      {ordre.planned_total === null ? "—" : formatNok(Number(ordre.planned_total))}
+                    </td>
+                    <td className="num muted nowrap">{formatDate(ordre.created_at)}</td>
+                  </KlikkbarRad>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

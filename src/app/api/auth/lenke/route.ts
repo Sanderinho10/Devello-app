@@ -17,8 +17,10 @@ import { supabaseAdmin } from "@/lib/supabase/server";
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as { email?: string };
+    const body = (await request.json()) as { email?: string; formaal?: string };
     const email = (body.email ?? "").trim().toLowerCase();
+    // «Glemt passord» er samme lenke, men den lander på «Velg nytt passord».
+    const glemt = body.formaal === "passord";
 
     if (!email || !email.includes("@")) {
       return NextResponse.json({ error: "Ugyldig e-postadresse." }, { status: 400 });
@@ -67,14 +69,16 @@ export async function POST(request: NextRequest) {
     if (error) throw new Error(error.message);
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? request.nextUrl.origin;
-    const url = `${appUrl}/logg-inn/${rad.token}`;
+    const url = `${appUrl}/logg-inn/${rad.token}${glemt ? "?neste=nytt-passord" : ""}`;
 
     const { html, tekst } = epostRamme({
-      overskrift: "Logg inn i Devello",
+      overskrift: glemt ? "Velg nytt passord i Devello" : "Logg inn i Devello",
       avsnitt: [
-        "Du ba om en innloggingslenke. Trykk på knappen, så er du inne.",
+        glemt
+          ? "Du ba om å få sette nytt passord. Trykk på knappen, så logges du inn og kan velge et nytt."
+          : "Du ba om en innloggingslenke. Trykk på knappen, så er du inne.",
       ],
-      knapp: { tekst: "Logg inn", url },
+      knapp: { tekst: glemt ? "Velg nytt passord" : "Logg inn", url },
       fot:
         "Lenken varer i 30 minutter og kan brukes én gang. Var det ikke du som " +
         "ba om den, kan du se bort fra denne e-posten — ingen kommer inn på " +
@@ -83,7 +87,7 @@ export async function POST(request: NextRequest) {
 
     const { id } = await sendEpost({
       til: bruker.email ?? email,
-      emne: "Innloggingslenke til Devello",
+      emne: glemt ? "Nytt passord i Devello" : "Innloggingslenke til Devello",
       html,
       tekst,
     });

@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
+import { loggAktivitet } from "@/lib/aktivitet";
+import { finnEllerOpprettKunde } from "@/lib/kunder/koble";
 import { harModul } from "@/lib/moduler";
 import { lagOrdreBeskrivelse } from "@/lib/ordre/beskrivelse";
 import { supabaseAdmin } from "@/lib/supabase/server";
@@ -56,6 +58,17 @@ export async function POST(request: NextRequest) {
       customer_email?: string;
       customer_phone?: string;
       site_address?: string;
+      /**
+       * Kundens egen adresse. Er oppdraget et annet sted, er site_address
+       * oppdragsadressen og denne kundens adresse; ellers er de like.
+       */
+      customer_address?: string;
+      /** Resten av kundens adresse felt for felt (0053). */
+      customer_address2?: string;
+      customer_postal_code?: string;
+      customer_city?: string;
+      /** Valgt fra kunderegisteret i skjemaet. Må tilhøre selskapet. */
+      customer_id?: string;
     };
 
     let felt: {
@@ -115,8 +128,22 @@ export async function POST(request: NextRequest) {
         lead_id: lead.id,
         draft_id: draft.id,
         quote_type: draft.quote_type,
-        quote_snapshot: { quote_type: draft.quote_type, document, totals },
+        quote_snapshot: { quote_type: draft.quote_type, quote_no: draft.quote_no ?? null, document, totals },
         planned_total: totals?.subtotal ?? null,
+      };
+
+      // «Ny ordre» med et tilbud: feltene er fylt ut fra tilbudet, men kan
+      // være rettet før ordren ble laget. Det som er skrevet inn, vinner;
+      // poster og pris kommer fortsatt fra tilbudet.
+      const rettet = (verdi: string | undefined) => tekst(verdi) || null;
+      felt = {
+        ...felt,
+        title: rettet(body.title) ?? felt.title,
+        customer_name: rettet(body.customer_name) ?? felt.customer_name,
+        customer_contact: rettet(body.customer_contact) ?? felt.customer_contact,
+        customer_email: rettet(body.customer_email) ?? felt.customer_email,
+        customer_phone: rettet(body.customer_phone) ?? felt.customer_phone,
+        site_address: rettet(body.site_address) ?? felt.site_address,
       };
     } else {
       const title = tekst(body.title);
@@ -147,10 +174,28 @@ export async function POST(request: NextRequest) {
       throw new Error(nrFeil?.message ?? "Fikk ikke ordrenummer.");
     }
 
+    // Kunderegisteret: kunden brukeren valgte i skjemaet, ellers samme kunde
+    // som på tilbudet, ellers den vi finner eller oppretter ut fra feltene.
+    const customerId =
+      (await kundeISelskapet(admin, session.companyId, body.customer_id)) ??
+      lead?.customer_id ??
+      (await finnEllerOpprettKunde(admin, session.companyId, {
+        name: felt.customer_name,
+        email: felt.customer_email,
+        phone: felt.customer_phone,
+        contact: felt.customer_contact,
+        // En ny kunde får sin egen adresse, ikke stedet for denne ene jobben.
+        address: tekst(body.customer_address) || felt.site_address,
+        address2: body.customer_address2,
+        postal_code: body.customer_postal_code,
+        city: body.customer_city,
+      }));
+
     const { data: order, error: insertFeil } = await admin
       .from("orders")
       .insert({
         ...felt,
+        customer_id: customerId,
         company_id: session.companyId,
         order_no: orderNo,
         created_by: session.userId,
@@ -176,6 +221,19 @@ export async function POST(request: NextRequest) {
       created_by: session.userId,
     });
 
+    // Tilbudet får en linje om ordren, så historikken der viser hvem som
+    // gjorde det om til en jobb.
+    if (lead) {
+      await loggAktivitet(admin, {
+        companyId: session.companyId,
+        objekt: "tilbud",
+        objektId: lead.id,
+        handling: "ordre_opprettet",
+        detalj: `Ordre #${order.order_no}`,
+        userId: session.userId,
+      });
+    }
+
     // Beskrivelsen kommer etter at ordren er lagret, så en treg modell aldri
     // holder ordrenummeret tilbake — og aldri kan velte opprettingen.
     if (lead && draft) {
@@ -198,6 +256,22 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     return errorResponse(err);
   }
+}
+
+/** Id-en fra skjemaet er bare gyldig når kunden er selskapets egen. */
+async function kundeISelskapet(
+  admin: ReturnType<typeof supabaseAdmin>,
+  companyId: string,
+  customerId: string | undefined,
+): Promise<string | null> {
+  if (!customerId) return null;
+  const { data } = await admin
+    .from("customers")
+    .select("id")
+    .eq("id", customerId)
+    .eq("company_id", companyId)
+    .maybeSingle();
+  return data?.id ?? null;
 }
 
 async function finnOrdreForUtkast(

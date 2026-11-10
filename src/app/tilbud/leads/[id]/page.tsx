@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DraftEditor } from "./DraftEditor";
+import { Versjonshistorikk } from "./Versjonshistorikk";
+import { Historikk } from "@/components/Historikk";
+import { hentAktivitet, type HistorikkPost } from "@/lib/aktivitet";
+import { hentSendteVersjoner } from "@/lib/drafts/historikk";
 import { harModul } from "@/lib/moduler";
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import { vedleggFor, velgTilModell } from "@/lib/leads/vedlegg";
@@ -50,6 +54,7 @@ export default async function LeadPage({
     { data: activeLists },
     { data: mailbox },
     { data: ordre },
+    { data: kunde },
   ] = await Promise.all([
     supabase
       .from("company_brand")
@@ -77,7 +82,28 @@ export default async function LeadPage({
     draft
       ? supabase.from("orders").select("id, order_no").eq("draft_id", draft.id).maybeSingle()
       : Promise.resolve({ data: null }),
+    // Kunden i kontaktregisteret, med kundenummeret.
+    lead.customer_id
+      ? supabase.from("customers").select("id, customer_no").eq("id", lead.customer_id).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
+
+  // Sendte versjoner av tilbudet. Utkastet over er hentet med brukerens
+  // tilgang, så selskapet er sjekket.
+  const versjoner = draft ? await hentSendteVersjoner(supabaseAdmin(), draft) : [];
+
+  // Hvem gjorde hva. E-posten som kom inn er ikke noe noen gjorde, så den
+  // står som første linje ut fra tidspunktet på leadet.
+  const historikk: HistorikkPost[] = [
+    ...(await hentAktivitet(supabaseAdmin(), {
+      companyId: lead.company_id,
+      objekt: "tilbud",
+      objektId: lead.id,
+    })),
+    ...(lead.source !== "manuell" && lead.received_at
+      ? [{ id: "mottatt", tekst: "Henvendelse mottatt på e-post", navn: null, tid: lead.received_at }]
+      : []),
+  ];
 
   const listIds = (activeLists ?? []).map((list) => list.id);
   const { data: priceItems } = listIds.length
@@ -93,18 +119,30 @@ export default async function LeadPage({
 
   return (
     <>
-      <div className="page-header">
+      <div className="page-header kompakt">
         <div>
-          <Link className="button ghost" href="/tilbud/leads" style={{ marginLeft: -10 }}>
+          <Link className="tilbake" href="/tilbud/leads">
             ← Leads
           </Link>
-          <h1 style={{ marginTop: 6 }}>{lead.subject || "(uten emne)"}</h1>
+          <h1>
+            {draft?.quote_no ? <span className="muted">Tilbud {draft.quote_no} · </span> : null}
+            {lead.subject || "(uten emne)"}
+          </h1>
           <p className="page-subtitle">
-            {[lead.from_name, lead.from_email, formatDate(lead.received_at)]
-              .filter(Boolean)
-              .join(" · ")}
+            {kunde?.customer_no ? (
+              <>
+                <Link className="lenke" href={`/register/kontakter/${kunde.id}`}>
+                  Kundenr. {kunde.customer_no}
+                </Link>
+                {" · "}
+              </>
+            ) : null}
+            {/* Avsenderen på leadet står ikke her: den er ofte en
+                leadportal, og kunden og mottakeren står i tilbudet. */}
+            {formatDate(lead.received_at)}
           </p>
         </div>
+        <Historikk poster={historikk} />
       </div>
 
       {draft ? (
@@ -133,6 +171,12 @@ export default async function LeadPage({
             stikkontakter?» er spørsmålet man stiller hele veien.
           */}
           <aside className="inquiry">
+            <Versjonshistorikk
+              leadId={lead.id}
+              draftId={draft.id}
+              versjoner={versjoner}
+              gjeldende={{ revisjon: draft.revisjon, sendt: Boolean(draft.sent_at) }}
+            />
             <div className="inquiry-head">
               {lead.source === "manuell" ? "Manuell henvendelse" : "Henvendelsen"}
             </div>

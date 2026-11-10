@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
+import { loggAktivitet } from "@/lib/aktivitet";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
 /**
@@ -26,7 +27,7 @@ export async function POST(
     // Tilgangssjekken ligger i spørringen, ikke i en etterkontroll.
     const { data: draft } = await admin
       .from("drafts")
-      .select("id, lead_id, confirmed_at, sent_at, leads!inner(company_id)")
+      .select("id, lead_id, revisjon, confirmed_at, sent_at, leads!inner(company_id)")
       .eq("id", id)
       .eq("leads.company_id", session.companyId)
       .maybeSingle();
@@ -54,6 +55,15 @@ export async function POST(
     if (error) throw new Error(error.message);
 
     await admin.from("leads").update({ status: "sendt" }).eq("id", draft.lead_id);
+
+    await loggAktivitet(admin, {
+      companyId: session.companyId,
+      objekt: "tilbud",
+      objektId: draft.lead_id,
+      handling: "sendt",
+      detalj: draft.revisjon > 1 ? `Versjon ${draft.revisjon}` : null,
+      userId: session.userId,
+    });
 
     // Den siste endelige versjonen er den som gikk ut. Merket, så historikken
     // viser hva kunden fikk når tilbudet senere åpnes som en ny versjon.

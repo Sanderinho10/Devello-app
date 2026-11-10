@@ -79,6 +79,36 @@ export function tal(verdi: unknown): number | null {
   return null;
 }
 
+/** En UUID (RFC 4122) fra JSON, ellers null. Appen lager v4; vi godtar alle versjoner. */
+export function uuid(verdi: unknown): string | null {
+  if (typeof verdi !== "string") return null;
+  const v = verdi.trim().toLowerCase();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(v) ? v : null;
+}
+
+/**
+ * Idempotens for montørappen: samme client_id igjen → samme rad.
+ *
+ * Appen sender føringene når nettet er tilbake, kanskje flere ganger.
+ * Raden slås opp på (company, client_id) før insert, og skulle to kall
+ * komme samtidig, fanger kalleren unik-bruddet (23505) og slår opp igjen.
+ */
+export async function finstMedClientId<T = Record<string, unknown>>(
+  admin: SupabaseClient,
+  tabell: "time_entries" | "material_entries" | "order_documents" | "order_notes",
+  companyId: string,
+  clientId: string | null,
+): Promise<T | null> {
+  if (!clientId) return null;
+  const { data } = await admin.from(tabell).select("*").eq("company_id", companyId).eq("client_id", clientId).maybeSingle();
+  return (data as T | null) ?? null;
+}
+
+/** Postgres «duplicate key» — to samtidige kall med samme client_id. */
+export function erUnikBrot(error: { code?: string; message?: string } | null): boolean {
+  return Boolean(error && (error.code === "23505" || /duplicate key/i.test(error.message ?? "")));
+}
+
 /** YYYY-MM-DD, ellers null. */
 export function dato(verdi: unknown): string | null {
   if (typeof verdi !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(verdi)) return null;

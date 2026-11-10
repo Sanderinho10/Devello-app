@@ -7,13 +7,7 @@
  * hvilken måned et tilbud telles i, og en feil her koster enten kunden eller
  * oss penger uten å si fra — derfor står den her og ikke bare i hodet.
  */
-import {
-  finnBedrePakke,
-  gjeldandePeriode,
-  leggTilMaanader,
-  periodekostnad,
-} from "@/lib/billing/subscription";
-import { AGENT_PLANS, findAgentPlan } from "@/lib/billing/agents";
+import { gjeldandePeriode, leggTilMaanader } from "@/lib/billing/subscription";
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 let feil = 0;
@@ -67,42 +61,15 @@ for (let i = 0; i < 40; i++) {
 }
 sjekk("no ligg alltid i si eiga periode (40 stikkprøver)", String(hol), "0");
 
-// ---------------------------------------------------------------------------
-// Prising
-// ---------------------------------------------------------------------------
-console.log("");
+// Årsperiode (Mikro): 12 månader med same klemming
+p = gjeldandePeriode("2026-01-31T10:00:00Z", new Date("2026-06-01T12:00:00Z"), "aar");
+sjekk("aar: anker 31.01, no 01.06 -> start", iso(p.start), "2026-01-31");
+sjekk("aar: anker 31.01, no 01.06 -> slutt", iso(p.slutt), "2027-01-31");
+p = gjeldandePeriode("2026-01-31T10:00:00Z", new Date("2027-02-01T12:00:00Z"), "aar");
+sjekk("aar: året etter -> nr", String(p.nummer), "1");
+sjekk("aar: året etter -> slutt", iso(p.slutt), "2028-01-31");
 
-const basis = findAgentPlan("tilbud_basis")!;
-const pro = findAgentPlan("tilbud_pro")!;
-
-sjekk("Basis, 30 tilbud (på taket)", String(periodekostnad(basis, 30)), "790");
-sjekk("Basis, 0 tilbud", String(periodekostnad(basis, 0)), "790");
-sjekk("Basis, 35 tilbud (5 over)", String(periodekostnad(basis, 35)), String(790 + 5 * 29));
-sjekk("Pro, 100 tilbud (på taket)", String(periodekostnad(pro, 100)), "1490");
-sjekk("Pro, 120 tilbud (20 over)", String(periodekostnad(pro, 120)), String(1490 + 20 * 29));
-
-// Overforbrukssatsen skal alltid ligge over enhetsprisen i pakken — ellers
-// lønner det seg å bli stående og sprenge taket, og pakkene betyr ingenting.
-for (const p of AGENT_PLANS) {
-  sjekk(
-    `${p.id}: ${p.overageNok} kr > ${Math.round(p.priceNok / p.quota)} kr per enhet`,
-    String(p.overageNok > p.priceNok / p.quota),
-    "true",
-  );
-}
-
-// Oppgraderingshintet
-const paaBasis = { agentId: "tilbud", planId: "tilbud_basis", priceNok: 790, quota: 30, overageNok: 29 };
-sjekk("Basis + 30 brukt: ingen bedre pakke", String(finnBedrePakke(paaBasis, 30)), "null");
-// 60 brukt på Basis = 790 + 30×29 = 1660. Pro = 1490.
-sjekk("Basis + 60 brukt: bytt til Pro", finnBedrePakke(paaBasis, 60)?.plan.id ?? "null", "tilbud_pro");
-sjekk("Basis + 60 brukt: sparer", String(finnBedrePakke(paaBasis, 60)?.sparerKr), "170");
-// Break-even ligger på 55: 790 + 25×29 = 1515 mot 1490.
-sjekk("Basis + 54 brukt: fortsatt billigst", String(finnBedrePakke(paaBasis, 54)), "null");
-
-// Pro har ingen større pakke å foreslå — der tar «Kontakt oss» over.
-const paaPro = { agentId: "tilbud", planId: "tilbud_pro", priceNok: 1490, quota: 100, overageNok: 29 };
-sjekk("Pro + 400 brukt: ingen større pakke", String(finnBedrePakke(paaPro, 400)), "null");
+// Prisinga er testa i test:prismodell.
 
 console.log(feil === 0 ? "\nAlle testar passerte." : `\n${feil} feil.`);
 process.exit(feil ? 1 : 0);

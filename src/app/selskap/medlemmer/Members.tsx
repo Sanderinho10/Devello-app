@@ -12,11 +12,11 @@ import {
 } from "@/lib/types";
 
 /**
- * Medlemmer og åpne invitasjoner.
+ * Medlemmer og åpne invitasjoner, i én tabell som i Go.
  *
- * Invitasjonen kobles til selskapet på e-postadressen når den inviterte logger
- * inn første gang — se databasetriggeren i 0010. Derfor står raden igjen som
- * «venter» til det skjer, og ikke bare til e-posten er sendt.
+ * Den inviterte blir medlem når de velger passord (/api/invitations/aktiver)
+ * eller godtar innlogget (/api/invitations/godta). Til da står de som
+ * «invitert». Navnet skrives ved invitasjonen og følger med inn på brukeren.
  */
 export function Members({
   members,
@@ -29,6 +29,8 @@ export function Members({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [fornavn, setFornavn] = useState("");
+  const [etternavn, setEtternavn] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<UserRole>("standard");
   const [busy, setBusy] = useState(false);
@@ -38,7 +40,18 @@ export function Members({
   // på nytt — e-posten er ikke til å stole på alene, se kommentaren i
   // /api/invitations.
   const [link, setLink] = useState<string | null>(null);
+  const [sendt, setSendt] = useState(false);
+  const [sender, setSender] = useState<string | null>(null);
   const [kopiert, setKopiert] = useState(false);
+
+  function aapne() {
+    setFornavn("");
+    setEtternavn("");
+    setEmail("");
+    setRole("standard");
+    setError(null);
+    setOpen(true);
+  }
 
   async function invite(event: React.FormEvent) {
     event.preventDefault();
@@ -49,15 +62,14 @@ export function Members({
       const res = await fetch("/api/invitations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, role }),
+        body: JSON.stringify({ fornavn, etternavn, email, role }),
       });
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.error ?? "Kunne ikke invitere");
 
-      setEmail("");
-      setRole("standard");
       setOpen(false);
       setLink(payload.link ?? null);
+      setSendt(Boolean(payload.sendt));
       setKopiert(false);
       if (payload.warning) setWarning(payload.warning);
       router.refresh();
@@ -68,155 +80,229 @@ export function Members({
     }
   }
 
+  // Ny invitasjon til samme adresse erstatter den gamle, så «send på nytt»
+  // er bare en ny invitasjon med de samme opplysningene.
+  async function sendPaaNytt(invitation: Pick<Invitation, "id" | "email" | "fornavn" | "etternavn" | "role">) {
+    setSender(invitation.id);
+    setWarning(null);
+    try {
+      const res = await fetch("/api/invitations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fornavn: invitation.fornavn,
+          etternavn: invitation.etternavn,
+          email: invitation.email,
+          role: invitation.role,
+        }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error ?? "Kunne ikke sende på nytt");
+      setLink(payload.link ?? null);
+      setSendt(Boolean(payload.sendt));
+      setKopiert(false);
+      if (payload.warning) setWarning(payload.warning);
+      router.refresh();
+    } catch (err) {
+      setWarning(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSender(null);
+    }
+  }
+
   async function withdraw(invitation: Invitation) {
     if (!window.confirm(`Trekk invitasjonen til ${invitation.email}?`)) return;
     await fetch(`/api/invitations?id=${invitation.id}`, { method: "DELETE" });
     router.refresh();
   }
 
-  const pending = invitations.filter((invitation) => !invitation.accepted_at);
+  // Den som alt står i lista som invitert (brukar utan innlogging), skal ikkje
+  // stå ein gong til fordi invitasjonen vart send på nytt.
+  const iLista = new Set(members.map((m) => m.email.toLowerCase()));
+  const pending = invitations.filter(
+    (invitation) => !invitation.accepted_at && !iLista.has(invitation.email.toLowerCase()),
+  );
+  const aktive = members.filter((m) => !m.aldri_innlogga).length;
+  const kanSende = fornavn.trim() && etternavn.trim() && email.trim();
 
   return (
     <>
-      <div className="card">
-        <div className="card-header">
-          <div>
-            <strong>Medlemmer</strong>
-            <div className="tiny muted">
-              Administratorer styrer selskapet og inviterer. Standard bruker agentene.
-            </div>
+      <div className="verktoylinje">
+        {isAdmin && (
+          <button type="button" className="button" onClick={aapne}>
+            Inviter medlem
+          </button>
+        )}
+        <span className="verktoylinje-hoyre tiny muted">
+          {aktive} {aktive === 1 ? "medlem" : "medlemmer"}
+          {pending.length + members.length - aktive > 0 && ` · ${pending.length + members.length - aktive} invitert`}
+        </span>
+      </div>
+
+      {warning && <div className="banner warning">{warning}</div>}
+
+      {link && (
+        <div className="banner info">
+          <div style={{ marginBottom: 8 }}>
+            {sendt
+              ? "Invitasjonen er sendt på e-post. Kommer den ikke fram, send denne lenken i stedet — den virker like godt i en melding eller en SMS."
+              : "Send denne lenken til personen, for eksempel på SMS."}
           </div>
-          {isAdmin && (
-            <button className="button secondary" onClick={() => setOpen(true)}>
-              Inviter medlem
+          <div className="row" style={{ gap: 8, alignItems: "center" }}>
+            <input className="input" readOnly value={link} onFocus={(e) => e.target.select()} />
+            <button
+              type="button"
+              className="button secondary"
+              onClick={async () => {
+                await navigator.clipboard.writeText(link);
+                setKopiert(true);
+              }}
+            >
+              {kopiert ? "Kopiert" : "Kopier"}
             </button>
-          )}
+          </div>
         </div>
+      )}
 
-        {warning && (
-          <div className="banner warning" style={{ margin: "16px 24px 0" }}>
-            {warning}
-          </div>
-        )}
-
-        {link && (
-          <div className="banner info" style={{ margin: "16px 24px 0" }}>
-            <div style={{ marginBottom: 8 }}>
-              Invitasjonen er sendt på e-post. Kommer den ikke fram — eller
-              virker ikke lenken i den — send denne i stedet. Den virker like
-              godt i en melding eller en SMS.
-            </div>
-            <div className="row" style={{ gap: 8, alignItems: "center" }}>
-              <input className="input" readOnly value={link} onFocus={(e) => e.target.select()} />
-              <button
-                type="button"
-                className="button secondary"
-                onClick={async () => {
-                  await navigator.clipboard.writeText(link);
-                  setKopiert(true);
-                }}
-              >
-                {kopiert ? "Kopiert" : "Kopier"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        <table className="table">
+      <div className="card allow-overflow">
+        <table className="table tabell-mobil medlem-tabell">
           <thead>
             <tr>
               <th>Navn</th>
               <th>E-post</th>
-              <th style={{ width: 150 }}>Rolle</th>
-              <th style={{ width: 120 }} />
+              <th>Rolle</th>
+              <th>Status</th>
+              <th aria-label="Handlinger" />
             </tr>
           </thead>
           <tbody>
             {members.map((member) => (
               <tr key={member.id}>
-                <td style={{ fontWeight: 550 }}>{member.full_name ?? "—"}</td>
-                <td className="muted">{member.email}</td>
-                <td>
-                  <span className={`pill ${member.role === "admin" ? "bekrefta" : ""}`}>
-                    {USER_ROLE_LABELS[member.role]}
-                  </span>
+                <td className="hoved">
+                  {member.full_name ? <strong>{member.full_name}</strong> : <span className="muted">Navn mangler</span>}
                 </td>
-                <td />
-              </tr>
-            ))}
-
-            {pending.map((invitation) => (
-              <tr key={invitation.id}>
-                <td className="muted">Venter på at de logger inn</td>
-                <td className="muted">{invitation.email}</td>
-                <td>
-                  <span className="pill utkast_klar">
-                    {USER_ROLE_LABELS[invitation.role]} · invitert
-                  </span>
+                <td className="meta">{member.email}</td>
+                <td className="meta">{USER_ROLE_LABELS[member.role]}</td>
+                <td className="meta">
+                  {member.aldri_innlogga ? (
+                    <span className="pill utkast_klar" title="Har ikkje valt passord og logga inn enno">
+                      Invitert
+                    </span>
+                  ) : (
+                    <span className="pill ferdig">Aktiv</span>
+                  )}
                 </td>
-                <td>
-                  {isAdmin && (
-                    <button className="button danger" onClick={() => withdraw(invitation)}>
-                      Trekk
+                <td className="handling">
+                  {isAdmin && member.aldri_innlogga && (
+                    <button
+                      type="button"
+                      className="button ghost"
+                      disabled={sender === member.id}
+                      onClick={() => {
+                        const [forste, ...resten] = (member.full_name ?? "").trim().split(/\s+/);
+                        sendPaaNytt({
+                          id: member.id,
+                          email: member.email,
+                          fornavn: forste || member.email.split("@")[0],
+                          etternavn: resten.join(" ") || "-",
+                          role: member.role,
+                        });
+                      }}
+                    >
+                      {sender === member.id ? "Sender…" : "Send på nytt"}
                     </button>
                   )}
                 </td>
               </tr>
             ))}
+
+            {pending.map((invitation) => {
+              const navn = [invitation.fornavn, invitation.etternavn].filter(Boolean).join(" ");
+              return (
+                <tr key={invitation.id}>
+                  <td className="hoved">{navn ? <strong>{navn}</strong> : <span className="muted">—</span>}</td>
+                  <td className="meta">{invitation.email}</td>
+                  <td className="meta">{USER_ROLE_LABELS[invitation.role]}</td>
+                  <td className="meta">
+                    <span className="pill utkast_klar" title={`Utløper ${formatDate(invitation.expires_at)}`}>
+                      Invitert
+                    </span>
+                    <span className="tiny muted"> · utløper {kortDato(invitation.expires_at)}</span>
+                  </td>
+                  <td className="handling">
+                    {isAdmin && (
+                      <>
+                        <button
+                          type="button"
+                          className="button ghost"
+                          disabled={sender === invitation.id}
+                          onClick={() => sendPaaNytt(invitation)}
+                        >
+                          {sender === invitation.id ? "Sender…" : "Send på nytt"}
+                        </button>
+                        <button type="button" className="button ghost" onClick={() => withdraw(invitation)}>
+                          Trekk
+                        </button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
-
-        {pending.length > 0 && (
-          <div className="tiny muted" style={{ padding: "0 24px 18px" }}>
-            Invitasjoner utløper {formatDate(pending[0].expires_at)}.
-          </div>
-        )}
       </div>
 
-      <Modal open={open} onClose={() => setOpen(false)} title="Inviter medlem">
+      <p className="tiny muted" style={{ margin: "10px 2px 0" }}>
+        Administratorer styrer selskapet og inviterer. Standard bruker agentene.
+      </p>
+
+      <Modal open={open} onClose={() => !busy && setOpen(false)} title="Inviter medlem">
         <form onSubmit={invite}>
           {error && <div className="banner error">{error}</div>}
 
-          <label className="field">
-            <span className="label">E-post</span>
-            <input
-              className="input"
-              type="email"
-              required
-              autoFocus
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="kollega@firma.no"
-            />
-          </label>
-
-          <label className="field" style={{ marginBottom: 0 }}>
-            <span className="label">Rolle</span>
-            <select
-              className="select"
-              value={role}
-              onChange={(e) => setRole(e.target.value as UserRole)}
-            >
-              <option value="standard">Standard</option>
-              <option value="admin">Administrator</option>
-            </select>
-            <span className="hint">
-              {role === "admin"
-                ? "Kan endre selskapsinnstillinger og invitere flere."
-                : "Kan bruke agentene, men ikke endre selskapet."}
-            </span>
-          </label>
+          <div className="kontakt-panel ny-post-panel">
+            <label className="kontakt-rad">
+              <span className="kontakt-rad-etikett">Fornavn</span>
+              <input className="input" required autoFocus value={fornavn} onChange={(e) => setFornavn(e.target.value)} />
+            </label>
+            <label className="kontakt-rad">
+              <span className="kontakt-rad-etikett">Etternavn</span>
+              <input className="input" required value={etternavn} onChange={(e) => setEtternavn(e.target.value)} />
+            </label>
+            <label className="kontakt-rad">
+              <span className="kontakt-rad-etikett">E-post</span>
+              <input
+                className="input"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="kollega@firma.no"
+              />
+            </label>
+            <label className="kontakt-rad">
+              <span className="kontakt-rad-etikett">Rolle</span>
+              <select className="input" value={role} onChange={(e) => setRole(e.target.value as UserRole)}>
+                <option value="standard">Standard</option>
+                <option value="admin">Administrator</option>
+              </select>
+            </label>
+            <div className="kontakt-rad">
+              <span />
+              <span className="hint" style={{ marginTop: -4 }}>
+                {role === "admin"
+                  ? "Kan endre selskapsinnstillinger og invitere flere."
+                  : "Kan bruke agentene, men ikke endre selskapet."}
+              </span>
+            </div>
+          </div>
 
           <div className="modal-actions">
-            <button
-              type="button"
-              className="button secondary"
-              onClick={() => setOpen(false)}
-              disabled={busy}
-            >
+            <button type="button" className="button secondary" onClick={() => setOpen(false)} disabled={busy}>
               Avbryt
             </button>
-            <button className="button" type="submit" disabled={busy}>
+            <button className="button" type="submit" disabled={busy || !kanSende}>
               {busy ? "Sender…" : "Send invitasjon"}
             </button>
           </div>
@@ -224,4 +310,8 @@ export function Members({
       </Modal>
     </>
   );
+}
+
+function kortDato(iso: string): string {
+  return new Intl.DateTimeFormat("nb-NO", { day: "numeric", month: "short" }).format(new Date(iso));
 }

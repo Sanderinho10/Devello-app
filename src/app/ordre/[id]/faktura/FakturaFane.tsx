@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { KundeSok, type KundeForslag } from "@/components/KundeSok";
 import type { InvoiceLine } from "@/lib/faktura/typar";
 import type { PogoKunde, PogoKundePost } from "@/lib/regnskap/poweroffice";
 import {
@@ -19,7 +20,11 @@ import {
 } from "@/lib/types";
 
 /**
- * Fakturaforslaget på ordren.
+ * Fakturaen — på ordren, eller laget rett i fakturafanen (orderId null).
+ *
+ * Uten ordre er det ingen agent og ingen kilder: fakturaen starter tom, og
+ * linjene skrives for hånd. Ellers er alt likt, og alle endringer går
+ * gjennom /api/fakturaer/[id].
  *
  * Tre tilstander: ingenting ennå (kortet sier hva som ligger klart), et
  * forslag (redigerbart, med agentens spørsmål og merknader øverst), og
@@ -43,6 +48,23 @@ interface Kopling {
   manglandeProdukt: ProductMapKey[];
 }
 
+/** En kunde slik fakturahodet trenger den. */
+export interface FakturaKunde {
+  id: string | null;
+  name: string;
+  contact: string | null;
+  customer_no: number | null;
+}
+
+/**
+ * Kunden på ordren (forslaget) og fakturakunden (den fakturaen faktisk går
+ * til). Er de like, er kunden ikke overstyrt.
+ */
+export interface Kundar {
+  ordre: FakturaKunde;
+  faktura: FakturaKunde;
+}
+
 type Overfoering =
   | { steg: "bekreft" }
   | { steg: "kunde"; foreslaatt: PogoKundePost }
@@ -54,21 +76,32 @@ export function FakturaFane({
   draft,
   klart,
   kopling,
+  kundar,
 }: {
-  orderId: string;
-  orderStatus: OrderStatus;
+  /** null: en faktura uten ordre. Da finnes alltid et utkast. */
+  orderId: string | null;
+  orderStatus: OrderStatus | null;
   draft: InvoiceDraft | null;
   klart: Klart;
   kopling: Kopling | null;
+  kundar: Kundar;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [lines, setLines] = useState<InvoiceLine[]>(draft?.lines ?? []);
+  // En ny faktura uten ordre starter med én tom linje å skrive i.
+  const [lines, setLines] = useState<InvoiceLine[]>(() =>
+    draft && !orderId && draft.lines.length === 0 && draft.status !== "overfort" ? [tomLinje(25)] : (draft?.lines ?? []),
+  );
+  const [tittel, setTittel] = useState(draft?.title ?? "");
   const [tekst, setTekst] = useState(draft?.invoice_text ?? "");
   const [ref, setRef] = useState(draft?.customer_reference ?? "");
   const [dirty, setDirty] = useState(false);
   const [overfoering, setOverfoering] = useState<Overfoering | null>(null);
+  // Teksten i kundefeltet mens man søker. null: viser fakturakunden.
+  const [kundeSok, setKundeSok] = useState<string | null>(null);
+  const overstyrt = Boolean(orderId && kundar.faktura.id && kundar.faktura.id !== kundar.ordre.id);
+  const api = draft ? `/api/fakturaer/${draft.id}` : null;
 
   const laast = draft?.status === "overfort";
   const providerNavn = kopling ? ACCOUNTING_PROVIDER_LABELS[kopling.provider] : "regnskapssystemet";
@@ -78,7 +111,7 @@ export function FakturaFane({
     setError(null);
     try {
       const res = await fetch(url, {
-        method: nokkel === "lagre" ? "PATCH" : "POST",
+        method: nokkel === "lagre" || nokkel === "kunde" ? "PATCH" : nokkel === "slett" ? "DELETE" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body ?? {}),
       });
@@ -105,6 +138,7 @@ export function FakturaFane({
   }
 
   async function generer() {
+    if (!orderId) return;
     if (draft && !window.confirm("Lage et nytt forslag? Redigeringene dine erstattes. Den gamle versjonen ligger i loggen.")) return;
     const r = await kall(`/api/orders/${orderId}/faktura`, {}, "generer");
     if (r) {
@@ -118,9 +152,11 @@ export function FakturaFane({
   }
 
   async function lagre(): Promise<boolean> {
+    // Tomme linjer uten pris er bare plassholdere; de lagres ikke.
+    const aaLagre = lines.filter((l) => l.description.trim() || l.unit_price !== null);
     const r = await kall(
-      `/api/orders/${orderId}/faktura`,
-      { lines, invoice_text: tekst, customer_reference: ref },
+      `${api}`,
+      { lines: aaLagre, invoice_text: tekst, customer_reference: ref, ...(orderId ? {} : { title: tittel }) },
       "lagre",
     );
     if (r) {
@@ -135,19 +171,36 @@ export function FakturaFane({
 
   async function godkjenn() {
     if (dirty && !(await lagre())) return;
-    const r = await kall(`/api/orders/${orderId}/faktura/godkjenn`, {}, "godkjenn");
+    const r = await kall(`${api}/godkjenn`, {}, "godkjenn");
     if (r) router.refresh();
   }
 
   async function angre() {
-    const r = await kall(`/api/orders/${orderId}/faktura/angre-godkjenning`, {}, "angre");
+    const r = await kall(`${api}/angre-godkjenning`, {}, "angre");
     if (r) router.refresh();
   }
 
   async function overfor(body: { createCustomer?: boolean; customerNo?: string } = {}) {
-    const r = await kall(`/api/orders/${orderId}/faktura/overfor`, body, "overfor");
+    const r = await kall(`${api}/overfor`, body, "overfor");
     if (r) {
       setOverfoering(null);
+      router.refresh();
+    }
+  }
+
+  /** Bytt fakturakunde. null: tilbake til kunden på ordren. Lagres med én gang. */
+  async function velgKunde(kunde: KundeForslag | null) {
+    setKundeSok(null);
+    const r = await kall(`${api}`, { customer_id: kunde?.id ?? null }, "kunde");
+    if (r) router.refresh();
+  }
+
+  /** Bare uten ordre: et utkast som ikke skal faktureres likevel. */
+  async function slett() {
+    if (!window.confirm("Slette dette fakturautkastet?")) return;
+    const r = await kall(`${api}`, {}, "slett");
+    if (r) {
+      router.push("/fakturaer");
       router.refresh();
     }
   }
@@ -163,22 +216,7 @@ export function FakturaFane({
   }
 
   function leggTil() {
-    setLines((ls) => [
-      ...ls,
-      {
-        id: crypto.randomUUID(),
-        kind: "tekst",
-        description: "",
-        quantity: 1,
-        unit: "stk",
-        unit_price: null,
-        line_total: 0,
-        vat_pct: ls[0]?.vat_pct ?? 25,
-        included: true,
-        sources: [],
-        ai_reason: null,
-      },
-    ]);
+    setLines((ls) => [...ls, tomLinje(ls[0]?.vat_pct ?? 25)]);
     setDirty(true);
   }
 
@@ -190,8 +228,8 @@ export function FakturaFane({
   const vat = round2(subtotal * (vatPct / 100));
   const medLinjer = lines.filter((l) => l.included && l.unit_price !== null).length;
 
-  // ---- Ingen forslag ennå ---------------------------------------------------
-  if (!draft) {
+  // ---- Ingen forslag ennå (bare på en ordre) --------------------------------
+  if (!draft || !api) {
     const kanLage = orderStatus === "paagaar" || orderStatus === "ferdig";
     return (
       <div className="card card-pad fane-mobil">
@@ -260,21 +298,29 @@ export function FakturaFane({
             )}
             {draft.transfer_customer_no && ` · kundenr. ${draft.transfer_customer_no}`}
           </p>
+          <p style={{ marginBottom: 6 }}>
+            Kunde: <strong>{kundar.faktura.name}</strong>
+            {kundar.faktura.customer_no ? ` (${kundar.faktura.customer_no})` : ""}
+            {overstyrt && <span className="muted"> · ordren står på {kundar.ordre.name}</span>}
+          </p>
           <p className="muted tiny">
             Fakturaen ligger som ordreutkast der. Send den fra {providerNavn} — Devello sender aldri.
-            Timene og materiellet som er med er låst, og ordren er fakturert.
+            {orderId && " Timene og materiellet som er med er låst, og ordren er fakturert."}
           </p>
-          <div className="row" style={{ marginTop: 10 }}>
-            <Link className="button secondary" href={`/ordre/${orderId}/timer`}>
-              Timer
-            </Link>
-            <Link className="button secondary" href={`/ordre/${orderId}/materiell`}>
-              Materiell
-            </Link>
-          </div>
+          {orderId && (
+            <div className="row" style={{ marginTop: 10 }}>
+              <Link className="button secondary" href={`/ordre/${orderId}/timer`}>
+                Timer
+              </Link>
+              <Link className="button secondary" href={`/ordre/${orderId}/materiell`}>
+                Materiell
+              </Link>
+            </div>
+          )}
         </div>
-        <LinjeTabell lines={draft.lines} laast onEndre={() => {}} onFjern={() => {}} />
-        <Summer subtotal={draft.totals.subtotal} vat={draft.totals.vat} total={draft.totals.total} vatPct={vatPct} />
+        <LinjeTabell lines={draft.lines} laast onEndre={() => {}} onFjern={() => {}}>
+          <Summer subtotal={draft.totals.subtotal} vat={draft.totals.vat} total={draft.totals.total} vatPct={vatPct} />
+        </LinjeTabell>
         {draft.invoice_text && (
           <div className="card card-pad">
             <span className="label">Fakturatekst</span>
@@ -290,61 +336,67 @@ export function FakturaFane({
   const kanOverfore = godkjent && !dirty && kopling && !kopling.feil && kopling.manglandeProdukt.length === 0;
 
   return (
-    <div className="stack fane-mobil">
-      <div className="card card-pad">
-        <div className="row-between" style={{ flexWrap: "wrap", gap: 10 }}>
-          <span className="row" style={{ flexWrap: "wrap" }}>
-            <span className="pill paagaar">{INVOICE_STRATEGY_LABELS[draft.strategy]}</span>
-            <span className={`pill ${draft.status === "godkjent" ? "ferdig" : draft.status === "feil" ? "avbrutt" : "opna"}`}>
-              {INVOICE_DRAFT_STATUS_LABELS[draft.status]}
-            </span>
-            <span className="tiny muted">
-              Forslag {formatDate(draft.generated_at)}
-              {draft.approved_at && ` · godkjent ${formatDate(draft.approved_at)}`}
-            </span>
+    <div className="stack fane-mobil faktura-fane">
+      {/* Verktøylinja som i Go: handlingene til venstre, neste steg først,
+          og forslagets status til høyre. */}
+      <div className="verktoylinje" style={{ margin: 0 }}>
+        {godkjent ? (
+          <button
+            type="button"
+            className="button"
+            onClick={() => setOverfoering({ steg: "bekreft" })}
+            disabled={!kanOverfore || busy !== null}
+            title={
+              !kopling
+                ? "Ingen regnskapssystem er koblet til"
+                : kopling.manglandeProdukt.length
+                  ? "Produktmappingen mangler"
+                  : dirty
+                    ? "Lagre endringene først"
+                    : undefined
+            }
+          >
+            Overfør til {providerNavn}
+          </button>
+        ) : (
+          <button type="button" className="button" onClick={godkjenn} disabled={busy !== null || medLinjer === 0}>
+            {busy === "godkjenn" ? "Godkjenner…" : "Godkjenn"}
+          </button>
+        )}
+        {dirty && (
+          <button type="button" className="button secondary" onClick={lagre} disabled={busy !== null}>
+            {busy === "lagre" ? "Lagrer…" : "Lagre endringer"}
+          </button>
+        )}
+        {godkjent && (
+          <button type="button" className="button secondary" onClick={angre} disabled={busy !== null}>
+            Angre godkjenning
+          </button>
+        )}
+        {orderId ? (
+          <button type="button" className="button secondary" onClick={generer} disabled={busy !== null}>
+            {busy === "generer" ? "Lager…" : "Nytt forslag"}
+          </button>
+        ) : (
+          <button type="button" className="button ghost" onClick={slett} disabled={busy !== null}>
+            {busy === "slett" ? "Sletter…" : "Slett utkast"}
+          </button>
+        )}
+        <span className="verktoylinje-hoyre" style={{ flexWrap: "wrap" }}>
+          <span className="tiny muted">
+            {draft.generated_at ? `Forslag ${formatDate(draft.generated_at)}` : `Opprettet ${formatDate(draft.created_at)}`}
+            {draft.approved_at && ` · godkjent ${formatDate(draft.approved_at)}`}
           </span>
-          <span className="row" style={{ flexWrap: "wrap" }}>
-            <button type="button" className="button ghost" onClick={generer} disabled={busy !== null}>
-              {busy === "generer" ? "Lager…" : "Nytt forslag"}
-            </button>
-            {dirty && (
-              <button type="button" className="button secondary" onClick={lagre} disabled={busy !== null}>
-                {busy === "lagre" ? "Lagrer…" : "Lagre endringer"}
-              </button>
-            )}
-            {godkjent ? (
-              <button type="button" className="button secondary" onClick={angre} disabled={busy !== null}>
-                Angre godkjenning
-              </button>
-            ) : (
-              <button type="button" className="button" onClick={godkjenn} disabled={busy !== null || medLinjer === 0}>
-                {busy === "godkjenn" ? "Godkjenner…" : "Godkjenn"}
-              </button>
-            )}
-            {godkjent && (
-              <button
-                type="button"
-                className="button"
-                onClick={() => setOverfoering({ steg: "bekreft" })}
-                disabled={!kanOverfore || busy !== null}
-                title={
-                  !kopling
-                    ? "Ingen regnskapssystem er koblet til"
-                    : kopling.manglandeProdukt.length
-                      ? "Produktmappingen mangler"
-                      : dirty
-                        ? "Lagre endringene først"
-                        : undefined
-                }
-              >
-                Overfør til {providerNavn}
-              </button>
-            )}
+          {draft.strategy !== "manuell" && <span className="pill paagaar">{INVOICE_STRATEGY_LABELS[draft.strategy]}</span>}
+          <span className={`pill ${draft.status === "godkjent" ? "ferdig" : draft.status === "feil" ? "avbrutt" : "opna"}`}>
+            {INVOICE_DRAFT_STATUS_LABELS[draft.status]}
           </span>
-        </div>
-        {error && <div className="banner error" style={{ marginTop: 12, marginBottom: 0 }}>{error}</div>}
+        </span>
+      </div>
+
+        {error && <div className="banner error" style={{ marginBottom: 0 }}>{error}</div>}
         {draft.status === "feil" && draft.transfer_error && !error && (
-          <div className="banner error" style={{ marginTop: 12, marginBottom: 0 }}>
+          <div className="banner error" style={{ marginBottom: 0 }}>
             Overføringen feilet: {draft.transfer_error}
             <div style={{ marginTop: 8 }}>
               <button type="button" className="button secondary" onClick={() => overfor()} disabled={busy !== null}>
@@ -354,24 +406,23 @@ export function FakturaFane({
           </div>
         )}
         {godkjent && !kopling && (
-          <div className="banner info" style={{ marginTop: 12, marginBottom: 0 }}>
+          <div className="banner info" style={{ marginBottom: 0 }}>
             Ingen regnskapssystem er koblet til. Sett det opp under{" "}
-            <Link href="/ordre/innstillinger" style={{ textDecoration: "underline" }}>
-              Ordre → Innstillinger
+            <Link href="/selskap/innstillinger/regnskap" style={{ textDecoration: "underline" }}>
+              Selskap → Innstillinger → Regnskap
             </Link>
             .
           </div>
         )}
         {godkjent && kopling && kopling.manglandeProdukt.length > 0 && (
-          <div className="banner warning" style={{ marginTop: 12, marginBottom: 0 }}>
+          <div className="banner warning" style={{ marginBottom: 0 }}>
             Produktmappingen mangler for {kopling.manglandeProdukt.map((k) => PRODUCT_MAP_LABELS[k].toLowerCase()).join(", ")}.{" "}
-            <Link href="/ordre/innstillinger" style={{ textDecoration: "underline" }}>
-              Sett den under Innstillinger → Regnskapssystem
+            <Link href="/selskap/innstillinger/regnskap" style={{ textDecoration: "underline" }}>
+              Sett den under Selskap → Innstillinger → Regnskap
             </Link>
             .
           </div>
         )}
-      </div>
 
       {overfoering && (
         <OverforDialog
@@ -386,64 +437,124 @@ export function FakturaFane({
         />
       )}
 
-      {draft.questions.length > 0 && (
-        <div className="banner warning" style={{ marginBottom: 0 }}>
-          <strong>Spørsmål fra agenten — avklar før overføring</strong>
-          <ul style={{ margin: "6px 0 0 18px" }}>
-            {draft.questions.map((q) => (
-              <li key={q}>{q}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {draft.notes.length > 0 && (
-        <div className="banner info" style={{ marginBottom: 0 }}>
-          <strong>Merknader</strong>
-          <ul style={{ margin: "6px 0 0 18px" }}>
-            {draft.notes.map((n) => (
-              <li key={n}>{n}</li>
-            ))}
-          </ul>
+      {/* Agentens spørsmål og merknader som to smale linjer som åpnes med et
+          klikk, så linjene kommer opp på første skjerm. Spørsmålene står
+          også i overføringsdialogen, så de blir ikke glemt. */}
+      {(draft.questions.length > 0 || draft.notes.length > 0) && (
+        <div className="agent-linjer">
+          {draft.questions.length > 0 && (
+            <details className="agent-linje sporsmal">
+              <summary>
+                <strong>
+                  {draft.questions.length} spørsmål fra agenten
+                </strong>
+                <span> — avklar før overføring</span>
+              </summary>
+              <ul>
+                {draft.questions.map((q) => (
+                  <li key={q}>{q}</li>
+                ))}
+              </ul>
+            </details>
+          )}
+          {draft.notes.length > 0 && (
+            <details className="agent-linje merknad">
+              <summary>
+                <strong>
+                  {draft.notes.length} {draft.notes.length === 1 ? "merknad" : "merknader"}
+                </strong>
+                <span> — {draft.notes[0]}</span>
+              </summary>
+              <ul>
+                {draft.notes.map((n) => (
+                  <li key={n}>{n}</li>
+                ))}
+              </ul>
+            </details>
+          )}
         </div>
       )}
 
-      <LinjeTabell lines={lines} laast={false} onEndre={endre} onFjern={fjern} onLeggTil={leggTil} />
-      <Summer subtotal={subtotal} vat={vat} total={round2(subtotal + vat)} vatPct={vatPct} />
-
+      {/* Fakturahodet over linjene, som i Go: etiketten foran feltet. */}
       <div className="card card-pad">
-        <div className="grid-2">
-          <label className="field" style={{ gridColumn: "1 / -1" }}>
-            <span className="label">Fakturatekst</span>
-            <textarea
-              className="input"
-              rows={3}
-              value={tekst}
-              onChange={(e) => {
-                setTekst(e.target.value);
-                setDirty(true);
-              }}
+        <div className="utkast-felt" style={{ marginBottom: 0 }}>
+          {!orderId && (
+            <>
+              <label htmlFor="faktura-tittel">Tittel</label>
+              <input
+                id="faktura-tittel"
+                className="input"
+                value={tittel}
+                onChange={(e) => {
+                  setTittel(e.target.value);
+                  setDirty(true);
+                }}
+                placeholder="Til eget bruk — vises i fakturalisten"
+              />
+            </>
+          )}
+          {/* Kunden som i Go: oppslag i registeret, og den kan overstyres.
+              Fakturaen hører til kunden den sendes til, ikke kunden på ordren. */}
+          <label>Kunde</label>
+          <div className="faktura-kunde">
+            <KundeSok
+              value={kundeSok ?? kundar.faktura.name}
+              onChange={(t) => setKundeSok(t)}
+              onVelg={(k) => void velgKunde(k)}
+              placeholder={kundar.ordre.name || "Søk etter kunde"}
             />
-            <span className="hint">Står øverst på fakturaen. Ingen priser her — de står i linjene.</span>
+            {kundeSok !== null && (
+              <button type="button" className="lenke-knapp tiny" onClick={() => setKundeSok(null)}>
+                Avbryt
+              </button>
+            )}
+          </div>
+          <label htmlFor="faktura-ref">Deres ref.</label>
+          <input
+            id="faktura-ref"
+            className="input forslag"
+            value={ref}
+            onChange={(e) => {
+              setRef(e.target.value);
+              setDirty(true);
+            }}
+            placeholder={kundar.faktura.contact || "Kontaktperson hos kunden"}
+            title={kundar.faktura.contact ? "Forslag fra kunden. Skriv over for å bruke en annen." : undefined}
+          />
+          {overstyrt && (
+            <p className="faktura-kunde-merknad tiny muted">
+              Ordren står på {kundar.ordre.name || "en annen kunde"}. Fakturaen sendes til {kundar.faktura.name}
+              {kundar.faktura.customer_no ? ` (kundenr. ${kundar.faktura.customer_no})` : ""} og hører til den kunden.{" "}
+              <button
+                type="button"
+                className="lenke-knapp"
+                disabled={busy === "kunde"}
+                onClick={() => void velgKunde(null)}
+              >
+                Bruk kunden på ordren
+              </button>
+            </p>
+          )}
+          <label htmlFor="faktura-tekst" style={{ alignSelf: "start", paddingTop: 7 }}>
+            Fakturatekst
           </label>
-          <label className="field">
-            <span className="label">Deres ref.</span>
-            <input
-              className="input"
-              value={ref}
-              onChange={(e) => {
-                setRef(e.target.value);
-                setDirty(true);
-              }}
-              placeholder="Kontaktperson hos kunden"
-            />
-          </label>
+          <textarea
+            id="faktura-tekst"
+            className="input bred"
+            rows={2}
+            value={tekst}
+            onChange={(e) => {
+              setTekst(e.target.value);
+              setDirty(true);
+            }}
+            placeholder="Står øverst på fakturaen. Ingen priser her — de står i linjene."
+          />
         </div>
-        {dirty && (
-          <button type="button" className="button secondary" onClick={lagre} disabled={busy !== null}>
-            {busy === "lagre" ? "Lagrer…" : "Lagre endringer"}
-          </button>
-        )}
       </div>
+
+      <LinjeTabell lines={lines} laast={false} onEndre={endre} onFjern={fjern} onLeggTil={leggTil}>
+        <Summer subtotal={subtotal} vat={vat} total={round2(subtotal + vat)} vatPct={vatPct} />
+      </LinjeTabell>
     </div>
   );
 }
@@ -464,12 +575,15 @@ function LinjeTabell({
   onEndre,
   onFjern,
   onLeggTil,
+  children,
 }: {
   lines: InvoiceLine[];
   laast: boolean;
   onEndre: (id: string, patch: Partial<InvoiceLine>) => void;
   onFjern: (id: string) => void;
   onLeggTil?: () => void;
+  /** Summene, nederst i samme kort. */
+  children?: React.ReactNode;
 }) {
   return (
     <div className="card">
@@ -523,7 +637,7 @@ function LinjeTabell({
                         <span>{l.description}</span>
                       ) : (
                         <input
-                          className="input"
+                          className="cell-input"
                           value={l.description}
                           onChange={(e) => onEndre(l.id, { description: e.target.value })}
                           placeholder="Beskrivelse"
@@ -544,7 +658,7 @@ function LinjeTabell({
                         Number(l.quantity).toLocaleString("nb-NO")
                       ) : (
                         <input
-                          className="input num"
+                          className="cell-input num"
                           inputMode="decimal"
                           value={String(l.quantity)}
                           onChange={(e) => onEndre(l.id, { quantity: Number(e.target.value.replace(",", ".")) || 0 })}
@@ -559,7 +673,7 @@ function LinjeTabell({
                         l.unit
                       ) : (
                         <input
-                          className="input"
+                          className="cell-input"
                           value={l.unit}
                           onChange={(e) => onEndre(l.id, { unit: e.target.value })}
                           style={{ width: 60 }}
@@ -571,7 +685,7 @@ function LinjeTabell({
                         erTekst ? <span className="muted">—</span> : formatPris(Number(l.unit_price))
                       ) : (
                         <input
-                          className="input num"
+                          className="cell-input num"
                           inputMode="decimal"
                           value={l.unit_price === null ? "" : String(l.unit_price)}
                           placeholder="—"
@@ -602,22 +716,23 @@ function LinjeTabell({
           </table>
         </div>
       )}
+      {children}
     </div>
   );
 }
 
 function Summer({ subtotal, vat, total, vatPct }: { subtotal: number; vat: number; total: number; vatPct: number }) {
   return (
-    <div className="card card-pad">
-      <div className="row-between tiny" style={{ padding: "3px 0" }}>
-        <span className="muted">Sum eks. mva</span>
+    <div className="doc-totals faktura-summer">
+      <div className="doc-total-row">
+        <span>Sum eks. mva</span>
         <span>{formatNok(subtotal)}</span>
       </div>
-      <div className="row-between tiny" style={{ padding: "3px 0" }}>
-        <span className="muted">Mva {vatPct} %</span>
+      <div className="doc-total-row">
+        <span>Mva {vatPct} %</span>
         <span>{formatNok(vat)}</span>
       </div>
-      <div className="row-between" style={{ marginTop: 6, fontWeight: 600 }}>
+      <div className="doc-total-row grand">
         <span>Å betale</span>
         <span>{formatNok(total)}</span>
       </div>
@@ -675,7 +790,20 @@ function OverforDialog({
             Kunden finnes ikke i {providerNavn}. Opprette{" "}
             <strong>{steg.foreslaatt.Name}</strong> ({steg.foreslaatt.IsPerson ? "privatperson" : "bedrift"}
             {steg.foreslaatt.EmailAddress ? `, ${steg.foreslaatt.EmailAddress}` : ""}
-            {steg.foreslaatt.PhoneNumber ? `, ${steg.foreslaatt.PhoneNumber}` : ""})?
+            {steg.foreslaatt.PhoneNumber ? `, ${steg.foreslaatt.PhoneNumber}` : ""}
+            {steg.foreslaatt.OrganizationNumber ? `, org.nr. ${steg.foreslaatt.OrganizationNumber}` : ""})?
+            {steg.foreslaatt.MailAddress && (
+              <div className="muted" style={{ marginTop: 4 }}>
+                Adresse:{" "}
+                {[
+                  steg.foreslaatt.MailAddress.AddressLine1,
+                  steg.foreslaatt.MailAddress.AddressLine2,
+                  [steg.foreslaatt.MailAddress.ZipCode, steg.foreslaatt.MailAddress.City].filter(Boolean).join(" "),
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
+              </div>
+            )}
           </div>
           <div className="row" style={{ flexWrap: "wrap" }}>
             <button type="button" className="button" onClick={() => onOverfor({ createCustomer: true })} disabled={busy}>
@@ -717,6 +845,22 @@ function OverforDialog({
       )}
     </div>
   );
+}
+
+function tomLinje(vatPct: number): InvoiceLine {
+  return {
+    id: crypto.randomUUID(),
+    kind: "tekst",
+    description: "",
+    quantity: 1,
+    unit: "stk",
+    unit_price: null,
+    line_total: 0,
+    vat_pct: vatPct,
+    included: true,
+    sources: [],
+    ai_reason: null,
+  };
 }
 
 function formatPris(n: number): string {

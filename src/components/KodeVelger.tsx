@@ -98,12 +98,15 @@ export function KodeVelger({
   verdi,
   onChange,
   paakrevd,
+  etikettVenstre = false,
 }: {
   /** Prisradene koden må passe inn blant: samme type, og som regel samme liste. */
   rader: PriceListItem[];
   verdi: KodeValg;
   onChange: (verdi: KodeValg) => void;
   paakrevd: boolean;
+  /** Etiketten til venstre for feltet, som i popupene i Go-stil. */
+  etikettVenstre?: boolean;
 }) {
   const kategorier = useMemo(() => kategorierAv(rader), [rader]);
   const prefiks = prefiksFor(verdi);
@@ -130,34 +133,93 @@ export function KodeVelger({
     }
   }
 
+  const kategoriFelt = (
+    <select className="input" value={verdi.kategori} onChange={(e) => velgKategori(e.target.value)}>
+      <option value="">{paakrevd ? "Velg kategori…" : "Ingen kategori"}</option>
+      {kategorier.map((k) => (
+        <option key={k.prefiks} value={k.prefiks}>
+          {k.prefiks} – {k.navn ?? "(uten overskrift)"}
+        </option>
+      ))}
+      <option value={NY_KATEGORI}>+ Ny kategori…</option>
+    </select>
+  );
+  const kodeFelt = (
+    <input
+      className="input"
+      value={verdi.kode}
+      onChange={(e) => endreKode(e.target.value)}
+      placeholder="B023"
+      spellCheck={false}
+    />
+  );
+  const prefiksFelt = (
+    <input
+      className="input"
+      value={verdi.nyttPrefiks}
+      maxLength={4}
+      onChange={(e) => endreNyttPrefiks(e.target.value)}
+      placeholder="GV"
+      spellCheck={false}
+    />
+  );
+  const kategorinavnFelt = (
+    <input
+      className="input"
+      value={verdi.nyttKategorinavn}
+      onChange={(e) => onChange({ ...verdi, nyttKategorinavn: e.target.value })}
+      placeholder="Gulvvarme"
+    />
+  );
+  const hjelp =
+    verdi.kategori === NY_KATEGORI
+      ? "En ny kategori får en overskriftsrad i prisfilen, som de andre, med posten under."
+      : prefiks
+        ? `Havner under de andre ${prefiks}-postene i prisfilen. Neste ledige kode er foreslått.`
+        : "Koden bestemmer hvor posten havner i prisfilen. Skriver du koden, velges kategorien.";
+  const kategoriEtikett = `Kategori${paakrevd ? "" : " (valgfritt)"}`;
+
+  if (etikettVenstre) {
+    return (
+      <>
+        <label className="kontakt-rad">
+          <span className="kontakt-rad-etikett">{kategoriEtikett}</span>
+          {kategoriFelt}
+        </label>
+        {verdi.kategori === NY_KATEGORI && (
+          <>
+            <label className="kontakt-rad">
+              <span className="kontakt-rad-etikett">Prefiks</span>
+              <span className="kort-felt">{prefiksFelt}</span>
+            </label>
+            <label className="kontakt-rad">
+              <span className="kontakt-rad-etikett">Navn på kategorien</span>
+              {kategorinavnFelt}
+            </label>
+          </>
+        )}
+        <label className="kontakt-rad">
+          <span className="kontakt-rad-etikett">Kode</span>
+          <span className="kort-felt">{kodeFelt}</span>
+        </label>
+        <div className="kontakt-rad">
+          <span />
+          <span className="hint" style={{ marginTop: -4 }}>{hjelp}</span>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <div className="ny-post-rad">
         <label className="field" style={{ flex: 2 }}>
-          <span className="label">Kategori{paakrevd ? "" : " (valgfritt)"}</span>
-          <select
-            className="input"
-            value={verdi.kategori}
-            onChange={(e) => velgKategori(e.target.value)}
-          >
-            <option value="">{paakrevd ? "Velg kategori…" : "Ingen kategori"}</option>
-            {kategorier.map((k) => (
-              <option key={k.prefiks} value={k.prefiks}>
-                {k.prefiks} – {k.navn ?? "(uten overskrift)"}
-              </option>
-            ))}
-            <option value={NY_KATEGORI}>+ Ny kategori…</option>
-          </select>
+          <span className="label">{kategoriEtikett}</span>
+          {kategoriFelt}
         </label>
         <label className="field" style={{ flex: 1 }}>
           <span className="label">Kode</span>
-          <input
-            className="input"
-            value={verdi.kode}
-            onChange={(e) => endreKode(e.target.value)}
-            placeholder="B023"
-            spellCheck={false}
-          />
+          {kodeFelt}
         </label>
       </div>
 
@@ -165,33 +227,17 @@ export function KodeVelger({
         <div className="ny-post-rad">
           <label className="field" style={{ flex: 1 }}>
             <span className="label">Prefiks</span>
-            <input
-              className="input"
-              value={verdi.nyttPrefiks}
-              maxLength={4}
-              onChange={(e) => endreNyttPrefiks(e.target.value)}
-              placeholder="GV"
-              spellCheck={false}
-            />
+            {prefiksFelt}
           </label>
           <label className="field" style={{ flex: 3 }}>
             <span className="label">Navn på kategorien</span>
-            <input
-              className="input"
-              value={verdi.nyttKategorinavn}
-              onChange={(e) => onChange({ ...verdi, nyttKategorinavn: e.target.value })}
-              placeholder="Gulvvarme"
-            />
+            {kategorinavnFelt}
           </label>
         </div>
       )}
 
       <span className="hint" style={{ marginTop: 6, display: "block" }}>
-        {verdi.kategori === NY_KATEGORI
-          ? "En ny kategori får en overskriftsrad i prisfilen, som de andre, med posten under."
-          : prefiks
-            ? `Havner under de andre ${prefiks}-postene i prisfilen. Neste ledige kode er foreslått.`
-            : "Koden bestemmer hvor posten havner i prisfilen. Skriver du koden, velges kategorien."}
+        {hjelp}
       </span>
     </>
   );

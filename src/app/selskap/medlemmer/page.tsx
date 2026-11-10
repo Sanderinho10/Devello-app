@@ -1,5 +1,6 @@
 import { Members } from "./Members";
-import { currentSession, supabaseServer } from "@/lib/supabase/server";
+import { brukereISelskap, harLoggaInn } from "@/lib/selskap/medlemskap";
+import { currentSession, supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import type { Invitation, Member } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -9,34 +10,42 @@ export default async function MedlemmerPage() {
   const supabase = await supabaseServer();
 
   const [{ data: members }, { data: invitations }] = await Promise.all([
-    supabase
-      .from("users")
-      .select("id, email, full_name, role")
-      .eq("company_id", session!.companyId)
-      .order("role")
-      .order("email"),
+    // Alle med medlemskap i selskapet, også de som akkurat nå står i et
+    // annet — og med rollen de har her.
+    brukereISelskap(supabase, session!.companyId).then((data) => ({
+      data: data.sort((x, y) => (x.role === y.role ? x.email.localeCompare(y.email) : x.role === "admin" ? -1 : 1)),
+    })),
     supabase
       .from("invitations")
-      .select("id, email, role, accepted_at, expires_at, created_at")
+      .select("id, email, fornavn, etternavn, role, accepted_at, expires_at, created_at")
       .is("accepted_at", null)
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false })
+      .then((r) => {
+        // Ein feil her gir ei tom liste som ser riktig ut. Sjå 0064.
+        if (r.error) console.error(`medlemmer: kunne ikkje hente invitasjonar: ${r.error.message}`);
+        return r;
+      }),
   ]);
+
+  // Kven har aldri logga inn? Dei står som invitert, ikkje aktiv.
+  const admin = supabaseAdmin();
+  const medStatus: Member[] = await Promise.all(
+    (members ?? []).map(async (m) => ({ ...(m as Member), aldri_innlogga: !(await harLoggaInn(admin, m.id)) })),
+  );
 
   const me = (members ?? []).find((member) => member.id === session!.userId);
 
   return (
     <>
-      <div className="page-header">
+      <div className="page-header kompakt">
         <div>
           <h1>Medlemmer</h1>
-          <p className="page-subtitle">
-            Hvem som har tilgang, og hvilke invitasjoner som står ute.
-          </p>
+          <p className="page-subtitle">Hvem som har tilgang, og hvilke invitasjoner som står ute.</p>
         </div>
       </div>
 
       <Members
-        members={(members ?? []) as Member[]}
+        members={medStatus}
         invitations={(invitations ?? []) as Invitation[]}
         isAdmin={me?.role === "admin"}
       />

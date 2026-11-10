@@ -62,7 +62,7 @@ export function OpprettOrdre({
             : "Ordren får nummer, kunde og tilbudet som grunnlag."}
         </div>
         {error && (
-          <div className="tiny" style={{ color: "#a4271b", marginTop: 4 }}>
+          <div className="tiny" style={{ color: "var(--negative)", marginTop: 4 }}>
             {error}
           </div>
         )}

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { htmlToPdf } from "@/lib/pdf/render";
 import { logoDataUri } from "@/lib/pdf/logo";
 import { renderQuoteHtml } from "@/lib/pdf/template";
+import { kundenummerForLead } from "@/lib/kunder/koble";
 import { errorResponse, sessionOr401 } from "@/lib/api";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { hasDocument, type QuoteDocument, type QuoteType } from "@/lib/types";
@@ -22,7 +23,7 @@ export async function GET(
   // Utkastet arver company via leadet, så vi må slå det opp for å sjekke tilgang.
   const { data: draft } = await admin
     .from("drafts")
-    .select("id, quote_type, document, lead_id, revisjon, forrige_sendt_at, leads!inner(company_id)")
+    .select("id, quote_type, document, lead_id, revisjon, quote_no, forrige_sendt_at, leads!inner(company_id)")
     .eq("id", id)
     .eq("leads.company_id", session.companyId)
     .maybeSingle();
@@ -68,13 +69,15 @@ export async function GET(
           city: company!.billing_city,
         },
         versjon: { nr: draft.revisjon, erstatter: draft.forrige_sendt_at },
+        tilbudsnr: draft.quote_no,
+        kundenr: await kundenummerForLead(admin, draft.lead_id),
       }),
     );
 
     return new NextResponse(new Uint8Array(pdf), {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": 'inline; filename="tilbud.pdf"',
+        "Content-Disposition": `inline; filename="tilbud${draft.quote_no ? `-${draft.quote_no}` : ""}.pdf"`,
         "Cache-Control": "no-store",
       },
     });

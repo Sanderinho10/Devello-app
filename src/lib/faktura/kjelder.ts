@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { brukereISelskap } from "@/lib/selskap/medlemskap";
 import type { Kjelder, MaterialSource, QuoteSectionSource, TimeSource } from "./typar";
 import type { MaterialEntry, Order, QuoteDocument, TimeEntry } from "@/lib/types";
 
@@ -28,7 +29,7 @@ export async function hentKjelder(
         .eq("order_id", ordre.id)
         .eq("company_id", ordre.company_id)
         .order("registered_at", { ascending: true }),
-      admin.from("users").select("id, full_name, email").eq("company_id", ordre.company_id),
+      brukereISelskap(admin, ordre.company_id).then((data) => ({ data })),
       admin
         .from("supplier_invoice_lines")
         .select("id, supplier_invoices!inner(invoice_no, voucher_no)")

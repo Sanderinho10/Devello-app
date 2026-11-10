@@ -3,6 +3,7 @@ import { salspris } from "@/lib/ordre/summering";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type {
   AccountingProvider,
+  ConnectionSettings,
   InvoiceMatchStatus,
   Order,
   SupplierInvoice,
@@ -10,6 +11,7 @@ import type {
 } from "@/lib/types";
 import { parseEhf } from "./ehf";
 import { referansarFraDokument, type FakturaDokument } from "./faktura-dokument";
+import { kontofilterAv, kontofilterTekst } from "./kontofilter";
 import { finnOrdrenummer } from "./matching";
 import { pogoClient, type PogoInngaaandeFaktura, type PogoKopling } from "./poweroffice";
 
@@ -42,6 +44,8 @@ export interface SyncResultat {
   kopla: number;
   delvis: number;
   ukopla: number;
+  /** Bilag som ble hoppet over fordi de ikke er ført på kontoene i kontofilteret. */
+  utanfor: number;
   feil: string[];
 }
 
@@ -52,6 +56,7 @@ interface Kopling {
   environment: "production" | "demo";
   client_key: string;
   sync_cursor: string | null;
+  settings: ConnectionSettings | null;
 }
 
 export async function synkroniserFakturaer(
@@ -59,11 +64,11 @@ export async function synkroniserFakturaer(
   _opts: { trigger: "manuell" | "cron" } = { trigger: "manuell" },
 ): Promise<SyncResultat> {
   const admin = supabaseAdmin();
-  const resultat: SyncResultat = { henta: 0, nye: 0, kopla: 0, delvis: 0, ukopla: 0, feil: [] };
+  const resultat: SyncResultat = { henta: 0, nye: 0, kopla: 0, delvis: 0, ukopla: 0, utanfor: 0, feil: [] };
 
   const { data: rad } = await admin
     .from("accounting_connections")
-    .select("id, company_id, provider, environment, client_key, sync_cursor")
+    .select("id, company_id, provider, environment, client_key, sync_cursor, settings")
     .eq("company_id", companyId)
     .neq("status", "kopla_fra")
     .maybeSingle();
@@ -95,6 +100,33 @@ export async function synkroniserFakturaer(
       hoder.push(...del);
       if (del.length < 100) break;
     }
+
+    // Kontofilter: bare bilag med minst én postering på varekjøp (standard
+    // 4000–4999). Fakturahodet vet ikke hvilken konto det er ført på, så
+    // konteringen hentes fra kontotransaksjonene i samme vindu og slås
+    // sammen per bilagsnummer. Et bilag uten posteringer — ikke bokført
+    // ennå — faller utenfor til det er bokført.
+    const filter = kontofilterAv(kopling.settings);
+    const kontoarPerBilag = new Map<number, Set<number>>();
+    if (filter.enabled && hoder.length) {
+      const toDate = start.toISOString().slice(0, 10);
+      for (let side = 1; side <= 200; side++) {
+        const del = await pogo.hentKontotransaksjonar({ fromDate, toDate, pageNumber: side, pageSize: 500 });
+        for (const t of del) {
+          if (t.VoucherNo == null || t.AccountNo == null) continue;
+          let s = kontoarPerBilag.get(t.VoucherNo);
+          if (!s) kontoarPerBilag.set(t.VoucherNo, (s = new Set()));
+          s.add(t.AccountNo);
+        }
+        if (del.length < 500) break;
+      }
+      const behold = hoder.filter((h) => {
+        const kontoar = h.VoucherNo == null ? undefined : kontoarPerBilag.get(h.VoucherNo);
+        return kontoar ? [...kontoar].some((k) => k >= filter.from && k <= filter.to) : false;
+      });
+      resultat.utanfor = hoder.length - behold.length;
+      hoder.splice(0, hoder.length, ...behold);
+    }
     resultat.henta = hoder.length;
 
     // Hva har vi fra før? Bare for å telle nye.
@@ -124,6 +156,8 @@ export async function synkroniserFakturaer(
         currency: h.CurrencyCode,
         net_amount: h.NetAmount,
         total_amount: h.TotalAmount,
+        account_numbers:
+          h.VoucherNo == null ? [] : [...(kontoarPerBilag.get(h.VoucherNo) ?? [])].sort((a, b) => a - b),
         raw: h.raw,
         fetched_at: start.toISOString(),
       }));
@@ -174,10 +208,33 @@ export async function synkroniserFakturaer(
         }
 
         let dok: FakturaDokument | null = null;
-        if (!faktura.ehf_parsed_at && !faktura.parse_error) {
+        const trengEhf = !faktura.ehf_parsed_at && !faktura.parse_error;
+        const trengPdf = !faktura.pdf_storage_path && !faktura.doc_checked_at;
+        if (trengEhf || trengPdf) {
           const status = await pogo.hentDokumentasjonsstatus(faktura.external_id);
           oppdatering.has_ehf = status.HasEhf;
-          if (status.HasEhf) {
+          oppdatering.has_pdf = status.HasPdf;
+          oppdatering.doc_checked_at = new Date().toISOString();
+
+          // Selve fakturaen, til å se på. Aldri en betingelse: feiler
+          // nedlastingen, går linjene og koblingen som før.
+          if (status.HasPdf && !faktura.pdf_storage_path) {
+            try {
+              const pdf = await pogo.lastNedPdf(faktura.external_id);
+              const sti = `${companyId}/${faktura.external_id}.pdf`;
+              const { error: pdfFeil } = await admin.storage
+                .from(BUCKET)
+                .upload(sti, Buffer.from(pdf), { contentType: "application/pdf", upsert: true });
+              if (pdfFeil) throw new Error(pdfFeil.message);
+              oppdatering.pdf_storage_path = sti;
+            } catch (err) {
+              resultat.feil.push(
+                `Faktura ${faktura.invoice_no ?? faktura.voucher_no ?? faktura.external_id}: PDF: ${melding(err)}`,
+              );
+            }
+          }
+
+          if (trengEhf && status.HasEhf) {
             const xml = await pogo.lastNedEhf(faktura.external_id);
             const sti = `${companyId}/${faktura.external_id}.xml`;
             const { error: lagreFeil } = await admin.storage
@@ -240,8 +297,8 @@ export async function synkroniserFakturaer(
     resultat.ukopla = tal.ukopla;
 
     const note = `${resultat.henta} hentet, ${resultat.nye} nye, ${tal.kopla} koblet, ${tal.delvis} delvis, ${tal.ukopla} ukoblet${
-      resultat.feil.length ? `, ${resultat.feil.length} feil` : ""
-    }`;
+      resultat.utanfor ? `, ${resultat.utanfor} utenfor konto ${kontofilterTekst(filter)}` : ""
+    }${resultat.feil.length ? `, ${resultat.feil.length} feil` : ""}`;
     await admin
       .from("accounting_connections")
       .update({

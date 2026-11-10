@@ -1,12 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OrdreBeskrivelse } from "./OrdreBeskrivelse";
-import { OrdreKunde } from "./OrdreKunde";
-import { hentOrdre } from "@/lib/ordre/hent";
+import { OrdreKunde, type Kundekort } from "./OrdreKunde";
+import { hovedadresse } from "@/lib/kunder/adresse";
+import { OrdreAnsvar } from "./OrdreAnsvar";
+import { OrdrePlan } from "./OrdrePlan";
+import { brukereISelskap } from "@/lib/selskap/medlemskap";
+import { hentOrdre, ordreErLaast } from "@/lib/ordre/hent";
+import { hendelseTekst } from "@/lib/ordre/hendelse";
 import { summerMateriell, summerTimar } from "@/lib/ordre/summering";
 import { supabaseServer } from "@/lib/supabase/server";
 import {
-  ORDER_STATUS_LABELS,
   QUOTE_TYPE_LABELS,
   computeTotals,
   formatDate,
@@ -16,7 +20,6 @@ import {
   lineTotal,
   type MaterialEntry,
   type OrderEvent,
-  type OrderStatus,
   type TimeEntry,
 } from "@/lib/types";
 
@@ -31,6 +34,31 @@ export default async function OrdreSide({
   const ordre = await hentOrdre(id);
   if (!ordre) notFound();
   const supabase = await supabaseServer();
+  // Saksbehandler og hovedansvarlig velges blant alle i selskapet. Den som
+  // opprettet ordren er forslaget.
+  const kolleger = (await brukereISelskap(supabase, ordre.company_id))
+    .map((k) => ({ id: k.id, navn: k.full_name?.trim() || k.email }))
+    .sort((a, b) => a.navn.localeCompare(b.navn, "nb"));
+  const forslag = kolleger.find((k) => k.id === ordre.created_by) ?? null;
+  // Kundekortet: forslagene i kundeboksen.
+  const { data: kontakt } = ordre.customer_id
+    ? await supabase
+        .from("customers")
+        .select("id, name, customer_no, contact, email, phone, is_person, address, address2, postal_code, city, country")
+        .eq("id", ordre.customer_id)
+        .maybeSingle()
+    : { data: null };
+  const kort: Kundekort | null = kontakt
+    ? {
+        id: kontakt.id,
+        name: kontakt.name,
+        customer_no: kontakt.customer_no,
+        contact: kontakt.is_person ? null : kontakt.contact,
+        email: kontakt.email,
+        phone: kontakt.phone,
+        adresse: hovedadresse(kontakt),
+      }
+    : null;
 
   const [{ data: hendelser }, { data: timar }, { data: materiell }, { count: hodeFakturaer }, { data: dokument }] = await Promise.all([
     supabase
@@ -72,9 +100,10 @@ export default async function OrdreSide({
 
   return (
     <>
-      <div className="stack">
-        <div className="card card-pad">
-          <span className="label">Oppsummering</span>
+      {/* Tallene øverst som en stripe, og under to kolonner som i Go: det man
+          leser og retter til venstre, kunden og loggen til høyre. */}
+      <div className="stack ordre-oversikt">
+        <div className="card ordre-tall">
           <div className="oppsummering">
             <div className="oppsummering-post">
               <span className="tiny muted">Planlagt (tilbud)</span>
@@ -120,21 +149,12 @@ export default async function OrdreSide({
           </div>
         </div>
 
+        <div className="detail-layout">
+        <div className="stack" style={{ minWidth: 0 }}>
         <OrdreBeskrivelse
           orderId={ordre.id}
           description={ordre.description}
           source={ordre.description_source}
-        />
-
-        <OrdreKunde
-          orderId={ordre.id}
-          kunde={{
-            customer_name: ordre.customer_name,
-            customer_contact: ordre.customer_contact,
-            customer_email: ordre.customer_email,
-            customer_phone: ordre.customer_phone,
-            site_address: ordre.site_address,
-          }}
         />
 
         {snapshot && (
@@ -204,7 +224,42 @@ export default async function OrdreSide({
           </div>
         )}
 
-        <div className="card">
+        </div>
+
+        <aside className="stack ordre-side">
+        <OrdreKunde
+          orderId={ordre.id}
+          kunde={{
+            customer_id: ordre.customer_id,
+            customer_name: ordre.customer_name,
+            customer_contact: ordre.customer_contact,
+            customer_email: ordre.customer_email,
+            customer_phone: ordre.customer_phone,
+            site_address: ordre.site_address,
+          }}
+          kort={kort}
+        />
+
+        <OrdreAnsvar
+          orderId={ordre.id}
+          saksbehandlerId={ordre.saksbehandler_id}
+          hovedansvarligId={ordre.hovedansvarlig_id}
+          forslag={forslag}
+          kolleger={kolleger}
+        />
+
+        <OrdrePlan
+          ordre={{
+            id: ordre.id,
+            order_no: ordre.order_no,
+            title: ordre.title,
+            customer_name: ordre.customer_name,
+            site_address: ordre.site_address,
+          }}
+          laast={ordreErLaast(ordre)}
+        />
+
+        <div className="card ordre-hendelser">
           <div className="card-header">
             <span className="label" style={{ marginBottom: 0 }}>
               Hendelser
@@ -217,11 +272,17 @@ export default async function OrdreSide({
               {((hendelser ?? []) as OrderEvent[]).map((h) => (
                 <div key={h.id} className="lead-row">
                   <div className="lead-main">{hendelseTekst(h)}</div>
-                  <span className="lead-time">{formatDate(h.created_at)}</span>
+                  <span className="lead-time">
+                    {[kolleger.find((k) => k.id === h.created_by)?.navn, formatDate(h.created_at)]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
                 </div>
               ))}
             </div>
           )}
+        </div>
+        </aside>
         </div>
       </div>
     </>
@@ -231,16 +292,4 @@ export default async function OrdreSide({
 /** 7,5 timer → «7,5 t». */
 function formatTimar(t: number): string {
   return `${t.toLocaleString("nb-NO", { maximumFractionDigits: 2 })} t`;
-}
-
-/** «opna → paagaar» i loggen blir «Åpen → Pågår» på skjermen. */
-function hendelseTekst(h: OrderEvent): string {
-  if (h.kind === "oppretta") return `Opprettet${h.note ? ` — ${h.note.toLowerCase()}` : ""}`;
-  if (h.kind === "status" && h.note) {
-    const [fra, til] = h.note.split("→").map((s) => s.trim()) as OrderStatus[];
-    const navn = (s: OrderStatus) => ORDER_STATUS_LABELS[s] ?? s;
-    return `Status: ${navn(fra)} → ${navn(til)}`;
-  }
-  if (h.kind === "redigert") return `Redigert${h.note ? ` — ${h.note}` : ""}`;
-  return h.note ?? h.kind;
 }

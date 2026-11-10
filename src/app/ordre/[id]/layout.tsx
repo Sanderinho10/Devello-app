@@ -2,7 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OrdreFaner } from "./OrdreFaner";
 import { OrdreStatus } from "./OrdreStatus";
+import { Historikk } from "@/components/Historikk";
+import { hentOrdreHistorikk } from "@/lib/aktivitet";
 import { hentOrdre } from "@/lib/ordre/hent";
+import { supabaseAdmin } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/types";
 
 /**
@@ -24,15 +27,20 @@ export default async function OrdreLayout({
   const { id } = await params;
   const ordre = await hentOrdre(id);
   if (!ordre) notFound();
+  // Ordren over er hentet med brukerens tilgang, så selskapet er sjekket.
+  const historikk = await hentOrdreHistorikk(supabaseAdmin(), {
+    companyId: ordre.company_id,
+    orderId: ordre.id,
+  });
 
   return (
     <>
-      <div className="page-header">
+      <div className="page-header kompakt">
         <div>
-          <Link className="button ghost" href="/ordre" style={{ marginLeft: -10 }}>
+          <Link className="tilbake" href="/ordre">
             ← Ordrer
           </Link>
-          <h1 style={{ marginTop: 6 }}>
+          <h1>
             <span className="muted">Ordre #{ordre.order_no}</span> · {ordre.title}
           </h1>
           <p className="page-subtitle">
@@ -41,13 +49,16 @@ export default async function OrdreLayout({
               <>
                 {" · "}
                 <Link href={`/tilbud/leads/${ordre.lead_id}`} style={{ textDecoration: "underline" }}>
-                  Fra tilbud →
+                  Fra tilbud{ordre.quote_snapshot?.quote_no ? ` ${ordre.quote_snapshot.quote_no}` : ""} →
                 </Link>
               </>
             )}
           </p>
         </div>
-        <OrdreStatus orderId={ordre.id} status={ordre.status} />
+        <div className="page-header-handlinger">
+          <Historikk poster={historikk} />
+          <OrdreStatus orderId={ordre.id} status={ordre.status} />
+        </div>
       </div>
 
       <OrdreFaner orderId={ordre.id} />

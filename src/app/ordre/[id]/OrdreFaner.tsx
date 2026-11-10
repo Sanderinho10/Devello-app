@@ -11,6 +11,7 @@ export function OrdreFaner({ orderId }: { orderId: string }) {
     { label: "Timer", href: `${base}/timer` },
     { label: "Materiell", href: `${base}/materiell` },
     { label: "Dokumentasjon", href: `${base}/dokumentasjon` },
+    { label: "Notater", href: `${base}/notat` },
     { label: "Faktura", href: `${base}/faktura` },
   ];
   const aktiv =

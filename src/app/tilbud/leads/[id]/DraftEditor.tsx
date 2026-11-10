@@ -1,15 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SendSjolv } from "./SendSjolv";
 import { Forutsetninger } from "./Forutsetninger";
 import { OpprettOrdre } from "./OpprettOrdre";
 import { NyPost } from "./NyPost";
+import { useRadDra } from "./useRadDra";
+import { mottakerFor } from "@/lib/drafts/mottaker";
 import { erOverskrift } from "@/lib/pricelist/koder";
 import Link from "next/link";
 import { PriceItemPicker } from "@/components/PriceItemPicker";
 import { ConfidenceBadge } from "@/components/ConfidenceBadge";
+import { KundeSok, type KundeForslag } from "@/components/KundeSok";
 import {
   QUOTE_TYPE_HELP,
   QUOTE_TYPE_LABELS,
@@ -30,11 +33,6 @@ import {
 } from "@/lib/types";
 
 const ALL_TYPES: QuoteType[] = ["punktpris", "fastpris", "tid_og_materiell"];
-
-interface DragRef {
-  section: number;
-  line: number;
-}
 
 interface Snapshot {
   email_subject: string;
@@ -87,6 +85,20 @@ export function DraftEditor({
   const [body, setBody] = useState(draft.email_body);
   const [document, setDocument] = useState<QuoteDocument | null>(draft.document);
 
+  /**
+   * Kunden i registeret tilbudet hører til. Velges en kunde fra listen,
+   * kobles tilbudet til akkurat den — uten å gjette på navn og e-post, og
+   * uten at det som rettes i tilbudet etterpå skrives tilbake på kundekortet.
+   * Null: navnet er skrevet fritt, og koblingen gjøres på navn og e-post.
+   */
+  const [kundeId, setKundeId] = useState<string | null>(lead.customer_id);
+  const kundeIdRef = useRef(kundeId);
+  kundeIdRef.current = kundeId;
+  /** Navnet slik det stod på kundekortet da kunden ble valgt. */
+  const valgtKundenavn = useRef<string | null>(
+    lead.customer_id ? (draft.document?.customer.name ?? null) : null,
+  );
+
   const [confidence, setConfidence] = useState<QuoteConfidence>(draft.confidence);
   const [confidenceNote, setConfidenceNote] = useState(draft.confidence_note);
 
@@ -130,8 +142,6 @@ export function DraftEditor({
     [priceItems, lagredePrisrader],
   );
 
-  const [dragging, setDragging] = useState<DragRef | null>(null);
-  const [dragOver, setDragOver] = useState<DragRef | null>(null);
 
   /**
    * Utkast vi allerede har sett i denne økten, per type.
@@ -152,6 +162,11 @@ export function DraftEditor({
   });
 
   const wantsDocument = hasDocument(quoteType);
+  /** Samme regel som bekreft bruker: kunden i tilbudet, ellers avsenderen. */
+  const sendesTil = mottakerFor(
+    lead,
+    wantsDocument && draft.agent_status !== "trenger_avklaring" ? document : null,
+  ).epost;
   const totals = useMemo(
     () => (document ? computeTotals(document) : null),
     [document],
@@ -198,24 +213,150 @@ export function DraftEditor({
     await generate(next, false);
   }
 
-  /** Lagrer uten modellkall. Holder databasen i takt med det som står på skjermen. */
-  async function save(type: QuoteType, snapshot: Snapshot) {
+  /**
+   * Lagrer uten modellkall. Holder databasen i takt med det som står på skjermen.
+   * `keepalive` lar kallet fullføre selv om siden lukkes eller man navigerer bort.
+   */
+  async function save(type: QuoteType, snapshot: Snapshot, keepalive = false): Promise<boolean> {
     try {
-      await fetch(`/api/drafts/${draft.id}`, {
+      const res = await fetch(`/api/drafts/${draft.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
+        keepalive,
         body: JSON.stringify({
           quote_type: type,
           email_subject: snapshot.email_subject,
           email_body: snapshot.email_body,
           document: hasDocument(type) ? snapshot.document : null,
+          customer_id: kundeIdRef.current,
         }),
       });
+      return res.ok;
     } catch {
-      // Lagring i bakgrunnen. Feiler den, får brukeren beskjed ved bekreft,
-      // som er den handlingen som faktisk må være korrekt.
+      return false;
     }
   }
+
+  /**
+   * Automatisk lagring. Hver endring lagres et øyeblikk etter at man slutter
+   * å skrive, og det som ikke er lagret ennå, sendes når man forlater siden —
+   * også ved navigering inne i appen. Går man til innstillingene og tilbake,
+   * står tilbudet slik man forlot det.
+   */
+  const [lagring, setLagring] = useState<null | "lagrer" | "lagret" | "feil">(null);
+  const nokkelFor = (t: QuoteType, sn: Snapshot) =>
+    JSON.stringify([
+      t,
+      sn.email_subject,
+      sn.email_body,
+      hasDocument(t) ? sn.document : null,
+      kundeIdRef.current,
+    ]);
+  const sistLagret = useRef(
+    nokkelFor(draft.quote_type, {
+      email_subject: draft.email_subject,
+      email_body: draft.email_body,
+      document: draft.document,
+      confidence: draft.confidence,
+      confidence_note: draft.confidence_note,
+    }),
+  );
+  const ventende = useRef<{ type: QuoteType; snapshot: Snapshot; nokkel: string } | null>(null);
+  const lagretKunde = useRef(lead.customer_id);
+  const saveRef = useRef(save);
+  saveRef.current = save;
+
+  async function lagreVentende(keepalive = false) {
+    const v = ventende.current;
+    if (!v) return;
+    ventende.current = null;
+    setLagring("lagrer");
+    const ok = await saveRef.current(v.type, v.snapshot, keepalive);
+    if (ok) {
+      sistLagret.current = v.nokkel;
+      setLagring("lagret");
+      // Ny kunde: kundenummeret øverst på siden hører til den forrige.
+      if (!keepalive && kundeIdRef.current !== lagretKunde.current) {
+        lagretKunde.current = kundeIdRef.current;
+        router.refresh();
+      }
+    } else {
+      // Prøv igjen om litt — eller tidligere, ved neste endring eller når
+      // siden forlates.
+      if (!ventende.current) ventende.current = v;
+      setLagring("feil");
+      if (!keepalive) window.setTimeout(() => void lagreVentendeRef.current(), 5000);
+    }
+  }
+  const lagreVentendeRef = useRef(lagreVentende);
+  lagreVentendeRef.current = lagreVentende;
+
+  useEffect(() => {
+    if (sendt) return;
+    const snapshot = currentSnapshot();
+    const nokkel = nokkelFor(quoteType, snapshot);
+    if (nokkel === sistLagret.current) return;
+    ventende.current = { type: quoteType, snapshot, nokkel };
+    const t = window.setTimeout(() => void lagreVentendeRef.current(), 800);
+    return () => window.clearTimeout(t);
+    // Snapshot-feltene er nøkkelen; confidence lagres ikke herfra.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quoteType, subject, body, document, kundeId, sendt]);
+
+  // Ved åpning: er det lagret noe nyere enn det siden ble levert med (siden
+  // kom fra nettleserens mellomlager), vises det lagrede — så lenge ingenting
+  // er endret her ennå.
+  useEffect(() => {
+    let avbrutt = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/drafts/${draft.id}`, { cache: "no-store" });
+        if (!res.ok || avbrutt) return;
+        const d = (await res.json()) as {
+          quote_type: QuoteType;
+          email_subject: string;
+          email_body: string;
+          document: QuoteDocument | null;
+        };
+        const lagret = {
+          email_subject: d.email_subject,
+          email_body: d.email_body,
+          document: d.document,
+          confidence: draft.confidence,
+          confidence_note: draft.confidence_note,
+        };
+        const nokkel = nokkelFor(d.quote_type, lagret);
+        if (avbrutt || ventende.current || nokkel === sistLagret.current) return;
+        sistLagret.current = nokkel;
+        setQuoteType(d.quote_type);
+        apply(lagret);
+      } catch {
+        // Ingen fare: da vises det siden ble levert med.
+      }
+    })();
+    return () => {
+      avbrutt = true;
+    };
+    // Bare ved åpning.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const tom = () => {
+      if (ventende.current) void lagreVentendeRef.current(true);
+    };
+    const skjult = () => {
+      if (window.document.visibilityState === "hidden") tom();
+    };
+    window.addEventListener("pagehide", tom);
+    window.document.addEventListener("visibilitychange", skjult);
+    return () => {
+      window.removeEventListener("pagehide", tom);
+      window.document.removeEventListener("visibilitychange", skjult);
+      // Navigering inne i appen: komponenten forsvinner — lagre det som venter.
+      tom();
+    };
+  }, []);
 
   /**
    * PDF-ruten leser fra databasen, så vi lagrer før vi henter.
@@ -342,6 +483,30 @@ export function DraftEditor({
     setDocument((current) => (current ? { ...current, ...patch } : current));
   }
 
+  /**
+   * Kunden valgt fra registeret: opplysningene på kundekortet fyller
+   * tilbudet. Det som rettes etterpå — en annen adresse for akkurat denne
+   * jobben — gjelder bare tilbudet; kundekortet står som det står.
+   */
+  function velgKunde(k: KundeForslag) {
+    valgtKundenavn.current = k.name;
+    setKundeId(k.id);
+    setDocument((current) =>
+      current
+        ? {
+            ...current,
+            customer: {
+              name: k.name,
+              contact: k.contact,
+              email: k.email,
+              phone: k.phone,
+              address: k.address,
+            },
+          }
+        : current,
+    );
+  }
+
   /** Alle endringer på poster går gjennom denne, så formen holder seg. */
   function updateSectionLines(
     sectionIndex: number,
@@ -389,31 +554,6 @@ export function DraftEditor({
    * Flytter hele seksjonen — overskrift og poster — ett hakk opp eller ned.
    * Rekkefølgen her er rekkefølgen på PDF-en.
    */
-  function moveSection(sectionIndex: number, direction: -1 | 1) {
-    const to = sectionIndex + direction;
-    if (!document || to < 0 || to >= document.sections.length) return;
-
-    setDocument((current) => {
-      if (!current) return current;
-      const sections = [...current.sections];
-      const [moved] = sections.splice(sectionIndex, 1);
-      sections.splice(to, 0, moved);
-      return { ...current, sections };
-    });
-
-    // Seksjonene har indeks som nøkkel, så fokus ville blitt stående igjen på
-    // plassen og ikke fulgt med seksjonen. Flytt det etter, så man kan trykke
-    // flere ganger på rad. Står den nå øverst eller nederst, er knappen i den
-    // retningen skrudd av — da tar vi den andre.
-    requestAnimationFrame(() => {
-      const atEdge = to === 0 || to === document.sections.length - 1;
-      const knapp = atEdge ? -direction : direction;
-      window.document
-        .querySelector<HTMLButtonElement>(`[data-seksjon-flytt="${to}:${knapp}"]`)
-        ?.focus();
-    });
-  }
-
   function removeSection(sectionIndex: number) {
     if (!document) return;
     const section = document.sections[sectionIndex];
@@ -461,6 +601,30 @@ export function DraftEditor({
     updateSectionLines(sectionIndex, (lines) =>
       lines.filter((_, li) => li !== lineIndex),
     );
+  }
+
+  // Dra-og-slipp av postrader og av hele seksjoner. Flyttingen skjer først når
+  // raden har glidd på plass.
+  const dra = useRadDra((section, from, to) => moveLine(section, from, to));
+  const draSeksjon = useRadDra((_gruppe, from, to) => flyttSeksjon(from, to));
+
+  /** Flytter en seksjon fra én plass til en annen, ved dra eller piltast. */
+  function flyttSeksjon(from: number, to: number, fokuser = false) {
+    if (!document || from === to || to < 0 || to >= document.sections.length) return;
+    setDocument((current) => {
+      if (!current) return current;
+      const sections = [...current.sections];
+      const [moved] = sections.splice(from, 1);
+      sections.splice(to, 0, moved);
+      return { ...current, sections };
+    });
+    // Seksjonene har indeks som nøkkel, så fokus ville blitt stående på
+    // plassen. Flytt det etter, så man kan trykke piltasten flere ganger.
+    if (fokuser) {
+      requestAnimationFrame(() => {
+        window.document.querySelector<HTMLElement>(`[data-seksjon-grip="${to}"]`)?.focus();
+      });
+    }
   }
 
   function moveLine(sectionIndex: number, from: number, to: number) {
@@ -635,19 +799,11 @@ export function DraftEditor({
       */}
       <fieldset className="stack editor-felt" disabled={sendt}>
         {/* Type-bryter: agentens forslag, redigerbart før bekreft */}
-      <div className="card card-pad allow-overflow">
-        <div className="row-between" style={{ marginBottom: 8 }}>
-          <span className="label" style={{ marginBottom: 0 }}>
-            Tilbudstype
-          </span>
-          <ConfidenceBadge
-            level={confidence}
-            note={confidenceNote}
-            classificationNote={draft.typebegrunnelse}
-            suggestedType={draft.quote_type}
-          />
-        </div>
-        <div className="type-switch">
+      {/* Tilbudstypen på én linje: den velges én gang og leses sjelden, så den
+          skal ikke ta plassen fra postene. Forklaringen står bak velgeren. */}
+      <div className="card utkast-topp allow-overflow">
+        <span className="utkast-topp-etikett">Tilbudstype</span>
+        <div className="type-switch liten">
           {ALL_TYPES.map((type) => (
             <button
               key={type}
@@ -662,11 +818,17 @@ export function DraftEditor({
             </button>
           ))}
         </div>
-        <span className="hint">
+        <span className="utkast-topp-hjelp">
           {revisjon > 1
             ? "Typen står fast i en ny versjon. Den bygger videre på det som ble sendt."
             : QUOTE_TYPE_HELP[quoteType]}
         </span>
+        <ConfidenceBadge
+          level={confidence}
+          note={confidenceNote}
+          classificationNote={draft.typebegrunnelse}
+          suggestedType={draft.quote_type}
+        />
       </div>
 
       {error && <div className="banner error">{error}</div>}
@@ -772,46 +934,52 @@ export function DraftEditor({
 
       {/* Dokument-forhåndsvisning for punktpris og fastpris */}
       {draft.agent_status !== "trenger_avklaring" && wantsDocument && document && (
-        <div className="doc-preview">
+        <div className={`doc-preview${draSeksjon.drar !== null ? " drar" : ""}`}>
+          {/* Avsenderen står i PDF-en. Her er den bare en påminnelse om hvem
+              tilbudet går fra, så den får én linje og ikke et helt brevhode. */}
           <div className="doc-head">
-            <div style={{ fontSize: 17, fontWeight: 600 }}>
-              {brand?.contact_name ?? ""}
-            </div>
-            <div className="doc-sender">
-              {address?.line && <div>{address.line}</div>}
-              {(address?.postalCode || address?.city) && (
-                <div>{[address.postalCode, address.city].filter(Boolean).join(" ")}</div>
-              )}
-              {brand?.contact_email && <div>{brand.contact_email}</div>}
-              {brand?.contact_phone && <div>{brand.contact_phone}</div>}
-            </div>
+            <strong>{brand?.contact_name ?? ""}</strong>
+            <span className="doc-sender">
+              {[
+                address?.line,
+                [address?.postalCode, address?.city].filter(Boolean).join(" "),
+                brand?.contact_email,
+                brand?.contact_phone,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
           </div>
 
-          <label className="field">
-            <span className="label">Tittel</span>
+          {/* Etiketten til venstre for feltet, som i Go: to rader i stedet for fire. */}
+          <div className="utkast-felt">
+            <label htmlFor="utkast-tittel">Tittel</label>
             <input
-              className="input"
+              id="utkast-tittel"
+              className="input bred"
               value={document.title}
               onChange={(e) => updateDocument({ title: e.target.value })}
             />
-          </label>
-
-          <div className="grid-2">
-            <label className="field">
-              <span className="label">Kunde</span>
-              <input
-                className="input"
+            <label htmlFor="utkast-kunde">Kunde</label>
+              <KundeSok
+                id="utkast-kunde"
                 value={document.customer.name}
-                onChange={(e) =>
+                onChange={(navn) => {
                   updateDocument({
-                    customer: { ...document.customer, name: e.target.value },
-                  })
-                }
+                    customer: { ...document.customer, name: navn },
+                  });
+                  // Skriver man et annet navn uten å velge, er det ikke
+                  // lenger kunden i registeret — den kobles på nytt ved lagring.
+                  if (kundeId && navn.trim() !== (valgtKundenavn.current ?? "").trim()) {
+                    setKundeId(null);
+                  }
+                }}
+                onVelg={velgKunde}
+                placeholder="Søk etter kunde"
               />
-            </label>
-            <label className="field">
-              <span className="label">Adresse</span>
+            <label htmlFor="utkast-adresse">Adresse</label>
               <input
+                id="utkast-adresse"
                 className="input"
                 value={document.customer.address ?? ""}
                 onChange={(e) =>
@@ -820,7 +988,6 @@ export function DraftEditor({
                   })
                 }
               />
-            </label>
           </div>
 
           {document.sections.map((section, sectionIndex) => {
@@ -832,8 +999,33 @@ export function DraftEditor({
             );
 
             return (
-              <div key={sectionIndex} style={{ marginBottom: 22 }}>
+              <div key={sectionIndex} {...draSeksjon.rad(0, sectionIndex, "seksjon")}>
                 <div className="seksjon-topp">
+                  {document.sections.length > 1 && (
+                    <span
+                      className="grip"
+                      role="button"
+                      tabIndex={0}
+                      data-seksjon-grip={sectionIndex}
+                      aria-label={`Flytt seksjonen «${section.title || "uten overskrift"}», ${sectionIndex + 1} av ${document.sections.length}`}
+                      title="Dra for å flytte seksjonen, eller bruk piltastene"
+                      onPointerDown={(event) => {
+                        if (!sendt) draSeksjon.start(event, 0, sectionIndex);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "ArrowUp") {
+                          event.preventDefault();
+                          flyttSeksjon(sectionIndex, sectionIndex - 1, true);
+                        }
+                        if (event.key === "ArrowDown") {
+                          event.preventDefault();
+                          flyttSeksjon(sectionIndex, sectionIndex + 1, true);
+                        }
+                      }}
+                    >
+                      ⠿
+                    </span>
+                  )}
                   <input
                     className="input seksjon-tittel"
                     value={section.title}
@@ -846,28 +1038,6 @@ export function DraftEditor({
                       <button
                         type="button"
                         className="button ghost"
-                        data-seksjon-flytt={`${sectionIndex}:-1`}
-                        title="Flytt seksjonen opp"
-                        aria-label={`Flytt «${section.title || "seksjonen"}» opp`}
-                        disabled={sectionIndex === 0}
-                        onClick={() => moveSection(sectionIndex, -1)}
-                      >
-                        ↑
-                      </button>
-                      <button
-                        type="button"
-                        className="button ghost"
-                        data-seksjon-flytt={`${sectionIndex}:1`}
-                        title="Flytt seksjonen ned"
-                        aria-label={`Flytt «${section.title || "seksjonen"}» ned`}
-                        disabled={sectionIndex === document.sections.length - 1}
-                        onClick={() => moveSection(sectionIndex, 1)}
-                      >
-                        ↓
-                      </button>
-                      <button
-                        type="button"
-                        className="button ghost"
                         onClick={() => removeSection(sectionIndex)}
                       >
                         Fjern
@@ -876,21 +1046,21 @@ export function DraftEditor({
                   )}
                 </div>
 
-                <table className="doc-table">
+                <table className={`doc-table${dra.drar === sectionIndex ? " drar" : ""}`}>
                   <thead>
                     <tr>
-                      <th style={{ width: 30 }} />
+                      <th style={{ width: 28 }} />
                       <th>Post</th>
-                      <th className="num" style={{ width: 100 }}>
+                      <th className="num" style={{ width: 64 }}>
                         Antall
                       </th>
-                      <th className="num" style={{ width: 130 }}>
+                      <th className="num" style={{ width: 124 }}>
                         Enhetspris
                       </th>
-                      <th className="num" style={{ width: 90 }}>
+                      <th className="num" style={{ width: 68 }}>
                         Rabatt
                       </th>
-                      <th className="num" style={{ width: 120 }}>
+                      <th className="num" style={{ width: 100 }}>
                         Sum
                       </th>
                       <th style={{ width: 34 }} />
@@ -898,45 +1068,20 @@ export function DraftEditor({
                   </thead>
                   <tbody>
                     {section.lines.map((line, lineIndex) => {
-                      const isDragTarget =
-                        dragOver?.section === sectionIndex &&
-                        dragOver?.line === lineIndex &&
-                        dragging?.section === sectionIndex &&
-                        dragging?.line !== lineIndex;
-
                       return (
-                        <tr
-                          key={lineIndex}
-                          className={isDragTarget ? "drag-over" : undefined}
-                          onDragOver={(event) => {
-                            if (dragging?.section !== sectionIndex) return;
-                            event.preventDefault();
-                            setDragOver({ section: sectionIndex, line: lineIndex });
-                          }}
-                          onDrop={(event) => {
-                            if (dragging?.section !== sectionIndex) return;
-                            event.preventDefault();
-                            moveLine(sectionIndex, dragging.line, lineIndex);
-                            setDragging(null);
-                            setDragOver(null);
-                          }}
-                        >
+                        <tr key={lineIndex} {...dra.rad(sectionIndex, lineIndex)}>
                           <td>
-                            {/* Bare håndtaket er draggbart — ellers kan man ikke
-                                markere tekst i feltene på raden. */}
+                            {/* Bare håndtaket drar — ellers kan man ikke markere
+                                tekst i feltene på raden. */}
                             <span
                               className="grip"
                               role="button"
                               tabIndex={0}
                               aria-label={`Flytt post ${lineIndex + 1} av ${section.lines.length}`}
                               title="Dra for å flytte, eller bruk piltastene"
-                              draggable={!sendt}
-                              onDragStart={() =>
-                                setDragging({ section: sectionIndex, line: lineIndex })
-                              }
-                              onDragEnd={() => {
-                                setDragging(null);
-                                setDragOver(null);
+                              aria-disabled={sendt || undefined}
+                              onPointerDown={(event) => {
+                                if (!sendt) dra.start(event, sectionIndex, lineIndex);
                               }}
                               onKeyDown={(event) => {
                                 if (event.key === "ArrowUp" && lineIndex > 0) {
@@ -991,11 +1136,13 @@ export function DraftEditor({
                               neste generering slår opp prisfilen på nytt, og
                               beløpet herfra går aldri inn i agentens kontekst.
                             */}
+                            <div className="celle-enhet">
                             <input
                               className="cell-input num"
                               type="number"
                               min="0"
                               step="1"
+                              aria-label={`Enhetspris per ${line.unit}`}
                               value={line.unit_price}
                               onChange={(e) => {
                                 const pris = Number(e.target.value);
@@ -1008,7 +1155,8 @@ export function DraftEditor({
                                 });
                               }}
                             />
-                            <div className="tiny muted">per {line.unit}</div>
+                            <span className="celle-enhet-tekst">/{line.unit}</span>
+                            </div>
                             {line.unit_price_manual && (
                               <button
                                 type="button"
@@ -1031,6 +1179,7 @@ export function DraftEditor({
                               rabatt. Kolonnen kommer med i PDF-en bare når
                               minst én rad har den — se harRabatt.
                             */}
+                            <div className="celle-enhet">
                             <input
                               className="cell-input num"
                               type="number"
@@ -1048,7 +1197,8 @@ export function DraftEditor({
                                 });
                               }}
                             />
-                            <div className="tiny muted">%</div>
+                            <span className="celle-enhet-tekst">%</span>
+                            </div>
                           </td>
                           <td className="num">
                             <strong>{formatNok(lineTotal(line))}</strong>
@@ -1136,7 +1286,7 @@ export function DraftEditor({
                       Legg til en ny post
                     </button>
                     , eller{" "}
-                    <Link href="/tilbud/prisfil" style={{ textDecoration: "underline" }}>
+                    <Link href="/selskap/innstillinger/prisfil" style={{ textDecoration: "underline" }}>
                       importer prisfilen
                     </Link>
                     .
@@ -1146,6 +1296,9 @@ export function DraftEditor({
             );
           })}
 
+          {/* Ny seksjon til venstre og summene til høyre på samme rad — den
+              tomme plassen ved siden av summene var en hel rad for én knapp. */}
+          <div className="utkast-bunn">
           <button type="button" className="button ghost" onClick={addSection}>
             + Legg til seksjon
           </button>
@@ -1166,6 +1319,7 @@ export function DraftEditor({
               </div>
             </div>
           )}
+          </div>
 
           <div className="field" style={{ marginTop: 26 }}>
             <span className="label">Forutsetninger</span>
@@ -1179,14 +1333,15 @@ export function DraftEditor({
 
       {/* E-posttekst */}
       <div className="card card-pad">
-        <label className="field">
-          <span className="label">Emne</span>
+        <div className="utkast-felt" style={{ marginBottom: 10 }}>
+          <label htmlFor="utkast-emne">Emne</label>
           <input
-            className="input"
+            id="utkast-emne"
+            className="input bred"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
           />
-        </label>
+        </div>
         <label className="field" style={{ marginBottom: 0 }}>
           <span className="label">E-posttekst</span>
           <textarea
@@ -1219,7 +1374,15 @@ export function DraftEditor({
             {busy === "lagrer" ? "Lager PDF…" : "Forhåndsvis PDF"}
           </button>
         )}
+        <span className={`tiny lagring-status${lagring === "feil" ? " feil" : ""}`} aria-live="polite">
+          {lagring === "lagrer" ? "Lagrer…" : lagring === "lagret" ? "Alle endringer er lagret" : lagring === "feil" ? "Kunne ikke lagre — prøver igjen" : ""}
+        </span>
         <span className="spacer" />
+        {sendesTil && (
+          <span className="tiny" title="Mottakeren følger kunden i tilbudet">
+            Til: {sendesTil}
+          </span>
+        )}
         <span className="muted tiny">
           {!harPostkasse
             ? wantsDocument

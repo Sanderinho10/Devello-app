@@ -2,8 +2,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { byggSalsordre, manglandeProdukt } from "./go";
 import { loggFakturaVersjon } from "./versjon";
 import { PogoFeil, pogoClient, type PogoKunde, type PogoKundePost } from "@/lib/regnskap/poweroffice";
+import { adresseTekst, fakturaadresse, hovedadresse } from "@/lib/kunder/adresse";
 import {
   ACCOUNTING_PROVIDER_LABELS,
+  type Customer,
   PRODUCT_MAP_LABELS,
   type ConnectionSettings,
   type InvoiceDraft,
@@ -16,14 +18,20 @@ import {
  *
  * Rekkefølgen er valgt så ingenting halvgjort blir stående:
  *
- *   1. Kunden i Go: finnes den (e-post, telefon), brukes den. Flere treff →
- *      brukeren velger. Ingen → brukeren bekrefter at den skal opprettes.
+ *   1. Kunden i Go: har kontakten et kundenummer fra en tidligere
+ *      overføring (samme kobling), brukes det. Ellers: finnes den (org.nr.
+ *      fra kontaktregisteret, e-post, telefon), brukes den. Flere treff →
+ *      brukeren velger. Ingen →
+ *      brukeren bekrefter at den skal opprettes, med firma/person,
+ *      org.nr. og fakturaadresse fra kontaktkortet når ordren har en
+ *      kontakt. Uten kontakt: bare ordrens kundefelt, som før.
  *   2. Finnes ordren alt i Go (ExternalImportReference = utkastets id, eller
  *      id-en vi lagret sist)? Da lages ingen ny — det er idempotensen.
  *   3. POST /SalesOrders/Complete med status Draft.
  *   4. Først når Go har svart ja: utkastet låses, føringene merkes
- *      fakturert, ordren blir fakturert. Feiler Go, endres ingenting annet
- *      enn transfer_error, og knappen kan trykkes igjen.
+ *      fakturert, ordren blir fakturert, og kundenummeret lagres på
+ *      kontakten. Feiler Go, endres ingenting annet enn transfer_error
+ *      (og et lagret kundenummer Go avviste), og knappen kan trykkes igjen.
  */
 
 export type OverforResultat =
@@ -44,21 +52,23 @@ export async function overforTilRegnskap(
   admin: SupabaseClient,
   input: {
     draft: InvoiceDraft;
-    ordre: Order;
+    /** null: en faktura uten ordre (0065). Kundefeltene står da på utkastet. */
+    ordre: Order | null;
     userId: string;
     createCustomer?: boolean;
     customerNo?: string | null;
   },
 ): Promise<OverforResultat> {
   const { draft, ordre } = input;
+  const companyId = draft.company_id;
 
   const { data: rad } = await admin
     .from("accounting_connections")
     .select("id, provider, environment, client_key, status, product_map, settings")
-    .eq("company_id", ordre.company_id)
+    .eq("company_id", companyId)
     .neq("status", "kopla_fra")
     .maybeSingle();
-  if (!rad) return { ok: false, status: 400, error: "Ingen regnskapssystem er koblet til. Sett det opp under Ordre → Innstillinger." };
+  if (!rad) return { ok: false, status: 400, error: "Ingen regnskapssystem er koblet til. Sett det opp under Selskap → Innstillinger → Ordre." };
   const kopling = rad as Kopling;
   if (kopling.provider !== "poweroffice") {
     return { ok: false, status: 400, error: `${ACCOUNTING_PROVIDER_LABELS[kopling.provider]} er ikke støttet ennå.` };
@@ -69,7 +79,7 @@ export async function overforTilRegnskap(
     return {
       ok: false,
       status: 400,
-      error: `Produktmappingen mangler for ${manglar.map((k) => PRODUCT_MAP_LABELS[k].toLowerCase()).join(", ")}. Sett den under Ordre → Innstillinger → Regnskapssystem.`,
+      error: `Produktmappingen mangler for ${manglar.map((k) => PRODUCT_MAP_LABELS[k].toLowerCase()).join(", ")}. Sett den under Selskap → Innstillinger → Ordre → Regnskapssystem.`,
     };
   }
   if (!draft.lines.some((l) => l.included && l.unit_price !== null)) {
@@ -77,19 +87,34 @@ export async function overforTilRegnskap(
   }
 
   const pogo = pogoClient(kopling);
+  // Fakturakunden (0058): den fakturaen sendes til. Er den byttet ut, er det
+  // den — ikke kunden på ordren — som letes opp, opprettes og får
+  // kundenummeret lagret.
+  // Uten ordre er kundefeltene på utkastet; de følger kontaktkortet når
+  // kunden byttes (lib/faktura/handlingar.ts).
+  const kontakt = await hentKontakt(admin, companyId, draft.customer_id ?? ordre?.customer_id ?? null);
+  const mottakar = ordre
+    ? mottakarFelt(ordre, kontakt, Boolean(draft.customer_id && draft.customer_id !== ordre.customer_id))
+    : utkastMottakar(draft);
+  // Kom kundenummeret fra kontakten? Da fjernes det om Go avviser ordren.
+  let fraKontakt = false;
 
   try {
     // 1. Kunden.
     let customerNo = input.customerNo?.trim() || draft.transfer_customer_no || null;
     if (!customerNo) {
-      const funne = await finnKunde(pogo, ordre);
+      customerNo = lagraKundenummer(kontakt, kopling.id);
+      fraKontakt = customerNo !== null;
+    }
+    if (!customerNo) {
+      const funne = await finnKunde(pogo, mottakar, kontakt);
       if (funne.length > 1) {
         return { ok: false, status: 409, error: "Flere kunder i PowerOffice Go passer. Velg hvilken.", kandidatar: funne };
       }
       if (funne.length === 1 && funne[0].CustomerNo) {
         customerNo = funne[0].CustomerNo;
       } else if (input.createCustomer) {
-        const ny = await pogo.opprettKunde(foreslaaKunde(ordre));
+        const ny = await pogo.opprettKunde(foreslaaKunde(mottakar, kontakt));
         if (!ny.CustomerNo) throw new Error("PowerOffice Go opprettet kunden, men svarte uten kundenummer.");
         customerNo = ny.CustomerNo;
       } else {
@@ -98,7 +123,7 @@ export async function overforTilRegnskap(
           status: 409,
           error: "Kunden finnes ikke i PowerOffice Go.",
           needsCustomer: true,
-          foreslaatt: foreslaaKunde(ordre),
+          foreslaatt: foreslaaKunde(mottakar, kontakt),
         };
       }
     }
@@ -111,7 +136,9 @@ export async function overforTilRegnskap(
     // 3. Opprett.
     if (!go) {
       const dto = byggSalsordre({
-        draft,
+        // Deres ref. står grått som forslag i skjemaet: tomt felt betyr
+        // forslaget, kontaktpersonen hos fakturakunden.
+        draft: { ...draft, customer_reference: draft.customer_reference?.trim() || foreslaattReferanse(mottakar, kontakt) },
         ordre,
         customerNo,
         productMap: kopling.product_map ?? {},
@@ -157,21 +184,30 @@ export async function overforTilRegnskap(
       await admin.from("material_entries").update({ invoice_draft_id: draft.id }).in("id", matIds).is("invoice_draft_id", null);
     }
 
-    await admin
-      .from("orders")
-      .update({ status: "fakturert", closed_at: naa })
-      .eq("id", ordre.id)
-      .eq("company_id", ordre.company_id);
-    await admin.from("order_events").insert({
-      order_id: ordre.id,
-      kind: "faktura",
-      note: `Fakturaforslag overført til PowerOffice Go${go.SalesOrderNo ? `, ordre ${go.SalesOrderNo}` : ""}`,
-      created_by: input.userId,
-    });
+    if (ordre) {
+      await admin
+        .from("orders")
+        .update({ status: "fakturert", closed_at: naa })
+        .eq("id", ordre.id)
+        .eq("company_id", ordre.company_id);
+      await admin.from("order_events").insert({
+        order_id: ordre.id,
+        kind: "faktura",
+        note: `Fakturaforslag overført til PowerOffice Go${go.SalesOrderNo ? `, ordre ${go.SalesOrderNo}` : ""}`,
+        created_by: input.userId,
+      });
+    }
+
+    await lagreKundenummer(admin, kontakt, kopling.id, customerNo);
 
     return { ok: true, draft: ferdig, alleredeOverfort };
   } catch (err) {
     const melding = err instanceof Error ? err.message : String(err);
+    // Go avviste et lagret kundenummer (kunden slettet eller slått sammen
+    // i Go): glem det, så leter neste forsøk opp kunden på nytt.
+    if (fraKontakt && kontakt && err instanceof PogoFeil && (err.status === 400 || err.status === 404)) {
+      await glemKundenummer(admin, kontakt);
+    }
     await admin
       .from("invoice_drafts")
       .update({ status: "feil", transfer_error: melding })
@@ -180,8 +216,126 @@ export async function overforTilRegnskap(
   }
 }
 
+type Mottakar = Pick<Order, "customer_name" | "customer_contact" | "customer_email" | "customer_phone" | "site_address">;
+
+/**
+ * Hvem fakturaen går til, i ordrens kundefelt-form. Er fakturakunden den
+ * samme som på ordren, er det ordrens felt — de kan være rettet for akkurat
+ * denne jobben. Er den byttet ut, er det kontaktkortet til den nye.
+ */
+export function mottakarFelt(ordre: Mottakar, kontakt: Customer | null, overstyrt: boolean): Mottakar {
+  if (!overstyrt || !kontakt) return ordre;
+  return {
+    customer_name: kontakt.name,
+    customer_contact: kontakt.is_person ? null : kontakt.contact,
+    customer_email: kontakt.email,
+    customer_phone: kontakt.phone,
+    site_address: adresseTekst(hovedadresse(kontakt)) || null,
+  };
+}
+
+/** Kundefeltene på en faktura uten ordre, i samme form som ordrens. */
+export function utkastMottakar(
+  draft: Pick<InvoiceDraft, "customer_name" | "customer_contact" | "customer_email" | "customer_phone" | "customer_address">,
+): Mottakar {
+  return {
+    customer_name: draft.customer_name ?? "",
+    customer_contact: draft.customer_contact,
+    customer_email: draft.customer_email,
+    customer_phone: draft.customer_phone,
+    site_address: draft.customer_address,
+  };
+}
+
+/** Forslaget til «Deres ref.»: kontaktpersonen hos fakturakunden, eller null. */
+export function foreslaattReferanse(mottakar: Mottakar, kontakt: Customer | null): string | null {
+  const person = mottakar.customer_contact?.trim() || (kontakt && !kontakt.is_person ? kontakt.contact?.trim() : "");
+  return person || null;
+}
+
+/**
+ * Kontakten i registeret, eller null. Aldri en betingelse: finnes den ikke,
+ * eller feiler oppslaget, går overføringen på ordrens kundefelt som før.
+ */
+async function hentKontakt(admin: SupabaseClient, companyId: string, customerId: string | null): Promise<Customer | null> {
+  if (!customerId) return null;
+  try {
+    const { data } = await admin
+      .from("customers")
+      .select("*")
+      .eq("id", customerId)
+      .eq("company_id", companyId)
+      .maybeSingle();
+    return (data as Customer | null) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Kundenummeret lagret på kontakten, når det hører til denne koblingen. */
+export function lagraKundenummer(
+  kontakt: Pick<Customer, "accounting_customer_no" | "accounting_connection_id"> | null,
+  koplingId: string,
+): string | null {
+  if (!kontakt?.accounting_customer_no?.trim()) return null;
+  if (kontakt.accounting_connection_id !== koplingId) return null;
+  return kontakt.accounting_customer_no.trim();
+}
+
+/**
+ * Lagrer kundenummeret på kontakten etter at Go har opprettet ordren. Feiler
+ * det, er ordren like fullt overført — neste gang letes kunden bare opp igjen.
+ */
+async function lagreKundenummer(
+  admin: SupabaseClient,
+  kontakt: Customer | null,
+  koplingId: string,
+  customerNo: string,
+): Promise<void> {
+  if (!kontakt) return;
+  if (kontakt.accounting_customer_no === customerNo && kontakt.accounting_connection_id === koplingId) return;
+  // Kalles etter at alt er lagret: en feil her skal aldri gjøre en vellykket
+  // overføring om til en feilet.
+  try {
+    const { error } = await admin
+      .from("customers")
+      .update({ accounting_customer_no: customerNo, accounting_connection_id: koplingId })
+      .eq("id", kontakt.id)
+      .eq("company_id", kontakt.company_id);
+    if (error) console.error("Kunne ikke lagre kundenummeret på kontakten:", error.message);
+  } catch (err) {
+    console.error("Kunne ikke lagre kundenummeret på kontakten:", err);
+  }
+}
+
+async function glemKundenummer(admin: SupabaseClient, kontakt: Customer): Promise<void> {
+  const { error } = await admin
+    .from("customers")
+    .update({ accounting_customer_no: null, accounting_connection_id: null })
+    .eq("id", kontakt.id)
+    .eq("company_id", kontakt.company_id);
+  if (error) console.error("Kunne ikke fjerne kundenummeret på kontakten:", error.message);
+}
+
+/** Org.nr. med bare sifrene, når det er et gyldig norsk (ni sifre). */
+function orgnr(kontakt: Pick<Customer, "org_nr" | "is_person"> | null | undefined): string | null {
+  if (!kontakt || kontakt.is_person) return null;
+  const siffer = (kontakt.org_nr ?? "").replace(/\D/g, "");
+  return siffer.length === 9 ? siffer : null;
+}
+
 /** Kunden i Go, i den rekkefølgen kjennetegnene er til å stole på. */
-async function finnKunde(pogo: ReturnType<typeof pogoClient>, ordre: Order): Promise<PogoKunde[]> {
+async function finnKunde(
+  pogo: ReturnType<typeof pogoClient>,
+  ordre: Mottakar,
+  kontakt: Customer | null,
+): Promise<PogoKunde[]> {
+  const org = orgnr(kontakt);
+  if (org) {
+    const treff = await pogo.hentKundar({ organizationNumbers: [org] });
+    const eksakte = treff.filter((k) => (k.OrganizationNumber ?? "").replace(/\D/g, "") === org);
+    if (eksakte.length) return eksakte;
+  }
   const epost = ordre.customer_email?.trim().toLowerCase();
   if (epost) {
     const treff = await pogo.hentKundar({ emailAddresses: [epost] });
@@ -197,10 +351,22 @@ async function finnKunde(pogo: ReturnType<typeof pogoClient>, ordre: Order): Pro
   return [];
 }
 
-/** Det vi ville opprettet: privatperson uten kontaktperson, bedrift med. */
-export function foreslaaKunde(ordre: Pick<Order, "customer_name" | "customer_contact" | "customer_email" | "customer_phone" | "site_address">): PogoKundePost {
-  const namn = ordre.customer_name.trim() || "Ukjent kunde";
-  const erPerson = !ordre.customer_contact;
+/**
+ * Det vi ville opprettet i Go.
+ *
+ * Navn, e-post og telefon er fakturakundens (mottakarFelt): ordrens når
+ * kunden ikke er byttet ut.
+ * Med en kontakt fra registeret kommer firma/person, org.nr. og
+ * fakturaadressen derfra, og e-post og telefon fylles inn om ordren mangler
+ * dem. Uten kontakt gjetter vi som før: privatperson uten kontaktperson,
+ * bedrift med, og jobbadressen som postadresse.
+ */
+export function foreslaaKunde(
+  ordre: Pick<Order, "customer_name" | "customer_contact" | "customer_email" | "customer_phone" | "site_address">,
+  kontakt?: Customer | null,
+): PogoKundePost {
+  const namn = ordre.customer_name.trim() || kontakt?.name.trim() || "Ukjent kunde";
+  const erPerson = kontakt ? kontakt.is_person : !ordre.customer_contact;
   const dto: PogoKundePost = { Name: namn, IsPerson: erPerson };
   if (erPerson) {
     const deler = namn.split(/\s+/);
@@ -211,11 +377,30 @@ export function foreslaaKunde(ordre: Pick<Order, "customer_name" | "customer_con
       dto.LastName = namn;
     }
   }
-  if (ordre.customer_email?.trim()) {
-    dto.EmailAddress = ordre.customer_email.trim();
-    dto.InvoiceEmailAddress = ordre.customer_email.trim();
+  const org = orgnr(kontakt);
+  if (org) dto.OrganizationNumber = org;
+
+  const epost = ordre.customer_email?.trim() || kontakt?.email?.trim();
+  if (epost) {
+    dto.EmailAddress = epost;
+    dto.InvoiceEmailAddress = epost;
   }
-  if (ordre.customer_phone?.trim()) dto.PhoneNumber = ordre.customer_phone.trim();
+  const tlf = ordre.customer_phone?.trim() || kontakt?.phone?.trim();
+  if (tlf) dto.PhoneNumber = tlf;
+
+  const faktura = kontakt ? fakturaadresse(kontakt) : null;
+  if (faktura && (faktura.linje1.trim() || faktura.sted.trim())) {
+    const landkode = landkodeFor(faktura.land);
+    dto.MailAddress = {
+      ...(faktura.linje1.trim() ? { AddressLine1: faktura.linje1.trim() } : {}),
+      ...(faktura.linje2.trim() ? { AddressLine2: faktura.linje2.trim() } : {}),
+      ...(faktura.postnr.trim() ? { ZipCode: faktura.postnr.trim() } : {}),
+      ...(faktura.sted.trim() ? { City: faktura.sted.trim() } : {}),
+      ...(landkode ? { CountryCode: landkode } : {}),
+    };
+    return dto;
+  }
+
   const adresse = ordre.site_address?.trim();
   if (adresse) {
     // «Storgata 12, 5003 Bergen» → linje, postnummer, sted. Ellers alt på linje 1.
@@ -225,6 +410,30 @@ export function foreslaaKunde(ordre: Pick<Order, "customer_name" | "customer_con
       : { AddressLine1: adresse, CountryCode: "NO" };
   }
   return dto;
+}
+
+/**
+ * ISO-koden Go vil ha for landet på kontaktkortet. Et land vi ikke kjenner
+ * sendes uten kode — da velger Go selv, heller enn at vi gjetter feil.
+ */
+const LANDKODER: Record<string, string> = {
+  norge: "NO",
+  norway: "NO",
+  sverige: "SE",
+  danmark: "DK",
+  finland: "FI",
+  island: "IS",
+  tyskland: "DE",
+  polen: "PL",
+  litauen: "LT",
+  storbritannia: "GB",
+};
+
+export function landkodeFor(land: string | null | undefined): string | null {
+  const l = (land ?? "").trim().toLowerCase();
+  if (!l) return "NO";
+  if (/^[a-z]{2}$/.test(l)) return l.toUpperCase();
+  return LANDKODER[l] ?? null;
 }
 
 function kjeldeIdar(draft: InvoiceDraft, type: "time_entry" | "material_entry"): string[] {

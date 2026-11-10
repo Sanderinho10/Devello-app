@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/AppShell";
+import { ModulMangler } from "@/components/ModulMangler";
 import { harModul } from "@/lib/moduler";
 import { currentSession, supabaseServer } from "@/lib/supabase/server";
 
@@ -24,14 +25,7 @@ export default async function OrdreLayout({ children }: { children: React.ReactN
 
   return (
     <AppShell>
-      {aktiv ? (
-        children
-      ) : (
-        <div className="card empty">
-          <div className="empty-title">Ordre-modulen er ikke aktivert for dette selskapet.</div>
-          <div>Ta kontakt med Devello for å skru den på.</div>
-        </div>
-      )}
+      {aktiv ? children : <ModulMangler modul="Ordre" />}
     </AppShell>
   );
 }

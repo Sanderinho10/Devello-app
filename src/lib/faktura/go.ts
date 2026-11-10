@@ -25,7 +25,8 @@ export interface GoSalsordre {
   SalesOrderStatus: "Draft";
   SalesOrderDate: string;
   CustomerReference?: string;
-  PurchaseOrderReference: string;
+  /** «Ordre 1001», eller tittelen på en faktura uten ordre. */
+  PurchaseOrderReference?: string;
   ProjectCode?: string;
   ExternalImportReference: string;
   SalesOrderLines: GoSalsordreLinje[];
@@ -56,8 +57,9 @@ export function manglandeProdukt(lines: InvoiceLine[], map: ProductMap): Product
 }
 
 export function byggSalsordre(input: {
-  draft: Pick<InvoiceDraft, "id" | "lines" | "invoice_text" | "customer_reference">;
-  ordre: Pick<Order, "order_no">;
+  draft: Pick<InvoiceDraft, "id" | "lines" | "invoice_text" | "customer_reference"> & { title?: string | null };
+  /** null: en faktura uten ordre. Da er tittelen referansen, og det blir ingen prosjektkode. */
+  ordre: Pick<Order, "order_no"> | null;
   customerNo: number | string;
   productMap: ProductMap;
   settings: ConnectionSettings;
@@ -66,7 +68,7 @@ export function byggSalsordre(input: {
 }): GoSalsordre {
   const manglar = manglandeProdukt(input.draft.lines, input.productMap);
   if (manglar.length) {
-    throw new Error(`Produktmappingen mangler for: ${manglar.join(", ")}. Sett den under Ordre → Innstillinger → Regnskapssystem.`);
+    throw new Error(`Produktmappingen mangler for: ${manglar.join(", ")}. Sett den under Selskap → Innstillinger → Ordre → Regnskapssystem.`);
   }
 
   const linjer: GoSalsordreLinje[] = [];
@@ -95,12 +97,13 @@ export function byggSalsordre(input: {
     CustomerNo: input.customerNo,
     SalesOrderStatus: "Draft",
     SalesOrderDate: input.dato ?? new Date().toISOString().slice(0, 10),
-    PurchaseOrderReference: `Ordre ${input.ordre.order_no}`,
     ExternalImportReference: input.draft.id,
     SalesOrderLines: linjer,
   };
+  const innkjoepsref = input.ordre ? `Ordre ${input.ordre.order_no}` : input.draft.title?.trim().slice(0, 100);
+  if (innkjoepsref) ordre.PurchaseOrderReference = innkjoepsref;
   const ref = input.draft.customer_reference?.trim();
   if (ref) ordre.CustomerReference = ref;
-  if (input.settings.project_per_order) ordre.ProjectCode = String(input.ordre.order_no);
+  if (input.settings.project_per_order && input.ordre) ordre.ProjectCode = String(input.ordre.order_no);
   return ordre;
 }

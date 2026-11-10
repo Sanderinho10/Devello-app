@@ -31,6 +31,12 @@ export interface FtpFakturaResultat {
   /** Fakturaer vi alt hadde (samme nummer fra en annen fil eller kilde). */
   duplikat: number;
   feil: string[];
+  /** Mønsteret og mappa vi så etter i. For feilsøking når ingenting matcher. */
+  monster?: string;
+  mappe?: string;
+  /** Filnavn i mappa, også de som ikke matcher (de 50 første), og antallet. */
+  iMappa?: string[];
+  iMappaTal?: number;
 }
 
 /** FTP-funksjonene kan byttes ut i test — samme signaturer som ftp.ts. */
@@ -70,6 +76,10 @@ export async function hentFakturafiler(
   try {
     // 1–2. List, filtrer på mønsteret. Alle treff, ikke bare nyeste.
     const alle = await deps.list(oppsett);
+    resultat.monster = monster;
+    resultat.mappe = oppsett.remote_path?.trim() || "/";
+    resultat.iMappa = alle.map((f) => f.name).sort((a, b) => a.localeCompare(b)).slice(0, 50);
+    resultat.iMappaTal = alle.length;
     const treff = alle.filter((f) => matcharMonster(f.name, monster));
     resultat.filer = treff.length;
 
@@ -122,6 +132,7 @@ export async function hentFakturafiler(
 }
 
 export function notat(r: FtpFakturaResultat): string {
+  if (r.filer === 0 && r.feil.length === 0 && r.iMappa) return ingenTreff(r);
   if (r.nye === 0 && r.feil.length === 0) return `Ingen ny fil (${r.filer} på serveren).`;
   const deler = [
     `${r.nye} nye filer`,
@@ -133,6 +144,20 @@ export function notat(r: FtpFakturaResultat): string {
     ...(r.feil.length ? [`${r.feil.length} feil`] : []),
   ];
   return deler.join(", ");
+}
+
+/**
+ * Ingen filer matcher mønsteret. Vis hva som faktisk ligger i mappa, så
+ * brukeren ser med en gang om det er feil mønster eller feil mappe.
+ */
+function ingenTreff(r: FtpFakturaResultat): string {
+  const filer = r.iMappa ?? [];
+  const tal = r.iMappaTal ?? filer.length;
+  const hvor = `i mappa ${r.mappe ?? "/"}`;
+  if (tal === 0) return `Ingen filer ${hvor}.`;
+  const vist = filer.slice(0, 5).join(", ");
+  const resten = tal > 5 ? ` og ${tal - 5} til` : "";
+  return `Ingen filer matcher «${r.monster ?? ""}» ${hvor}. Fant ${tal}: ${vist}${resten}.`;
 }
 
 // ---------------------------------------------------------------------------

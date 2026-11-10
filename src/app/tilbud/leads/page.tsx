@@ -4,15 +4,30 @@ import { AutoRefresh } from "./AutoRefresh";
 import { LeadRow } from "./LeadRow";
 import { ManualLead } from "./ManualLead";
 import { SkjulbartVarsel } from "@/components/SkjulbartVarsel";
+import { Sokefelt } from "@/components/Sokefelt";
+import { SortKolonne } from "@/components/SortKolonne";
+import { erHeltall, iListe, kunderSomPasser, lesSokeord, likeMonster } from "@/lib/sok";
+import { lesSortering } from "@/lib/sortering";
 import { currentSession, supabaseServer } from "@/lib/supabase/server";
 import { formatDate, type Lead } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
+const KOLONNER = ["nr", "emne", "avsender", "status", "mottatt"] as const;
+
+/** Kolonnen i databasen. «nr» står på utkastet og sorteres etter henting. */
+const DB_KOLONNE: Record<(typeof KOLONNER)[number], string> = {
+  nr: "received_at",
+  emne: "subject",
+  avsender: "from_name",
+  status: "status",
+  mottatt: "received_at",
+};
+
 export default async function LeadsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ vis?: string }>;
+  searchParams: Promise<{ vis?: string; sort?: string; retning?: string; q?: string }>;
 }) {
   const session = await currentSession();
   const supabase = await supabaseServer();
@@ -20,7 +35,31 @@ export default async function LeadsPage({
   // Arkivet er sendte tilbud. De hører ikke hjemme i arbeidslisten — jobben
   // er gjort — men de skal være til å finne igjen, saa de faar sin egen
   // visning i stedet for aa forsvinne.
-  const arkiv = (await searchParams).vis === "arkiv";
+  const sp = await searchParams;
+  const arkiv = sp.vis === "arkiv";
+  const sortering = lesSortering(sp, KOLONNER, { kolonne: "mottatt", stigende: false });
+  const q = lesSokeord(sp.q);
+
+  // Søket: emne og avsender direkte, tilbudsnummeret via utkastet og kunden
+  // (navn eller kundenummer) via registeret. Gjelder listen og tallene i fanene.
+  let sokefilter: string | null = null;
+  if (q) {
+    const monster = likeMonster(q);
+    const [kunder, utkast] = await Promise.all([
+      kunderSomPasser(supabase, q),
+      erHeltall(q)
+        ? supabase.from("drafts").select("lead_id").eq("quote_no", Number(q))
+        : Promise.resolve({ data: [] as { lead_id: string }[] }),
+    ]);
+    sokefilter = [
+      `subject.ilike.${monster}`,
+      `from_name.ilike.${monster}`,
+      `from_email.ilike.${monster}`,
+      ...iListe("customer_id", kunder),
+      ...iListe("id", (utkast.data ?? []).map((d) => d.lead_id as string)),
+    ].join(",");
+  }
+  const medSok = <T extends { or: (f: string) => T }>(sporring: T): T => (sokefilter ? sporring.or(sokefilter) : sporring);
 
   const [
     { data: leads },
@@ -30,13 +69,18 @@ export default async function LeadsPage({
     { count: iArbeid },
     { data: meg },
   ] = await Promise.all([
-    supabase
-      .from("leads")
-      // Versjonen står på utkastet. Med den ser man i listen at et tilbud er
-      // åpnet igjen etter at det ble sendt.
-      .select("*, drafts(revisjon)")
-      [arkiv ? "eq" : "neq"]("status", "sendt")
-      .order("received_at", { ascending: false, nullsFirst: false })
+    medSok(
+      supabase
+        .from("leads")
+        // Versjonen står på utkastet. Med den ser man i listen at et tilbud er
+        // åpnet igjen etter at det ble sendt.
+        .select("*, drafts(revisjon, quote_no)")
+        [arkiv ? "eq" : "neq"]("status", "sendt"),
+    )
+      .order(DB_KOLONNE[sortering.kolonne], {
+        ascending: sortering.kolonne === "nr" ? false : sortering.stigende,
+        nullsFirst: false,
+      })
       .limit(100),
     supabase
       .from("mailbox_connections")
@@ -50,14 +94,8 @@ export default async function LeadsPage({
       .order("started_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
-    supabase
-      .from("leads")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "sendt"),
-    supabase
-      .from("leads")
-      .select("id", { count: "exact", head: true })
-      .neq("status", "sendt"),
+    medSok(supabase.from("leads").select("id", { count: "exact", head: true }).eq("status", "sendt")),
+    medSok(supabase.from("leads").select("id", { count: "exact", head: true }).neq("status", "sendt")),
     supabase
       .from("users")
       .select("skjulte_varsel")
@@ -66,6 +104,18 @@ export default async function LeadsPage({
   ]);
 
   const rows = (leads ?? []) as (Lead & { drafts: DraftRevisjon })[];
+  // Tilbudsnummeret står på utkastet, ikke på leadet, så det sorteres her.
+  // Leads uten nummer havner sist uansett retning.
+  if (sortering.kolonne === "nr") {
+    const retning = sortering.stigende ? 1 : -1;
+    rows.sort((a, b) => {
+      const x = tilbudsnrAv(a.drafts);
+      const y = tilbudsnrAv(b.drafts);
+      if (x === null || y === null) return x === y ? 0 : x === null ? 1 : -1;
+      return (x - y) * retning;
+    });
+  }
+  const sortParams = { vis: arkiv ? "arkiv" : undefined, q: q || undefined };
   const skjulte: string[] = meg?.skjulte_varsel ?? [];
 
   return (
@@ -79,17 +129,13 @@ export default async function LeadsPage({
               : "Ingen postkasse tilkoblet ennå"}
           </p>
         </div>
-        <div className="row">
-          <ManualLead />
-          {mailbox && <LeadActions kind="hent" />}
-        </div>
       </div>
 
       {!mailbox && (
         <SkjulbartVarsel id="ingen-postkasse" skjult={skjulte.includes("ingen-postkasse")}>
           Koble til en Microsoft 365-postkasse under{" "}
-          <Link href="/tilbud/innstillinger" style={{ textDecoration: "underline" }}>
-            Innstillinger
+          <Link href="/selskap/innstillinger/postkasse" style={{ textDecoration: "underline" }}>
+            Selskap → Innstillinger → Postkasse
           </Link>{" "}
           for å hente leads. Jobber dere med manuelle henvendelser, kan du
           krympe dette varselet.
@@ -108,46 +154,91 @@ export default async function LeadsPage({
         </div>
       )}
 
-      <div className="card">
-        <div className="card-header row-between">
-          <div className="type-switch kompakt">
-            <Link
-              href="/tilbud/leads"
-              className={`type-option${arkiv ? "" : " active"}`}
-            >
-              Arbeidsliste {iArbeid ?? 0}
-            </Link>
-            <Link
-              href="/tilbud/leads?vis=arkiv"
-              className={`type-option${arkiv ? " active" : ""}`}
-            >
-              Arkiv {iArkiv ?? 0}
-            </Link>
-          </div>
-          {lastRun?.finished_at && !arkiv && (
-            <span className="muted tiny">
-              Sist hentet {formatDate(lastRun.finished_at)}
-              {lastRun.status === "feil" && " — feilet"}
-            </span>
-          )}
-        </div>
+      <nav className="type-switch kompakt" aria-label="Vis">
+        <Link href={`/tilbud/leads${q ? `?q=${encodeURIComponent(q)}` : ""}`} className={`type-option${arkiv ? "" : " active"}`}>
+          Arbeidsliste<span className="fane-tal">{iArbeid ?? 0}</span>
+        </Link>
+        <Link href={`/tilbud/leads?vis=arkiv${q ? `&q=${encodeURIComponent(q)}` : ""}`} className={`type-option${arkiv ? " active" : ""}`}>
+          Arkiv<span className="fane-tal">{iArkiv ?? 0}</span>
+        </Link>
+      </nav>
 
+      <div className="verktoylinje">
+        {mailbox && <LeadActions kind="hent" />}
+        <ManualLead />
+        <Sokefelt
+          q={q}
+          behold={{ vis: arkiv ? "arkiv" : undefined, sort: sp.sort, retning: sp.retning }}
+          nullstill={arkiv ? "/tilbud/leads?vis=arkiv" : "/tilbud/leads"}
+          tittel="Søk på tilbudsnummer, emne, avsender, kunde eller kundenummer"
+          etikett="Søk i tilbud"
+          foran={
+            lastRun?.finished_at && !arkiv && !q ? (
+              <span className="muted tiny">
+                Sist hentet {formatDate(lastRun.finished_at)}
+                {lastRun.status === "feil" && " — feilet"}
+              </span>
+            ) : q ? (
+              <span className="muted tiny">{rows.length} treff</span>
+            ) : null
+          }
+        />
+      </div>
+
+      <div className="card">
         {rows.length === 0 ? (
           <div className="empty">
             <div className="empty-title">
-              {arkiv ? "Ingen sendte tilbud ennå" : "Ingen leads ennå"}
+              {q ? "Ingen tilbud passer søket" : arkiv ? "Ingen sendte tilbud ennå" : "Ingen leads ennå"}
             </div>
             <div>
-              {arkiv
+              {q
+                ? (arkiv ? "Se også Arbeidsliste" : "Se også Arkiv") + " — tallet i fanen viser treffene der."
+                : arkiv
                 ? "Tilbud havner her når du har merket dem som sendt."
                 : "Trykk «Hent leads» for å lese innboksen, eller «Manuell henvendelse» for en jobb som kom på telefon."}
             </div>
           </div>
         ) : (
-          <div className="lead-list">
-            {rows.map((lead) => (
-              <LeadRow key={lead.id} lead={lead} revisjon={revisjonAv(lead.drafts)} />
-            ))}
+          <div className="tabell-rull">
+            <table className="table klikkbar">
+              <thead>
+                <tr>
+                  <SortKolonne kolonne="nr" sortering={sortering} sti="/tilbud/leads" params={sortParams}>
+                    Nr
+                  </SortKolonne>
+                  <SortKolonne kolonne="emne" sortering={sortering} sti="/tilbud/leads" params={sortParams}>
+                    Emne
+                  </SortKolonne>
+                  <SortKolonne kolonne="avsender" sortering={sortering} sti="/tilbud/leads" params={sortParams}>
+                    Avsender
+                  </SortKolonne>
+                  <SortKolonne kolonne="status" sortering={sortering} sti="/tilbud/leads" params={sortParams}>
+                    Status
+                  </SortKolonne>
+                  <SortKolonne
+                    kolonne="mottatt"
+                    sortering={sortering}
+                    sti="/tilbud/leads"
+                    params={sortParams}
+                    className="num"
+                  >
+                    Mottatt
+                  </SortKolonne>
+                  <th aria-label="Handling" />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((lead) => (
+                  <LeadRow
+                    key={lead.id}
+                    lead={lead}
+                    revisjon={revisjonAv(lead.drafts)}
+                    tilbudsnr={tilbudsnrAv(lead.drafts)}
+                  />
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
@@ -161,9 +252,14 @@ export default async function LeadsPage({
  * drafts har ett utkast per lead, så PostgREST gir et objekt — men uten
  * kjent én-til-én-kobling blir det en liste. Vi tåler begge.
  */
-type DraftRevisjon = { revisjon: number } | { revisjon: number }[] | null;
+type DraftRevisjon = { revisjon: number; quote_no: number | null } | { revisjon: number; quote_no: number | null }[] | null;
 
 function revisjonAv(drafts: DraftRevisjon): number {
   const draft = Array.isArray(drafts) ? drafts[0] : drafts;
   return draft?.revisjon ?? 1;
+}
+
+function tilbudsnrAv(drafts: DraftRevisjon): number | null {
+  const draft = Array.isArray(drafts) ? drafts[0] : drafts;
+  return draft?.quote_no ?? null;
 }

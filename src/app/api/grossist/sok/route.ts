@@ -9,15 +9,18 @@ import type { SupplierItem } from "@/lib/types";
  *
  *   GET /api/grossist/sok?q=stikk&limit=20
  *
- * Bare siffer → prefiks på varenummer (montøren har elnummeret fra
+ * 8–14 siffer som er en GTIN → varen (strekkoden fra kameraet). Bare
+ * siffer → prefiks på varenummer (montøren har elnummeret fra
  * pakkseddelen). Ellers trigram på navnet. Sorteringen skjer i Postgres
  * (sok_grossistvarer), der indeksene er — 200 000 rader er for mange å
  * sortere her.
  */
 export interface SokTreff {
   id: string;
+  supplier_id: string;
   supplier_name: string;
   item_no: string;
+  gtin: string | null;
   name: string;
   unit: string;
   list_price_per_unit: number;
@@ -46,8 +49,10 @@ export async function GET(request: NextRequest) {
     const navn = new Map((grossistar ?? []).map((g) => [g.id, g.name as string]));
     const items: SokTreff[] = ((treff ?? []) as SupplierItem[]).map((v) => ({
       id: v.id,
+      supplier_id: v.supplier_id,
       supplier_name: navn.get(v.supplier_id) ?? "",
       item_no: v.item_no,
+      gtin: v.gtin ?? null,
       name: v.name,
       unit: v.unit,
       list_price_per_unit: Number(v.list_price_per_unit),

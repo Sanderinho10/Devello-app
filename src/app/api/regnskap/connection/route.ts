@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
 import { requireAdmin } from "@/lib/api-admin";
 import { ordreModulEllers403 } from "@/lib/ordre/tilgang";
+import { normaliserKontofilter } from "@/lib/regnskap/kontofilter";
 import { pogoClient } from "@/lib/regnskap/poweroffice";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
@@ -116,9 +117,17 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: "settings må være et objekt." }, { status: 400 });
       }
       const inn = body.settings as Record<string, unknown>;
+      const filter = inn.account_filter !== undefined ? normaliserKontofilter(inn.account_filter) : null;
+      if (inn.account_filter !== undefined && !filter) {
+        return NextResponse.json(
+          { error: "Kontointervallet må ligge mellom 1000 og 9999, og «fra» kan ikke være høyere enn «til»." },
+          { status: 400 },
+        );
+      }
       endringer.settings = {
         ...((kopling.settings as Record<string, unknown>) ?? {}),
         ...(inn.project_per_order !== undefined ? { project_per_order: Boolean(inn.project_per_order) } : {}),
+        ...(filter ? { account_filter: filter } : {}),
       };
     }
     if (Object.keys(endringer).length === 0) {
