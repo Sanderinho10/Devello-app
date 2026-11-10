@@ -111,6 +111,17 @@ const KALENDER = () => [
   hending("fravaer", null, "Ferie", midnatt(6), midnatt(9), [MEG], { all_day: true }),
 ];
 
+const varsel = (kind, o, title, body, timarSidan, lest) => ({
+  id: randomUUID(), kind, title, body, event_id: kind === "fjerna_oppdrag" ? null : randomUUID(), order_id: o.id,
+  read_at: lest ? new Date(Date.now() - 30 * 60 * 1000).toISOString() : null, created_at: new Date(Date.now() - timarSidan * 60 * 60 * 1000).toISOString(),
+});
+const VARSEL = [
+  varsel("nytt_oppdrag", ORDRAR[2], `Nytt oppdrag: #${ORDRAR[2].order_no} ${ORDRAR[2].title}`, "ons. 11. nov. 08:00–11:00 · Nygårdsgaten 5, 5015 Bergen", 1, false),
+  varsel("endra_oppdrag", ORDRAR[1], `Endret oppdrag: #${ORDRAR[1].order_no} ${ORDRAR[1].title}`, "tir. 10. nov. 13:00–15:30 · Fjellveien 48, 5019 Bergen", 3, false),
+  varsel("fjerna_oppdrag", ORDRAR[5], `Du er tatt av oppdraget: #${ORDRAR[5].order_no} ${ORDRAR[5].title}`, "man. 9. nov. 09:00–12:00 · Welhavens gate 9, 5006 Bergen", 26, true),
+];
+const PUSH_TOKEN = new Set();
+
 const modus = { feil: null, forsinking: 0 };
 
 function json(res, status, body) {
@@ -185,8 +196,13 @@ const server = createServer(async (req, res) => {
 
   // --- styring -------------------------------------------------------------
   if (sti === "/__liksom") {
-    if (m === "POST") Object.assign(modus, body);
-    return json(res, 200, { modus, timer: TIMER.length, materiell: MATERIELL.length, notat: NOTAT.length, dokument: DOKUMENT.length, ordrar: ORDRAR.map((o) => ({ nr: o.order_no, status: o.status })) });
+    if (m === "POST") {
+      // {"nyttVarsel": true} legger til et ulest varsel, resten er modus.
+      const { nyttVarsel, ...rest } = body;
+      if (nyttVarsel) VARSEL.unshift(varsel("nytt_oppdrag", ORDRAR[4], `Nytt oppdrag: #${ORDRAR[4].order_no} ${ORDRAR[4].title}`, "fre. 13. nov. 09:00–14:00 · Kalfarveien 21, 5018 Bergen", 0, false));
+      Object.assign(modus, rest);
+    }
+    return json(res, 200, { modus, ulest: VARSEL.filter((v) => !v.read_at).length, pushToken: PUSH_TOKEN.size, timer: TIMER.length, materiell: MATERIELL.length, notat: NOTAT.length, dokument: DOKUMENT.length, ordrar: ORDRAR.map((o) => ({ nr: o.order_no, status: o.status })) });
   }
   if (sti === "/__bilde.svg") {
     res.writeHead(200, { "Content-Type": "image/svg+xml", "Access-Control-Allow-Origin": "*" });
@@ -213,6 +229,22 @@ const server = createServer(async (req, res) => {
   if (skriving && modus.feil) return json(res, modus.feil, { error: modus.feil >= 500 ? "Serveren er nede (liksom)." : "Avvist av serveren (liksom)." });
 
   if (sti === "/api/app/meg") return json(res, 200, { user: { ...MEG, email: epost }, company: SELSKAP, timetyper: TIMETYPER, api_version: 1 });
+
+  if (sti === "/api/app/varsel") {
+    const liste = [...VARSEL].sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+    return json(res, 200, { varsel: liste, ulest: liste.filter((v) => !v.read_at).length });
+  }
+  if (sti === "/api/app/varsel/lest" && m === "POST") {
+    const ids = Array.isArray(body.ids) ? new Set(body.ids) : null;
+    for (const v of VARSEL) if (!v.read_at && (!ids || ids.has(v.id))) v.read_at = naa();
+    return json(res, 200, { ok: true });
+  }
+  if (sti === "/api/app/push-token") {
+    if (!/^Expo(nent)?PushToken\[[^\]]{10,200}\]$/.test(body.token ?? "")) return json(res, 400, { error: "Ugyldig push-token." });
+    if (m === "POST") PUSH_TOKEN.add(body.token);
+    if (m === "DELETE") PUSH_TOKEN.delete(body.token);
+    return json(res, 200, { ok: true });
+  }
 
   if (sti === "/api/app/ordrar") {
     const rekke = { paagaar: 0, opna: 1, ferdig: 2 };

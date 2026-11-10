@@ -1,8 +1,11 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { Stack, useRouter } from "expo-router";
+import { useEffect } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Banner, Knapp, Kvittering, Laster } from "@/components/ui";
 import { ApiFeil, feilTekst } from "@/lib/api";
+import { lyttPaaPush } from "@/lib/push";
 import { useMeg } from "@/lib/sporringar";
 import { supabase } from "@/lib/supabase";
 import { farge, marg, skrift } from "@/lib/tema";
@@ -19,6 +22,15 @@ import { farge, marg, skrift } from "@/lib/tema";
 export default function AppLayout() {
   const meg = useMeg();
   const inn = useSafeAreaInsets();
+  const router = useRouter();
+  const qc = useQueryClient();
+
+  // Push kobles til først når vi vet hvem som er inne og at selskapet har ordre-modulen.
+  const klar = !!meg.data;
+  useEffect(() => {
+    if (!klar) return;
+    return lyttPaaPush(qc, (sti) => router.navigate(sti));
+  }, [klar, qc, router]);
 
   if (meg.error instanceof ApiFeil && meg.error.status === 403) {
     return (
@@ -61,6 +73,7 @@ export default function AppLayout() {
         <Stack.Screen name="ny-time" options={{ presentation: "modal", title: "Før timer" }} />
         <Stack.Screen name="ny-materiell" options={{ presentation: "modal", title: "Legg til materiell" }} />
         <Stack.Screen name="nytt-notat" options={{ presentation: "modal", title: "Nytt notat" }} />
+        <Stack.Screen name="varsler" options={{ presentation: "modal", title: "Varsler", headerLeft: () => <Avbryt tekst="Lukk" /> }} />
         <Stack.Screen
           name="bilete"
           options={{

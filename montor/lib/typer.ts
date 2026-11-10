@@ -196,3 +196,32 @@ export interface Timeforslag {
   price_item_id: string | null;
   time_type_name: string | null;
 }
+
+// --- varsler --------------------------------------------------------------
+
+export type VarselType = "nytt_oppdrag" | "endra_oppdrag" | "fjerna_oppdrag";
+
+/** GET /api/app/varsel — ett varsel. */
+export interface Varsel {
+  id: string;
+  kind: VarselType | string;
+  title: string;
+  body: string;
+  event_id: string | null;
+  order_id: string | null;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface VarselSvar {
+  varsel: Varsel[];
+  /** Antall uleste — tallet på merket. */
+  ulest: number;
+}
+
+/** data-feltet i pushen. */
+export interface PushData {
+  type?: VarselType | string;
+  event_id?: string | null;
+  order_id?: string | null;
+}

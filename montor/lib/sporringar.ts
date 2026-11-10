@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { api } from "./api";
-import type { Bilete, FilLenke, KalenderHending, MaterialEntry, Meg, OrderNote, OrderStatus, OrdreIApp, OrdreIListe, SokTreff, TimeEntry, Timeforslag } from "./typer";
+import type { Bilete, FilLenke, KalenderHending, MaterialEntry, Meg, OrderNote, OrderStatus, OrdreIApp, OrdreIListe, SokTreff, TimeEntry, Timeforslag, VarselSvar } from "./typer";
 import { useUtboksForOrdre } from "./utboks/db";
 import type { BiletePayload, MateriellPayload, NotatPayload, StatusPayload, TimePayload, UtboksRad } from "./utboks/typer";
 
@@ -18,6 +18,7 @@ export const nokler = {
   fil: (ordreId: string, docId: string) => ["fil", ordreId, docId] as const,
   kalender: (alle: boolean) => ["kalender", alle ? "alle" : "mine"] as const,
   timeforslag: ["timeforslag"] as const,
+  varsel: ["varsel"] as const,
 };
 
 export function useMeg() {
@@ -65,6 +66,42 @@ export function useTimeforslag() {
     queryKey: nokler.timeforslag,
     queryFn: async () => (await api<{ forslag: Timeforslag[] }>("/api/app/timeforslag")).forslag,
   });
+}
+
+/**
+ * Varslene til den innloggede, nyeste først, med antall uleste. Hentes på
+ * nytt hvert minutt mens appen er åpen — push kommer ikke alltid fram.
+ */
+export function useVarsel() {
+  return useQuery({
+    queryKey: nokler.varsel,
+    queryFn: () => api<VarselSvar>("/api/app/varsel?limit=50"),
+    // Alltid ferskt når appen åpnes eller kommer i forgrunnen — tallet på merket skal stemme.
+    staleTime: 0,
+    refetchInterval: 60 * 1000,
+  });
+}
+
+/**
+ * Merker varsler som lest: i lista med en gang, så på serveren. Går kallet
+ * ikke fram (ingen dekning), står de som uleste igjen ved neste henting.
+ */
+export function useMerkLest() {
+  const qc = useQueryClient();
+  return (ids: string[]) => {
+    if (!ids.length) return;
+    const lest = new Set(ids);
+    const naa = new Date().toISOString();
+    qc.setQueryData<VarselSvar>(nokler.varsel, (gammel) => {
+      if (!gammel) return gammel;
+      const varsel = gammel.varsel.map((v) => (lest.has(v.id) && !v.read_at ? { ...v, read_at: naa } : v));
+      const nyLest = gammel.varsel.filter((v) => lest.has(v.id) && !v.read_at).length;
+      return { varsel, ulest: Math.max(0, gammel.ulest - nyLest) };
+    });
+    api("/api/app/varsel/lest", { method: "POST", body: { ids } })
+      .catch(() => {})
+      .finally(() => qc.invalidateQueries({ queryKey: nokler.varsel }));
+  };
 }
 
 /** Katalogsøk. Kalleren debouncer; her bare minst to tegn. */

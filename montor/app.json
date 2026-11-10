@@ -59,7 +59,14 @@
           "resizeMode": "contain"
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/varsel-ikon.png",
+          "color": "#0071e3"
+        }
+      ]
     ],
     "extra": {
       "eas": {

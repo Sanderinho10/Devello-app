@@ -20,6 +20,17 @@ nettapp med ordre-modulen på (lokalt eller app.devello.no). Kryss av.
 - [ ] Sett opp et oppdrag i går i nettappen uten å føre timer → «Timer som ikke er ført» øverst med «Før 5 t». Trykk → «Før timer» ferdig utfylt med ordre, dato, timer og timetype. Lagre → tilbake på programmet, forslaget er borte, og Ordrer-fanen er som før.
 - [ ] Flymodus → banneret, og programmet som sist ble hentet vises.
 
+## Varsler
+
+- [ ] Programmet viser kortet «Få beskjed om nye oppdrag» første gang. Ingen systemdialog før du trykker «Slå på varsler».
+- [ ] Trykk «Slå på varsler» → systemets spørsmål → Tillat → «Varsler er slått på», og kortet forsvinner.
+- [ ] Sett deg opp på et oppdrag i nettappen (som en annen bruker enn den som er innlogget i appen) → push kommer innen sekunder, også med appen lukket.
+- [ ] Trykk på pushen → appen åpner ordren. Flytt oppdraget → ny push. Ta montøren av → push, og trykk åpner programmet.
+- [ ] Med appen åpen: pushen vises som banner, og programmet og tallet på «Varsler» oppdateres uten å dra ned.
+- [ ] «Varsler» viser alle varsler, uleste med blå prikk. Lukk lista → tallet på knappen, Program-fanen og app-ikonet går til null.
+- [ ] Si nei til varsler (eller slå av i Innstillinger) → lista viser «Varsler er slått av» med «Åpne Innstillinger». Varselet kommer da på e-post.
+- [ ] Logg ut → sett opp et oppdrag på brukeren → ingen push til telefonen (e-post i stedet).
+
 ## Ordreliste
 
 - [ ] Pågår · Åpne · Ferdige med antall. Standard Pågår; tom → Åpne.

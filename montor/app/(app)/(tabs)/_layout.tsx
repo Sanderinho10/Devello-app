@@ -1,14 +1,23 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Tabs } from "expo-router";
+import { useEffect } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { settMerke } from "@/lib/push";
+import { useVarsel } from "@/lib/sporringar";
 import { farge } from "@/lib/tema";
 import { antall, useUtboks } from "@/lib/utboks/db";
 
-/** Fanene nederst: Program · Ordrer · Meg. Merket på «Meg» er det som ligger usendt. */
+/** Fanene nederst: Program · Ordrer · Meg. Merket på «Program» er uleste varsler, på «Meg» det som ligger usendt. */
 export default function FaneLayout() {
   const n = antall(useUtboks());
   const usendt = n.venter + n.sender + n.feil;
   const inn = useSafeAreaInsets();
+  const ulest = useVarsel().data?.ulest ?? 0;
+
+  // Tallet på app-ikonet følger antall uleste varsler.
+  useEffect(() => {
+    settMerke(ulest);
+  }, [ulest]);
 
   return (
     <Tabs
@@ -26,6 +35,8 @@ export default function FaneLayout() {
         options={{
           title: "Program",
           tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? "calendar" : "calendar-outline"} size={24} color={color as string} />,
+          tabBarBadge: ulest > 0 ? ulest : undefined,
+          tabBarBadgeStyle: { backgroundColor: farge.negativ, color: farge.hvit, fontSize: 11 },
         }}
       />
       <Tabs.Screen

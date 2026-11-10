@@ -1,12 +1,13 @@
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { OfflineBanner } from "@/components/Offline";
+import { PushKort } from "@/components/PushKort";
 import { Banner, Gruppe, Ikon, Knapp, Laster, Rad, Segment, Skjermhode, Tom } from "@/components/ui";
 import { feilTekst } from "@/lib/api";
 import { dagTittel, klokke, kortDato, langDato, tidsrom, timer as fmtTimer, ukedagDato, ukedagStor } from "@/lib/format";
-import { useKalender, useTimeforslag } from "@/lib/sporringar";
-import { farge, marg, skrift, tabellTall } from "@/lib/tema";
+import { useKalender, useTimeforslag, useVarsel } from "@/lib/sporringar";
+import { farge, marg, radius, skrift, tabellTall } from "@/lib/tema";
 import type { HendingType, KalenderHending, Timeforslag } from "@/lib/typer";
 
 const TYPE_TEKST: Record<HendingType, string> = { oppdrag: "Oppdrag", mote: "Møte", fravaer: "Fravær", annet: "Annet" };
@@ -34,6 +35,8 @@ export default function Program() {
   const [visning, setVisning] = useState<Visning>("mine");
   const kalender = useKalender(visning === "alle");
   const forslag = useTimeforslag();
+  const varsel = useVarsel();
+  const ulest = varsel.data?.ulest ?? 0;
 
   // «I dag» regnes fra når data sist kom, ikke fra hver render.
   const { naa, dager } = useMemo(() => {
@@ -65,7 +68,27 @@ export default function Program() {
 
   return (
     <View style={s.fyll}>
-      <Skjermhode tittel="Program" over={langDato(naa)}>
+      <Skjermhode
+        tittel="Program"
+        over={langDato(naa)}
+        hoyre={
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={ulest ? `Varsler, ${ulest} uleste` : "Varsler"}
+            onPress={() => router.push("/varsler")}
+            hitSlop={8}
+            style={({ pressed }) => [s.varsler, pressed && s.varslerTrykket]}
+          >
+            <Ikon navn={ulest ? "notifications" : "notifications-outline"} storleik={18} farge={farge.tekst} />
+            <Text style={s.varslerTekst}>Varsler</Text>
+            {ulest ? (
+              <View style={s.varslerTal}>
+                <Text style={s.varslerTalTekst}>{ulest}</Text>
+              </View>
+            ) : null}
+          </Pressable>
+        }
+      >
         <Segment
           valg={[
             { verdi: "mine", tekst: "Mine avtaler" },
@@ -84,6 +107,7 @@ export default function Program() {
             onRefresh={() => {
               void kalender.refetch();
               void forslag.refetch();
+              void varsel.refetch();
             }}
             tintColor={farge.tekstTertiaer}
           />
@@ -91,6 +115,7 @@ export default function Program() {
       >
         <OfflineBanner />
         {kalender.error && !kalender.data ? <Banner tekst={feilTekst(kalender.error)} handling="Prøv igjen" onHandling={() => kalender.refetch()} /> : null}
+        <PushKort />
 
         {visForslag ? (
           <Gruppe tittel="Timer som ikke er ført">
@@ -217,4 +242,9 @@ const s = StyleSheet.create({
   linje: { flexDirection: "row", alignItems: "flex-start", gap: 5, marginTop: 1 },
   linjeTekst: { flex: 1 },
   beskrivelse: { fontSize: 15, color: farge.tekst, marginTop: 3, lineHeight: 20 },
+  varsler: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 40, paddingHorizontal: 14, borderRadius: radius.kapsel, backgroundColor: farge.fyll, marginBottom: 2 },
+  varslerTrykket: { backgroundColor: farge.fyllTrykket },
+  varslerTekst: { fontSize: 15, fontWeight: "600", letterSpacing: -0.1, color: farge.tekst },
+  varslerTal: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 6, backgroundColor: farge.negativ, alignItems: "center", justifyContent: "center" },
+  varslerTalTekst: { fontSize: 12, fontWeight: "700", color: farge.hvit, ...tabellTall },
 });

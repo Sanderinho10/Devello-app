@@ -1,8 +1,8 @@
 # Devello Montør
 
 Montørappen til Devello (Expo, iOS og Android). Programmet (kalenderen
-montøren er satt opp i), og tre ting på en ordre: timer, materiell og
-notater med bilder. Virker uten dekning — det som skrives legges i en utboks
+montøren er satt opp i) med varsler når det endres, og tre ting på en
+ordre: timer, materiell og notater med bilder. Virker uten dekning — det som skrives legges i en utboks
 og sendes når nettet er tilbake.
 
 API-kontrakten appen er bygd mot ligger i [`docs/api.md`](docs/api.md)
@@ -100,11 +100,41 @@ npm run liksom      # liksom-server (se under)
 npm run web         # appen i nettleseren, til forhåndsvisning
 ```
 
+## Varsler
+
+Når kontoret setter montøren på et oppdrag, flytter det eller tar ham av
+det, lagrer serveren et varsel og sender push til telefonen. Appen har to
+deler:
+
+- **Varsel-lista** («Varsler» øverst på programmet) viser alle varsler, også
+  de som ikke kom fram som push. Tallet på knappen, på Program-fanen og på
+  app-ikonet er antall uleste. Det montøren har hatt på skjermen merkes
+  lest når lista lukkes. Trykk åpner ordren, eller programmet når oppdraget
+  er tatt bort.
+- **Push** (`lib/push.ts`). Appen spør aldri om lov ved oppstart: kortet «Få
+  beskjed om nye oppdrag» på programmet har knappen «Slå på varsler», og
+  først da kommer systemets spørsmål. Tokenet meldes til serveren ved hver
+  oppstart og tas av brukeren ved utlogging. Uten token sender serveren
+  varselet på e-post i stedet.
+
+Hvor push virker:
+
+| | Push |
+| --- | --- |
+| iPhone, Expo Go | Ja |
+| Android, Expo Go | Nei — Expo Go har ikke push på Android. Lista virker. |
+| iPhone, egen build (EAS) | Ja. EAS lager push-nøkkelen hos Apple første gang du bygger. |
+| Android, egen build (EAS) | Krever Firebase: legg `google-services.json` i prosjektet (`android.googleServicesFile` i `app.json`) og last opp tjenestekontonøkkelen med `npx eas-cli@latest credentials`. |
+| Simulator, nettleser | Nei. Lista virker. |
+
+Der push ikke virker, sier kortet i varsel-lista fra, og alt annet går som
+før.
+
 ## Prøve appen uten nettappen (liksom-server)
 
 `dev/liksom-server.mjs` er Supabase Auth og API-et fra `docs/api.md` i én
-prosess, med data i minnet: seks ordrer, timer, materiell, notat, kalender og
-et timeforslag. Brukes til å se på og teste appen uten nettappen — i
+prosess, med data i minnet: seks ordrer, timer, materiell, notat, kalender,
+varsler og et timeforslag. Brukes til å se på og teste appen uten nettappen — i
 nettleseren eller på telefonen.
 
 ```sh
@@ -117,7 +147,7 @@ EXPO_PUBLIC_API_URL=http://localhost:4010 npm run web     # appen i nettleseren
 e-poster slipper inn; passordet `feil` gir feil passord, og e-posten
 `utenmodul@…` gir et selskap uten ordre-modul. `POST /__liksom` med
 `{"feil": 503}` eller `{"feil": 400}` får skrive-kallene til å feile, så
-utboksen kan prøves.
+utboksen kan prøves, og `{"nyttVarsel": true}` legger til et ulest varsel.
 
 Nettleserutgaven er bare til forhåndsvisning: sesjonen og utboksen ligger
 da i nettleserens lager (`lib/sesjonslager.web.ts`, `lib/utboks/lager.web.ts`)
@@ -155,12 +185,14 @@ app/                         expo-router — hver fil er en skjerm
   (app)/ny-materiell.tsx     modal, ?ordre=<id>: søk/skann → mengde, eller fritekst
   (app)/nytt-notat.tsx       modal, ?ordre=<id>: tekst + inntil fem bilder
   (app)/bilete.tsx           bilde i fullskjerm
+  (app)/varsler.tsx          modal: varsel-lista og «Slå på varsler»
 lib/
   api.ts                     fetch-wrapper: Bearer, 401 → refresh, tidsgrense, ApiFeil/NettFeil
   supabase.ts, sesjonslager  klient + LargeSecureStore (AES i AsyncStorage, nøkkel i SecureStore)
   sporringar.ts              react-query-hooks, og useOrdreMedUtboks (server + utboks)
   utboks/                    lager.ts (SQLite), db.ts (eierskap, kopi i minnet), planlegg.ts (ren, testet),
                              send.ts (kallene), cache.ts (svaret rett inn i lista), motor.ts (løkka)
+  push.ts                    push: lov, token til serveren, trykk på varsel → ordren (push.web.ts: ingen push)
   bilete.ts                  komprimering (1600 px, JPEG 0,75) og lagring i documentDirectory/utboks
   tema.ts, format.ts, typer.ts, haptikk.ts, kvittering.ts
 components/ui/               Knapp, Felt, Sokefelt, Gruppe/Rad, Pille, Segment/Faner, Chip, Stepper,

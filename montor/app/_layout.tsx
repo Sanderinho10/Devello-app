@@ -1,11 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
-import { QueryClient } from "@tanstack/react-query";
+import NetInfo from "@react-native-community/netinfo";
+import { focusManager, onlineManager, QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
+import { AppState, Platform } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { SesjonProvider, useSesjon } from "@/lib/sesjon";
 import { farge } from "@/lib/tema";
@@ -33,6 +35,14 @@ const queryClient = new QueryClient({
   },
 });
 settQueryClient(queryClient);
+
+// react-query vet ikke selv når en app kommer i forgrunnen eller får nett
+// igjen. Med disse to hentes det som er utdatert på nytt når montøren tar
+// opp telefonen, og når dekningen er tilbake.
+if (Platform.OS !== "web") {
+  AppState.addEventListener("change", (tilstand) => focusManager.setFocused(tilstand === "active"));
+}
+onlineManager.setEventListener((settPaa) => NetInfo.addEventListener((s) => settPaa(s.isConnected !== false)));
 
 const persister = createAsyncStoragePersister({ storage: AsyncStorage, key: "devello-montor-cache", throttleTime: 1000 });
 

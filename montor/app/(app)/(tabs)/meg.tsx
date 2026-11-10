@@ -4,6 +4,7 @@ import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Avatar, Gruppe, Ikon, Knapp, Pille, Rad, Sheet, Skjermhode, type IkonNavn } from "@/components/ui";
 import { mengde, tid, timer } from "@/lib/format";
 import { kvitter } from "@/lib/kvittering";
+import { avregistrerPush } from "@/lib/push";
 import { useMeg, useOrdrar } from "@/lib/sporringar";
 import { supabase } from "@/lib/supabase";
 import { farge, marg, skrift, tabellTall } from "@/lib/tema";
@@ -58,7 +59,11 @@ export default function Meg() {
     return o ? `#${o.order_no}` : "ordre";
   };
 
-  const loggUt = () => supabase.auth.signOut();
+  // Tokenet av brukeren først — ellers får telefonen varslene til den som logget ut.
+  const loggUt = async () => {
+    await avregistrerPush();
+    await supabase.auth.signOut();
+  };
 
   const spoerLoggUt = () => {
     const usendte = n.venter + n.sender;
