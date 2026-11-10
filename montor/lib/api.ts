@@ -79,7 +79,6 @@ export async function kall(
   }
 
   let res: Response;
-  console.log("[api]", init.method ?? "GET", sti);
   const avbryt = new AbortController();
   const tidsur = setTimeout(() => avbryt.abort(), TIDSGRENSE_MS);
   try {

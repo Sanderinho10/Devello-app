@@ -1,15 +1,16 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { useRouter } from "expo-router";
-import { useOrdreId } from "@/lib/useOrdreId";
-import { useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
-import { FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
+import { FlatList, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useErOffline } from "@/components/Offline";
-import { Banner, Chip, Felt, Knapp, Kort, Laster, Sheet, Stepper } from "@/components/ui";
+import { Banner, Chip, Felt, Gruppe, Knapp, Laster, Rad, Sheet, Sokefelt, Stepper, Tom } from "@/components/ui";
 import { feilTekst } from "@/lib/api";
-import { kroner, lesTall } from "@/lib/format";
+import { advarsel as dunkAdvarsel, lagret as dunkLagret } from "@/lib/haptikk";
+import { kroner, lesTall, mengde as fmtMengde } from "@/lib/format";
+import { kvitter } from "@/lib/kvittering";
 import { useMeg, useSok } from "@/lib/sporringar";
-import { farge, radius, skrift, tabellTall, trykk } from "@/lib/tema";
+import { farge, marg, radius, skrift, tabellTall } from "@/lib/tema";
 import type { SokTreff } from "@/lib/typer";
 import { leggTil } from "@/lib/utboks/db";
 import { kjoer } from "@/lib/utboks/motor";
@@ -18,10 +19,10 @@ const ENHETER = ["stk", "m", "kg", "l"];
 
 /**
  * Søk eller skann → treff → mengde → Legg til. Finnes ikke varen: fritekst.
- * Søket krever nett; fritekst virker alltid.
+ * Søket krever nett; fritekst virker alltid. Parameter: ordre.
  */
 export default function NyMateriell() {
-  const id = useOrdreId();
+  const { ordre: ordreId = "" } = useLocalSearchParams<{ ordre: string }>();
   const router = useRouter();
   const inn = useSafeAreaInsets();
   const meg = useMeg().data;
@@ -34,7 +35,6 @@ export default function NyMateriell() {
   const [valgt, setValgt] = useState<SokTreff | null>(null);
   const [fritekst, setFritekst] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
-  const feltRef = useRef<ComponentRef<typeof TextInput>>(null);
   const [tillatelse, beOmTillatelse] = useCameraPermissions();
 
   // 300 ms debounce på det som skrives.
@@ -64,6 +64,7 @@ export default function NyMateriell() {
   };
 
   const paaSkann = (kode: string) => {
+    dunkLagret();
     setSkanner(false);
     setValgt(null);
     setTekst(kode);
@@ -79,7 +80,7 @@ export default function NyMateriell() {
   const leggTilFraKatalog = async (vare: SokTreff, mengde: number) => {
     const kost = vare.net_price_per_unit ?? vare.list_price_per_unit;
     await leggTil({
-      ordre_id: id,
+      ordre_id: ordreId,
       type: "materiell",
       payload: {
         supplier_item_id: vare.id,
@@ -95,11 +96,12 @@ export default function NyMateriell() {
     });
     kjoer();
     router.back();
+    kvitter(`${fmtMengde(mengde, vare.unit)} lagt til`);
   };
 
   const leggTilFritekst = async (navn: string, mengde: number, enhet: string, kostpris: number | null) => {
     await leggTil({
-      ordre_id: id,
+      ordre_id: ordreId,
       type: "materiell",
       payload: {
         supplier_item_id: null,
@@ -116,21 +118,17 @@ export default function NyMateriell() {
     });
     kjoer();
     router.back();
+    kvitter(`${fmtMengde(mengde, enhet)} lagt til`);
   };
 
   if (skanner) {
     return (
       <View style={s.kamera}>
-        <CameraView
-          style={StyleSheet.absoluteFill}
-          facing="back"
-          barcodeScannerSettings={{ barcodeTypes: ["ean13", "ean8"] }}
-          onBarcodeScanned={(r) => paaSkann(r.data)}
-        />
+        <CameraView style={StyleSheet.absoluteFill} facing="back" barcodeScannerSettings={{ barcodeTypes: ["ean13", "ean8"] }} onBarcodeScanned={(r) => paaSkann(r.data)} />
         <View style={s.ramme} pointerEvents="none" />
         <Text style={s.kameraTekst}>Hold strekkoden i rammen</Text>
         <View style={[s.kameraBunn, { paddingBottom: Math.max(inn.bottom, 16) }]}>
-          <Knapp tekst="Avbryt" variant="sekundaer" stor onPress={() => setSkanner(false)} />
+          <Knapp tekst="Avbryt" variant="sekundaer" stor onPress={() => setSkanner(false)} style={s.kameraKnapp} />
         </View>
       </View>
     );
@@ -140,50 +138,54 @@ export default function NyMateriell() {
     return <Fritekst onLagre={leggTilFritekst} onAvbryt={() => setFritekst(false)} startNavn={/^\d+$/.test(tekst) ? "" : tekst} />;
   }
 
-  const ingenTreff = sporring.length >= 2 && sok.isSuccess && treff.length === 0;
+  const ingenTreff = sporring.trim().length >= 2 && sok.isSuccess && treff.length === 0;
+  const tomt = sporring.trim().length < 2;
 
   return (
     <View style={s.fyll}>
       <View style={s.topp}>
         <View style={s.sokRad}>
           <View style={s.sokFelt}>
-            <Felt
-              ref={feltRef}
+            <Sokefelt
               autoFocus
-              placeholder="Søk på navn, elnummer eller EAN"
+              placeholder="Navn, elnummer eller EAN"
               value={tekst}
               onChangeText={(t) => {
                 setSkannet(null);
                 setTekst(t);
               }}
-              autoCorrect={false}
-              clearButtonMode="while-editing"
             />
           </View>
-          <Pressable accessibilityRole="button" onPress={startSkann} style={({ pressed }) => [s.skann, pressed && s.trykket]}>
-            <Text style={s.skannTekst}>Skann</Text>
-          </Pressable>
+          <Knapp tekst="Skann" ikon="barcode-outline" onPress={startSkann} />
         </View>
-        {offline ? <Banner slag="advarsel" tekst="Søk krever nett — fritekst virker." /> : null}
+        {offline ? <Banner slag="advarsel" tekst="Søk krever nett — skriv varen inn i stedet." handling="Skriv inn" onHandling={() => setFritekst(true)} /> : null}
         {feil ? <Banner tekst={feil} /> : null}
         {sok.error ? <Banner tekst={feilTekst(sok.error)} /> : null}
-        {ingenTreff ? <Banner slag="info" tekst="Fant ikke varen — skriv den inn" handling="Skriv inn" onHandling={() => setFritekst(true)} /> : null}
       </View>
 
       {sok.isFetching && !treff.length ? (
         <Laster />
       ) : (
         <FlatList
-          data={treff}
-          keyExtractor={(v) => v.id}
+          data={treff.length ? [treff] : []}
+          keyExtractor={() => "treff"}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={s.liste}
-          renderItem={({ item }) => <Treff vare={item} paaslag={meg?.company.materials_markup_pct ?? 0} onPress={() => setValgt(item)} />}
-          ListFooterComponent={
-            <Pressable onPress={() => setFritekst(true)} style={s.fritekstLenke}>
-              <Text style={s.fritekstTekst}>Fant du ikke varen? Skriv den inn</Text>
-            </Pressable>
+          renderItem={({ item }) => (
+            <Gruppe>
+              {item.map((v) => (
+                <Treff key={v.id} vare={v} onPress={() => setValgt(v)} />
+              ))}
+            </Gruppe>
+          )}
+          ListEmptyComponent={
+            ingenTreff ? (
+              <Tom ikon="search-outline" tekst="Fant ikke varen" under="Skriv den inn, så setter kontoret prisen." />
+            ) : tomt && !offline ? (
+              <Tom ikon="barcode-outline" tekst="Søk i katalogen" under="Skriv minst to tegn, eller skann strekkoden på varen." />
+            ) : undefined
           }
+          ListFooterComponent={<Knapp tekst={ingenTreff ? "Skriv varen inn" : "Fant du ikke varen? Skriv den inn"} variant={ingenTreff ? "primaer" : "lenke"} onPress={() => setFritekst(true)} style={s.fritekst} />}
         />
       )}
 
@@ -192,23 +194,18 @@ export default function NyMateriell() {
   );
 }
 
-function Treff({ vare, paaslag, onPress }: { vare: SokTreff; paaslag: number; onPress: () => void }) {
+function Treff({ vare, onPress }: { vare: SokTreff; onPress: () => void }) {
   const kost = vare.net_price_per_unit ?? vare.list_price_per_unit;
   return (
-    <Kort onPress={onPress}>
-      <Text style={s.grossist}>{vare.supplier_name}</Text>
-      <Text style={s.varenavn} numberOfLines={2}>
-        <Text style={s.elnr}>{vare.item_no}</Text> · {vare.name}
+    <Rad onPress={onPress} pil hoyre={<Text style={s.pris}>{kroner(kost, vare.unit)}</Text>}>
+      <Text style={skrift.overskrift} numberOfLines={2}>
+        {vare.name}
       </Text>
-      <View style={s.rad}>
-        <Text style={s.enhet}>per {vare.unit}</Text>
-        <Text style={s.pris}>
-          {kroner(kost, vare.unit)}
-          {vare.net_price_per_unit === null ? " (liste)" : ""}
-        </Text>
-      </View>
-      {paaslag ? <Text style={s.salg}>Salg {kroner(kost * (1 + paaslag / 100), vare.unit)}</Text> : null}
-    </Kort>
+      <Text style={[skrift.under, tabellTall]}>
+        {vare.item_no} · {vare.supplier_name}
+        {vare.net_price_per_unit === null ? " · listepris" : ""}
+      </Text>
+    </Rad>
   );
 }
 
@@ -216,13 +213,11 @@ function MengdeArk({ vare, onLukk, onLeggTil }: { vare: SokTreff | null; onLukk:
   // Nøkkelen på komponenten (vare-id) nullstiller mengden når en ny vare velges.
   const [mengde, setMengde] = useState(1);
   const [lagrer, setLagrer] = useState(false);
+  const kost = vare ? (vare.net_price_per_unit ?? vare.list_price_per_unit) : 0;
   return (
-    <Sheet synlig={!!vare} onLukk={onLukk} tittel={vare?.name}>
+    <Sheet synlig={!!vare} onLukk={onLukk} tittel={vare?.name} under={vare ? `${vare.item_no} · ${vare.supplier_name} · ${kroner(kost, vare.unit)}` : ""}>
       {vare ? (
         <>
-          <Text style={s.arkUnder}>
-            {vare.item_no} · {vare.supplier_name}
-          </Text>
           <Stepper verdi={mengde} onChange={setMengde} steg={1} enhet={vare.unit} />
           <Knapp
             tekst="Legg til"
@@ -231,7 +226,12 @@ function MengdeArk({ vare, onLukk, onLeggTil }: { vare: SokTreff | null; onLukk:
             deaktivert={mengde <= 0}
             onPress={async () => {
               setLagrer(true);
-              await onLeggTil(vare, mengde);
+              try {
+                await onLeggTil(vare, mengde);
+              } catch {
+                dunkAdvarsel();
+                setLagrer(false);
+              }
             }}
           />
         </>
@@ -258,34 +258,36 @@ function Fritekst({
   const [lagrer, setLagrer] = useState(false);
 
   const lagre = async () => {
-    if (!navn.trim()) {
-      setFeil("Skriv hva varen er.");
-      return;
-    }
-    if (mengde <= 0) {
-      setFeil("Mengden må være større enn 0.");
-      return;
-    }
+    if (!navn.trim()) return setFeil("Skriv hva varen er.");
+    if (mengde <= 0) return setFeil("Mengden må være større enn 0.");
     const kost = pris.trim() ? lesTall(pris) : null;
-    if (pris.trim() && kost === null) {
-      setFeil("Prisen må være et tall.");
-      return;
-    }
+    if (pris.trim() && kost === null) return setFeil("Prisen må være et tall.");
     setLagrer(true);
-    await onLagre(navn.trim(), mengde, enhet, kost);
+    try {
+      await onLagre(navn.trim(), mengde, enhet, kost);
+    } catch (e) {
+      setFeil(e instanceof Error ? e.message : "Kunne ikke lagre.");
+      setLagrer(false);
+    }
   };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={s.fyll}>
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={64} style={s.fyll}>
       <ScrollView contentContainerStyle={s.innhold} keyboardShouldPersistTaps="handled">
         {feil ? <Banner tekst={feil} /> : null}
         <Felt etikett="Vare" autoFocus value={navn} onChangeText={setNavn} placeholder="F.eks. Diverse festemateriell" />
-        <Text style={s.etikett}>Mengde</Text>
-        <Stepper verdi={mengde} onChange={setMengde} steg={1} enhet={enhet} />
-        <View style={s.chips}>
-          {ENHETER.map((e) => (
-            <Chip key={e} tekst={e} valgt={enhet === e} onPress={() => setEnhet(e)} />
-          ))}
+        <View style={s.del}>
+          <Text style={skrift.etikett}>Mengde</Text>
+          <View style={s.tallKort}>
+            <Stepper verdi={mengde} onChange={setMengde} steg={1} enhet={enhet} />
+            <View style={s.enheter}>
+              {ENHETER.map((e) => (
+                <View key={e} style={s.enhet}>
+                  <Chip tekst={e} valgt={enhet === e} onPress={() => setEnhet(e)} />
+                </View>
+              ))}
+            </View>
+          </View>
         </View>
         <Felt etikett="Kostpris per enhet (valgfritt)" value={pris} onChangeText={setPris} keyboardType="decimal-pad" placeholder="kr" />
       </ScrollView>
@@ -299,29 +301,21 @@ function Fritekst({
 
 const s = StyleSheet.create({
   fyll: { flex: 1, backgroundColor: farge.bakgrunn },
-  topp: { padding: 16, gap: 10 },
-  sokRad: { flexDirection: "row", gap: 8, alignItems: "flex-end" },
+  topp: { paddingHorizontal: marg, paddingTop: 8, paddingBottom: 6, gap: 10 },
+  sokRad: { flexDirection: "row", gap: 8, alignItems: "center" },
   sokFelt: { flex: 1 },
-  skann: { minHeight: trykk.minste, paddingHorizontal: 18, borderRadius: radius.md, backgroundColor: farge.aksent, alignItems: "center", justifyContent: "center" },
-  trykket: { opacity: 0.8 },
-  skannTekst: { color: farge.hvit, fontSize: skrift.normal, fontWeight: "700" },
-  liste: { paddingHorizontal: 16, gap: 10, paddingBottom: 32 },
-  grossist: { fontSize: skrift.liten, color: farge.tekstSekundaer },
-  varenavn: { fontSize: skrift.normal, fontWeight: "600", color: farge.tekst, marginTop: 2 },
-  elnr: { color: farge.tekstSekundaer, ...tabellTall },
-  rad: { flexDirection: "row", justifyContent: "space-between", marginTop: 6 },
-  enhet: { fontSize: skrift.liten, color: farge.tekstSekundaer },
-  pris: { fontSize: skrift.normal, fontWeight: "600", color: farge.tekst, ...tabellTall },
-  salg: { fontSize: skrift.liten, color: farge.tekstSekundaer, marginTop: 2, ...tabellTall },
-  fritekstLenke: { minHeight: trykk.primaer, alignItems: "center", justifyContent: "center", marginTop: 8 },
-  fritekstTekst: { fontSize: skrift.normal, fontWeight: "600", color: farge.aksent },
-  arkUnder: { fontSize: skrift.normal, color: farge.tekstSekundaer, marginTop: -8 },
-  innhold: { padding: 16, gap: 12 },
-  etikett: { fontSize: skrift.liten, fontWeight: "600", color: farge.tekstSekundaer, textTransform: "uppercase", letterSpacing: 0.4 },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  bunn: { paddingHorizontal: 16, paddingTop: 10, gap: 4, backgroundColor: farge.bakgrunn, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: farge.kant },
+  liste: { paddingHorizontal: marg, paddingTop: 6, paddingBottom: 32, gap: 8 },
+  pris: { fontSize: 15, fontWeight: "500", color: farge.tekstSekundaer, ...tabellTall },
+  fritekst: { marginTop: 8, alignSelf: "center" },
+  innhold: { paddingHorizontal: marg, paddingTop: 8, paddingBottom: 24, gap: 20 },
+  del: { gap: 8 },
+  tallKort: { backgroundColor: farge.flate, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: farge.kant, padding: 14, gap: 14 },
+  enheter: { flexDirection: "row", gap: 8 },
+  enhet: { flex: 1 },
+  bunn: { paddingHorizontal: marg, paddingTop: 10, gap: 2, backgroundColor: farge.bakgrunn, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: farge.kantSterk },
   kamera: { flex: 1, backgroundColor: "#000", justifyContent: "flex-end" },
-  ramme: { position: "absolute", top: "30%", left: "10%", right: "10%", height: 160, borderWidth: 3, borderColor: farge.hvit, borderRadius: radius.md },
-  kameraTekst: { position: "absolute", top: "30%", left: 0, right: 0, marginTop: 176, textAlign: "center", color: farge.hvit, fontSize: skrift.stor, fontWeight: "600" },
-  kameraBunn: { padding: 16 },
+  ramme: { position: "absolute", top: "28%", left: "8%", right: "8%", height: 170, borderWidth: 3, borderColor: farge.hvit, borderRadius: radius.xl },
+  kameraTekst: { position: "absolute", top: "28%", left: 0, right: 0, marginTop: 188, textAlign: "center", color: farge.hvit, fontSize: 17, fontWeight: "600" },
+  kameraBunn: { padding: marg },
+  kameraKnapp: { backgroundColor: "rgba(255,255,255,0.92)" },
 });

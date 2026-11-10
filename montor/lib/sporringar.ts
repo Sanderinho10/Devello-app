@@ -129,7 +129,12 @@ export function useOrdreMedUtboks(id: string) {
   const sammenslaatt = useMemo<OrdreMedUtboks>(() => {
     const bruker = meg?.user;
     const navn = bruker?.full_name || bruker?.email || "Meg";
-    const nyest = [...utboks].reverse();
+    // Rader serveren alt har (samme client_id) vises én gang — fra serveren.
+    const paaServer = new Set<string>();
+    for (const liste of [data?.timer, data?.materiell, data?.notat]) {
+      for (const r of liste ?? []) if (r.client_id) paaServer.add(r.client_id);
+    }
+    const nyest = [...utboks].reverse().filter((r) => r.type === "bilete" || r.type === "status" || !paaServer.has(r.client_id));
 
     const timer: TimeRad[] = nyest
       .filter((r) => r.type === "time")

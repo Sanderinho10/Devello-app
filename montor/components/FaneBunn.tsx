@@ -1,27 +1,23 @@
 import { StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Knapp } from "@/components/ui";
-import { farge } from "@/lib/tema";
+import { Knapp, type IkonNavn } from "@/components/ui";
+import { farge, marg } from "@/lib/tema";
 
-/** Den store, faste knappen nederst i en fane. */
-export function FaneBunn({ tekst, onPress }: { tekst: string; onPress: () => void }) {
-  const inn = useSafeAreaInsets();
+/** Den store, faste knappen nederst i en fane på ordren. */
+export function FaneBunn({ tekst, ikon = "add", onPress }: { tekst: string; ikon?: IkonNavn; onPress: () => void }) {
   return (
-    <View style={[s.bunn, { paddingBottom: Math.max(inn.bottom, 12) }]}>
-      <Knapp tekst={tekst} onPress={onPress} stor />
+    <View style={s.bunn}>
+      <Knapp tekst={tekst} ikon={ikon} onPress={onPress} stor />
     </View>
   );
 }
 
 const s = StyleSheet.create({
   bunn: {
-    paddingHorizontal: 16,
+    paddingHorizontal: marg,
     paddingTop: 10,
+    paddingBottom: 10,
     backgroundColor: farge.bakgrunn,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: farge.kant,
+    borderTopColor: farge.kantSterk,
   },
 });
-
-/** Plass nederst i lista så den siste raden ikke ligger under knappen. */
-export const BUNN_PLASS = 24;

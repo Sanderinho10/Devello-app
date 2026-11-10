@@ -20,6 +20,7 @@ function rad(deler: Partial<UtboksRad> = {}): UtboksRad {
     laga_kl: new Date(no.getTime() - 60_000 + id * 1000).toISOString(),
     neste_forsok_kl: null,
     server_id: null,
+    bruker_id: "u1",
     ...deler,
   };
 }

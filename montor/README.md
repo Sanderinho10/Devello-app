@@ -11,7 +11,12 @@ build gis ut: [`docs/testsjekkliste.md`](docs/testsjekkliste.md).
 
 ## Kjøre lokalt
 
-Expo Go holder ikke: kamera, SQLite og SecureStore krever en development
+Raskest: Expo Go fra App Store / Google Play, `npx expo start --tunnel`, og
+skann QR-koden. Expo Go følger alltid nyeste Expo SDK, så prosjektet må
+være på samme SDK (nå 58) — sier Expo Go at prosjektet er for gammelt, må
+SDK-en oppgraderes.
+
+For egen app på telefonen (eget ikon, uten Expo Go) trengs en development
 build. Én gang per telefon:
 
 ```sh
@@ -88,29 +93,79 @@ Alternativt TestFlight: `--profile production` og `npx eas-cli@latest submit`.
 
 ```sh
 npm run typecheck   # tsc --noEmit
-npm test            # jest: utboks-planleggeren og formatering
+npm run lint        # expo lint
+npm test            # jest: utboks-planleggeren, svar-til-liste og formatering
 npm start           # expo start
+npm run liksom      # liksom-server (se under)
+npm run web         # appen i nettleseren, til forhåndsvisning
 ```
+
+## Prøve appen uten nettappen (liksom-server)
+
+`dev/liksom-server.mjs` er Supabase Auth og API-et fra `docs/api.md` i én
+prosess, med data i minnet: seks ordrer, timer, materiell, notat, kalender og
+et timeforslag. Brukes til å se på og teste appen uten nettappen — i
+nettleseren eller på telefonen.
+
+```sh
+npm run liksom                     # liksom-server på port 4010
+EXPO_PUBLIC_SUPABASE_URL=http://localhost:4010 EXPO_PUBLIC_SUPABASE_ANON_KEY=liksom \
+EXPO_PUBLIC_API_URL=http://localhost:4010 npm run web     # appen i nettleseren
+```
+
+(PowerShell: sett de tre variablene med `$env:NAVN="verdi"` først.) Alle
+e-poster slipper inn; passordet `feil` gir feil passord, og e-posten
+`utenmodul@…` gir et selskap uten ordre-modul. `POST /__liksom` med
+`{"feil": 503}` eller `{"feil": 400}` får skrive-kallene til å feile, så
+utboksen kan prøves.
+
+Nettleserutgaven er bare til forhåndsvisning: sesjonen og utboksen ligger
+da i nettleserens lager (`lib/sesjonslager.web.ts`, `lib/utboks/lager.web.ts`)
+i stedet for Keychain og SQLite, og kamera og bilder virker ikke som på
+telefonen.
+
+## Design
+
+Samme designsystem som nettappen (`Devello-app/src/app/globals.css`), med
+tokenene i `lib/tema.ts`. Form og farger er Apple: systemskriften, stram
+bokstavavstand på titler, kapselknapper, grupperte lister, én blå aksent, og
+grønt, oransje og rødt bare der noe skal sies. Oppsettet er lånt fra
+PowerOffice Go: tette lister, understrekede faner på ordren, tall i
+kolonner. Reglene som gjelder hele appen:
+
+- Minste trykkflate 48 pt. Skjermens hovedhandling er én blå kapselknapp,
+  54 pt høy, nederst. Andre handlinger er grå eller lys blå.
+- Ikoner står alltid sammen med tekst. Tall står i `tabular-nums`.
+- Feil vises i et banner på skjermen, aldri i `Alert` (Alert bare for
+  «Merk som ferdig?» og «Logg ut med usendte?»).
+- Det som lagres kvitteres øverst («7,5 t lagret») og med et dunk i fingeren.
 
 ## Struktur
 
 ```
-app/                    expo-router — hver fil er en skjerm
-  _layout.tsx           react-query + persister, sesjon, utboks-motor
-  index.tsx             innlogging (rotsiden når ingen er innlogget)
-  (app)/_layout.tsx     Tabs: Program · Ordrer · Meg (+ skjerm for selskap uten ordre-modul)
-  (app)/program.tsx     kalenderen (i dag + 14 dager) og timeforslag → «Før timer» ferdig utfylt
-  (app)/ordrer/         liste og én ordre (hode + faner Timer · Materiell · Notater)
-  (app)/ordrer/[id]/    ny-time, ny-materiell, nytt-notat (modaler), bilete/[docId]
-  (app)/meg.tsx         navn, selskap, utboks, logg ut
+app/                         expo-router — hver fil er en skjerm
+  _layout.tsx                react-query + persister, sesjon, utboks-motor
+  logg-inn.tsx
+  (app)/_layout.tsx          stack: fanene nederst, skjemaene som modaler over hele appen
+  (app)/(tabs)/_layout.tsx   Program · Ordrer · Meg (merket på Meg = usendt i utboksen)
+  (app)/(tabs)/index.tsx     programmet (i dag + 14 dager) og timeforslag
+  (app)/(tabs)/ordrer/       ordrelista, og én ordre: hode + fanene Timer · Materiell · Notater
+  (app)/(tabs)/meg.tsx       hvem som er innlogget, utboksen, logg ut
+  (app)/ny-time.tsx          modal, ?ordre=<id> (+ dato, timar, timetype fra et timeforslag)
+  (app)/ny-materiell.tsx     modal, ?ordre=<id>: søk/skann → mengde, eller fritekst
+  (app)/nytt-notat.tsx       modal, ?ordre=<id>: tekst + inntil fem bilder
+  (app)/bilete.tsx           bilde i fullskjerm
 lib/
-  api.ts                fetch-wrapper: Bearer, 401 → refresh, ApiFeil/NettFeil
-  supabase.ts           klient + LargeSecureStore (AES i AsyncStorage, nøkkel i SecureStore)
-  sporringar.ts         react-query-hooks (meg, ordrar, ordre, kalender, timeforslag, søk), useOrdreMedUtboks
-  utboks/               db.ts (SQLite), planlegg.ts (ren planlegger, testet), motor.ts (sender)
-  bilete.ts             komprimering (1600 px, JPEG 0,75) og lagring i documentDirectory/utboks
-  format.ts, tema.ts, typer.ts
-components/ui/          Knapp, Felt, Kort, Stepper, Sheet, Banner, Chip, Segment, Merke
+  api.ts                     fetch-wrapper: Bearer, 401 → refresh, tidsgrense, ApiFeil/NettFeil
+  supabase.ts, sesjonslager  klient + LargeSecureStore (AES i AsyncStorage, nøkkel i SecureStore)
+  sporringar.ts              react-query-hooks, og useOrdreMedUtboks (server + utboks)
+  utboks/                    lager.ts (SQLite), db.ts (eierskap, kopi i minnet), planlegg.ts (ren, testet),
+                             send.ts (kallene), cache.ts (svaret rett inn i lista), motor.ts (løkka)
+  bilete.ts                  komprimering (1600 px, JPEG 0,75) og lagring i documentDirectory/utboks
+  tema.ts, format.ts, typer.ts, haptikk.ts, kvittering.ts
+components/ui/               Knapp, Felt, Sokefelt, Gruppe/Rad, Pille, Segment/Faner, Chip, Stepper,
+                             Sheet, Banner, Skjermhode, Kvittering, Avatar, Ikon
+dev/liksom-server.mjs        liksom-server til forhåndsvisning og testing
 ```
 
 ## Utboksen — reglene
@@ -123,5 +178,9 @@ components/ui/          Knapp, Felt, Kort, Stepper, Sheet, Banner, Chip, Segment
 - Nettverksfeil, 5xx og 429 → prøv igjen med backoff (2, 4, 8 … maks 300 s).
   400/403/404 → «Feilet» med serverens melding; montøren velger «Prøv igjen»
   eller «Slett» under Meg. 401 → forny token, ellers logg ut.
-- Rader i utboksen vises i fanene med «Sendes …»/«Feilet». Logg ut sletter
-  ikke utboksen.
+- Rader i utboksen vises i fanene med «Sendes …»/«Feilet». Når serveren har
+  svart, legges svaret rett inn i lista, så raden ikke blinker bort mens
+  ordren hentes på nytt.
+- Hver rad eies av den som skrev den. Logg ut sletter ikke utboksen, og
+  logger en annen inn på samme telefon, blir radene liggende til eieren er
+  tilbake — de sendes aldri med en annens token.

@@ -1,12 +1,12 @@
 import * as ImagePicker from "expo-image-picker";
-import { useRouter } from "expo-router";
-import { useOrdreId } from "@/lib/useOrdreId";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Banner, Felt, Knapp } from "@/components/ui";
 import { komprimerOgLagre, slettLokalt, type LagretBilete } from "@/lib/bilete";
-import { farge, radius, skrift } from "@/lib/tema";
+import { kvitter } from "@/lib/kvittering";
+import { farge, marg, radius, skrift } from "@/lib/tema";
 import { leggTil, nyClientId } from "@/lib/utboks/db";
 import { kjoer } from "@/lib/utboks/motor";
 
@@ -14,10 +14,10 @@ const MAKS_BILDER = 5;
 
 /**
  * Tekst + inntil fem bilder. Lagre → ett utboks-element for notatet og ett
- * per bilde (som venter til notatet er sendt).
+ * per bilde (som venter til notatet er sendt). Parameter: ordre.
  */
 export default function NyttNotat() {
-  const id = useOrdreId();
+  const { ordre: ordreId = "" } = useLocalSearchParams<{ ordre: string }>();
   const router = useRouter();
   const inn = useSafeAreaInsets();
   const [tekst, setTekst] = useState("");
@@ -72,22 +72,16 @@ export default function NyttNotat() {
 
   const lagre = async () => {
     const t = tekst.trim();
-    if (!t) {
-      setFeil("Skriv noe i notatet.");
-      return;
-    }
-    if (t.length > 4000) {
-      setFeil("Notatet kan ha høyst 4000 tegn.");
-      return;
-    }
+    if (!t) return setFeil(bilder.length ? "Skriv en linje om hva bildene viser." : "Skriv noe i notatet.");
+    if (t.length > 4000) return setFeil("Notatet kan ha høyst 4000 tegn.");
     setJobber(true);
     try {
       const notatId = nyClientId();
-      await leggTil({ ordre_id: id, type: "notat", payload: { text: t }, client_id: notatId });
+      await leggTil({ ordre_id: ordreId, type: "notat", payload: { text: t }, client_id: notatId });
       const tittel = t.slice(0, 40) || "Bilde";
       for (const b of bilder) {
         await leggTil({
-          ordre_id: id,
+          ordre_id: ordreId,
           type: "bilete",
           payload: { title: tittel, file_name: b.filnavn, mime: b.mime, note_id: null },
           fil_sti: b.uri,
@@ -96,36 +90,37 @@ export default function NyttNotat() {
       }
       kjoer();
       router.back();
+      kvitter("Notatet er lagret");
     } catch (e) {
       setFeil(e instanceof Error ? e.message : "Kunne ikke lagre.");
       setJobber(false);
     }
   };
 
+  const fullt = bilder.length >= MAKS_BILDER;
+
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={s.fyll}>
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={64} style={s.fyll}>
       <ScrollView contentContainerStyle={s.innhold} keyboardShouldPersistTaps="handled">
         {feil ? <Banner tekst={feil} /> : null}
         <Felt autoFocus multiline value={tekst} onChangeText={setTekst} placeholder="Skriv notatet her" style={s.tekstfelt} />
         <View style={s.knapper}>
-          <Knapp tekst="Ta bilde" variant="sekundaer" onPress={taBilde} deaktivert={bilder.length >= MAKS_BILDER} style={s.halv} />
-          <Knapp tekst="Velg bilde" variant="sekundaer" onPress={velgBilde} deaktivert={bilder.length >= MAKS_BILDER} style={s.halv} />
+          <Knapp tekst="Ta bilde" ikon="camera-outline" variant="sekundaer" onPress={taBilde} deaktivert={fullt} style={s.halv} />
+          <Knapp tekst="Velg bilde" ikon="images-outline" variant="sekundaer" onPress={velgBilde} deaktivert={fullt} style={s.halv} />
         </View>
         {bilder.length ? (
           <View style={s.bilder}>
             {bilder.map((b) => (
               <View key={b.uri} style={s.miniWrap}>
                 <Image source={{ uri: b.uri }} style={s.mini} />
-                <Pressable accessibilityLabel="Fjern bildet" onPress={() => fjern(b.uri)} style={s.fjern} hitSlop={8}>
+                <Pressable accessibilityRole="button" accessibilityLabel="Fjern bildet" onPress={() => fjern(b.uri)} style={s.fjern} hitSlop={10}>
                   <Text style={s.fjernTekst}>×</Text>
                 </Pressable>
               </View>
             ))}
           </View>
         ) : null}
-        <Text style={s.hint}>
-          {bilder.length} av {MAKS_BILDER} bilder
-        </Text>
+        <Text style={skrift.liten}>{bilder.length ? `${bilder.length} av ${MAKS_BILDER} bilder` : `Inntil ${MAKS_BILDER} bilder. De sendes når du har dekning.`}</Text>
       </ScrollView>
       <View style={[s.bunn, { paddingBottom: Math.max(inn.bottom, 12) }]}>
         <Knapp tekst="Lagre" stor onPress={lagre} laster={jobber} />
@@ -136,15 +131,14 @@ export default function NyttNotat() {
 
 const s = StyleSheet.create({
   fyll: { flex: 1, backgroundColor: farge.bakgrunn },
-  innhold: { padding: 16, gap: 12 },
-  tekstfelt: { minHeight: 160 },
+  innhold: { paddingHorizontal: marg, paddingTop: 8, paddingBottom: 24, gap: 12 },
+  tekstfelt: { minHeight: 150 },
   knapper: { flexDirection: "row", gap: 8 },
   halv: { flex: 1 },
-  bilder: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  bilder: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 4 },
   miniWrap: { width: 96, height: 96 },
-  mini: { width: 96, height: 96, borderRadius: radius.sm, backgroundColor: farge.kant },
+  mini: { width: 96, height: 96, borderRadius: radius.md, backgroundColor: farge.fyll },
   fjern: { position: "absolute", top: -8, right: -8, width: 28, height: 28, borderRadius: 14, backgroundColor: farge.tekst, alignItems: "center", justifyContent: "center" },
   fjernTekst: { color: farge.hvit, fontSize: 18, lineHeight: 20, fontWeight: "700" },
-  hint: { fontSize: skrift.liten, color: farge.tekstTertiaer },
-  bunn: { paddingHorizontal: 16, paddingTop: 10, backgroundColor: farge.bakgrunn, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: farge.kant },
+  bunn: { paddingHorizontal: marg, paddingTop: 10, backgroundColor: farge.bakgrunn, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: farge.kantSterk },
 });

@@ -24,7 +24,7 @@
         "android.permission.CAMERA"
       ],
       "adaptiveIcon": {
-        "backgroundColor": "#0071e3",
+        "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/android-ikon-forgrunn.png"
       },
       "edgeToEdgeEnabled": true,
@@ -54,11 +54,12 @@
         "expo-splash-screen",
         {
           "image": "./assets/splash.png",
-          "imageWidth": 160,
+          "imageWidth": 96,
           "backgroundColor": "#f5f5f7",
           "resizeMode": "contain"
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "eas": {
@@ -66,6 +67,10 @@
       },
       "router": {}
     },
-    "owner": "sandersol"
+    "owner": "sandersol",
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    }
   }
 }

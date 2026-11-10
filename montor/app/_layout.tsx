@@ -9,12 +9,14 @@ import { useEffect } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { SesjonProvider, useSesjon } from "@/lib/sesjon";
 import { farge } from "@/lib/tema";
+import { settBruker } from "@/lib/utboks/db";
 import { settQueryClient, startMotor } from "@/lib/utboks/motor";
 
 /**
  * Root: react-query med persister (ordreliste og ordre vises offline),
- * Supabase-sesjon, og utboks-motoren. Innlogget → (app), ellers index
- * (innloggingen). Guardene bytter selv når sesjonen kommer eller går.
+ * Supabase-sesjon, og utboks-motoren. Innlogget → (app), der «/» er
+ * programmet. Ellers /logg-inn. Guardene bytter selv når sesjonen kommer
+ * eller går.
  */
 
 const SJU_DAGAR = 7 * 24 * 60 * 60 * 1000;
@@ -36,6 +38,9 @@ const persister = createAsyncStoragePersister({ storage: AsyncStorage, key: "dev
 
 // Hold splashen til sesjonen er lest, så innloggingen ikke blinker forbi
 // for en som alt er innlogget. Aldri lenger enn to sekunder.
+/** Hvem som sist var inne i denne app-økta. undefined = ingen ennå (kald start beholder lagret data). */
+let sisteBruker: string | null | undefined;
+
 SplashScreen.preventAutoHideAsync().catch(() => {});
 setTimeout(() => SplashScreen.hideAsync().catch(() => {}), 2000);
 
@@ -59,10 +64,25 @@ function Navigasjon() {
     if (klar) SplashScreen.hideAsync().catch(() => {});
   }, [klar]);
 
+  // Ny bruker (eller ingen): det som lå i minnet tilhørte den forrige. Tøm
+  // det, pek utboksen på riktig eier, og start motoren for den som er inne.
+  const brukerId = sesjon?.user.id ?? null;
   useEffect(() => {
-    if (!sesjon) return;
-    return startMotor();
-  }, [sesjon]);
+    if (!klar) return; // lagret sesjon er ikke lest ennå — vi vet ikke hvem som er inne
+    let stopp: (() => void) | undefined;
+    let avbrutt = false;
+    if (sisteBruker !== brukerId) {
+      if (sisteBruker !== undefined) queryClient.clear();
+      sisteBruker = brukerId;
+    }
+    settBruker(brukerId).then(() => {
+      if (!avbrutt && brukerId) stopp = startMotor();
+    });
+    return () => {
+      avbrutt = true;
+      stopp?.();
+    };
+  }, [klar, brukerId]);
 
   if (!klar) return null;
 
@@ -72,7 +92,7 @@ function Navigasjon() {
         <Stack.Screen name="(app)" />
       </Stack.Protected>
       <Stack.Protected guard={!sesjon}>
-        <Stack.Screen name="index" />
+        <Stack.Screen name="logg-inn" />
       </Stack.Protected>
     </Stack>
   );

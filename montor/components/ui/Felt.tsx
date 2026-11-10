@@ -1,4 +1,4 @@
-import type { ComponentRef, Ref } from "react";
+import { useState, type ComponentRef, type Ref } from "react";
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from "react-native";
 import { farge, radius, skrift, trykk } from "@/lib/tema";
 
@@ -9,16 +9,25 @@ interface Props extends TextInputProps {
   ref?: Ref<ComponentRef<typeof TextInput>>;
 }
 
-/** Tekstfelt med etikett. 48 pt høyt, stor tekst, lys bakgrunn. React 19: ref er en vanlig prop. */
-export function Felt({ etikett, feil, style, multiline, ref, ...rest }: Props) {
+/** Tekstfelt med etikett over, som i nettappen. 48 pt høyt, blå kant i fokus. */
+export function Felt({ etikett, feil, style, multiline, ref, onFocus, onBlur, ...rest }: Props) {
+  const [fokus, setFokus] = useState(false);
   return (
     <View style={s.wrap}>
-      {etikett ? <Text style={s.etikett}>{etikett}</Text> : null}
+      {etikett ? <Text style={skrift.etikett}>{etikett}</Text> : null}
       <TextInput
         ref={ref}
         placeholderTextColor={farge.tekstTertiaer}
         multiline={multiline}
-        style={[s.felt, multiline && s.flerlinje, feil ? s.feilKant : null, style]}
+        onFocus={(e) => {
+          setFokus(true);
+          onFocus?.(e);
+        }}
+        onBlur={(e) => {
+          setFokus(false);
+          onBlur?.(e);
+        }}
+        style={[s.felt, multiline && s.flerlinje, fokus && s.fokus, feil ? s.feilKant : null, style]}
         {...rest}
       />
       {feil ? <Text style={s.feil}>{feil}</Text> : null}
@@ -28,7 +37,6 @@ export function Felt({ etikett, feil, style, multiline, ref, ...rest }: Props) {
 
 const s = StyleSheet.create({
   wrap: { gap: 6 },
-  etikett: { fontSize: skrift.liten, fontWeight: "600", color: farge.tekstSekundaer, textTransform: "uppercase", letterSpacing: 0.4 },
   felt: {
     minHeight: trykk.minste,
     borderWidth: 1,
@@ -37,10 +45,12 @@ const s = StyleSheet.create({
     backgroundColor: farge.flate,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: skrift.stor,
+    fontSize: 17,
+    letterSpacing: -0.2,
     color: farge.tekst,
   },
-  flerlinje: { minHeight: 120, textAlignVertical: "top" },
+  flerlinje: { minHeight: 120, textAlignVertical: "top", lineHeight: 24 },
+  fokus: { borderColor: farge.aksent, boxShadow: `0 0 0 3px ${farge.aksentMyk}` },
   feilKant: { borderColor: farge.negativ },
-  feil: { color: farge.negativ, fontSize: skrift.liten },
+  feil: { color: farge.negativ, fontSize: 13 },
 });

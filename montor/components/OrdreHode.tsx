@@ -1,24 +1,17 @@
-import { Alert, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Linking, Platform, StyleSheet, Text, View } from "react-native";
 import { OfflineBanner } from "@/components/Offline";
-import { Banner, Knapp, UtboksMerke } from "@/components/ui";
+import { Banner, Knapp, StatusPille, UtboksMerke } from "@/components/ui";
 import { feilTekst } from "@/lib/api";
+import { kvitter } from "@/lib/kvittering";
 import { useOrdreMedUtboks } from "@/lib/sporringar";
-import { farge, radius, skrift, tabellTall, trykk } from "@/lib/tema";
-import type { OrderStatus } from "@/lib/typer";
+import { skrift, tabellTall } from "@/lib/tema";
 import { leggTil } from "@/lib/utboks/db";
 import { kjoer } from "@/lib/utboks/motor";
 
-const STATUS_TEKST: Record<OrderStatus, string> = {
-  opna: "Åpen",
-  paagaar: "Pågår",
-  ferdig: "Ferdig",
-  fakturert: "Fakturert",
-  avbrutt: "Avbrutt",
-};
-
 /**
- * Nummer, tittel, kunde, telefon (ring), adresse (kart) og status-knappen.
- * Bare «Start jobben» og «Merk som ferdig» — aldri avbryt eller åpne igjen.
+ * Hva, hvem og hvor — og knappene montøren trenger med én hånd: ring, kart
+ * og neste steg på jobben. Bare «Start jobben» og «Merk som ferdig»; avbryt
+ * og åpne igjen gjøres på kontoret.
  */
 export function OrdreHode({ id }: { id: string }) {
   const { sammenslaatt, error, data, refetch } = useOrdreMedUtboks(id);
@@ -31,11 +24,12 @@ export function OrdreHode({ id }: { id: string }) {
   const kart = () => {
     if (!ordre?.site_address) return;
     const q = encodeURIComponent(ordre.site_address);
-    Linking.openURL(Platform.OS === "ios" ? `maps:?q=${q}` : `geo:0,0?q=${q}`);
+    Linking.openURL(Platform.OS === "ios" ? `maps:?q=${q}` : Platform.OS === "android" ? `geo:0,0?q=${q}` : `https://maps.apple.com/?q=${q}`);
   };
 
   const settStatus = async (status: "paagaar" | "ferdig") => {
     await leggTil({ ordre_id: id, type: "status", payload: { status } });
+    kvitter(status === "ferdig" ? "Merket som ferdig" : "Jobben er startet");
     kjoer();
   };
 
@@ -46,7 +40,7 @@ export function OrdreHode({ id }: { id: string }) {
     ]);
   };
 
-  const kanStarte = sammenslaatt.lovlege_overgangar.includes("paagaar");
+  const kanStarte = sammenslaatt.lovlege_overgangar.includes("paagaar") && ordre?.status === "opna";
   const kanFerdig = sammenslaatt.lovlege_overgangar.includes("ferdig");
 
   return (
@@ -56,33 +50,20 @@ export function OrdreHode({ id }: { id: string }) {
       {ordre ? (
         <>
           <View style={s.rad}>
-            <Text style={s.nr}>#{ordre.order_no}</Text>
-            <View style={s.status}>
-              <Text style={s.statusTekst}>{STATUS_TEKST[ordre.status]}</Text>
-            </View>
+            <StatusPille status={ordre.status} />
             <UtboksMerke rad={sammenslaatt.ventendeStatus ?? undefined} />
+            <Text style={[skrift.under, tabellTall, s.nr]} numberOfLines={1}>
+              #{ordre.order_no} · {ordre.customer_name}
+            </Text>
           </View>
-          <Text style={s.tittel}>{ordre.title}</Text>
-          <Text style={s.kunde}>{ordre.customer_name}</Text>
+          <Text style={skrift.tittel}>{ordre.title}</Text>
+          {ordre.site_address ? <Text style={skrift.under}>{ordre.site_address}</Text> : null}
           <View style={s.knapper}>
-            {ordre.customer_phone ? (
-              <Pressable accessibilityRole="button" onPress={ring} style={({ pressed }) => [s.lenke, pressed && s.trykket]}>
-                <Text style={s.lenkeTekst} numberOfLines={1}>
-                  Ring {ordre.customer_phone}
-                </Text>
-              </Pressable>
-            ) : null}
-            {ordre.site_address ? (
-              <Pressable accessibilityRole="button" onPress={kart} style={({ pressed }) => [s.lenke, pressed && s.trykket]}>
-                <Text style={s.lenkeTekst} numberOfLines={2}>
-                  {ordre.site_address}
-                </Text>
-                <Text style={s.lenkeUnder}>Åpne i kart</Text>
-              </Pressable>
-            ) : null}
+            {ordre.customer_phone ? <Knapp tekst="Ring" ikon="call" variant="sekundaer" onPress={ring} style={s.knapp} /> : null}
+            {ordre.site_address ? <Knapp tekst="Kart" ikon="navigate" variant="sekundaer" onPress={kart} style={s.knapp} /> : null}
           </View>
-          {kanStarte ? <Knapp tekst="Start jobben" onPress={() => settStatus("paagaar")} /> : null}
-          {kanFerdig ? <Knapp tekst="Merk som ferdig" variant="sekundaer" onPress={merkFerdig} /> : null}
+          {kanStarte ? <Knapp tekst="Start jobben" ikon="play" variant="tonet" onPress={() => settStatus("paagaar")} /> : null}
+          {kanFerdig ? <Knapp tekst="Merk som ferdig" ikon="checkmark" variant="tonet" onPress={merkFerdig} /> : null}
         </>
       ) : null}
     </View>
@@ -90,26 +71,9 @@ export function OrdreHode({ id }: { id: string }) {
 }
 
 const s = StyleSheet.create({
-  wrap: { gap: 8, paddingTop: 4 },
+  wrap: { gap: 6 },
   rad: { flexDirection: "row", alignItems: "center", gap: 8 },
-  nr: { fontSize: skrift.stor, fontWeight: "700", color: farge.tekstSekundaer, ...tabellTall },
-  status: { backgroundColor: farge.aksentMyk, paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.sm },
-  statusTekst: { fontSize: skrift.liten, fontWeight: "600", color: farge.aksent },
-  tittel: { fontSize: skrift.tittel, fontWeight: "700", color: farge.tekst },
-  kunde: { fontSize: skrift.normal, color: farge.tekstSekundaer },
-  knapper: { flexDirection: "row", gap: 8 },
-  lenke: {
-    flex: 1,
-    minHeight: trykk.minste,
-    justifyContent: "center",
-    backgroundColor: farge.flate,
-    borderRadius: radius.md,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: farge.kant,
-  },
-  trykket: { backgroundColor: farge.aksentMyk },
-  lenkeTekst: { fontSize: skrift.normal, fontWeight: "600", color: farge.aksent },
-  lenkeUnder: { fontSize: skrift.liten, color: farge.tekstSekundaer },
+  nr: { flex: 1 },
+  knapper: { flexDirection: "row", gap: 8, marginTop: 8 },
+  knapp: { flex: 1 },
 });

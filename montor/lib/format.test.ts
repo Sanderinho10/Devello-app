@@ -1,4 +1,4 @@
-import { dagTittel, dato, fraIsoDato, isoDato, kortNavn, kroner, lesTall, mengde, tall, tallFast, tid, tidsrom, timer } from "./format";
+import { dagTittel, dato, langDato, fraIsoDato, isoDato, kortNavn, kroner, lesTall, mengde, tall, tallFast, tid, tidsrom, timer } from "./format";
 
 const naa = new Date(2026, 8, 28, 12, 0); // 28. sep 2026
 
@@ -69,6 +69,8 @@ describe("program", () => {
   it("dagoverskrifter", () => {
     expect(dagTittel(new Date(2026, 10, 9), naa)).toBe("I dag");
     expect(dagTittel(new Date(2026, 10, 10), naa)).toBe("I morgen");
+    expect(dagTittel(new Date(2026, 10, 8), naa)).toBe("I går");
+    expect(langDato(new Date(2026, 10, 10))).toBe("tirsdag 10. november");
     expect(dagTittel(new Date(2026, 10, 11), naa)).toBe("ons. 11. nov");
     expect(dagTittel(new Date(2027, 0, 4), naa)).toBe("man. 4. jan 2027");
   });

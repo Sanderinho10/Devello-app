@@ -30,6 +30,20 @@ export interface UtboksRad {
   neste_forsok_kl: string | null;
   /** ID-en serveren ga raden. Satt rett før raden slettes. */
   server_id: string | null;
+  /** Hvem som skrev raden. Bare eierens rader sendes — med eierens token. */
+  bruker_id: string | null;
+}
+
+/** Lageret utboksen ligger i: SQLite i appen, localStorage i forhåndsvisningen, minne i testene. */
+export interface Lager {
+  lesAlle(): Promise<UtboksRad[]>;
+  /** Returnerer ID-en raden fikk. */
+  settInn(rad: Omit<UtboksRad, "id">): Promise<number>;
+  oppdater(
+    id: number,
+    felt: Partial<Pick<UtboksRad, "status" | "feil" | "forsok" | "neste_forsok_kl" | "server_id" | "payload" | "bruker_id">>,
+  ): Promise<void>;
+  slett(id: number): Promise<void>;
 }
 
 export interface TimePayload {
@@ -76,7 +90,7 @@ export type Payload = TimePayload | MateriellPayload | NotatPayload | BiletePayl
 /** Det motoren ser av et svar — nok til å bestemme neste steg. */
 export type Svar =
   | { slag: "nett" }
-  | { slag: "http"; status: number; melding: string | null; server_id: string | null };
+  | { slag: "http"; status: number; melding: string | null; server_id: string | null; json?: unknown };
 
 /** Det planleggeren bestemmer for en rad etter et svar. */
 export type Vedtak =

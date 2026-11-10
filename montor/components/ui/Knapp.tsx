@@ -1,41 +1,50 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from "react-native";
-import { farge, radius, skrift, trykk } from "@/lib/tema";
+import { farge, radius, trykk } from "@/lib/tema";
+import { Ikon, type IkonNavn } from "./Ikon";
 
-type Variant = "primaer" | "sekundaer" | "fare" | "lenke";
+type Variant = "primaer" | "tonet" | "sekundaer" | "fare" | "lenke";
 
 interface Props {
   tekst: string;
   onPress: () => void;
   variant?: Variant;
-  /** 56 pt høy, full bredde — nederst på skjermen. */
+  /** 54 pt høy, full bredde — nederst på skjermen. */
   stor?: boolean;
+  ikon?: IkonNavn;
   deaktivert?: boolean;
   laster?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
-/** Knapp med tekst. Minste trykkflate 48 pt, primærknappen 56 pt. */
-export function Knapp({ tekst, onPress, variant = "primaer", stor, deaktivert, laster, style }: Props) {
+const TEKSTFARGE: Record<Variant, string> = {
+  primaer: farge.hvit,
+  tonet: farge.aksent,
+  sekundaer: farge.tekst,
+  fare: farge.negativ,
+  lenke: farge.aksent,
+};
+
+/** Kapselknapp som i nettappen. Minste trykkflate 48 pt, primærknappen 54 pt. */
+export function Knapp({ tekst, onPress, variant = "primaer", stor, ikon, deaktivert, laster, style }: Props) {
   const av = deaktivert || laster;
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={tekst}
       accessibilityState={{ disabled: !!av }}
       onPress={onPress}
       disabled={av}
-      style={({ pressed }) => [
-        s.base,
-        s[variant],
-        stor && s.stor,
-        pressed && s.trykket,
-        av && s.av,
-        style,
-      ]}
+      style={({ pressed }) => [s.base, s[variant], stor && s.stor, pressed && (variant === "primaer" ? s.primaerTrykket : s.trykket), av && s.av, style]}
     >
       {laster ? (
-        <ActivityIndicator color={variant === "primaer" || variant === "fare" ? farge.hvit : farge.aksent} />
+        <ActivityIndicator color={TEKSTFARGE[variant]} />
       ) : (
-        <Text style={[s.tekst, s[`${variant}Tekst`], stor && s.storTekst]}>{tekst}</Text>
+        <>
+          {ikon ? <Ikon navn={ikon} storleik={stor ? 20 : 18} farge={TEKSTFARGE[variant]} /> : null}
+          <Text style={[s.tekst, stor && s.storTekst, { color: TEKSTFARGE[variant] }]} numberOfLines={1}>
+            {tekst}
+          </Text>
+        </>
       )}
     </Pressable>
   );
@@ -45,22 +54,22 @@ const s = StyleSheet.create({
   base: {
     minHeight: trykk.minste,
     paddingHorizontal: 20,
-    borderRadius: radius.md,
+    borderRadius: radius.kapsel,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
+    gap: 7,
   },
-  stor: { minHeight: trykk.primaer, borderRadius: radius.lg, alignSelf: "stretch" },
-  trykket: { opacity: 0.75 },
+  stor: { minHeight: trykk.primaer, alignSelf: "stretch" },
+  trykket: { backgroundColor: farge.fyllTrykket },
+  primaerTrykket: { backgroundColor: farge.aksentTrykket },
   av: { opacity: 0.45 },
   primaer: { backgroundColor: farge.aksent },
-  sekundaer: { backgroundColor: farge.flate, borderWidth: 1, borderColor: farge.kantSterk },
-  fare: { backgroundColor: farge.negativ },
-  lenke: { backgroundColor: "transparent" },
-  tekst: { fontSize: skrift.normal, fontWeight: "600" },
-  storTekst: { fontSize: skrift.stor },
-  primaerTekst: { color: farge.hvit },
-  sekundaerTekst: { color: farge.tekst },
-  fareTekst: { color: farge.hvit },
-  lenkeTekst: { color: farge.aksent },
+  // Viktig, men ikke skjermens hovedhandling: blå tekst på lys blå flate.
+  tonet: { backgroundColor: farge.aksentMyk },
+  sekundaer: { backgroundColor: farge.fyll },
+  fare: { backgroundColor: farge.negativMyk },
+  lenke: { backgroundColor: "transparent", paddingHorizontal: 12 },
+  tekst: { fontSize: 16, fontWeight: "600", letterSpacing: -0.2 },
+  storTekst: { fontSize: 17 },
 });

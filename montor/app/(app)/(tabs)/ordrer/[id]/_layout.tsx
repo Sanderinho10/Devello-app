@@ -1,28 +1,23 @@
 import { Stack, Tabs } from "expo-router";
-import { useOrdreId } from "@/lib/useOrdreId";
 import { StyleSheet, View } from "react-native";
 import { OrdreHode } from "@/components/OrdreHode";
-import { Segment } from "@/components/ui";
+import { Faner } from "@/components/ui";
 import { useOrdreMedUtboks } from "@/lib/sporringar";
-import { farge } from "@/lib/tema";
+import { farge, marg } from "@/lib/tema";
+import { useOrdreId } from "@/lib/useOrdreId";
 
-const FANER = [
-  { verdi: "timer", tekst: "Timer" },
-  { verdi: "materiell", tekst: "Materiell" },
-  { verdi: "notater", tekst: "Notater" },
-] as const;
-
-type Fane = (typeof FANER)[number]["verdi"];
+type Fane = "timer" | "materiell" | "notater";
 
 /**
- * Ordrehodet + segmentkontroll øverst, faneinnholdet under. Tabs-navigatoren
- * holder fanene i live, mens den innebygde fanelinja er skrudd av og
- * erstattet av vår egen i «layout».
+ * Én ordre: hodet øverst, så fanene Timer · Materiell · Notater som i Go —
+ * tekst på rad med strek under den aktive. Tabs-navigatoren holder fanene i
+ * live; den innebygde fanelinja er skrudd av og erstattet av vår egen.
  */
-export default function FaneLayout() {
+export default function OrdreLayout() {
   const id = useOrdreId();
   const { sammenslaatt } = useOrdreMedUtboks(id);
-  const tittel = sammenslaatt.ordre ? `#${sammenslaatt.ordre.order_no}` : "Ordre";
+  const tittel = sammenslaatt.ordre ? `Ordre #${sammenslaatt.ordre.order_no}` : "Ordre";
+  const aktive = sammenslaatt.materiell.filter((m) => !m.replaced_by).length;
 
   return (
     <>
@@ -36,7 +31,15 @@ export default function FaneLayout() {
             <View style={s.fyll}>
               <View style={s.hode}>
                 <OrdreHode id={id} />
-                <Segment valg={[...FANER]} verdi={aktiv} onChange={(navn) => navigation.navigate(navn, { id })} />
+                <Faner
+                  valg={[
+                    { verdi: "timer", tekst: "Timer", tal: sammenslaatt.timer.length },
+                    { verdi: "materiell", tekst: "Materiell", tal: aktive },
+                    { verdi: "notater", tekst: "Notater", tal: sammenslaatt.notat.length },
+                  ]}
+                  verdi={aktiv}
+                  onChange={(navn) => navigation.navigate(navn, { id })}
+                />
               </View>
               <View style={s.fyll}>{children}</View>
             </View>
@@ -53,5 +56,5 @@ export default function FaneLayout() {
 
 const s = StyleSheet.create({
   fyll: { flex: 1, backgroundColor: farge.bakgrunn },
-  hode: { paddingHorizontal: 16, paddingBottom: 10, gap: 10 },
+  hode: { paddingHorizontal: marg, paddingTop: 4, gap: 6 },
 });

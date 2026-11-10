@@ -105,12 +105,15 @@ export function klokke(d: Date): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-/** «I dag», «I morgen», ellers «man. 9. nov». For dagoverskrifter i programmet. */
+/** «I dag», «I morgen», «I går», ellers «man. 9. nov». For dagoverskrifter. */
 export function dagTittel(d: Date, naa: Date = new Date()): string {
   const iMorgen = new Date(naa);
   iMorgen.setDate(naa.getDate() + 1);
+  const iGaar = new Date(naa);
+  iGaar.setDate(naa.getDate() - 1);
   if (sammeDag(d, naa)) return "I dag";
   if (sammeDag(d, iMorgen)) return "I morgen";
+  if (sammeDag(d, iGaar)) return "I går";
   return `${UKEDAGER[d.getDay()]} ${kortDato(d, naa)}`;
 }
 
@@ -134,4 +137,18 @@ export function tidsrom(startIso: string, sluttIso: string, heleDagen: boolean, 
   }
   if (sammeDag(start, slutt)) return `${klokke(start)}–${klokke(slutt)}`;
   return `${klokke(start)} → ${ukedagDato(slutt, naa)} ${klokke(slutt)}`;
+}
+
+const UKEDAGER_LANGE = ["søndag", "mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lørdag"];
+const MAANEDER_LANGE = ["januar", "februar", "mars", "april", "mai", "juni", "juli", "august", "september", "oktober", "november", "desember"];
+
+/** «tirsdag 10. november» — linja over tittelen på programmet. */
+export function langDato(d: Date): string {
+  return `${UKEDAGER_LANGE[d.getDay()]} ${d.getDate()}. ${MAANEDER_LANGE[d.getMonth()]}`;
+}
+
+/** «Torsdag» — dagoverskrift i programmet når dagen verken er i dag eller i morgen. */
+export function ukedagStor(d: Date): string {
+  const n = UKEDAGER_LANGE[d.getDay()];
+  return n[0].toUpperCase() + n.slice(1);
 }

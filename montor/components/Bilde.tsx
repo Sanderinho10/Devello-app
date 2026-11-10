@@ -11,11 +11,17 @@ interface Props {
 }
 
 /** Miniatyr av et bilde — lokal fil i utboksen, eller signert lenke fra serveren (4 min i minnet). */
-export function Miniatyr({ ordreId, bilde, storleik = 72, onPress }: Props) {
+export function Miniatyr({ ordreId, bilde, storleik = 76, onPress }: Props) {
   const lenke = useFilLenke(ordreId, bilde.lokal_uri ? null : bilde.id);
   const uri = bilde.lokal_uri ?? lenke.data;
   return (
-    <Pressable onPress={onPress} disabled={!onPress || !uri} style={[s.wrap, { width: storleik, height: storleik }]}>
+    <Pressable
+      accessibilityRole="imagebutton"
+      accessibilityLabel={`Bilde: ${bilde.title}`}
+      onPress={onPress}
+      disabled={!onPress || !uri}
+      style={[s.wrap, { width: storleik, height: storleik }]}
+    >
       {uri ? <Image source={{ uri }} style={s.bilde} resizeMode="cover" /> : <View style={s.bilde} />}
       {bilde._utboks ? (
         <View style={s.merke}>
@@ -27,7 +33,7 @@ export function Miniatyr({ ordreId, bilde, storleik = 72, onPress }: Props) {
 }
 
 const s = StyleSheet.create({
-  wrap: { borderRadius: radius.sm, overflow: "hidden", backgroundColor: farge.kant },
+  wrap: { borderRadius: radius.md, overflow: "hidden", backgroundColor: farge.fyll },
   bilde: { width: "100%", height: "100%" },
   merke: { position: "absolute", left: 4, bottom: 4 },
 });

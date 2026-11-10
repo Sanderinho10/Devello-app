@@ -1,17 +1,18 @@
 import type { ReactNode } from "react";
 import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { farge, radius, skrift } from "@/lib/tema";
+import { farge, radius, skrift, skyggeStor } from "@/lib/tema";
 
 interface Props {
   synlig: boolean;
   onLukk: () => void;
   tittel?: string;
+  under?: string;
   children: ReactNode;
 }
 
 /** Ark fra bunnen — mengdevalg, datovalg, slette-valg. Trykk utenfor lukker. */
-export function Sheet({ synlig, onLukk, tittel, children }: Props) {
+export function Sheet({ synlig, onLukk, tittel, under, children }: Props) {
   const inn = useSafeAreaInsets();
   return (
     <Modal visible={synlig} transparent animationType="slide" onRequestClose={onLukk}>
@@ -19,7 +20,12 @@ export function Sheet({ synlig, onLukk, tittel, children }: Props) {
         <Pressable style={s.bak} onPress={onLukk} accessibilityLabel="Lukk" />
         <View style={[s.ark, { paddingBottom: Math.max(inn.bottom, 16) }]}>
           <View style={s.haandtak} />
-          {tittel ? <Text style={s.tittel}>{tittel}</Text> : null}
+          {tittel ? (
+            <View style={s.hode}>
+              <Text style={skrift.tittel}>{tittel}</Text>
+              {under ? <Text style={skrift.under}>{under}</Text> : null}
+            </View>
+          ) : null}
           {children}
         </View>
       </KeyboardAvoidingView>
@@ -29,15 +35,16 @@ export function Sheet({ synlig, onLukk, tittel, children }: Props) {
 
 const s = StyleSheet.create({
   fyll: { flex: 1, justifyContent: "flex-end" },
-  bak: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.35)" },
+  bak: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.32)" },
   ark: {
     backgroundColor: farge.flate,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    paddingHorizontal: 16,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    paddingHorizontal: 20,
     paddingTop: 8,
     gap: 16,
+    ...skyggeStor,
   },
-  haandtak: { alignSelf: "center", width: 40, height: 5, borderRadius: 3, backgroundColor: farge.kantSterk, marginBottom: 4 },
-  tittel: { fontSize: skrift.tittel, fontWeight: "700", color: farge.tekst },
+  haandtak: { alignSelf: "center", width: 36, height: 5, borderRadius: 3, backgroundColor: farge.kantSterk, marginBottom: 6 },
+  hode: { gap: 2 },
 });

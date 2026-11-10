@@ -8,13 +8,13 @@ export default function OrdrerLayout() {
         headerStyle: { backgroundColor: farge.bakgrunn },
         headerShadowVisible: false,
         headerTintColor: farge.aksent,
-        headerTitleStyle: { color: farge.tekst, fontWeight: "700" },
+        headerTitleStyle: { color: farge.tekst, fontWeight: "600" },
         headerBackTitle: "Ordrer",
         contentStyle: { backgroundColor: farge.bakgrunn },
       }}
     >
-      <Stack.Screen name="index" options={{ title: "Ordrer" }} />
-      <Stack.Screen name="[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="[id]" options={{ title: "Ordre" }} />
     </Stack>
   );
 }
