@@ -3,6 +3,7 @@ import { generateDraft } from "@/lib/claude/generate";
 import { fagFor, motorFor } from "@/lib/claude/motor-versjon";
 import { activePriceItems } from "@/lib/pricelist/active";
 import { logDraftVersion } from "@/lib/drafts/versions";
+import { loggAktivitet } from "@/lib/aktivitet";
 import { assessConfidence, countUnresolvedLines } from "@/lib/drafts/confidence";
 import { forbeholdsBibliotek } from "@/lib/referanser/forbehold";
 import { findSimilarReferences } from "@/lib/referanser";
@@ -221,6 +222,15 @@ export async function generateForLead(
       email_body: kropp,
       document: generated.document,
     },
+    userId: opts.userId,
+  });
+
+  // Agenten laget utkastet. Brukeren er den som satte det i gang.
+  await loggAktivitet(admin, {
+    companyId: opts.companyId,
+    objekt: "tilbud",
+    objektId: lead.id,
+    handling: "generert",
     userId: opts.userId,
   });
 

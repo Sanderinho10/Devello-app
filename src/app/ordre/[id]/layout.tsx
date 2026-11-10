@@ -2,7 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OrdreFaner } from "./OrdreFaner";
 import { OrdreStatus } from "./OrdreStatus";
+import { Historikk } from "@/components/Historikk";
+import { hentOrdreHistorikk } from "@/lib/aktivitet";
 import { hentOrdre } from "@/lib/ordre/hent";
+import { supabaseAdmin } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/types";
 
 /**
@@ -24,6 +27,11 @@ export default async function OrdreLayout({
   const { id } = await params;
   const ordre = await hentOrdre(id);
   if (!ordre) notFound();
+  // Ordren over er hentet med brukerens tilgang, så selskapet er sjekket.
+  const historikk = await hentOrdreHistorikk(supabaseAdmin(), {
+    companyId: ordre.company_id,
+    orderId: ordre.id,
+  });
 
   return (
     <>
@@ -47,7 +55,10 @@ export default async function OrdreLayout({
             )}
           </p>
         </div>
-        <OrdreStatus orderId={ordre.id} status={ordre.status} />
+        <div className="page-header-handlinger">
+          <Historikk poster={historikk} />
+          <OrdreStatus orderId={ordre.id} status={ordre.status} />
+        </div>
       </div>
 
       <OrdreFaner orderId={ordre.id} />

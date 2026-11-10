@@ -13,6 +13,7 @@ import { summarizeEdits } from "@/lib/drafts/edit-summary";
 import { finnEpost } from "@/lib/leads/finn-epost";
 import { saveQuoteReference } from "@/lib/referanser";
 import { sessionOr401, errorResponse } from "@/lib/api";
+import { loggAktivitet } from "@/lib/aktivitet";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { hasDocument, type QuoteDocument, type QuoteType } from "@/lib/types";
 
@@ -252,6 +253,15 @@ export async function POST(
       userId: session.userId,
       revisjon: draft.revisjon,
       pdfPath,
+    });
+
+    await loggAktivitet(admin, {
+      companyId: session.companyId,
+      objekt: "tilbud",
+      objektId: lead.id,
+      handling: "bekreftet",
+      detalj: draft.revisjon > 1 ? `Versjon ${draft.revisjon}` : null,
+      userId: session.userId,
     });
 
     // Uten kladd i Outlook har ingenting forlatt huset ennå. Da er tilbudet

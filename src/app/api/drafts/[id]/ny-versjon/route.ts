@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
+import { loggAktivitet } from "@/lib/aktivitet";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
 /**
@@ -87,6 +88,19 @@ export async function POST(
     if (error) throw new Error(error.message);
 
     await admin.from("leads").update({ status: "utkast_klar" }).eq("id", draft.lead_id);
+
+    // Bare den som faktisk åpnet versjonen. Et dobbeltklikk treffer ikke
+    // raden over og skal ikke gi to linjer i historikken.
+    if (oppdatert) {
+      await loggAktivitet(admin, {
+        companyId: session.companyId,
+        objekt: "tilbud",
+        objektId: draft.lead_id,
+        handling: "ny_versjon",
+        detalj: `Versjon ${oppdatert.revisjon}`,
+        userId: session.userId,
+      });
+    }
 
     return NextResponse.json({
       ok: true,

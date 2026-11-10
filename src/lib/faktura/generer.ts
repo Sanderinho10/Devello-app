@@ -5,6 +5,7 @@ import { hentKjelder } from "./kjelder";
 import { planTilLinjer } from "./resolver";
 import type { FakturaPlan } from "./typar";
 import { loggFakturaVersjon } from "./versjon";
+import { loggAktivitet } from "@/lib/aktivitet";
 import { MODEL, structured } from "@/lib/claude/client";
 import { lesTekst } from "@/lib/claude/motor";
 import type { Company, InvoiceDraft, Order } from "@/lib/types";
@@ -212,6 +213,15 @@ export async function lagFakturaforslag(
     source: "ai",
     snapshot: { lines: lagra.lines, totals: lagra.totals, invoice_text: lagra.invoice_text },
     previous: gammalt ? { lines: gammalt.lines, totals: gammalt.totals, invoice_text: gammalt.invoice_text } : null,
+    userId: input.userId,
+  });
+
+  await loggAktivitet(admin, {
+    companyId: ordre.company_id,
+    objekt: "faktura",
+    objektId: lagra.id,
+    handling: "forslag",
+    detalj: gammalt ? "Nytt forslag erstattet det forrige" : `Fra ordre #${ordre.order_no}`,
     userId: input.userId,
   });
 

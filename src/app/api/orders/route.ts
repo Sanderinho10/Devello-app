@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
+import { loggAktivitet } from "@/lib/aktivitet";
 import { finnEllerOpprettKunde } from "@/lib/kunder/koble";
 import { harModul } from "@/lib/moduler";
 import { lagOrdreBeskrivelse } from "@/lib/ordre/beskrivelse";
@@ -219,6 +220,19 @@ export async function POST(request: NextRequest) {
       note: felt.draft_id ? "Fra tilbud" : "Manuelt",
       created_by: session.userId,
     });
+
+    // Tilbudet får en linje om ordren, så historikken der viser hvem som
+    // gjorde det om til en jobb.
+    if (lead) {
+      await loggAktivitet(admin, {
+        companyId: session.companyId,
+        objekt: "tilbud",
+        objektId: lead.id,
+        handling: "ordre_opprettet",
+        detalj: `Ordre #${order.order_no}`,
+        userId: session.userId,
+      });
+    }
 
     // Beskrivelsen kommer etter at ordren er lagret, så en treg modell aldri
     // holder ordrenummeret tilbake — og aldri kan velte opprettingen.

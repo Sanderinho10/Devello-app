@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse, after, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
+import { loggAktivitet } from "@/lib/aktivitet";
 import { generateForLead } from "@/lib/drafts/generate-for-lead";
 import { finnEpost } from "@/lib/leads/finn-epost";
 import { lagreVedlegg } from "@/lib/leads/vedlegg";
@@ -95,6 +96,14 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) throw new Error(error.message);
+
+    await loggAktivitet(admin, {
+      companyId: session.companyId,
+      objekt: "tilbud",
+      objektId: lead.id,
+      handling: "opprettet_manuelt",
+      userId: session.userId,
+    });
 
     // Vedleggene lagres FØR genereringen starter, ellers kunne agenten ha
     // begynt uten dem. Det tar et sekund per bilde; en avvist fil (for stor,

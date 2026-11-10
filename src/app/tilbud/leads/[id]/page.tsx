@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DraftEditor } from "./DraftEditor";
 import { Versjonshistorikk } from "./Versjonshistorikk";
+import { Historikk } from "@/components/Historikk";
+import { hentAktivitet, type HistorikkPost } from "@/lib/aktivitet";
 import { hentSendteVersjoner } from "@/lib/drafts/historikk";
 import { harModul } from "@/lib/moduler";
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
@@ -90,6 +92,19 @@ export default async function LeadPage({
   // tilgang, så selskapet er sjekket.
   const versjoner = draft ? await hentSendteVersjoner(supabaseAdmin(), draft) : [];
 
+  // Hvem gjorde hva. E-posten som kom inn er ikke noe noen gjorde, så den
+  // står som første linje ut fra tidspunktet på leadet.
+  const historikk: HistorikkPost[] = [
+    ...(await hentAktivitet(supabaseAdmin(), {
+      companyId: lead.company_id,
+      objekt: "tilbud",
+      objektId: lead.id,
+    })),
+    ...(lead.source !== "manuell" && lead.received_at
+      ? [{ id: "mottatt", tekst: "Henvendelse mottatt på e-post", navn: null, tid: lead.received_at }]
+      : []),
+  ];
+
   const listIds = (activeLists ?? []).map((list) => list.id);
   const { data: priceItems } = listIds.length
     ? await supabase
@@ -127,6 +142,7 @@ export default async function LeadPage({
               .join(" · ")}
           </p>
         </div>
+        <Historikk poster={historikk} />
       </div>
 
       {draft ? (

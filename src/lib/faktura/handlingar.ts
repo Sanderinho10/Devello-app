@@ -4,6 +4,7 @@ import { overforTilRegnskap } from "./overfor";
 import { reknOmLinjer, round2 } from "./resolver";
 import type { InvoiceLine } from "./typar";
 import { loggFakturaVersjon } from "./versjon";
+import { loggAktivitet } from "@/lib/aktivitet";
 import { registrerBruk } from "@/lib/billing/subscription";
 import { adresseTekst, hovedadresse } from "@/lib/kunder/adresse";
 import { tal } from "@/lib/ordre/api";
@@ -228,11 +229,22 @@ export async function godkjennUtkast(
     .select("*")
     .single();
   if (error) throw new Error(error.message);
+  await loggAktivitet(admin, {
+    companyId: session.companyId,
+    objekt: "faktura",
+    objektId: draft.id,
+    handling: "godkjent",
+    userId: session.userId,
+  });
   return NextResponse.json(data);
 }
 
 /** Tilbake til utkast. Bare før overføring. */
-export async function angreGodkjenning(admin: SupabaseClient, draft: InvoiceDraft): Promise<NextResponse> {
+export async function angreGodkjenning(
+  admin: SupabaseClient,
+  session: SessionContext,
+  draft: InvoiceDraft,
+): Promise<NextResponse> {
   if (draft.status === "overfort") {
     return NextResponse.json({ error: "Fakturaen er overført og kan ikke endres." }, { status: 400 });
   }
@@ -244,6 +256,15 @@ export async function angreGodkjenning(admin: SupabaseClient, draft: InvoiceDraf
     .select("*")
     .single();
   if (error) throw new Error(error.message);
+  if (draft.status === "godkjent") {
+    await loggAktivitet(admin, {
+      companyId: session.companyId,
+      objekt: "faktura",
+      objektId: draft.id,
+      handling: "godkjenning_angret",
+      userId: session.userId,
+    });
+  }
   return NextResponse.json(data);
 }
 
@@ -286,6 +307,16 @@ export async function overforUtkast(
     // den overføres. Ny overføring av samme er gratis — den unike indeksen
     // holder styr på det.
     await registrerBruk(admin, { companyId: session.companyId, kind: "faktura", referenceId: ordre?.id ?? draft.id });
+    await loggAktivitet(admin, {
+      companyId: session.companyId,
+      objekt: "faktura",
+      objektId: draft.id,
+      handling: "overfort",
+      detalj: resultat.draft.transfer_order_no
+        ? `Ordre ${resultat.draft.transfer_order_no} i regnskapssystemet`
+        : null,
+      userId: session.userId,
+    });
     return NextResponse.json(resultat);
   }
   const { ok: _ok, status, ...rest } = resultat;
