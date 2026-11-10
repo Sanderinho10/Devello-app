@@ -52,18 +52,20 @@ export async function overforTilRegnskap(
   admin: SupabaseClient,
   input: {
     draft: InvoiceDraft;
-    ordre: Order;
+    /** null: en faktura uten ordre (0065). Kundefeltene står da på utkastet. */
+    ordre: Order | null;
     userId: string;
     createCustomer?: boolean;
     customerNo?: string | null;
   },
 ): Promise<OverforResultat> {
   const { draft, ordre } = input;
+  const companyId = draft.company_id;
 
   const { data: rad } = await admin
     .from("accounting_connections")
     .select("id, provider, environment, client_key, status, product_map, settings")
-    .eq("company_id", ordre.company_id)
+    .eq("company_id", companyId)
     .neq("status", "kopla_fra")
     .maybeSingle();
   if (!rad) return { ok: false, status: 400, error: "Ingen regnskapssystem er koblet til. Sett det opp under Selskap → Innstillinger → Ordre." };
@@ -88,8 +90,12 @@ export async function overforTilRegnskap(
   // Fakturakunden (0058): den fakturaen sendes til. Er den byttet ut, er det
   // den — ikke kunden på ordren — som letes opp, opprettes og får
   // kundenummeret lagret.
-  const kontakt = await hentKontakt(admin, ordre.company_id, draft.customer_id ?? ordre.customer_id);
-  const mottakar = mottakarFelt(ordre, kontakt, Boolean(draft.customer_id && draft.customer_id !== ordre.customer_id));
+  // Uten ordre er kundefeltene på utkastet; de følger kontaktkortet når
+  // kunden byttes (lib/faktura/handlingar.ts).
+  const kontakt = await hentKontakt(admin, companyId, draft.customer_id ?? ordre?.customer_id ?? null);
+  const mottakar = ordre
+    ? mottakarFelt(ordre, kontakt, Boolean(draft.customer_id && draft.customer_id !== ordre.customer_id))
+    : utkastMottakar(draft);
   // Kom kundenummeret fra kontakten? Da fjernes det om Go avviser ordren.
   let fraKontakt = false;
 
@@ -178,17 +184,19 @@ export async function overforTilRegnskap(
       await admin.from("material_entries").update({ invoice_draft_id: draft.id }).in("id", matIds).is("invoice_draft_id", null);
     }
 
-    await admin
-      .from("orders")
-      .update({ status: "fakturert", closed_at: naa })
-      .eq("id", ordre.id)
-      .eq("company_id", ordre.company_id);
-    await admin.from("order_events").insert({
-      order_id: ordre.id,
-      kind: "faktura",
-      note: `Fakturaforslag overført til PowerOffice Go${go.SalesOrderNo ? `, ordre ${go.SalesOrderNo}` : ""}`,
-      created_by: input.userId,
-    });
+    if (ordre) {
+      await admin
+        .from("orders")
+        .update({ status: "fakturert", closed_at: naa })
+        .eq("id", ordre.id)
+        .eq("company_id", ordre.company_id);
+      await admin.from("order_events").insert({
+        order_id: ordre.id,
+        kind: "faktura",
+        note: `Fakturaforslag overført til PowerOffice Go${go.SalesOrderNo ? `, ordre ${go.SalesOrderNo}` : ""}`,
+        created_by: input.userId,
+      });
+    }
 
     await lagreKundenummer(admin, kontakt, kopling.id, customerNo);
 
@@ -223,6 +231,19 @@ export function mottakarFelt(ordre: Mottakar, kontakt: Customer | null, overstyr
     customer_email: kontakt.email,
     customer_phone: kontakt.phone,
     site_address: adresseTekst(hovedadresse(kontakt)) || null,
+  };
+}
+
+/** Kundefeltene på en faktura uten ordre, i samme form som ordrens. */
+export function utkastMottakar(
+  draft: Pick<InvoiceDraft, "customer_name" | "customer_contact" | "customer_email" | "customer_phone" | "customer_address">,
+): Mottakar {
+  return {
+    customer_name: draft.customer_name ?? "",
+    customer_contact: draft.customer_contact,
+    customer_email: draft.customer_email,
+    customer_phone: draft.customer_phone,
+    site_address: draft.customer_address,
   };
 }
 
