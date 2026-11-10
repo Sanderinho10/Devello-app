@@ -5196,3 +5196,8 @@ body.kal-drar * {
     width: 100%;
   }
 }
+
+/* «Gi tilbakemelding»: etter Selskap, rett over brukeren og Logg ut. */
+.nav-tilbakemelding {
+  margin-top: 12px;
+}
