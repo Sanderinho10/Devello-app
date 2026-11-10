@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { api } from "./api";
-import type { Bilete, FilLenke, MaterialEntry, Meg, OrderNote, OrderStatus, OrdreIApp, OrdreIListe, SokTreff, TimeEntry } from "./typer";
+import type { Bilete, FilLenke, KalenderHending, MaterialEntry, Meg, OrderNote, OrderStatus, OrdreIApp, OrdreIListe, SokTreff, TimeEntry, Timeforslag } from "./typer";
 import { useUtboksForOrdre } from "./utboks/db";
 import type { BiletePayload, MateriellPayload, NotatPayload, StatusPayload, TimePayload, UtboksRad } from "./utboks/typer";
 
@@ -16,6 +16,8 @@ export const nokler = {
   ordre: (id: string) => ["ordre", id] as const,
   sok: (q: string) => ["sok", q] as const,
   fil: (ordreId: string, docId: string) => ["fil", ordreId, docId] as const,
+  kalender: (alle: boolean) => ["kalender", alle ? "alle" : "mine"] as const,
+  timeforslag: ["timeforslag"] as const,
 };
 
 export function useMeg() {
@@ -39,6 +41,29 @@ export function useOrdre(id: string) {
     queryKey: nokler.ordre(id),
     queryFn: () => api<OrdreIApp>(`/api/app/ordrar/${id}`),
     enabled: !!id,
+  });
+}
+
+/** Programmet: i dag og 14 dager fram. alle = hele firmaets kalender. */
+export function useKalender(alle: boolean) {
+  return useQuery({
+    queryKey: nokler.kalender(alle),
+    queryFn: async () => {
+      const fra = new Date();
+      fra.setHours(0, 0, 0, 0);
+      const til = new Date(fra);
+      til.setDate(til.getDate() + 14);
+      const q = `fra=${encodeURIComponent(fra.toISOString())}&til=${encodeURIComponent(til.toISOString())}${alle ? "&alle=1" : ""}`;
+      return (await api<{ hendingar: KalenderHending[] }>(`/api/app/kalender?${q}`)).hendingar;
+    },
+  });
+}
+
+/** Oppdrag de siste 7 dagene uten timer ført — «før 5 t?». */
+export function useTimeforslag() {
+  return useQuery({
+    queryKey: nokler.timeforslag,
+    queryFn: async () => (await api<{ forslag: Timeforslag[] }>("/api/app/timeforslag")).forslag,
   });
 }
 

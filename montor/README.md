@@ -1,8 +1,9 @@
 # Devello Montør
 
-Montørappen til Devello (Expo, iOS og Android). Tre ting, og bare de tre:
-timer, materiell og notater med bilder på en ordre. Virker uten dekning —
-det som skrives legges i en utboks og sendes når nettet er tilbake.
+Montørappen til Devello (Expo, iOS og Android). Programmet (kalenderen
+montøren er satt opp i), og tre ting på en ordre: timer, materiell og
+notater med bilder. Virker uten dekning — det som skrives legges i en utboks
+og sendes når nettet er tilbake.
 
 API-kontrakten appen er bygd mot ligger i [`docs/api.md`](docs/api.md)
 (kopi av `Devello-app/docs/montorapp-api.md`). Manuell sjekkliste før en
@@ -97,14 +98,15 @@ npm start           # expo start
 app/                    expo-router — hver fil er en skjerm
   _layout.tsx           react-query + persister, sesjon, utboks-motor
   index.tsx             innlogging (rotsiden når ingen er innlogget)
-  (app)/_layout.tsx     Tabs: Ordrer · Meg (+ skjerm for selskap uten ordre-modul)
+  (app)/_layout.tsx     Tabs: Program · Ordrer · Meg (+ skjerm for selskap uten ordre-modul)
+  (app)/program.tsx     kalenderen (i dag + 14 dager) og timeforslag → «Før timer» ferdig utfylt
   (app)/ordrer/         liste og én ordre (hode + faner Timer · Materiell · Notater)
   (app)/ordrer/[id]/    ny-time, ny-materiell, nytt-notat (modaler), bilete/[docId]
   (app)/meg.tsx         navn, selskap, utboks, logg ut
 lib/
   api.ts                fetch-wrapper: Bearer, 401 → refresh, ApiFeil/NettFeil
   supabase.ts           klient + LargeSecureStore (AES i AsyncStorage, nøkkel i SecureStore)
-  sporringar.ts         react-query-hooks, og useOrdreMedUtboks (server + utboks)
+  sporringar.ts         react-query-hooks (meg, ordrar, ordre, kalender, timeforslag, søk), useOrdreMedUtboks
   utboks/               db.ts (SQLite), planlegg.ts (ren planlegger, testet), motor.ts (sender)
   bilete.ts             komprimering (1600 px, JPEG 0,75) og lagring i documentDirectory/utboks
   format.ts, tema.ts, typer.ts

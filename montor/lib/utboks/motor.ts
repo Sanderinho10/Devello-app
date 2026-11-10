@@ -75,6 +75,7 @@ export async function kjoer(): Promise<void> {
         await slett(rad.id);
         queryClient?.invalidateQueries({ queryKey: ["ordre", rad.ordre_id] });
         queryClient?.invalidateQueries({ queryKey: ["ordrar"] });
+        if (rad.type === "time") queryClient?.invalidateQueries({ queryKey: ["timeforslag"] });
         continue;
       }
       if (vedtak.handling === "feil") {

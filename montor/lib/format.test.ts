@@ -1,4 +1,4 @@
-import { dato, fraIsoDato, isoDato, kortNavn, kroner, lesTall, mengde, tall, tallFast, tid, timer } from "./format";
+import { dagTittel, dato, fraIsoDato, isoDato, kortNavn, kroner, lesTall, mengde, tall, tallFast, tid, tidsrom, timer } from "./format";
 
 const naa = new Date(2026, 8, 28, 12, 0); // 28. sep 2026
 
@@ -61,5 +61,27 @@ describe("kortNavn", () => {
     expect(kortNavn("Kari Nordmann")).toBe("Kari N.");
     expect(kortNavn("Ola")).toBe("Ola");
     expect(kortNavn("Per Arne Hansen")).toBe("Per H.");
+  });
+});
+
+describe("program", () => {
+  const naa = new Date(2026, 10, 9, 12, 0); // man. 9. nov 2026
+  it("dagoverskrifter", () => {
+    expect(dagTittel(new Date(2026, 10, 9), naa)).toBe("I dag");
+    expect(dagTittel(new Date(2026, 10, 10), naa)).toBe("I morgen");
+    expect(dagTittel(new Date(2026, 10, 11), naa)).toBe("ons. 11. nov");
+    expect(dagTittel(new Date(2027, 0, 4), naa)).toBe("man. 4. jan 2027");
+  });
+  it("tidsrom samme dag, hele dagen og over flere dager", () => {
+    const s = new Date(2026, 10, 9, 9, 0).toISOString();
+    const e = new Date(2026, 10, 9, 14, 0).toISOString();
+    expect(tidsrom(s, e, false, naa)).toBe("09:00–14:00");
+    const m0 = new Date(2026, 10, 9, 0, 0).toISOString();
+    const m1 = new Date(2026, 10, 10, 0, 0).toISOString();
+    const m3 = new Date(2026, 10, 12, 0, 0).toISOString();
+    expect(tidsrom(m0, m1, true, naa)).toBe("Hele dagen");
+    expect(tidsrom(m0, m3, true, naa)).toBe("Hele dagen → ons. 11. nov");
+    const e2 = new Date(2026, 10, 10, 14, 0).toISOString();
+    expect(tidsrom(s, e2, false, naa)).toBe("09:00 → tir. 10. nov 14:00");
   });
 });

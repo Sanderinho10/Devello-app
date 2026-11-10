@@ -1,10 +1,10 @@
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useOrdreId } from "@/lib/useOrdreId";
 import { useEffect, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Banner, Chip, Felt, Knapp, Sheet, Stepper } from "@/components/ui";
-import { isoDato, kortDato } from "@/lib/format";
+import { fraIsoDato, isoDato, kortDato } from "@/lib/format";
 import { useMeg } from "@/lib/sporringar";
 import { farge, skrift, trykk } from "@/lib/tema";
 import { lesSist, noterBrukt, sorterEtterSist } from "@/lib/timetypeSist";
@@ -23,6 +23,8 @@ export default function NyTime() {
   const router = useRouter();
   const inn = useSafeAreaInsets();
   const meg = useMeg().data;
+  // Fra et timeforslag i programmet: dato, timer og timetype ferdig utfylt.
+  const forslag = useLocalSearchParams<{ dato?: string; timar?: string; timetype?: string }>();
 
   const iDag = useMemo(() => new Date(), []);
   const iGaar = useMemo(() => {
@@ -31,10 +33,13 @@ export default function NyTime() {
     return d;
   }, [iDag]);
 
-  const [datoValgt, setDato] = useState<Date>(iDag);
+  const [datoValgt, setDato] = useState<Date>(() => (forslag.dato && fraIsoDato(forslag.dato)) || iDag);
   const [velgerDato, setVelgerDato] = useState(false);
-  const [valgtTimetypeId, setTimetypeId] = useState<string | null>(null);
-  const [timer, setTimer] = useState(0);
+  const [valgtTimetypeId, setTimetypeId] = useState<string | null>(forslag.timetype || null);
+  const [timer, setTimer] = useState(() => {
+    const n = forslag.timar ? Number(forslag.timar) : 0;
+    return Number.isFinite(n) && n > 0 && n <= 24 ? n : 0;
+  });
   const [notat, setNotat] = useState("");
   const [sist, setSist] = useState<string[]>([]);
   const [feil, setFeil] = useState<string | null>(null);

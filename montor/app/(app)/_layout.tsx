@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { farge, skrift } from "@/lib/tema";
 
 /**
- * Innlogget del: Ordrer · Meg. Første kall er GET /api/app/meg — 403 betyr
+ * Innlogget del: Program · Ordrer · Meg. Første kall er GET /api/app/meg — 403 betyr
  * at selskapet ikke har ordre-modulen, og da er det bare «Logg ut» igjen.
  */
 export default function AppLayout() {
@@ -52,6 +52,7 @@ export default function AppLayout() {
         tabBarLabelPosition: "beside-icon",
       }}
     >
+      <Tabs.Screen name="program" options={{ title: "Program" }} />
       <Tabs.Screen name="ordrer" options={{ title: "Ordrer" }} />
       <Tabs.Screen name="meg" options={{ title: "Meg" }} />
     </Tabs>

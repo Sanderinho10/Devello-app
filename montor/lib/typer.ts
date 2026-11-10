@@ -151,3 +151,48 @@ export interface FilLenke {
   url: string;
   expires_in: number;
 }
+
+// --- kalender -------------------------------------------------------------
+
+export type HendingType = "oppdrag" | "mote" | "fravaer" | "annet";
+
+export interface KalenderOrdre {
+  id: string;
+  order_no: number;
+  title: string;
+  customer_name: string;
+  site_address: string | null;
+  status: OrderStatus;
+}
+
+/** GET /api/app/kalender — én avtale. */
+export interface KalenderHending {
+  id: string;
+  kind: HendingType;
+  /** Tittelen slik den skal vises: egen tittel, eller ordretittelen for et oppdrag. */
+  title: string;
+  egen_tittel: string;
+  description: string | null;
+  location: string | null;
+  starts_at: string;
+  ends_at: string;
+  /** Midnatt til midnatt norsk tid — vis uten klokkeslett. */
+  all_day: boolean;
+  /** Satt bare for oppdrag. */
+  order: KalenderOrdre | null;
+  deltakarar: { id: string; navn: string }[];
+}
+
+/** GET /api/app/timeforslag — oppdrag montøren var satt opp på, men ikke har ført timer for. */
+export interface Timeforslag {
+  user_id: string;
+  user_name: string;
+  order: { id: string; order_no: number; title: string; customer_name: string };
+  work_date: string;
+  fra: string;
+  til: string;
+  timar: number;
+  event_ids: string[];
+  price_item_id: string | null;
+  time_type_name: string | null;
+}

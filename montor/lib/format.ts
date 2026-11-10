@@ -97,3 +97,41 @@ export function lesTall(tekst: string): number | null {
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
 }
+
+const UKEDAGER = ["søn.", "man.", "tir.", "ons.", "tor.", "fre.", "lør."];
+
+/** «09:00». */
+export function klokke(d: Date): string {
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+/** «I dag», «I morgen», ellers «man. 9. nov». For dagoverskrifter i programmet. */
+export function dagTittel(d: Date, naa: Date = new Date()): string {
+  const iMorgen = new Date(naa);
+  iMorgen.setDate(naa.getDate() + 1);
+  if (sammeDag(d, naa)) return "I dag";
+  if (sammeDag(d, iMorgen)) return "I morgen";
+  return `${UKEDAGER[d.getDay()]} ${kortDato(d, naa)}`;
+}
+
+/** «man. 9. nov» uansett dag — til datolinja under «I dag». */
+export function ukedagDato(d: Date, naa: Date = new Date()): string {
+  return `${UKEDAGER[d.getDay()]} ${kortDato(d, naa)}`;
+}
+
+/**
+ * Tidsrommet til en avtale: «09:00–14:00», «Hele dagen», eller med sluttdag
+ * når den går over flere dager: «09:00 → tir. 10. nov 14:00».
+ */
+export function tidsrom(startIso: string, sluttIso: string, heleDagen: boolean, naa: Date = new Date()): string {
+  const start = new Date(startIso);
+  const slutt = new Date(sluttIso);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(slutt.getTime())) return "";
+  if (heleDagen) {
+    // Slutten er midnatt dagen etter siste dag — trekk fra et minutt for å finne siste dag.
+    const sisteDag = new Date(slutt.getTime() - 60_000);
+    return sammeDag(start, sisteDag) ? "Hele dagen" : `Hele dagen → ${ukedagDato(sisteDag, naa)}`;
+  }
+  if (sammeDag(start, slutt)) return `${klokke(start)}–${klokke(slutt)}`;
+  return `${klokke(start)} → ${ukedagDato(slutt, naa)} ${klokke(slutt)}`;
+}

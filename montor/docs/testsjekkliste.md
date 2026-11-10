@@ -10,6 +10,15 @@ nettapp med ordre-modulen på (lokalt eller app.devello.no). Kryss av.
 - [ ] Bruker i et selskap uten ordre-modul → skjerm med serverens tekst og «Logg ut».
 - [ ] «Glemt passord?» viser bare teksten om nettappen.
 
+## Program
+
+- [ ] Programmet er første fane. Avtaler i dag og 14 dager fram, gruppert per dag, «I dag» og «I morgen» først.
+- [ ] Oppdrag viser tid, «Oppdrag»-merke, tittel, `#nr · kunde` og adresse. Trykk → ordren.
+- [ ] Heldagsavtale (ferie) viser «Hele dagen» uten klokkeslett. Møte/fravær/annet er ikke trykkbare.
+- [ ] «Hele firmaet» viser kollegenes avtaler med navn.
+- [ ] Sett opp et oppdrag i går i nettappen uten å føre timer → «Timer som ikke er ført» øverst med «Før 5 t». Trykk → «Før timer» ferdig utfylt med dato, timer og timetype. Lagre → forslaget forsvinner.
+- [ ] Flymodus → banneret, og programmet som sist ble hentet vises.
+
 ## Ordreliste
 
 - [ ] Pågår · Åpne · Ferdige. Standard Pågår; tom → Åpne.
