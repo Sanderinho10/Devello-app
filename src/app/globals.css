@@ -5296,3 +5296,26 @@ body.kal-drar * {
     justify-content: flex-start;
   }
 }
+
+/* «Gi tilbakemelding»: etter Selskap, rett over brukeren og Logg ut. */
+.nav-tilbakemelding {
+  margin-top: 12px;
+}
+
+/* Devello → Tilbakemeldinger */
+.tilbakemelding-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tilbakemelding.behandlet {
+  opacity: 0.6;
+}
+
+.tilbakemelding-tekst {
+  margin: 12px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}

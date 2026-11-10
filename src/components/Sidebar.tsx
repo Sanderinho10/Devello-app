@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { SignOut } from "@/components/SignOut";
 import { Merke } from "@/components/Merke";
 import { SelskapVelger } from "@/components/SelskapVelger";
+import { Tilbakemelding } from "@/components/Tilbakemelding";
 import { harModul } from "@/lib/moduler";
 
 /**
@@ -129,7 +130,10 @@ const DEVELLO: NavSection = {
   label: "Devello",
   icon: "✦",
   basePath: "/devello",
-  tabs: [{ label: "Abonnementsfakturaer", href: "/devello/fakturaer" }],
+  tabs: [
+    { label: "Abonnementsfakturaer", href: "/devello/fakturaer" },
+    { label: "Tilbakemeldinger", href: "/devello/tilbakemeldinger" },
+  ],
 };
 
 function passer(pathname: string, href: string): boolean {
@@ -240,6 +244,10 @@ export function Sidebar({
         {agenter.length > 0 && <div className="nav-separator" />}
         {renderSection(SELSKAP)}
         {erDevello && renderSection(DEVELLO)}
+
+        <div className="nav-agent nav-tilbakemelding">
+          <Tilbakemelding />
+        </div>
 
         <div className="sidebar-footer">
           <div>{companyName}</div>

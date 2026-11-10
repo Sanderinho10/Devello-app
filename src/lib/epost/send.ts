@@ -23,6 +23,8 @@ export interface Epost {
   emne: string;
   html: string;
   tekst: string;
+  /** Der svaret havner når mottakeren trykker «Svar». Avsenderen er ingen-svar. */
+  svarTil?: string;
 }
 
 export async function sendEpost(epost: Epost): Promise<{ id: string }> {
@@ -48,6 +50,7 @@ export async function sendEpost(epost: Epost): Promise<{ id: string }> {
       subject: epost.emne,
       html: epost.html,
       text: epost.tekst,
+      ...(epost.svarTil ? { reply_to: epost.svarTil } : {}),
     }),
   });
 
