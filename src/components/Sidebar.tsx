@@ -130,7 +130,10 @@ const DEVELLO: NavSection = {
   label: "Devello",
   icon: "✦",
   basePath: "/devello",
-  tabs: [{ label: "Abonnementsfakturaer", href: "/devello/fakturaer" }],
+  tabs: [
+    { label: "Abonnementsfakturaer", href: "/devello/fakturaer" },
+    { label: "Tilbakemeldinger", href: "/devello/tilbakemeldinger" },
+  ],
 };
 
 function passer(pathname: string, href: string): boolean {

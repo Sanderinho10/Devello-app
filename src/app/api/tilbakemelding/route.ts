@@ -6,9 +6,10 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 /**
  * Tilbakemelding fra kundene, rett i innboksen til Devello.
  *
- * Ingen tabell: pilotkundene skal få svar fra et menneske, og det skjer i
- * e-posten. Svar-til er kunden selv, så «Svar» i e-postprogrammet går rett
- * til dem.
+ * Lagres først i devello_tilbakemeldinger (oversikten på
+ * /devello/tilbakemeldinger), så sendes e-posten. Svar-til er kunden selv, så
+ * «Svar» i e-postprogrammet går rett til dem. Feiler e-posten, er meldingen
+ * likevel tatt vare på — kunden får beskjed om at den kom fram.
  *
  * Åpen også uten aktivt abonnement — det er nettopp da noen kan ha noe å si.
  */
@@ -59,48 +60,79 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
-    const type = TYPER[body.type ?? ""] ?? TYPER.annet;
+    const typeKode = body.type && Object.hasOwn(TYPER, body.type) ? body.type : "annet";
+    const type = TYPER[typeKode];
     const side = (body.side ?? "").slice(0, 300);
+    const nettleser = (request.headers.get("user-agent") ?? "").slice(0, 500);
 
-    const til = mottakere();
-    if (til.length === 0) {
-      throw new EpostIkkeSattOpp(
-        "Tilbakemeldinger er ikke satt opp. Sett TILBAKEMELDING_EPOST på serveren.",
-      );
-    }
-
-    const { data: company } = await supabaseAdmin()
+    const admin = supabaseAdmin();
+    const { data: company } = await admin
       .from("companies")
       .select("name")
       .eq("id", session.companyId)
       .maybeSingle();
     const selskap = company?.name ?? "Ukjent selskap";
 
-    const { html, tekst } = epostRamme({
-      overskrift: `${type} fra ${escape(selskap)}`,
-      avsnitt: [
-        escape(melding).replace(/\n/g, "<br>"),
-        `<span style="color:#6e6e73;font-size:13px">` +
-          `Fra: ${escape(session.email)}<br>` +
-          `Selskap: ${escape(selskap)}<br>` +
-          (side ? `Side: ${escape(side)}<br>` : "") +
-          `Nettleser: ${escape(request.headers.get("user-agent") ?? "ukjent")}` +
-          `</span>`,
-      ],
-      fot: "Svar på denne e-posten, så går svaret rett til kunden.",
-    });
+    const { data: rad, error: lagreFeil } = await admin
+      .from("devello_tilbakemeldinger")
+      .insert({
+        company_id: session.companyId,
+        user_id: session.userId,
+        epost: session.email,
+        selskap,
+        type: typeKode,
+        melding,
+        side: side || null,
+        nettleser: nettleser || null,
+      })
+      .select("id")
+      .single();
+    if (lagreFeil) console.error("Tilbakemelding ble ikke lagret:", lagreFeil.message);
 
-    await Promise.all(
-      til.map((adresse) =>
-        sendEpost({
-          til: adresse,
-          emne: `[${type}] ${selskap}: ${melding.split("\n")[0].slice(0, 60)}`,
-          html,
-          tekst,
-          svarTil: session.email,
-        }),
-      ),
-    );
+    let epostFeil: unknown = null;
+    try {
+      const til = mottakere();
+      if (til.length === 0) {
+        throw new EpostIkkeSattOpp(
+          "Tilbakemeldinger er ikke satt opp. Sett TILBAKEMELDING_EPOST på serveren.",
+        );
+      }
+
+      const { html, tekst } = epostRamme({
+        overskrift: `${type} fra ${escape(selskap)}`,
+        avsnitt: [
+          escape(melding).replace(/\n/g, "<br>"),
+          `<span style="color:#6e6e73;font-size:13px">` +
+            `Fra: ${escape(session.email)}<br>` +
+            `Selskap: ${escape(selskap)}<br>` +
+            (side ? `Side: ${escape(side)}<br>` : "") +
+            `Nettleser: ${escape(nettleser || "ukjent")}` +
+            `</span>`,
+        ],
+        fot: "Svar på denne e-posten, så går svaret rett til kunden.",
+      });
+
+      await Promise.all(
+        til.map((adresse) =>
+          sendEpost({
+            til: adresse,
+            emne: `[${type}] ${selskap}: ${melding.split("\n")[0].slice(0, 60)}`,
+            html,
+            tekst,
+            svarTil: session.email,
+          }),
+        ),
+      );
+      if (rad) {
+        await admin.from("devello_tilbakemeldinger").update({ epost_sendt: true }).eq("id", rad.id);
+      }
+    } catch (err) {
+      epostFeil = err;
+      console.error("Tilbakemelding: e-posten gikk ikke ut:", err);
+    }
+
+    // Kom den fram ett av stedene, har vi den.
+    if (lagreFeil && epostFeil) throw epostFeil;
 
     return NextResponse.json({ ok: true });
   } catch (err) {
