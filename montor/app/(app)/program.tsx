@@ -98,8 +98,8 @@ export default function Program() {
             <RefreshControl
               refreshing={kalender.isRefetching || forslag.isRefetching}
               onRefresh={() => {
-                kalender.refetch();
-                forslag.refetch();
+                void kalender.refetch();
+                void forslag.refetch();
               }}
               tintColor={farge.aksent}
             />
@@ -112,7 +112,7 @@ export default function Program() {
                   <ForslagKort key={`${f.order.id}-${f.work_date}`} forslag={f} naa={naa} onPress={() => foerTimer(f)} />
                 ))}
               </View>
-            ) : null
+            ) : undefined
           }
           renderSectionHeader={({ section }) => (
             <View style={s.dagHode}>

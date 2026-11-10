@@ -23,7 +23,7 @@ export default function NotaterFane() {
           data={sammenslaatt.notat}
           keyExtractor={(n) => n.id}
           contentContainerStyle={s.liste}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={farge.aksent} />}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={farge.aksent} />}
           ListEmptyComponent={<Tom tekst="Ingen notater ennå." />}
           ListFooterComponent={<View style={{ height: BUNN_PLASS }} />}
           renderItem={({ item }) => (

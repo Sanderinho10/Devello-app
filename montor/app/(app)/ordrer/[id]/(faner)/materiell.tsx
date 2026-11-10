@@ -54,7 +54,7 @@ export default function MateriellFane() {
           data={sammenslaatt.materiell}
           keyExtractor={(m) => m.id}
           contentContainerStyle={s.liste}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={farge.aksent} />}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={farge.aksent} />}
           ListEmptyComponent={<Tom tekst="Ingen materiell ført ennå." />}
           ListFooterComponent={<View style={{ height: BUNN_PLASS }} />}
           renderItem={({ item }) => {

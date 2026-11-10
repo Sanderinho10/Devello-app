@@ -1,7 +1,7 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useRouter } from "expo-router";
 import { useOrdreId } from "@/lib/useOrdreId";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
 import { FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useErOffline } from "@/components/Offline";
@@ -34,7 +34,7 @@ export default function NyMateriell() {
   const [valgt, setValgt] = useState<SokTreff | null>(null);
   const [fritekst, setFritekst] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
-  const feltRef = useRef<TextInput>(null);
+  const feltRef = useRef<ComponentRef<typeof TextInput>>(null);
   const [tillatelse, beOmTillatelse] = useCameraPermissions();
 
   // 300 ms debounce på det som skrives.

@@ -54,7 +54,7 @@ export default function TimerFane() {
           data={sammenslaatt.timer}
           keyExtractor={(t) => t.id}
           contentContainerStyle={s.liste}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={farge.aksent} />}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={farge.aksent} />}
           ListEmptyComponent={<Tom tekst="Ingen timer ført ennå." />}
           ListFooterComponent={<View style={{ height: BUNN_PLASS }} />}
           renderItem={({ item }) => {

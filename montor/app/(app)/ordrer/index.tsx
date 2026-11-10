@@ -52,7 +52,7 @@ export default function Ordreliste() {
           data={liste}
           keyExtractor={(o) => o.id}
           contentContainerStyle={s.liste}
-          refreshControl={<RefreshControl refreshing={ordrar.isRefetching} onRefresh={() => ordrar.refetch()} tintColor={farge.aksent} />}
+          refreshControl={<RefreshControl refreshing={ordrar.isRefetching} onRefresh={() => void ordrar.refetch()} tintColor={farge.aksent} />}
           ListEmptyComponent={<Tom tekst={sok ? "Ingen ordrer passer søket." : "Ingen ordrer her."} />}
           renderItem={({ item }) => <OrdreRad ordre={item} onPress={() => router.push(`/ordrer/${item.id}/timer`)} />}
         />
