@@ -13,7 +13,7 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
     const admin = supabaseAdmin();
     const r = await utkastMedId(admin, session, id);
     if (r instanceof NextResponse) return r;
-    return await angreGodkjenning(admin, r.draft);
+    return await angreGodkjenning(admin, session, r.draft);
   } catch (err) {
     return errorResponse(err);
   }

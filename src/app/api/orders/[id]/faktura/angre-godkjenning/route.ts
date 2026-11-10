@@ -15,7 +15,7 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
     const r = await ordreOgUtkast(admin, session, id);
     if (r instanceof NextResponse) return r;
     if (!r.draft) return NextResponse.json({ error: "Ordren har ikke noe fakturaforslag ennå." }, { status: 404 });
-    return await angreGodkjenning(admin, r.draft);
+    return await angreGodkjenning(admin, session, r.draft);
   } catch (err) {
     return errorResponse(err);
   }

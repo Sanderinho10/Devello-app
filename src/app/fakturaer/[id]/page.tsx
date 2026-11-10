@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { FakturaFane, type FakturaKunde } from "@/app/ordre/[id]/faktura/FakturaFane";
 import { manglandeProdukt } from "@/lib/faktura/go";
-import { currentSession, supabaseServer } from "@/lib/supabase/server";
+import { Historikk } from "@/components/Historikk";
+import { hentAktivitet } from "@/lib/aktivitet";
+import { currentSession, supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import { formatDate, type InvoiceDraft, type ProductMap } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +26,7 @@ export default async function FakturaSide({ params }: { params: Promise<{ id: st
   const draft = data as InvoiceDraft;
   if (draft.order_id) redirect(`/ordre/${draft.order_id}/faktura`);
 
-  const [{ data: kunde }, { data: kopling }] = await Promise.all([
+  const [{ data: kunde }, { data: kopling }, historikk] = await Promise.all([
     draft.customer_id
       ? supabase.from("customers").select("id, name, contact, is_person, customer_no").eq("id", draft.customer_id).maybeSingle()
       : Promise.resolve({ data: null }),
@@ -33,6 +35,8 @@ export default async function FakturaSide({ params }: { params: Promise<{ id: st
       .select("provider, environment, status, product_map, settings")
       .eq("company_id", session!.companyId)
       .maybeSingle(),
+    // Fakturaen over er hentet med brukerens tilgang, så selskapet er sjekket.
+    hentAktivitet(supabaseAdmin(), { companyId: session!.companyId, objekt: "faktura", objektId: draft.id }),
   ]);
 
   // Uten ordre er det bare én kunde: den fakturaen sendes til.
@@ -59,6 +63,7 @@ export default async function FakturaSide({ params }: { params: Promise<{ id: st
             {draft.transfer_order_no && ` · ordre ${draft.transfer_order_no} i regnskapssystemet`}
           </p>
         </div>
+        <Historikk poster={historikk} />
       </div>
 
       <FakturaFane

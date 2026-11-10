@@ -5197,6 +5197,106 @@ body.kal-drar * {
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * Historikk: klokke-knappen øverst til høyre på tilbud, ordre og faktura.
+ * Et trykk åpner en liste over hvem som gjorde hva, nyeste først.
+ * ------------------------------------------------------------------------- */
+
+.page-header-handlinger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.historikk {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.historikk-knapp {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.historikk-knapp:hover,
+.historikk-knapp[aria-expanded="true"] {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.historikk-knapp:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.historikk-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  width: min(340px, calc(100vw - 32px));
+  max-height: min(420px, 70vh);
+  overflow-y: auto;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  text-align: left;
+}
+
+.historikk-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.historikk-liste li {
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+
+.historikk-liste li:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.historikk-tekst {
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+.historikk-meta {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Når sidehodet legger seg i en kolonne, står knappen til venstre. Da åpner
+   panelet seg mot høyre, ellers ville det gått ut av skjermen. */
+@media (max-width: 700px) {
+  .historikk-panel {
+    right: auto;
+    left: 0;
+  }
+  .page-header-handlinger {
+    justify-content: flex-start;
+  }
+}
+
 /* «Gi tilbakemelding»: etter Selskap, rett over brukeren og Logg ut. */
 .nav-tilbakemelding {
   margin-top: 12px;

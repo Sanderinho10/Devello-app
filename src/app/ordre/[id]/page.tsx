@@ -7,10 +7,10 @@ import { OrdreAnsvar } from "./OrdreAnsvar";
 import { OrdrePlan } from "./OrdrePlan";
 import { brukereISelskap } from "@/lib/selskap/medlemskap";
 import { hentOrdre, ordreErLaast } from "@/lib/ordre/hent";
+import { hendelseTekst } from "@/lib/ordre/hendelse";
 import { summerMateriell, summerTimar } from "@/lib/ordre/summering";
 import { supabaseServer } from "@/lib/supabase/server";
 import {
-  ORDER_STATUS_LABELS,
   QUOTE_TYPE_LABELS,
   computeTotals,
   formatDate,
@@ -20,7 +20,6 @@ import {
   lineTotal,
   type MaterialEntry,
   type OrderEvent,
-  type OrderStatus,
   type TimeEntry,
 } from "@/lib/types";
 
@@ -273,7 +272,11 @@ export default async function OrdreSide({
               {((hendelser ?? []) as OrderEvent[]).map((h) => (
                 <div key={h.id} className="lead-row">
                   <div className="lead-main">{hendelseTekst(h)}</div>
-                  <span className="lead-time">{formatDate(h.created_at)}</span>
+                  <span className="lead-time">
+                    {[kolleger.find((k) => k.id === h.created_by)?.navn, formatDate(h.created_at)]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
                 </div>
               ))}
             </div>
@@ -289,16 +292,4 @@ export default async function OrdreSide({
 /** 7,5 timer → «7,5 t». */
 function formatTimar(t: number): string {
   return `${t.toLocaleString("nb-NO", { maximumFractionDigits: 2 })} t`;
-}
-
-/** «opna → paagaar» i loggen blir «Åpen → Pågår» på skjermen. */
-function hendelseTekst(h: OrderEvent): string {
-  if (h.kind === "oppretta") return `Opprettet${h.note ? ` — ${h.note.toLowerCase()}` : ""}`;
-  if (h.kind === "status" && h.note) {
-    const [fra, til] = h.note.split("→").map((s) => s.trim()) as OrderStatus[];
-    const navn = (s: OrderStatus) => ORDER_STATUS_LABELS[s] ?? s;
-    return `Status: ${navn(fra)} → ${navn(til)}`;
-  }
-  if (h.kind === "redigert") return `Redigert${h.note ? ` — ${h.note}` : ""}`;
-  return h.note ?? h.kind;
 }
