@@ -115,9 +115,6 @@ export default async function LeverandorfakturaerPage({
       <div className="page-header">
         <div>
           <h1>Leverandørfakturaer</h1>
-          <p className="page-subtitle">
-            Fra regnskapssystemet eller grossistens fakturafiler, koblet til ordren grossisten skrev på fakturaen.
-          </p>
         </div>
       </div>
 

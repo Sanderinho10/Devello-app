@@ -212,7 +212,6 @@ export function Kalender({ startDato }: { startDato: string | null }) {
       <div className="page-header">
         <div>
           <h1>Kalender</h1>
-          <p className="page-subtitle">Hvem er hvor, og når — oppdrag, møter og fravær.</p>
         </div>
       </div>
 

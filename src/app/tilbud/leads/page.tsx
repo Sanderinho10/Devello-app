@@ -123,11 +123,6 @@ export default async function LeadsPage({
       <div className="page-header">
         <div>
           <h1>Leads</h1>
-          <p className="page-subtitle">
-            {mailbox
-              ? `Innkommende forespørsler fra ${mailbox.email_address}`
-              : "Ingen postkasse tilkoblet ennå"}
-          </p>
         </div>
       </div>
 
