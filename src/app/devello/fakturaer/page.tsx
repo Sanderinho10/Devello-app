@@ -54,10 +54,6 @@ export default async function DevelloFakturaerPage() {
       <div className="page-header kompakt">
         <div>
           <h1>Abonnementsfakturaer</h1>
-          <p className="page-subtitle">
-            Fakturaene Devello sender kundene. Ubetalt etter forfall gir varsel i appen; 30 dager etter forfall
-            sperres kontoen til fakturaen er markert betalt.
-          </p>
         </div>
       </div>
       <FakturaAdmin

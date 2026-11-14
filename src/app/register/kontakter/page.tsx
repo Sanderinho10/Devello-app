@@ -93,7 +93,6 @@ export default async function KontakterPage({
       <div className="page-header">
         <div>
           <h1>Kontakter</h1>
-          <p className="page-subtitle">Kunder og leverandører — med tilbud, ordrer og fakturaforslag samlet på kunden.</p>
         </div>
       </div>
 
