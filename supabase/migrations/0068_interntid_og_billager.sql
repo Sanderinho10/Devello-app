@@ -118,7 +118,8 @@ create table if not exists stock_movements (
   created_at        timestamptz not null default now()
 );
 create index if not exists stock_movements_location_idx on stock_movements (location_id, created_at);
-create index if not exists stock_movements_invoice_line_idx
+-- Éi fakturalinje går inn i éin bil éin gong, også om matchinga køyrer to gonger samtidig.
+create unique index if not exists stock_movements_invoice_line_unik
   on stock_movements (invoice_line_id) where invoice_line_id is not null;
 -- Éi materiell-linje er eitt uttak.
 create unique index if not exists stock_movements_material_entry_unik

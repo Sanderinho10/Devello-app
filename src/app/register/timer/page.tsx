@@ -11,7 +11,9 @@ export const dynamic = "force-dynamic";
 type Vis = "alle" | "ordre" | "intern";
 
 /** Flere enn dette i én periode, og perioden bør snevres inn. */
-const MAKS_RADER = 2000;
+const MAKS_RADER = 5000;
+/** Supabase gir høyst 1000 rader per svar, så lista hentes side for side. */
+const SIDE = 1000;
 
 /**
  * Timeregisteret: alle timene i selskapet på ett sted, på tvers av ordrene
@@ -35,7 +37,8 @@ export default async function TimeregisterSide({
   const supabase = await supabaseServer();
   const sp = await searchParams;
 
-  const [fraStd, tilStd] = denneMaaneden();
+  const iDag = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Oslo" }).format(new Date());
+  const [fraStd, tilStd] = maaneden(iDag);
   const fra = erDato(sp.fra) ? sp.fra! : fraStd;
   const til = erDato(sp.til) ? sp.til! : tilStd;
   const vis: Vis = sp.vis === "ordre" || sp.vis === "intern" ? sp.vis : "alle";
@@ -44,20 +47,30 @@ export default async function TimeregisterSide({
   const erAdmin = meg?.role === "admin";
   const montor = erAdmin ? (sp.montor ?? "") : session.userId;
 
-  let sporring = supabase
-    .from("time_entries")
-    .select("*, orders(id, order_no, title, status, customer_name)")
-    .gte("work_date", fra)
-    .lte("work_date", til)
-    .order("work_date", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(MAKS_RADER);
-  if (montor) sporring = sporring.eq("user_id", montor);
-  if (vis === "ordre") sporring = sporring.not("order_id", "is", null);
-  if (vis === "intern") sporring = sporring.not("internal_activity_id", "is", null);
+  const hentRader = async (): Promise<TimeRad[]> => {
+    const alle: TimeRad[] = [];
+    for (let start = 0; start <= MAKS_RADER; start += SIDE) {
+      let sporring = supabase
+        .from("time_entries")
+        .select("*, orders(id, order_no, title, status, customer_name)")
+        .gte("work_date", fra)
+        .lte("work_date", til);
+      if (montor) sporring = sporring.eq("user_id", montor);
+      if (vis === "ordre") sporring = sporring.not("order_id", "is", null);
+      if (vis === "intern") sporring = sporring.not("internal_activity_id", "is", null);
+      const { data } = await sporring
+        .order("work_date", { ascending: false })
+        .order("created_at", { ascending: false })
+        .order("id")
+        .range(start, start + SIDE - 1);
+      alle.push(...((data ?? []) as TimeRad[]));
+      if (!data || data.length < SIDE) break;
+    }
+    return alle;
+  };
 
-  const [{ data: rader }, medlemmer, { data: timetypar }, aktivitetar] = await Promise.all([
-    sporring,
+  const [rader, medlemmer, { data: timetypar }, aktivitetar] = await Promise.all([
+    hentRader(),
     brukereISelskap(supabase, session.companyId),
     // Samme regel som API-et: aktive rader av typen «time» i aktive lister.
     supabase
@@ -75,8 +88,9 @@ export default async function TimeregisterSide({
 
   return (
     <Timeregister
-      rader={(rader ?? []) as TimeRad[]}
-      avkortet={(rader ?? []).length >= MAKS_RADER}
+      rader={rader.slice(0, MAKS_RADER)}
+      avkortet={rader.length > MAKS_RADER}
+      iDag={iDag}
       filter={{ fra, til, montor: erAdmin ? montor : "", vis }}
       medlemmer={medlemmer
         .map((m) => ({ id: m.id, navn: m.full_name || m.email }))
@@ -97,9 +111,8 @@ function erDato(v: string | undefined): boolean {
   return Boolean(v && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(new Date(v).getTime()));
 }
 
-/** Første og siste dag i inneværende måned, norsk tid. */
-function denneMaaneden(): [string, string] {
-  const iDag = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Oslo" }).format(new Date());
+/** Første og siste dag i måneden datoen ligger i. */
+function maaneden(iDag: string): [string, string] {
   const [aar, mnd] = iDag.split("-").map(Number);
   const siste = new Date(Date.UTC(aar, mnd, 0)).getUTCDate();
   const p = (n: number) => String(n).padStart(2, "0");

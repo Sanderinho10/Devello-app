@@ -50,44 +50,64 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Velg hvor timene skal flyttes." }, { status: 400 });
     }
 
-    const { data: rader, error } = await admin
-      .from("time_entries")
-      .select("*")
-      .eq("company_id", session.companyId)
-      .in("id", ids);
-    if (error) throw new Error(error.message);
-    const foeringar = (rader ?? []) as TimeEntry[];
+    // Hundre om gongen: fem hundre id-ar i éi adresse er for langt for porten.
+    const foeringar: TimeEntry[] = [];
+    for (const bolk of bolkar(ids)) {
+      const { data: rader, error } = await admin
+        .from("time_entries")
+        .select("*")
+        .eq("company_id", session.companyId)
+        .in("id", bolk);
+      if (error) throw new Error(error.message);
+      foeringar.push(...((rader ?? []) as TimeEntry[]));
+    }
+
+    const fakturert = foeringar.filter((e) => e.invoice_draft_id).length;
+    const aktuelle = foeringar.filter((e) => !e.invoice_draft_id);
+    const derFraFoer = (e: TimeEntry) =>
+      maal.type === "ordre" ? e.order_id === maal.orderId : e.internal_activity_id === maal.activityId;
+    const alleredeDer = aktuelle.filter(derFraFoer).length;
+    const skalFlyttast = aktuelle.filter((e) => !derFraFoer(e));
+
+    // Målet blir slått opp éin gong per slag, og alt blir sjekka før noko
+    // blir skrive — så ein manglande timetype ikkje gir ei halv flytting.
+    // Timetypen i kallet gjeld berre føringane som kjem frå interntid. Dei
+    // som alt står på ein ordre tek med seg timetypen og prisen dei har.
+    const grupper: { ids: string[]; endringar: Record<string, unknown> }[] = [];
+    const fraOrdre = skalFlyttast.filter((e) => e.order_id);
+    const fraIntern = skalFlyttast.filter((e) => !e.order_id);
+    for (const [gruppe, tilDenne] of [
+      [fraOrdre, maal.type === "ordre" ? ({ type: "ordre", orderId: maal.orderId } as Flyttemaal) : maal],
+      [fraIntern, maal],
+    ] as [TimeEntry[], Flyttemaal][]) {
+      if (gruppe.length === 0) continue;
+      const flytt = await flytteEndringar(admin, session.companyId, gruppe[0], tilDenne);
+      if ("feil" in flytt) return NextResponse.json({ error: flytt.feil }, { status: flytt.status });
+      grupper.push({ ids: gruppe.map((e) => e.id), endringar: flytt.endringar });
+    }
 
     let flytta = 0;
-    let fakturert = 0;
-    let alleredeDer = 0;
-    for (const entry of foeringar) {
-      if (entry.invoice_draft_id) {
-        fakturert += 1;
-        continue;
+    for (const gruppe of grupper) {
+      for (const bolk of bolkar(gruppe.ids)) {
+        const { error: feil } = await admin
+          .from("time_entries")
+          .update(gruppe.endringar)
+          .eq("company_id", session.companyId)
+          .is("invoice_draft_id", null)
+          .in("id", bolk);
+        if (feil) throw new Error(feil.message);
+        flytta += bolk.length;
       }
-      const derFraFoer =
-        maal.type === "ordre" ? entry.order_id === maal.orderId : entry.internal_activity_id === maal.activityId;
-      if (derFraFoer) {
-        alleredeDer += 1;
-        continue;
-      }
-      // Timetypen i kallet gjeld berre føringane som kjem frå interntid. Dei
-      // som alt står på ein ordre tek med seg timetypen og prisen dei har.
-      const tilDenne: Flyttemaal =
-        maal.type === "ordre" && entry.order_id ? { type: "ordre", orderId: maal.orderId } : maal;
-      const flytt = await flytteEndringar(admin, session.companyId, entry, tilDenne);
-      // Feil ved målet (ukjend ordre, manglande timetype) gjeld alle: stopp med éin gong.
-      if ("feil" in flytt) {
-        return NextResponse.json({ error: flytt.feil, flytta }, { status: flytt.status });
-      }
-      const { error: feil } = await admin.from("time_entries").update(flytt.endringar).eq("id", entry.id);
-      if (feil) throw new Error(feil.message);
-      flytta += 1;
     }
 
     return NextResponse.json({ ok: true, flytta, fakturert, allerede_der: alleredeDer });
   } catch (err) {
     return errorResponse(err);
   }
+}
+
+function bolkar<T>(liste: T[], storleik = 100): T[][] {
+  const ut: T[][] = [];
+  for (let i = 0; i < liste.length; i += storleik) ut.push(liste.slice(i, i + storleik));
+  return ut;
 }

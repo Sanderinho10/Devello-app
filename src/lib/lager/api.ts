@@ -95,10 +95,15 @@ export async function koplLinjeTilLager(
     });
     if (error) throw new Error(`Kunne ikke legge varen på bilen: ${error.message}`);
   }
-  await admin
+  const { error } = await admin
     .from("supplier_invoice_lines")
     .update({ stock_location_id: lager.id, order_id: null, material_entry_id: null, status: "kopla" })
     .eq("id", linje.id);
+  if (error) {
+    // Utan koplinga ville neste matching lagt varene inn éin gong til.
+    await admin.from("stock_movements").delete().eq("invoice_line_id", linje.id);
+    throw new Error(`Kunne ikke koble linja til bilen: ${error.message}`);
+  }
 }
 
 /** Bilane som kan ta imot varer, med nummeret fakturaen leitar etter. */

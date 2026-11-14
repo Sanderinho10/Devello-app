@@ -49,6 +49,7 @@ interface ValgtOrdre {
 export function Timeregister({
   rader,
   avkortet,
+  iDag,
   filter,
   medlemmer,
   timetypar,
@@ -58,6 +59,8 @@ export function Timeregister({
   rader: TimeRad[];
   /** Perioden hadde flere føringer enn siden viser. */
   avkortet: boolean;
+  /** Dagens dato i norsk tid, fra tjeneren — så tjener og nettleser viser det samme. */
+  iDag: string;
   filter: { fra: string; til: string; montor: string; vis: "alle" | "ordre" | "intern" };
   medlemmer: { id: string; navn: string }[];
   timetypar: Timetype[];
@@ -68,7 +71,10 @@ export function Timeregister({
   const aktive = aktivitetar.filter((a) => a.active);
 
   const [redigerer, setRedigerer] = useState<TimeRad | null>(null);
-  const [dato, setDato] = useState(iDag());
+  const [dato, setDato] = useState(iDag);
+  // Timetypen sendes bare ved redigering når noen faktisk har byttet den:
+  // en føring på en utgått timetype skal ikke få ny pris av at en kommentar rettes.
+  const [typeEndra, setTypeEndra] = useState(false);
   const [userId, setUserId] = useState(meg.id);
   const [maal, setMaal] = useState<Maal>("ordre");
   const [ordre, setOrdre] = useState<ValgtOrdre | null>(null);
@@ -96,8 +102,11 @@ export function Timeregister({
 
   function nullstill() {
     setRedigerer(null);
-    setDato(iDag());
+    setDato(iDag);
     setUserId(meg.id);
+    setTypeEndra(false);
+    setTypeId(timetypar[0]?.id ?? "");
+    setAktivitetId(aktive[0]?.id ?? "");
     setOrdre(null);
     setOrdreTekst("");
     setTimar("");
@@ -107,6 +116,7 @@ export function Timeregister({
 
   function startRedigering(r: TimeRad) {
     setRedigerer(r);
+    setTypeEndra(false);
     setDato(r.work_date);
     setUserId(r.user_id);
     if (r.orders) {
@@ -118,7 +128,9 @@ export function Timeregister({
       setMaal("intern");
       setOrdre(null);
       setOrdreTekst("");
-      if (r.internal_activity_id) setAktivitetId(r.internal_activity_id);
+      if (r.internal_activity_id && aktive.some((a) => a.id === r.internal_activity_id)) {
+        setAktivitetId(r.internal_activity_id);
+      }
     }
     setTimar(String(r.hours).replace(".", ","));
     setNote(r.note ?? "");
@@ -157,9 +169,7 @@ export function Timeregister({
                 order_id: ordre!.id,
                 // Timetypen sendes bare når den er byttet — eller når føringen
                 // kommer fra interntid og ikke har noen.
-                ...(typeId && (typeId !== redigerer.price_item_id || !redigerer.order_id)
-                  ? { price_item_id: typeId }
-                  : {}),
+                ...(typeId && (typeEndra || !redigerer.order_id) ? { price_item_id: typeId } : {}),
               };
       } else if (maal === "intern") {
         url = "/api/timer/intern";
@@ -221,6 +231,10 @@ export function Timeregister({
   }
 
   const kanFoere = maal === "intern" ? aktive.length > 0 : timetypar.length > 0;
+  // Føringen står på en timetype som ikke lenger er i prislista. Den vises
+  // som ført, og beholdes til noen velger en annen.
+  const utgaattType =
+    Boolean(redigerer?.order_id) && !typeEndra && !timetypar.some((t) => t.id === redigerer?.price_item_id);
 
   return (
     <>
@@ -306,7 +320,19 @@ export function Timeregister({
               </div>
               <label className="foring-type">
                 <span className="label">Timetype</span>
-                <select className="input" value={typeId} onChange={(e) => setTypeId(e.target.value)}>
+                <select
+                  className="input"
+                  value={utgaattType ? "" : typeId}
+                  onChange={(e) => {
+                    setTypeId(e.target.value);
+                    setTypeEndra(true);
+                  }}
+                >
+                  {utgaattType && (
+                    <option value="">
+                      {redigerer!.time_type_name} — {formatNok(Number(redigerer!.unit_price))} (som ført)
+                    </option>
+                  )}
                   {timetypar.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name} — {formatNok(t.unit_price)}/{t.unit}
@@ -387,10 +413,10 @@ export function Timeregister({
           Vis
         </button>
         <span className="verktoylinje-hoyre">
-          <Link className="linkish" href={maanedLenke(filter, 0)}>
+          <Link className="linkish" href={maanedLenke(iDag, filter, 0)}>
             Denne måneden
           </Link>
-          <Link className="linkish" href={maanedLenke(filter, -1)}>
+          <Link className="linkish" href={maanedLenke(iDag, filter, -1)}>
             Forrige måned
           </Link>
         </span>
@@ -827,19 +853,12 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-function iDag(): string {
-  const d = new Date();
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
-
 /** Lenke til en hel måned: 0 = denne, -1 = forrige. Montør og visning følger med. */
-function maanedLenke(filter: { montor: string; vis: string }, forskyving: number): string {
-  const no = new Date();
-  const start = new Date(no.getFullYear(), no.getMonth() + forskyving, 1);
-  const slutt = new Date(no.getFullYear(), no.getMonth() + forskyving + 1, 0);
-  const iso = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+function maanedLenke(iDag: string, filter: { montor: string; vis: string }, forskyving: number): string {
+  const [aar, mnd] = iDag.split("-").map(Number);
+  const start = new Date(Date.UTC(aar, mnd - 1 + forskyving, 1));
+  const slutt = new Date(Date.UTC(aar, mnd + forskyving, 0));
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
   const params = new URLSearchParams({ fra: iso(start), til: iso(slutt) });
   if (filter.montor) params.set("montor", filter.montor);
   if (filter.vis !== "alle") params.set("vis", filter.vis);

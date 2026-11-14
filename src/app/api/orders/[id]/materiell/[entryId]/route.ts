@@ -108,10 +108,15 @@ export async function PATCH(
 
     // Tatt fra en bil: uttaket følger mengden på linja.
     if (entry.stock_location_id && endringer.quantity !== undefined) {
-      await admin
+      const { error: uttakFeil } = await admin
         .from("stock_movements")
         .update({ quantity: -Number(endringer.quantity) })
         .eq("material_entry_id", entry.id);
+      if (uttakFeil) {
+        // Linja og bilen skal vise samme mengde: sett linja tilbake.
+        await admin.from("material_entries").update({ quantity: entry.quantity }).eq("id", entry.id);
+        throw new Error(`Kunne ikke oppdatere uttaket fra bilen: ${uttakFeil.message}`);
+      }
     }
     return NextResponse.json(data);
   } catch (err) {

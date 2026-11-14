@@ -401,7 +401,9 @@ async function skrivLinjer(admin: SupabaseClient, faktura: SupplierInvoice, dok:
     .from("supplier_invoice_lines")
     .delete()
     .eq("invoice_id", faktura.id)
-    .is("material_entry_id", null);
+    .is("material_entry_id", null)
+    // Linjer som ligg på ein bil har ingen materiell, men er like fullt kopla.
+    .is("stock_location_id", null);
 
   const { data: att } = await admin
     .from("supplier_invoice_lines")
