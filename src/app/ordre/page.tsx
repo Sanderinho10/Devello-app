@@ -100,7 +100,6 @@ export default async function OrdrePage({
       <div className="page-header">
         <div>
           <h1>Ordrer</h1>
-          <p className="page-subtitle">Alt som skjer på en jobb, samlet på ett nummer.</p>
         </div>
       </div>
 

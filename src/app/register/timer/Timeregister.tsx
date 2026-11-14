@@ -241,11 +241,6 @@ export function Timeregister({
       <div className="page-header">
         <div>
           <h1>Timeregister</h1>
-          <p className="page-subtitle">
-            {meg.erAdmin
-              ? "Alle timene i selskapet, på ordre og internt. Før, rett og flytt timer her."
-              : "Timene dine, på ordre og internt."}
-          </p>
         </div>
         {meg.erAdmin && (
           <button type="button" className="button secondary" onClick={() => setVisAktivitetar(true)}>

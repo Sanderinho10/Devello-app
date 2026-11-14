@@ -27,7 +27,6 @@ export default async function AbonnementPage() {
       <div className="page-header kompakt">
         <div>
           <h1>Abonnement</h1>
-          <p className="page-subtitle">Én pakke, lav grunnpris, og dere betaler for det dere faktisk bruker.</p>
         </div>
       </div>
 

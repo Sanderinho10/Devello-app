@@ -88,9 +88,6 @@ export default async function FakturaerPage({
       <div className="page-header">
         <div>
           <h1>Fakturaer</h1>
-          <p className="page-subtitle">
-            Fra ordrene, eller laget rett her. Overførte fakturaer ligger som ordreutkast i regnskapssystemet og sendes derfra.
-          </p>
         </div>
       </div>
 

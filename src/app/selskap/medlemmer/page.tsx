@@ -40,7 +40,6 @@ export default async function MedlemmerPage() {
       <div className="page-header kompakt">
         <div>
           <h1>Medlemmer</h1>
-          <p className="page-subtitle">Hvem som har tilgang, og hvilke invitasjoner som står ute.</p>
         </div>
       </div>
 

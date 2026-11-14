@@ -77,7 +77,6 @@ export default async function GrossisterPage() {
       <div className="page-header kompakt">
         <div>
           <h1>Grossister</h1>
-          <p className="page-subtitle">Katalogen materiellet velges fra. Prisene står per måleenhet — kabel per meter, ikke per 100.</p>
         </div>
       </div>
 

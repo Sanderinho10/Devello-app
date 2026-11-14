@@ -34,10 +34,6 @@ export function LagerListe({
       <div className="page-header">
         <div>
           <h1>Biler og lager</h1>
-          <p className="page-subtitle">
-            Varene som ligger i bilene. Skriv bilens nummer på bestillingen hos grossisten, så legger fakturaen varene i
-            bilen.
-          </p>
         </div>
         {meg.erAdmin && (
           <button type="button" className="button" onClick={() => setNy(true)}>

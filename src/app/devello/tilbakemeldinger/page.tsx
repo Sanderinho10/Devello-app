@@ -19,9 +19,6 @@ export default async function DevelloTilbakemeldingerPage() {
       <div className="page-header kompakt">
         <div>
           <h1>Tilbakemeldinger</h1>
-          <p className="page-subtitle">
-            Det kundene har sendt fra «Gi tilbakemelding» i menyen. Svar på e-posten du fikk, og marker den behandlet her.
-          </p>
         </div>
       </div>
       {error ? (
