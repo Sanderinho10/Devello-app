@@ -3,7 +3,7 @@ import { MateriellFane } from "./MateriellFane";
 import { hentOrdre, ordreErLaast } from "@/lib/ordre/hent";
 import { currentSession, supabaseServer } from "@/lib/supabase/server";
 import type { MaterialEntry } from "@/lib/types";
-import type { FakturaInfo, HodeFaktura } from "./MateriellFane";
+import type { FakturaInfo, HodeFaktura, LagerValg } from "./MateriellFane";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +15,7 @@ export default async function MateriellSide({ params }: { params: Promise<{ id: 
   const session = await currentSession();
   const supabase = await supabaseServer();
 
-  const [{ data: entries }, { data: company }, { count: grossistar }, { data: hodeFakturaer }] = await Promise.all([
+  const [{ data: entries }, { data: company }, { count: grossistar }, { data: hodeFakturaer }, { data: lager }] = await Promise.all([
     supabase
       .from("material_entries")
       .select("*")
@@ -40,6 +40,9 @@ export default async function MateriellSide({ params }: { params: Promise<{ id: 
       .eq("order_id", ordre.id)
       .eq("line_count", 0)
       .order("voucher_date", { ascending: false }),
+    // Bilene: de aktive kan det tas varer fra, og alle trengs for å vise
+    // hvor en linje kom fra — også etter at bilen er tatt ut av bruk.
+    supabase.from("stock_locations").select("id, location_no, name, kind, user_id, active").order("location_no"),
   ]);
 
   // Linjer fra leverandørfakturaer: hvilken faktura, hvilken leverandør,
@@ -79,6 +82,8 @@ export default async function MateriellSide({ params }: { params: Promise<{ id: 
       harKatalog={(grossistar ?? 0) > 0}
       fakturaInfo={fakturaInfo}
       hodeFakturaer={(hodeFakturaer ?? []) as HodeFaktura[]}
+      lager={(lager ?? []) as LagerValg[]}
+      megId={session!.userId}
     />
   );
 }

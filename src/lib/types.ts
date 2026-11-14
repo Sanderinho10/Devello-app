@@ -698,7 +698,10 @@ export interface SupplierItem {
 export interface TimeEntry {
   id: string;
   company_id: string;
-  order_id: string;
+  /** Ordren timene er ført på. Null for interntid. */
+  order_id: string | null;
+  /** Den interne aktiviteten (0068). Satt for interntid, ellers null. */
+  internal_activity_id: string | null;
   /** Montøren timene gjelder. */
   user_id: string;
   /** YYYY-MM-DD. */
@@ -757,6 +760,60 @@ export interface MaterialEntry {
   invoice_draft_id: string | null;
   /** UUID laget i montørappen — samme client_id igjen gir samme rad. */
   client_id: string | null;
+  /** Bilen varen er tatt fra (0068). Uttaket står i stock_movements. */
+  stock_location_id: string | null;
+}
+
+/** Det man kan føre interntid på: møte, kurs, lager. Styres av administrator. */
+export interface InternalActivity {
+  id: string;
+  company_id: string;
+  name: string;
+  active: boolean;
+  position: number;
+  created_at: string;
+}
+
+export type StockLocationKind = "bil" | "lager";
+
+/** En bil eller et lagerrom med beholdning. */
+export interface StockLocation {
+  id: string;
+  company_id: string;
+  /** Fra samme løpenummerserie som ordrene. Nummeret montøren skriver på bestillingen. */
+  location_no: number;
+  name: string;
+  kind: StockLocationKind;
+  reg_no: string | null;
+  /** Montøren som kjører bilen. */
+  user_id: string | null;
+  note: string | null;
+  active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** inn = innkjøp eller påfyll, uttak = brukt på en ordre, justering = opptelling. */
+export type StockMovementKind = "inn" | "uttak" | "justering";
+
+export interface StockMovement {
+  id: string;
+  company_id: string;
+  location_id: string;
+  kind: StockMovementKind;
+  supplier_item_id: string | null;
+  item_no: string | null;
+  name: string;
+  unit: string;
+  /** Pluss inn i bilen, minus ut. */
+  quantity: number;
+  cost_price: number | null;
+  invoice_line_id: string | null;
+  material_entry_id: string | null;
+  note: string | null;
+  created_by: string | null;
+  created_at: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -869,6 +926,8 @@ export interface SupplierInvoice {
   account_numbers: number[];
   match_status: InvoiceMatchStatus;
   order_id: string | null;
+  /** Satt når hele fakturaen gikk til én bil (0068). */
+  stock_location_id: string | null;
   line_count: number;
   matched_line_count: number;
   fetched_at: string;
@@ -911,6 +970,8 @@ export interface SupplierInvoiceLine {
   order_reference: string | null;
   supplier_item_id: string | null;
   order_id: string | null;
+  /** Bilen linjen er lagt på, i stedet for en ordre (0068). */
+  stock_location_id: string | null;
   material_entry_id: string | null;
   status: InvoiceMatchStatus;
   created_at: string;

@@ -513,3 +513,59 @@ lest; med `{}` merkes alle.
    nettet er tilbake. Notat før bildene som hører til det (bildene trenger
    `note_id` fra svaret).
 6. Etter vellykket sending: hent ordren på nytt.
+
+## Interntid og varer fra bil
+
+Nettappen har dette fra migrasjon 0068. Appskjermene er ikke bygget ennå;
+endepunktene under er de appen skal bruke.
+
+`GET /api/app/meg` har to nye lister:
+
+```json
+{
+  "interne_aktiviteter": [{ "id": "uuid", "name": "Møte" }],
+  "lager": [{ "id": "uuid", "location_no": 1003, "name": "Bilen til Martin", "kind": "bil", "user_id": "uuid", "min": true }]
+}
+```
+
+### POST /api/timer/intern
+
+Fører interntid — timer som ikke hører til noen ordre.
+
+```json
+{
+  "work_date": "2026-11-14",
+  "internal_activity_id": "uuid fra interne_aktiviteter",
+  "hours": 1.5,
+  "note": "HMS-møte",
+  "client_id": "uuid laget i appen"
+}
+```
+
+Samme regler som timer på en ordre: `client_id` gjør kallet idempotent, og
+bare en administrator kan sende `user_id` for å føre for andre. Føringen
+får pris 0 og er ikke fakturerbar. Den har `order_id: null` og
+`internal_activity_id` satt.
+
+`PATCH /api/timer/{id}` og `DELETE /api/timer/{id}` endrer og sletter en
+timeføring uansett hva den er ført på. PATCH med `order_id` flytter den til
+en annen ordre (med `price_item_id` når den kommer fra interntid), og med
+`internal_activity_id` gjør den om til interntid.
+
+### GET /api/lager/{id}
+
+Det som ligger i bilen: `{ lager, varer, verdi }`. Hver vare har `key`,
+`item_no`, `name`, `unit`, `quantity` og `cost_price` (siste innpris).
+
+### Materiell fra bil
+
+`POST /api/orders/{id}/materiell` tar to nye felt:
+
+- `stock_location_id` — bilen varen tas fra. Mengden trekkes fra bilens
+  beholdning i samme kall.
+- `stock_key` — `key` fra `GET /api/lager/{id}`. Navn, enhet og kostpris
+  kopieres fra bilen. Uten den brukes `supplier_item_id` eller fritekst som
+  før, og bilen går i minus om varen aldri ble ført inn.
+
+Slettes materiell-linja, er varen tilbake i bilen. Endres mengden, følger
+uttaket med.

@@ -1,14 +1,19 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
 import { erKreditnota, fakturaForSkriving } from "@/lib/regnskap/api";
+import { koplLinjeTilLager } from "@/lib/lager/api";
 import { koplLinjeTilOrdre, oppdaterFakturaStatus } from "@/lib/regnskap/sync";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import type { Order, SupplierInvoiceLine } from "@/lib/types";
+import type { Order, StockLocation, SupplierInvoiceLine } from "@/lib/types";
 
 /**
  * Kobler en faktura til en ordre for hånd — hele fakturaen ({ order_id })
  * eller linje for linje ({ lines: [{ line_id, order_id }] }). Samme
  * materiell-oppretting som den automatiske matchingen.
+ *
+ * Varer som skal i en bil og ikke på en jobb kobles med stock_location_id
+ * i stedet for order_id, på hele fakturaen eller på linja. Da går de inn i
+ * bilens beholdning, uten materiell på noen ordre.
  */
 export async function POST(
   request: NextRequest,
@@ -38,32 +43,51 @@ export async function POST(
 
     const body = (await request.json().catch(() => ({}))) as {
       order_id?: unknown;
-      lines?: { line_id?: unknown; order_id?: unknown }[];
+      stock_location_id?: unknown;
+      lines?: { line_id?: unknown; order_id?: unknown; stock_location_id?: unknown }[];
     };
 
-    const oensker: { line_id: string | null; order_id: string }[] = [];
+    // Hvert ønske peker på en ordre eller en bil, aldri begge.
+    const oensker: { line_id: string | null; order_id: string | null; stock_location_id: string | null }[] = [];
     if (typeof body.order_id === "string") {
-      oensker.push({ line_id: null, order_id: body.order_id });
+      oensker.push({ line_id: null, order_id: body.order_id, stock_location_id: null });
+    } else if (typeof body.stock_location_id === "string") {
+      oensker.push({ line_id: null, order_id: null, stock_location_id: body.stock_location_id });
     } else if (Array.isArray(body.lines)) {
       for (const l of body.lines) {
-        if (typeof l.line_id === "string" && typeof l.order_id === "string") {
-          oensker.push({ line_id: l.line_id, order_id: l.order_id });
+        if (typeof l.line_id !== "string") continue;
+        if (typeof l.order_id === "string") {
+          oensker.push({ line_id: l.line_id, order_id: l.order_id, stock_location_id: null });
+        } else if (typeof l.stock_location_id === "string") {
+          oensker.push({ line_id: l.line_id, order_id: null, stock_location_id: l.stock_location_id });
         }
       }
     }
     if (!oensker.length) {
-      return NextResponse.json({ error: "Oppgi order_id eller lines." }, { status: 400 });
+      return NextResponse.json({ error: "Oppgi order_id, stock_location_id eller lines." }, { status: 400 });
     }
 
-    const ordreIds = [...new Set(oensker.map((o) => o.order_id))];
-    const { data: ordrar } = await admin
-      .from("orders")
-      .select("*")
-      .eq("company_id", session.companyId)
-      .in("id", ordreIds);
+    const ordreIds = [...new Set(oensker.map((o) => o.order_id).filter((id): id is string => Boolean(id)))];
+    const { data: ordrar } = ordreIds.length
+      ? await admin.from("orders").select("*").eq("company_id", session.companyId).in("id", ordreIds)
+      : { data: [] };
     const ordreMap = new Map(((ordrar ?? []) as Order[]).map((o) => [o.id, o]));
     if (ordreMap.size !== ordreIds.length) {
       return NextResponse.json({ error: "Fant ikke ordren." }, { status: 404 });
+    }
+
+    const lagerIds = [...new Set(oensker.map((o) => o.stock_location_id).filter((id): id is string => Boolean(id)))];
+    const { data: lager } = lagerIds.length
+      ? await admin.from("stock_locations").select("*").eq("company_id", session.companyId).in("id", lagerIds)
+      : { data: [] };
+    const lagerMap = new Map(((lager ?? []) as StockLocation[]).map((l) => [l.id, l]));
+    if (lagerMap.size !== lagerIds.length) {
+      return NextResponse.json({ error: "Fant ikke bilen." }, { status: 404 });
+    }
+    for (const l of lagerMap.values()) {
+      if (!l.active) {
+        return NextResponse.json({ error: `${l.name} er tatt ut av bruk.` }, { status: 400 });
+      }
     }
     for (const o of ordreMap.values()) {
       if (o.status === "avbrutt") {
@@ -92,7 +116,7 @@ export async function POST(
       }
       await admin
         .from("supplier_invoices")
-        .update({ order_id: heile.order_id, match_status: "ukopla" })
+        .update({ order_id: heile.order_id, stock_location_id: heile.stock_location_id, match_status: "ukopla" })
         .eq("id", faktura.id);
       const status = await oppdaterFakturaStatus(admin, faktura.id);
       return NextResponse.json({ ok: true, kopla: 0, match_status: status });
@@ -103,7 +127,11 @@ export async function POST(
       if (linje.material_entry_id || linje.status === "kopla") continue;
       const oenske = oensker.find((o) => o.line_id === null || o.line_id === linje.id);
       if (!oenske) continue;
-      await koplLinjeTilOrdre(admin, linje, faktura, ordreMap.get(oenske.order_id)!, paaslag);
+      if (oenske.order_id) {
+        await koplLinjeTilOrdre(admin, linje, faktura, ordreMap.get(oenske.order_id)!, paaslag);
+      } else {
+        await koplLinjeTilLager(admin, linje, faktura, lagerMap.get(oenske.stock_location_id!)!);
+      }
       kopla += 1;
     }
 

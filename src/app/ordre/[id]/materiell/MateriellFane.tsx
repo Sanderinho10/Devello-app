@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { GrossistSok, formatPris, type GrossistTreff } from "@/components/GrossistSok";
 import { Modal } from "@/components/Modal";
+import type { Lagervare } from "@/lib/lager/behaldning";
 import { salspris, summerMateriell } from "@/lib/ordre/summering";
 import { formatNok, type MaterialEntry } from "@/lib/types";
 
@@ -28,6 +29,16 @@ export interface HodeFaktura {
   parse_error: string | null;
 }
 
+/** En bil eller et lager det kan tas varer fra. */
+export interface LagerValg {
+  id: string;
+  location_no: number;
+  name: string;
+  kind: "bil" | "lager";
+  user_id: string | null;
+  active: boolean;
+}
+
 /**
  * Materiell på ordren.
  *
@@ -36,6 +47,11 @@ export interface HodeFaktura {
  * her før linja legges til, eller på linja etterpå. Fritekstlinja er for
  * det som ikke står i noen katalog: en vare fra byggevarehuset, en
  * leiebil.
+ *
+ * «Hentes fra» avgjør hvor varen kommer fra. Står den på en bil, trekkes
+ * mengden fra bilens beholdning i det linja legges til, og bilens varer
+ * står øverst så de er ett trykk unna. Slettes linja, er varen tilbake i
+ * bilen.
  *
  * Prisene i lista er per enhet; linjesummen er mengde × salgspris. Summen
  * nederst er den Oversikt og fakturaforslaget leser.
@@ -48,6 +64,8 @@ export function MateriellFane({
   harKatalog,
   fakturaInfo = {},
   hodeFakturaer = [],
+  lager = [],
+  megId,
 }: {
   orderId: string;
   laast: boolean;
@@ -58,6 +76,9 @@ export function MateriellFane({
   fakturaInfo?: Record<string, FakturaInfo>;
   /** Fakturaer koblet på hodenivå (ingen EHF, ingen linjer). */
   hodeFakturaer?: HodeFaktura[];
+  /** Bilene og lagrene i selskapet, også de som er tatt ut av bruk. */
+  lager?: LagerValg[];
+  megId?: string;
 }) {
   const router = useRouter();
   const [valgt, setValgt] = useState<GrossistTreff | null>(null);
@@ -68,6 +89,48 @@ export function MateriellFane({
   const [redigerPaaslag, setRedigerPaaslag] = useState<{ id: string; verdi: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Fra bil: hvilken bil, hva som ligger i den, og varen som er valgt der.
+  // Egen bil står først i lista. Ingenting er valgt før montøren velger —
+  // et uttak fra bilen skal aldri skje ved et uhell.
+  const aktiveLager = lager
+    .filter((l) => l.active)
+    .sort((a, b) => Number(b.user_id === megId) - Number(a.user_id === megId) || a.location_no - b.location_no);
+  const lagerAvId = new Map(lager.map((l) => [l.id, l]));
+  const [lagerId, setLagerId] = useState("");
+  const [bilvarer, setBilvarer] = useState<Lagervare[] | null>(null);
+  const [bilSok, setBilSok] = useState("");
+  const [valgtBilvare, setValgtBilvare] = useState<Lagervare | null>(null);
+  const [bilNokkel, setBilNokkel] = useState(0);
+  const [bilSalspris, setBilSalspris] = useState("");
+  const valgtLager = lagerId ? lagerAvId.get(lagerId) : undefined;
+
+  useEffect(() => {
+    setBilvarer(null);
+    setValgtBilvare(null);
+    setBilSok("");
+    if (!lagerId) return;
+    let avbrutt = false;
+    fetch(`/api/lager/${lagerId}`)
+      .then((res) => res.json().then((payload) => ({ ok: res.ok, payload })))
+      .then(({ ok, payload }) => {
+        if (avbrutt) return;
+        if (!ok) setError(payload.error ?? "Kunne ikke hente bilens varer");
+        else setBilvarer((payload.varer as Lagervare[]).filter((v) => v.quantity > 0));
+      })
+      .catch(() => {
+        if (!avbrutt) setError("Kunne ikke hente bilens varer");
+      });
+    return () => {
+      avbrutt = true;
+    };
+  }, [lagerId, bilNokkel]);
+
+  const bilTreff = (bilvarer ?? []).filter((v) => {
+    const q = bilSok.trim().toLowerCase();
+    return !q || v.name.toLowerCase().includes(q) || (v.item_no ?? "").startsWith(q);
+  });
+  const fraLager = lagerId ? { stock_location_id: lagerId } : {};
 
   const sum = summerMateriell(entries);
   const fraFaktura = entries.filter((e) => e.invoice_line_id);
@@ -92,6 +155,9 @@ export function MateriellFane({
       setPaaslag(String(standardPaaslag));
       setFritekst(false);
       setFri({ name: "", unit: "stk", quantity: "1", sale_price: "", cost_price: "" });
+      setValgtBilvare(null);
+      // Bilens beholdning har endret seg: hent den på nytt.
+      setBilNokkel((n) => n + 1);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -186,6 +252,13 @@ export function MateriellFane({
             {fakturert && <span className="chip fakturert-merke">fakturert</span>}
           </div>
           {!info && e.note && <div className="tiny muted">{e.note}</div>}
+          {e.stock_location_id && (
+            <div className="chips">
+              <span className="chip">
+                Fra {lagerAvId.get(e.stock_location_id)?.name ?? "bil"}
+              </span>
+            </div>
+          )}
           {info && (
             <div className="chips">
               <span className="chip faktura">
@@ -284,6 +357,145 @@ export function MateriellFane({
             </button>
           </div>
           {error && !fritekst && <div className="banner error">{error}</div>}
+          {aktiveLager.length > 0 && (
+            <label className="field hentes-fra">
+              <span className="label">Hentes fra</span>
+              <select className="input" value={lagerId} onChange={(e) => setLagerId(e.target.value)}>
+                <option value="">Bestilt til ordren</option>
+                {aktiveLager.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name} (#{l.location_no})
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          {valgtLager && (
+            <div className="bilvarer">
+              {bilvarer === null ? (
+                <div className="tiny muted">Henter varene i {valgtLager.name}…</div>
+              ) : bilvarer.length === 0 ? (
+                <div className="tiny muted">
+                  Ingen varer er ført inn i {valgtLager.name}. Søk i katalogen under — varen trekkes fra bilen likevel.
+                </div>
+              ) : (
+                <>
+                  <input
+                    className="input"
+                    type="search"
+                    value={bilSok}
+                    onChange={(e) => setBilSok(e.target.value)}
+                    placeholder={`Søk blant ${bilvarer.length} varer i ${valgtLager.name}`}
+                    aria-label={`Søk i ${valgtLager.name}`}
+                  />
+                  <div className="bilvarer-liste">
+                    {bilTreff.slice(0, 40).map((v) => (
+                      <button
+                        key={v.key}
+                        type="button"
+                        className={`bilvare${valgtBilvare?.key === v.key ? " active" : ""}`}
+                        onClick={() => {
+                          setValgtBilvare(v);
+                          setValgt(null);
+                          setMengde("1");
+                          setPaaslag(String(standardPaaslag));
+                        }}
+                      >
+                        <span>
+                          {v.name}
+                          {v.item_no && <span className="tiny muted"> · {v.item_no}</span>}
+                        </span>
+                        <span className="tiny muted nowrap">
+                          {v.quantity.toLocaleString("nb-NO")} {v.unit}
+                        </span>
+                      </button>
+                    ))}
+                    {bilTreff.length === 0 && <div className="tiny muted" style={{ padding: 8 }}>Ingen varer i bilen passer.</div>}
+                  </div>
+                </>
+              )}
+              {valgtBilvare && (
+                <form
+                  className="valgt-vare"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    post({
+                      stock_location_id: lagerId,
+                      stock_key: valgtBilvare.key,
+                      quantity: mengde,
+                      markup_pct: paaslag,
+                      ...(valgtBilvare.cost_price === null ? { sale_price: bilSalspris } : {}),
+                    });
+                  }}
+                >
+                  <div className="row-between">
+                    <div>
+                      <strong>{valgtBilvare.name}</strong>
+                      <div className="tiny muted">
+                        {valgtBilvare.item_no ? `${valgtBilvare.item_no} · ` : ""}
+                        {valgtBilvare.quantity.toLocaleString("nb-NO")} {valgtBilvare.unit} i {valgtLager.name}
+                        {valgtBilvare.cost_price !== null && ` · kost ${formatPris(valgtBilvare.cost_price)}/${valgtBilvare.unit}`}
+                      </div>
+                    </div>
+                    <button type="button" className="button ghost" onClick={() => setValgtBilvare(null)}>
+                      ×
+                    </button>
+                  </div>
+                  <div className="grid-2" style={{ marginTop: 12 }}>
+                    <label className="field">
+                      <span className="label">Mengde ({valgtBilvare.unit})</span>
+                      <input
+                        className="input"
+                        inputMode="decimal"
+                        value={mengde}
+                        onChange={(e) => setMengde(e.target.value)}
+                        autoFocus
+                        onFocus={(e) => e.target.select()}
+                        required
+                      />
+                      {(tal(mengde) ?? 0) > valgtBilvare.quantity && (
+                        <span className="hint" style={{ color: "var(--warning)" }}>
+                          Mer enn det som står i bilen — beholdningen går i minus.
+                        </span>
+                      )}
+                    </label>
+                    {valgtBilvare.cost_price !== null ? (
+                      <label className="field">
+                        <span className="label">Påslag (%)</span>
+                        <input
+                          className="input"
+                          inputMode="decimal"
+                          value={paaslag}
+                          onChange={(e) => setPaaslag(e.target.value)}
+                        />
+                        <span className="hint">
+                          Salgspris {formatPris(salspris(valgtBilvare.cost_price, tal(paaslag) ?? standardPaaslag))}/
+                          {valgtBilvare.unit}
+                        </span>
+                      </label>
+                    ) : (
+                      <label className="field">
+                        <span className="label">Salgspris per {valgtBilvare.unit}</span>
+                        <input
+                          className="input"
+                          inputMode="decimal"
+                          value={bilSalspris}
+                          onChange={(e) => setBilSalspris(e.target.value)}
+                          required
+                        />
+                        <span className="hint">Varen har ingen kostpris i bilen.</span>
+                      </label>
+                    )}
+                  </div>
+                  <button className="button" type="submit" disabled={busy}>
+                    {busy ? "Legger til…" : "Legg til fra bil"}
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
+
           {!harKatalog && (
             <div className="banner info">
               Ingen grossistkatalog ennå — bruk fritekstlinje, eller send prisfilen til Devello.
@@ -294,17 +506,19 @@ export function MateriellFane({
               <GrossistSok
                 onVelg={(t) => {
                   setValgt(t);
+                  setValgtBilvare(null);
                   setMengde("1");
                   setPaaslag(String(standardPaaslag));
                 }}
-                autoFocus
+                autoFocus={!lagerId}
+                placeholder={valgtLager ? "Ikke i bilen? Søk i katalogen" : undefined}
               />
               {valgt && (
                 <form
                   className="valgt-vare"
                   onSubmit={(e) => {
                     e.preventDefault();
-                    post({ supplier_item_id: valgt.id, quantity: mengde, markup_pct: paaslag });
+                    post({ supplier_item_id: valgt.id, quantity: mengde, markup_pct: paaslag, ...fraLager });
                   }}
                 >
                   <div className="row-between">
@@ -346,7 +560,9 @@ export function MateriellFane({
                     </label>
                   </div>
                   <button className="button" type="submit" disabled={busy}>
-                    {busy ? "Legger til…" : `Legg til — ${formatNok(salValgt * (tal(mengde) ?? 0))}`}
+                    {busy
+                      ? "Legger til…"
+                      : `Legg til${valgtLager ? ` fra ${valgtLager.name}` : ""} — ${formatNok(salValgt * (tal(mengde) ?? 0))}`}
                   </button>
                 </form>
               )}
@@ -370,10 +586,14 @@ export function MateriellFane({
               quantity: fri.quantity,
               sale_price: fri.sale_price || undefined,
               cost_price: fri.cost_price || undefined,
+              ...fraLager,
             });
           }}
         >
           {error && <div className="banner error">{error}</div>}
+          {valgtLager && (
+            <div className="banner info">Linja trekkes fra {valgtLager.name}. Velg «Bestilt til ordren» for å unngå det.</div>
+          )}
           {/* Som i Go: etiketten foran feltet. Kostprisen gir salgsprisen
               med standardpåslaget; uten kostpris må salgsprisen skrives. */}
           <div className="kontakt-panel ny-post-panel">

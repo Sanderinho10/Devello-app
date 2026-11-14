@@ -71,7 +71,7 @@ export default async function LeverandorfakturaerPage({
   const { data: fakturaer } = await sporring;
   const liste = (fakturaer ?? []) as SupplierInvoice[];
 
-  const [{ data: linjer }, { data: ordrar }] = await Promise.all([
+  const [{ data: linjer }, { data: ordrar }, { data: lager }] = await Promise.all([
     liste.length
       ? supabase
           .from("supplier_invoice_lines")
@@ -88,6 +88,8 @@ export default async function LeverandorfakturaerPage({
       .neq("status", "avbrutt")
       .order("order_no", { ascending: false })
       .limit(500),
+    // Bilene: varer som ikke skal på en jobb, men i en bil.
+    supabase.from("stock_locations").select("id, location_no, name, active").order("location_no"),
   ]);
 
   const harKopling = Boolean(kopling && kopling.status !== "kopla_fra");
@@ -116,7 +118,8 @@ export default async function LeverandorfakturaerPage({
         <div>
           <h1>Leverandørfakturaer</h1>
           <p className="page-subtitle">
-            Fra regnskapssystemet eller grossistens fakturafiler, koblet til ordren grossisten skrev på fakturaen.
+            Fra regnskapssystemet eller grossistens fakturafiler, koblet til ordren eller bilen grossisten skrev på
+            fakturaen.
           </p>
         </div>
       </div>
@@ -197,6 +200,7 @@ export default async function LeverandorfakturaerPage({
                 status: o.status,
                 customer_name: o.customer_name,
               }))}
+              lager={lager ?? []}
             />
           )}
         </div>

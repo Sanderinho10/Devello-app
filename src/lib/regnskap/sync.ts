@@ -13,6 +13,7 @@ import { parseEhf } from "./ehf";
 import { referansarFraDokument, type FakturaDokument } from "./faktura-dokument";
 import { kontofilterAv, kontofilterTekst } from "./kontofilter";
 import { finnOrdrenummer } from "./matching";
+import { aktiveLager, koplLinjeTilLager } from "@/lib/lager/api";
 import { pogoClient, type PogoInngaaandeFaktura, type PogoKopling } from "./poweroffice";
 
 /**
@@ -469,7 +470,10 @@ export async function matchAlle(
   if (!invoiceIds.length) return tal;
 
   const ordrar = await gyldigeOrdrar(admin, companyId);
-  const gyldige = new Set(ordrar.keys());
+  // Bilane deler løpenummerserie med ordrane, så same leiting finn begge:
+  // «1042» er anten ein ordre eller ein bil, aldri begge.
+  const lager = new Map((await aktiveLager(admin, companyId)).map((l) => [l.location_no, l]));
+  const gyldige = new Set([...ordrar.keys(), ...lager.keys()]);
 
   const { data: fakturaer } = await admin
     .from("supplier_invoices")
@@ -499,6 +503,7 @@ export async function matchAlle(
       ];
       const hovudTreff = finnOrdrenummer(kandidatar, gyldige);
       const hovudOrdre = hovudTreff ? (ordrar.get(hovudTreff) ?? null) : null;
+      const hovudLager = hovudTreff ? (lager.get(hovudTreff) ?? null) : null;
 
       const { data: linjer } = await admin
         .from("supplier_invoice_lines")
@@ -509,9 +514,13 @@ export async function matchAlle(
 
       for (const linje of (linjer ?? []) as SupplierInvoiceLine[]) {
         const linjeTreff = linje.order_reference ? finnOrdrenummer([linje.order_reference], gyldige) : null;
-        const ordre = (linjeTreff ? ordrar.get(linjeTreff) : null) ?? hovudOrdre;
-        if (!ordre) continue;
-        await koplLinjeTilOrdre(admin, linje, faktura, ordre, paaslag);
+        // Referansen på linja går føre hovudet, anten ho peikar på ein ordre eller ein bil.
+        const linjeOrdre = linjeTreff ? (ordrar.get(linjeTreff) ?? null) : null;
+        const linjeLager = linjeTreff ? (lager.get(linjeTreff) ?? null) : null;
+        const ordre = linjeOrdre ?? (linjeLager ? null : hovudOrdre);
+        const bil = linjeLager ?? (linjeOrdre ? null : hovudLager);
+        if (ordre) await koplLinjeTilOrdre(admin, linje, faktura, ordre, paaslag);
+        else if (bil) await koplLinjeTilLager(admin, linje, faktura, bil);
       }
 
       // Uten EHF finnes bare hodet. Da kobles fakturaen som helhet til
@@ -519,6 +528,9 @@ export async function matchAlle(
       // alltid, og så ordren viser at det finnes en faktura på den.
       if (faktura.line_count === 0 && hovudOrdre && !faktura.order_id) {
         await admin.from("supplier_invoices").update({ order_id: hovudOrdre.id }).eq("id", faktura.id);
+      }
+      if (faktura.line_count === 0 && hovudLager && !faktura.order_id && !faktura.stock_location_id) {
+        await admin.from("supplier_invoices").update({ stock_location_id: hovudLager.id }).eq("id", faktura.id);
       }
     }
 
@@ -599,13 +611,19 @@ export async function opprettMateriellFraLinje(
       .eq("source", "manuell")
       .eq("item_no", linje.item_no)
       .is("replaced_by", null)
-      .is("invoice_line_id", null);
+      .is("invoice_line_id", null)
+      // Det som er teke frå bilen er alt betalt for på bilen si faktura.
+      .is("stock_location_id", null);
   }
   return ny.id;
 }
 
-/** Løser en linje fra ordren: materiell bort, erstattede linjer tilbake. */
+/**
+ * Løser en linje fra ordren: materiell bort, erstattede linjer tilbake.
+ * Lå linja på en bil, går varene ut av beholdningen igjen.
+ */
 export async function loysLinje(admin: SupabaseClient, linje: SupplierInvoiceLine): Promise<void> {
+  await admin.from("stock_movements").delete().eq("invoice_line_id", linje.id);
   if (linje.material_entry_id) {
     await admin
       .from("material_entries")
@@ -615,7 +633,7 @@ export async function loysLinje(admin: SupabaseClient, linje: SupplierInvoiceLin
   }
   await admin
     .from("supplier_invoice_lines")
-    .update({ order_id: null, material_entry_id: null, status: "ukopla" })
+    .update({ order_id: null, stock_location_id: null, material_entry_id: null, status: "ukopla" })
     .eq("id", linje.id);
 }
 
@@ -630,7 +648,7 @@ export async function oppdaterFakturaStatus(
 ): Promise<InvoiceMatchStatus> {
   const { data: faktura } = await admin
     .from("supplier_invoices")
-    .select("id, match_status, order_id")
+    .select("id, match_status, order_id, stock_location_id")
     .eq("id", invoiceId)
     .single();
   if (!faktura) return "ukopla";
@@ -638,13 +656,13 @@ export async function oppdaterFakturaStatus(
 
   const { data: linjer } = await admin
     .from("supplier_invoice_lines")
-    .select("status, order_id")
+    .select("status, order_id, stock_location_id")
     .eq("invoice_id", invoiceId);
   const alle = linjer ?? [];
 
   // Ingen linjer (ingen EHF): koblingen er på hodet, og order_id avgjør.
   if (alle.length === 0) {
-    const status: InvoiceMatchStatus = faktura.order_id ? "kopla" : "ukopla";
+    const status: InvoiceMatchStatus = faktura.order_id || faktura.stock_location_id ? "kopla" : "ukopla";
     await admin
       .from("supplier_invoices")
       .update({ match_status: status, line_count: 0, matched_line_count: 0 })
@@ -653,6 +671,7 @@ export async function oppdaterFakturaStatus(
   }
   const kopla = alle.filter((l) => l.status === "kopla");
   const ordrar = new Set(kopla.map((l) => l.order_id).filter(Boolean));
+  const bilar = new Set(kopla.map((l) => l.stock_location_id).filter(Boolean));
 
   const status: InvoiceMatchStatus =
     alle.length > 0 && kopla.length === alle.length ? "kopla" : kopla.length > 0 ? "delvis" : "ukopla";
@@ -663,7 +682,9 @@ export async function oppdaterFakturaStatus(
       match_status: status,
       line_count: alle.length,
       matched_line_count: kopla.length,
-      order_id: ordrar.size === 1 ? [...ordrar][0] : null,
+      order_id: ordrar.size === 1 && bilar.size === 0 ? [...ordrar][0] : null,
+      // Heile fakturaen på éin bil: då viser lista bilen, som ho viser ordren.
+      stock_location_id: bilar.size === 1 && ordrar.size === 0 ? [...bilar][0] : null,
     })
     .eq("id", invoiceId);
   return status;
