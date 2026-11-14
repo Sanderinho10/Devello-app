@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AgentMerknader } from "./AgentMerknader";
 import { SendSjolv } from "./SendSjolv";
 import { Forutsetninger } from "./Forutsetninger";
 import { OpprettOrdre } from "./OpprettOrdre";
@@ -834,16 +835,7 @@ export function DraftEditor({
       {error && <div className="banner error">{error}</div>}
 
       {/* Agentens beskjeder. Den kan ikke spørre — dette er kanalen dens. */}
-      {draft.merknader.length > 0 && (
-        <div className="banner warning">
-          <strong>Fra agenten:</strong>
-          <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
-            {draft.merknader.map((note, index) => (
-              <li key={index}>{note}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <AgentMerknader merknader={draft.merknader} />
 
       {/*
         v3: omfanget agenten la til grunn. Spørsmålene står også i e-posten;

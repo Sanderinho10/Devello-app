@@ -138,7 +138,11 @@ export default async function LeadsPage({
       )}
 
       {mailbox?.status === "token_utlopt" && (
-        <div className="banner error">
+        <SkjulbartVarsel
+          id="postkasse-token-utlopt"
+          skjult={skjulte.includes("postkasse-token-utlopt")}
+          tone="error"
+        >
           <div style={{ marginBottom: 10 }}>
             {mailbox.status_reason ??
               "Tilgangen til postkassen virker ikke lenger. Koble til på nytt."}
@@ -146,7 +150,7 @@ export default async function LeadsPage({
           <a className="button" href="/api/auth/microsoft/start?paanytt=1">
             Koble til på nytt
           </a>
-        </div>
+        </SkjulbartVarsel>
       )}
 
       <nav className="type-switch kompakt" aria-label="Vis">

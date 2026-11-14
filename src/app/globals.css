@@ -3056,6 +3056,28 @@ body.drar-rad * {
   color: var(--negative);
 }
 
+/* Trekant med antall: agentens beskjeder paa tilbudet. */
+.varsel-krympet.med-tal {
+  width: auto;
+  gap: 6px;
+  padding: 0 10px;
+  font-weight: 600;
+}
+
+.varsel-krympet.med-tal span {
+  font-size: 13px;
+}
+
+.agent-merknader {
+  margin: 0;
+  padding-left: 18px;
+  line-height: 1.55;
+}
+
+.agent-merknader li + li {
+  margin-top: 10px;
+}
+
 /* Opplaeringsstatus paa referansefil-sida. */
 .opplaering {
   margin-bottom: 0;
