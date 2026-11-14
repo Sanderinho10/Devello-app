@@ -3982,31 +3982,48 @@ dl.kunde-kort-info {
   color: var(--text-secondary);
 }
 
-/* Dashboard: nøkkeltall øverst, to lister side om side, forbruket nederst */
-.dash-tal {
+/* Dashboard: statuskort øverst, kalenderen for uka som kommer, forbruket
+   som diagram, og de to listene nederst. Diagramfargene: tilbud er
+   aksentblå, faktura lilla, montører turkis — status (blå/gul/grønn/rød)
+   følger pillene. */
+:root {
+  --dash-tilbud: var(--accent);
+  --dash-faktura: #8944ab;
+  --dash-montor: #0097a7;
+  --dash-grunn: #a1a1a6;
+  --dash-spor: #ececf0;
+}
+
+.dash-status {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
   margin: 18px 0 16px;
 }
 
-.dash-tal-kort {
+.dash-status-kort {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 14px 16px;
+  gap: 8px;
+  padding: 16px 18px 14px;
   color: inherit;
   text-decoration: none;
-  border-top: 3px solid transparent;
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  transition: box-shadow 0.15s ease;
 }
 
-.dash-tal-kort:hover {
+.dash-status-kort:hover {
   box-shadow: var(--shadow-lg);
 }
 
-.dash-tal-kort.varsle {
-  border-top-color: var(--accent);
+.dash-status-hoved {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.dash-status-detalj {
+  margin-top: -2px;
 }
 
 .dash-tal-etikett {
@@ -4020,6 +4037,61 @@ dl.kunde-kort-info {
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Stolpen: segmenta deler bredden etter antall, med luft mellom. Uten
+   segment står sporet igjen tomt. */
+.dash-stolpe {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--dash-spor);
+}
+
+.dash-seg {
+  flex: 1 0 6px;
+  background: var(--dash-grunn);
+}
+.dash-seg.bla, .dash-prikk.bla, .dash-seg.tilbud, .dash-prikk.tilbud { background: var(--dash-tilbud); }
+.dash-seg.gul, .dash-prikk.gul { background: #f5a623; }
+.dash-seg.gronn, .dash-prikk.gronn { background: var(--positive); }
+.dash-seg.rod, .dash-prikk.rod { background: var(--negative); }
+.dash-seg.faktura, .dash-prikk.faktura { background: var(--dash-faktura); }
+.dash-seg.montor, .dash-prikk.montor { background: var(--dash-montor); }
+
+.dash-prikk {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 2px;
+  border-radius: 50%;
+  background: var(--dash-grunn);
+}
+
+.dash-forklaring {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  color: var(--text-secondary);
+}
+
+.dash-forklaring .kal-prikk {
+  margin-right: 2px;
+}
+
+.dash-forklaring strong {
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-forklaring .dash-null,
+.dash-forklaring .dash-null strong {
+  color: var(--text-tertiary);
+  font-weight: 400;
 }
 
 .dash-grid {
@@ -4059,55 +4131,352 @@ dl.kunde-kort-info {
   max-width: 340px;
 }
 
-.dash-forbruk-tal {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+/* Kalenderen: sju dager bortover, brikkene fra /kalender i miniatyr. */
+.dash-kalender {
+  margin-bottom: 16px;
 }
 
-.dash-forbruk-celle,
-.dash-forbruk-sum {
+.dash-kal {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.dash-kal-dag {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 14px 16px;
+  min-height: 132px;
+  padding: 10px 8px 8px;
   border-right: 1px solid var(--border);
+  color: inherit;
+  text-decoration: none;
 }
 
-.dash-forbruk-sum {
+.dash-kal-dag:last-child {
   border-right: none;
+}
+
+.dash-kal-dag.helg {
   background: var(--surface-sunken);
 }
 
-.dash-forbruk-verdi {
-  font-size: 22px;
-  font-weight: 700;
+.dash-kal-dag:hover {
+  background: var(--accent-soft);
+}
+
+.dash-kal-hode {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.dash-kal-dato {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  font-size: 13px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-kal-dag.idag .dash-kal-vekedag {
+  color: var(--accent);
+}
+
+.dash-kal-dag.idag .dash-kal-dato {
+  background: var(--accent);
+  color: #fff;
+}
+
+.dash-kal-dag .kal-brikke {
+  cursor: inherit;
+}
+
+.dash-kal-ledig {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* Forbruket: diagrammet til venstre, målerne og regninga til høyre. */
+.dash-forbruk {
+  margin-bottom: 16px;
+}
+
+.dash-forbruk-kropp {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(260px, 1fr);
+}
+
+.dash-forbruk-diagram {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 18px;
+  min-width: 0;
+}
+
+.dash-forbruk-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 18px;
+  border-left: 1px solid var(--border);
+  border-bottom-right-radius: var(--radius-lg);
+  background: var(--surface-sunken);
+}
+
+.dash-diagram {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  min-height: 170px;
+}
+
+.dash-akse {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-bottom: 22px;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--text-tertiary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-akse span:first-child { transform: translateY(-50%); }
+.dash-akse span:last-child { transform: translateY(50%); }
+
+.dash-flate {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Rutenettet er tre hårstreker: taket, midten og grunnlinja. */
+.dash-soyler {
+  display: flex;
+  flex: 1;
+  border-bottom: 1px solid var(--border-strong);
+  background:
+    linear-gradient(var(--border), var(--border)) top / 100% 1px no-repeat,
+    linear-gradient(var(--border), var(--border)) center / 100% 1px no-repeat;
+}
+
+.dash-soyler {
+  position: relative;
+  isolation: isolate;
+}
+
+.dash-diagram-tom {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.dash-diagram-tom::before {
+  content: "";
+  position: absolute;
+  width: 320px;
+  max-width: 90%;
+  height: 28px;
+  background: var(--surface);
+  z-index: -1;
+}
+
+.dash-soyle {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  justify-content: center;
+  padding: 0 1px;
+}
+
+.dash-soyle:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.dash-soyle.framtid {
+  background: repeating-linear-gradient(-45deg, transparent 0 5px, rgba(0, 0, 0, 0.018) 5px 6px);
+}
+
+.dash-soyle-stabel {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 2px;
+  width: 100%;
+  max-width: 24px;
+}
+
+.dash-bit {
+  min-height: 3px;
+  background: var(--dash-tilbud);
+}
+
+.dash-bit.faktura {
+  background: var(--dash-faktura);
+}
+
+.dash-bit:first-child {
+  border-radius: 4px 4px 0 0;
+}
+
+.dash-x {
+  display: flex;
+  height: 22px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.dash-x > span {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.dash-x > span.no::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 1px;
+  height: 5px;
+  background: var(--accent);
+}
+
+.dash-x > span > span {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.dash-x > span:first-child > span {
+  left: 0;
+  transform: none;
+}
+
+.dash-x > span:last-child > span {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+.dash-x > span.no > span {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.dash-maaler,
+.dash-kostnad {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dash-maaler-topp {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-spor {
+  display: block;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--dash-spor);
+}
+
+.dash-fyll {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--dash-tilbud);
+}
+.dash-fyll.noytral { background: var(--text-tertiary); }
+.dash-fyll.montor { background: var(--dash-montor); }
+.dash-fyll.over { background: var(--warning); }
+
+.dash-kostnad {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.dash-kostnad-sum {
+  font-size: 20px;
   letter-spacing: -0.01em;
 }
 
+.dash-kostnad-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dash-kostnad-liste li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
 @media (max-width: 900px) {
-  .dash-grid {
+  .dash-grid,
+  .dash-forbruk-kropp {
     grid-template-columns: 1fr;
+  }
+  .dash-forbruk-side {
+    border-left: none;
+    border-bottom-left-radius: var(--radius-lg);
+    border-top: 1px solid var(--border);
   }
   .dash-linje {
     max-width: none;
     white-space: normal;
   }
+  /* Sju kolonner får ikke plass: dagene under hverandre, tomme dager lave. */
+  .dash-kal {
+    grid-template-columns: 1fr;
+  }
+  .dash-kal-dag {
+    min-height: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .dash-kal-dag:last-child {
+    border-bottom: none;
+  }
+  .dash-kal-hode {
+    justify-content: flex-start;
+    gap: 8px;
+  }
 }
 
 @media (max-width: 700px) {
-  .dash-tal {
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-  .dash-tal-kort {
-    padding: 10px 12px;
-  }
-  .dash-tal-verdi {
-    font-size: 24px;
-  }
-  .dash-forbruk-celle {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
+  .dash-status {
+    grid-template-columns: 1fr;
+    gap: 10px;
   }
 }
 
