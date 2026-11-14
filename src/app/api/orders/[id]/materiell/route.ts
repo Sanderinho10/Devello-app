@@ -1,10 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
 import { registrerAppBrukar } from "@/lib/billing/subscription";
+import { hentBehaldning, lagerForSkriving } from "@/lib/lager/api";
+import type { Lagervare } from "@/lib/lager/behaldning";
 import { erUnikBrot, finstMedClientId, ordreForSkriving, tal, uuid } from "@/lib/ordre/api";
 import { round2, salspris } from "@/lib/ordre/summering";
 import { ordreModulEllers403 } from "@/lib/ordre/tilgang";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import type { StockLocation } from "@/lib/types";
 
 /**
  * Fører materiell på en ordre.
@@ -13,6 +16,12 @@ import { supabaseAdmin } from "@/lib/supabase/server";
  * kopieres inn, og salgsprisen regnes fra selskapets standardpåslag — eller
  * påslaget i body-en, når montøren overstyrer på linja. Fritekst: navn og
  * salgspris må inn, kostpris er valgfri.
+ *
+ * Fra bil: med stock_location_id trekkes mengden fra bilens beholdning i
+ * samme kall. stock_key peker på en vare som ligger i bilen (navn, enhet og
+ * siste innpris kopieres derfra); uten den brukes katalogen eller
+ * friteksten som ellers, og bilen går i minus om varen aldri ble ført inn.
+ * Det er lov — montøren skal ikke stoppes ute på jobb av et lagertall.
  *
  * Ingen hendelse i ordreloggen per linje — det ville druknet
  * statusendringene.
@@ -37,6 +46,8 @@ export async function POST(
       sale_price?: unknown;
       note?: unknown;
       client_id?: unknown;
+      stock_location_id?: unknown;
+      stock_key?: unknown;
     };
 
     // Montørappen: samme client_id igjen → samme rad, 200.
@@ -54,6 +65,21 @@ export async function POST(
     const quantity = tal(body.quantity);
     if (quantity === null || quantity <= 0) {
       return NextResponse.json({ error: "Mengden må være større enn 0." }, { status: 400 });
+    }
+
+    let lager: StockLocation | null = null;
+    let lagervare: Lagervare | null = null;
+    if (typeof body.stock_location_id === "string" && body.stock_location_id) {
+      const l = await lagerForSkriving(admin, session, body.stock_location_id);
+      if (l instanceof NextResponse) return l;
+      lager = l;
+      if (typeof body.stock_key === "string" && body.stock_key) {
+        const varer = await hentBehaldning(admin, session.companyId, lager.id, { medTomme: true });
+        lagervare = varer.find((v) => v.key === body.stock_key) ?? null;
+        if (!lagervare) {
+          return NextResponse.json({ error: `Fant ikke varen i ${lager.name}.` }, { status: 404 });
+        }
+      }
     }
 
     const { data: company } = await admin
@@ -78,7 +104,25 @@ export async function POST(
       sale_price: number;
     };
 
-    if (typeof body.supplier_item_id === "string" && body.supplier_item_id) {
+    if (lagervare) {
+      // Varen slik den ligger i bilen: siste innpris er kostprisen.
+      const sal = tal(body.sale_price);
+      if (lagervare.cost_price === null && sal === null) {
+        return NextResponse.json(
+          { error: "Varen har ingen kostpris i bilen. Oppgi salgspris." },
+          { status: 400 },
+        );
+      }
+      linje = {
+        supplier_item_id: lagervare.supplier_item_id,
+        item_no: lagervare.item_no,
+        name: lagervare.name,
+        unit: lagervare.unit,
+        cost_price: lagervare.cost_price,
+        markup_pct: markup,
+        sale_price: lagervare.cost_price !== null ? salspris(lagervare.cost_price, markup) : round2(sal as number),
+      };
+    } else if (typeof body.supplier_item_id === "string" && body.supplier_item_id) {
       const { data: vare } = await admin
         .from("supplier_items")
         .select("id, item_no, name, unit, list_price_per_unit, net_price_per_unit")
@@ -134,6 +178,7 @@ export async function POST(
         note: typeof body.note === "string" && body.note.trim() ? body.note.trim() : null,
         registered_by: session.userId,
         client_id: clientId,
+        ...(lager ? { stock_location_id: lager.id } : {}),
       })
       .select("*")
       .single();
@@ -143,6 +188,29 @@ export async function POST(
         if (finst) return NextResponse.json(finst, { status: 200 });
       }
       throw new Error(error.message);
+    }
+
+    // Uttaket fra bilen. Feiler det, skal linja ikke stå igjen og påstå at
+    // varen kom fra bilen uten at beholdningen gikk ned.
+    if (lager) {
+      const { error: uttakFeil } = await admin.from("stock_movements").insert({
+        company_id: session.companyId,
+        location_id: lager.id,
+        kind: "uttak",
+        supplier_item_id: data.supplier_item_id,
+        item_no: data.item_no,
+        name: data.name,
+        unit: data.unit,
+        quantity: -Number(data.quantity),
+        cost_price: data.cost_price,
+        material_entry_id: data.id,
+        note: `Ordre #${order.order_no}`,
+        created_by: session.userId,
+      });
+      if (uttakFeil) {
+        await admin.from("material_entries").delete().eq("id", data.id);
+        throw new Error(`Kunne ikke trekke varen fra ${lager.name}: ${uttakFeil.message}`);
+      }
     }
 
     // Aktiv montør i appen: telles første gang i måneden, bare fra appen.

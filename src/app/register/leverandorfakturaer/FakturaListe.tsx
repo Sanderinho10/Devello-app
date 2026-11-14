@@ -21,6 +21,16 @@ interface OrdreValg {
   customer_name: string;
 }
 
+interface LagerValg {
+  id: string;
+  location_no: number;
+  name: string;
+  active: boolean;
+}
+
+/** Det en faktura eller en linje kan kobles til: en ordre, eller en bil. */
+type Koplemaal = { order_id: string } | { stock_location_id: string };
+
 /**
  * Lista over leverandørfakturaer, med linjene bak et klikk.
  *
@@ -28,15 +38,20 @@ interface OrdreValg {
  * leverandør, beløp, og referansene grossisten skrev. Ukoblede får en
  * ordrevelger for hele fakturaen; ekspandert rad har én per linje, for
  * samlefakturaer der linjene går til hver sin jobb.
+ *
+ * Velgeren har også bilene: varer kjøpt inn til bilen kobles dit, og går
+ * inn i bilens beholdning i stedet for på en ordre.
  */
 export function FakturaListe({
   fakturaer,
   linjer,
   ordrar,
+  lager = [],
 }: {
   fakturaer: SupplierInvoice[];
   linjer: SupplierInvoiceLine[];
   ordrar: OrdreValg[];
+  lager?: LagerValg[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState<Set<string>>(new Set());
@@ -44,6 +59,8 @@ export function FakturaListe({
   const [error, setError] = useState<string | null>(null);
 
   const ordreAvId = new Map(ordrar.map((o) => [o.id, o]));
+  const lagerAvId = new Map(lager.map((l) => [l.id, l]));
+  const aktiveLager = lager.filter((l) => l.active);
   const linjerPerFaktura = new Map<string, SupplierInvoiceLine[]>();
   for (const l of linjer) {
     const liste = linjerPerFaktura.get(l.invoice_id) ?? [];
@@ -102,6 +119,7 @@ export function FakturaListe({
           const erOpen = open.has(f.id);
           const fLinjer = linjerPerFaktura.get(f.id) ?? [];
           const ordre = f.order_id ? ordreAvId.get(f.order_id) : null;
+          const bil = f.stock_location_id ? lagerAvId.get(f.stock_location_id) : null;
           const duplikat = Boolean(f.duplicate_of);
           // Uten linjer (ingen EHF) kobles hele fakturaen til ordren.
           const kanKople = !kreditnota && !duplikat && f.match_status !== "kopla" && f.match_status !== "ignorert";
@@ -177,14 +195,17 @@ export function FakturaListe({
                       <Link className="button secondary" href={`/ordre/${ordre.id}`}>
                         #{ordre.order_no} →
                       </Link>
+                    ) : bil ? (
+                      <Link className="button secondary" href={`/register/lager/${bil.id}`}>
+                        {bil.name} →
+                      </Link>
                     ) : (
                       kanKople && (
                         <OrdreVelger
                           ordrar={ordrar}
+                          lager={aktiveLager}
                           busy={busy === `f:${f.id}`}
-                          onVelg={(orderId) =>
-                            kall(`/api/regnskap/fakturaer/${f.id}/kople`, { order_id: orderId }, `f:${f.id}`)
-                          }
+                          onVelg={(maal) => kall(`/api/regnskap/fakturaer/${f.id}/kople`, maal, `f:${f.id}`)}
                         />
                       )
                     )}
@@ -197,7 +218,7 @@ export function FakturaListe({
                       >
                         Angre ignorer
                       </button>
-                    ) : f.matched_line_count === 0 && !f.order_id ? (
+                    ) : f.matched_line_count === 0 && !f.order_id && !f.stock_location_id ? (
                       <button
                         type="button"
                         className="button ghost"
@@ -212,12 +233,18 @@ export function FakturaListe({
                         className="button ghost"
                         disabled={busy !== null}
                         onClick={() => {
-                          if (window.confirm("Løse alle linjene fra ordren? Materiellet som kom fra fakturaen fjernes.")) {
+                          if (
+                            window.confirm(
+                              bil
+                                ? `Løse alle linjene fra ${bil.name}? Varene går ut av beholdningen igjen.`
+                                : "Løse alle linjene? Materiell og varer i bil som kom fra fakturaen fjernes.",
+                            )
+                          ) {
                             kall(`/api/regnskap/fakturaer/${f.id}/loys`, {}, `l:${f.id}`);
                           }
                         }}
                       >
-                        Løs fra ordre
+                        {bil ? "Løs fra bil" : "Løs fra ordre"}
                       </button>
                     )}
                   </div>
@@ -241,6 +268,7 @@ export function FakturaListe({
                               ? "Ingen linjer lest."
                               : "Fakturaen kom uten EHF — bare hodet finnes i regnskapssystemet."}
                           {ordre && " Koblet til ordren som helhet; beløpet er ikke ført som materiell."}
+                          {bil && ` Koblet til ${bil.name} som helhet; ingen varer er lagt i beholdningen.`}
                         </p>
                       ) : (
                         <table className="doc-table">
@@ -251,12 +279,13 @@ export function FakturaListe({
                               <th className="num">Mengde</th>
                               <th className="num">Pris</th>
                               <th className="num">Sum</th>
-                              <th>Ordre</th>
+                              <th>Ordre eller bil</th>
                             </tr>
                           </thead>
                           <tbody>
                             {fLinjer.map((l) => {
                               const lo = l.order_id ? ordreAvId.get(l.order_id) : null;
+                              const lb = l.stock_location_id ? lagerAvId.get(l.stock_location_id) : null;
                               return (
                                 <tr key={l.id}>
                                   <td className="tiny muted">{l.item_no ?? "—"}</td>
@@ -284,6 +313,20 @@ export function FakturaListe({
                                           løs
                                         </button>
                                       </span>
+                                    ) : l.status === "kopla" && lb ? (
+                                      <span className="row">
+                                        <Link className="lenke-bla" href={`/register/lager/${lb.id}`}>
+                                          {lb.name}
+                                        </Link>
+                                        <button
+                                          type="button"
+                                          className="linkish"
+                                          disabled={busy !== null}
+                                          onClick={() => kall(`/api/regnskap/fakturaer/${f.id}/loys`, { line_id: l.id }, `l:${l.id}`)}
+                                        >
+                                          løs
+                                        </button>
+                                      </span>
                                     ) : kreditnota ? (
                                       <span className="tiny muted">manuelt</span>
                                     ) : f.match_status === "ignorert" ? (
@@ -291,12 +334,13 @@ export function FakturaListe({
                                     ) : (
                                       <OrdreVelger
                                         ordrar={ordrar}
+                                        lager={aktiveLager}
                                         kompakt
                                         busy={busy === `l:${l.id}`}
-                                        onVelg={(orderId) =>
+                                        onVelg={(maal) =>
                                           kall(
                                             `/api/regnskap/fakturaer/${f.id}/kople`,
-                                            { lines: [{ line_id: l.id, order_id: orderId }] },
+                                            { lines: [{ line_id: l.id, ...maal }] },
                                             `l:${l.id}`,
                                           )
                                         }
@@ -332,12 +376,15 @@ export function FakturaListe({
  */
 function OrdreVelger({
   ordrar,
+  lager,
   onVelg,
   busy,
   kompakt = false,
 }: {
   ordrar: OrdreValg[];
-  onVelg: (orderId: string) => void;
+  /** Bilene som tar imot varer. Står øverst: de er få, og søkes opp på nummer eller navn. */
+  lager: LagerValg[];
+  onVelg: (maal: Koplemaal) => void;
   busy: boolean;
   kompakt?: boolean;
 }) {
@@ -357,16 +404,26 @@ function OrdreVelger({
   }, [open]);
 
   const s = q.trim().toLowerCase().replace(/^#/, "");
-  const treff = (
+  // Én liste for piltastene: bilene først, så ordrene.
+  type Treff = { type: "bil"; bil: LagerValg } | { type: "ordre"; ordre: OrdreValg };
+  const bilTreff: Treff[] = (
+    s ? lager.filter((l) => String(l.location_no).startsWith(s) || l.name.toLowerCase().includes(s)) : lager
+  )
+    .slice(0, 4)
+    .map((bil) => ({ type: "bil", bil }));
+  const ordreTreff: Treff[] = (
     s
       ? ordrar.filter(
           (o) => String(o.order_no).startsWith(s) || o.title.toLowerCase().includes(s) || o.customer_name.toLowerCase().includes(s),
         )
       : ordrar
-  ).slice(0, 8);
+  )
+    .slice(0, 8)
+    .map((ordre) => ({ type: "ordre", ordre }));
+  const treff = [...bilTreff, ...ordreTreff];
 
-  function velg(o: OrdreValg) {
-    onVelg(o.id);
+  function velg(t: Treff) {
+    onVelg(t.type === "bil" ? { stock_location_id: t.bil.id } : { order_id: t.ordre.id });
     setOpen(false);
     setQ("");
   }
@@ -394,8 +451,8 @@ function OrdreVelger({
         className="input"
         value={busy ? "Kobler…" : q}
         disabled={busy}
-        placeholder="Velg ordre"
-        title="Søk på ordrenummer, tittel eller kunde"
+        placeholder={lager.length ? "Velg ordre eller bil" : "Velg ordre"}
+        title="Søk på ordrenummer, tittel, kunde eller bil"
         autoComplete="off"
         role="combobox"
         aria-expanded={open}
@@ -424,21 +481,23 @@ function OrdreVelger({
       {open && (
         <span className="ordre-velger-treff" role="listbox">
           {treff.length === 0 && <span className="tiny muted" style={{ padding: 8 }}>Ingen ordrer passer</span>}
-          {treff.map((o, i) => (
+          {treff.map((t, i) => (
             <button
-              key={o.id}
+              key={t.type === "bil" ? t.bil.id : t.ordre.id}
               type="button"
               role="option"
               aria-selected={i === aktiv}
               className={`ordre-velger-rad${i === aktiv ? " active" : ""}`}
               onMouseEnter={() => setAktiv(i)}
-              onClick={() => velg(o)}
+              onClick={() => velg(t)}
             >
-              <span className="ordre-nr">#{o.order_no}</span>
+              <span className="ordre-nr">#{t.type === "bil" ? t.bil.location_no : t.ordre.order_no}</span>
               <span className="lead-main">
-                <span style={{ display: "block", fontWeight: 550 }}>{o.title}</span>
+                <span style={{ display: "block", fontWeight: 550 }}>{t.type === "bil" ? t.bil.name : t.ordre.title}</span>
                 <span className="tiny muted">
-                  {o.customer_name || "(ingen kunde)"} · {ORDER_STATUS_LABELS[o.status]}
+                  {t.type === "bil"
+                    ? "Bil eller lager · varene går i beholdningen"
+                    : `${t.ordre.customer_name || "(ingen kunde)"} · ${ORDER_STATUS_LABELS[t.ordre.status]}`}
                 </span>
               </span>
             </button>

@@ -105,6 +105,19 @@ export async function PATCH(
       .select("*")
       .single();
     if (error) throw new Error(error.message);
+
+    // Tatt fra en bil: uttaket følger mengden på linja.
+    if (entry.stock_location_id && endringer.quantity !== undefined) {
+      const { error: uttakFeil } = await admin
+        .from("stock_movements")
+        .update({ quantity: -Number(endringer.quantity) })
+        .eq("material_entry_id", entry.id);
+      if (uttakFeil) {
+        // Linja og bilen skal vise samme mengde: sett linja tilbake.
+        await admin.from("material_entries").update({ quantity: entry.quantity }).eq("id", entry.id);
+        throw new Error(`Kunne ikke oppdatere uttaket fra bilen: ${uttakFeil.message}`);
+      }
+    }
     return NextResponse.json(data);
   } catch (err) {
     return errorResponse(err);
@@ -131,6 +144,7 @@ export async function DELETE(
       );
     }
 
+    // Et uttak fra en bil går med (on delete cascade): varen er tilbake i bilen.
     const { error } = await admin.from("material_entries").delete().eq("id", entry.id);
     if (error) throw new Error(error.message);
     return NextResponse.json({ ok: true });
