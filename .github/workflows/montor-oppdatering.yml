@@ -1,0 +1,73 @@
+# Publiserer montørappen til Expo (EAS Update), så telefonene får endringen
+# uten at noen har terminalen åpen. Oppsett: montor/docs/oppdateringer.md.
+#
+# - Push til main eller claude/** som rører montor/ → kanalen «test»
+#   (Expo Go og development-builds).
+# - «Run workflow» i Actions-fanen → velg kanal. «kunde» er det Star Elektro
+#   har installert (preview-builden); dit går bare det som er godkjent.
+name: Montørapp – oppdatering
+
+on:
+  push:
+    branches: [main, "claude/**"]
+    paths: ["montor/**", ".github/workflows/montor-oppdatering.yml"]
+  workflow_dispatch:
+    inputs:
+      kanal:
+        description: "Hvem skal få oppdateringen"
+        type: choice
+        options: [test, kunde]
+        default: test
+
+concurrency:
+  group: montor-oppdatering-${{ inputs.kanal || 'test' }}
+  cancel-in-progress: true
+
+jobs:
+  publiser:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: montor
+    steps:
+      - name: Sjekk at EXPO_TOKEN finnes
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::Mangler EXPO_TOKEN i repoets secrets. Se montor/docs/oppdateringer.md."
+            exit 1
+          fi
+        working-directory: .
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: montor/package-lock.json
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm test -- --ci
+
+      - name: Publiser
+        env:
+          KANAL: ${{ inputs.kanal || 'test' }}
+          MELDING: ${{ github.event.head_commit.message || format('Manuelt fra {0}', github.ref_name) }}
+          EXPO_PUBLIC_API_URL: https://app.devello.no
+        run: |
+          # Kanal og gren heter det samme. Første gang finnes ikke kanalen.
+          eas channel:view "$KANAL" --non-interactive >/dev/null 2>&1 \
+            || eas channel:create "$KANAL" --non-interactive
+          eas update --branch "$KANAL" --environment preview \
+            --message "$(printf '%s' "$MELDING" | head -n1 | cut -c1-200)" \
+            --non-interactive

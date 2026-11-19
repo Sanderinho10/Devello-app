@@ -78,6 +78,12 @@
     "web": {
       "bundler": "metro",
       "output": "single"
+    },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/6964d6ce-fb5a-41ef-9adf-90092a7a6139"
     }
   }
 }
