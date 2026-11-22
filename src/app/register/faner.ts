@@ -6,8 +6,8 @@ export interface RegisterFane {
 }
 
 /**
- * Fanene under Register, i rekkefølge. Timeregister, biler og lager,
- * leverandørfakturaer og grossister
+ * Registrene under Register i sidemenyen, i rekkefølge. Timeregister, biler
+ * og lager, leverandørfakturaer og grossister
  * hører til ordremodulen og står bare når selskapet har den — samme bryter
  * som sidene og API-et sjekker.
  */

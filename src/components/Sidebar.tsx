@@ -8,14 +8,15 @@ import { Merke } from "@/components/Merke";
 import { SelskapVelger } from "@/components/SelskapVelger";
 import { Tilbakemelding } from "@/components/Tilbakemelding";
 import { harModul } from "@/lib/moduler";
+import { registerFaner } from "@/app/register/faner";
 
 /**
  * Navigasjon etter hvor ofte man er der.
  *
- * Over skillelinjen står det daglige: Tilbud, Ordre, Fakturaer, Kalender og Register — bare
- * hovedoverskriftene. Undersidene (som kontakter, leverandørfakturaer og
- * grossister under Register) er faner inne på siden, ikke i menyen, så
- * menyen holder seg kort.
+ * Over skillelinjen står det daglige: Tilbud, Ordre, Fakturaer, Kalender og
+ * Register. Register har registrene sine under seg i menyen (kontakter,
+ * timeregister, lager, leverandørfakturaer og grossister), slik Selskap har
+ * sine — da er kunderegisteret ett klikk unna fra hvor som helst.
  *
  * Under skillelinjen ligger Selskap: det som settes opp én gang eller
  * justeres sjelden — abonnement, medlemmer og innstillinger. Innstillinger
@@ -93,21 +94,22 @@ const KALENDER: NavSection = {
   tabs: [],
 };
 
-/** Registrene. Fanene (kontakter, leverandørfakturaer, grossister) står på siden — se app/register. */
-const REGISTER: NavSection = {
-  key: "register",
-  label: "Register",
-  icon: "▤",
-  basePath: "/register",
-  href: "/register/kontakter",
-  tabs: [],
-};
+/** Registrene, ett menypunkt hver. Hvilke som finnes følger modulene — se app/register/faner. */
+function registerSection(moduler: string[]): NavSection {
+  return {
+    key: "register",
+    label: "Register",
+    icon: "▤",
+    basePath: "/register",
+    tabs: registerFaner(moduler),
+  };
+}
 
 /** Det daglige, i rekkefølgen jobben går: startsiden, tilbud → ordre → faktura, og registrene. */
 function agentSections(moduler: string[]): NavSection[] {
   const sections = [DASHBOARD, TILBUD];
   if (harModul(moduler, "ordre")) sections.push(ORDRE, FAKTURA, KALENDER);
-  sections.push(REGISTER);
+  sections.push(registerSection(moduler));
   return sections;
 }
 
