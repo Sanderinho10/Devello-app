@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { SnippetFelt } from "@/components/SnippetFelt";
 
 /**
  * Arbeidsbeskrivelsen — det montøren leser først.
@@ -9,6 +10,9 @@ import { useState } from "react";
  * Agenten skriver et første utkast når ordren kommer fra et tilbud. Det er
  * et utkast: hintet under sier hvem som skrev det, og forsvinner så snart
  * et menneske har lagret sin egen versjon.
+ *
+ * Feltet vokser med teksten og har snippets: «#» setter inn en av firmaets
+ * ferdige tekster, og en ny kan lages rett fra feltet.
  */
 export function OrdreBeskrivelse({
   orderId,
@@ -48,7 +52,8 @@ export function OrdreBeskrivelse({
   }
 
   return (
-    <div className="card card-pad">
+    // allow-overflow: snippet-lista henger under feltet, utenfor kortet.
+    <div className="card card-pad allow-overflow">
       <div className="row-between" style={{ marginBottom: 8 }}>
         <span className="label" style={{ marginBottom: 0 }}>
           Beskrivelse
@@ -60,13 +65,7 @@ export function OrdreBeskrivelse({
         )}
       </div>
       {error && <div className="banner error">{error}</div>}
-      <textarea
-        className="textarea"
-        value={tekst}
-        onChange={(e) => setTekst(e.target.value)}
-        placeholder="Skriv kort hva jobben går ut på."
-        style={{ minHeight: 110 }}
-      />
+      <SnippetFelt value={tekst} onChange={setTekst} placeholder="Skriv kort hva jobben går ut på." />
       {source === "ai" && !endret && (
         <span className="hint">
           Skrevet av agenten ut fra henvendelsen og tilbudet — rediger fritt.

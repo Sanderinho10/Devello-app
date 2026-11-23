@@ -1,10 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
 import { finnEllerOpprettKunde } from "@/lib/kunder/koble";
+import { tal } from "@/lib/ordre/api";
 import { lovligeOverganger } from "@/lib/ordre/status";
 import { brukereISelskap } from "@/lib/selskap/medlemskap";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { ORDER_STATUS_LABELS, type Order, type OrderStatus } from "@/lib/types";
+import { ORDER_STATUS_LABELS, ORDER_TYPE_LABELS, erOrderType, type Order, type OrderStatus } from "@/lib/types";
 
 const TEKSTFELT = [
   "title",
@@ -55,6 +56,8 @@ export async function PATCH(
         customer_id: string | null;
         saksbehandler_id: string | null;
         hovedansvarlig_id: string | null;
+        order_type: string | null;
+        planned_total: string | number | null;
       }
     >;
 
@@ -104,6 +107,24 @@ export async function PATCH(
       } else if ((verdi || null) !== naa[felt]) {
         endringer[felt] = verdi || null;
       }
+    }
+
+    // Ordretypen kan rettes når som helst før fakturering. Den avtalte
+    // fastprisen bare på en ordre uten tilbud — ellers er summen tilbudets.
+    if (body.order_type !== undefined) {
+      const ny = erOrderType(body.order_type) ? body.order_type : null;
+      if (ny !== naa.order_type) {
+        endringer.order_type = ny;
+        hendelser.push({ kind: "redigert", note: `ordretype: ${ny ? ORDER_TYPE_LABELS[ny] : "ikke valgt"}` });
+      }
+    }
+    if (body.planned_total !== undefined && !naa.quote_snapshot) {
+      const belop = body.planned_total === null || body.planned_total === "" ? null : tal(body.planned_total);
+      if (body.planned_total !== null && body.planned_total !== "" && (belop === null || belop < 0 || belop > 100_000_000)) {
+        return NextResponse.json({ error: "Avtalt pris må være et beløp i kroner." }, { status: 400 });
+      }
+      const ny = belop === null ? null : Math.round(belop * 100) / 100;
+      if (ny !== (naa.planned_total === null ? null : Number(naa.planned_total))) endringer.planned_total = ny;
     }
 
     // Saksbehandler og hovedansvarlig: en i selskapet, eller null for

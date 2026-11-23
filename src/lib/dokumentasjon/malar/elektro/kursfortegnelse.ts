@@ -14,7 +14,7 @@ export const kursfortegnelse: Mal = {
   lovgrunnlag: "FEL § 12, NEK 400",
   beskrivelse: "Kursene i fordelingen slik de er etter arbeidet. Én rad per kurs.",
   boligmappa: { chapterTagName: "Samsvarserklæringer og garantibevis", documentTypeName: "Kursfortegnelse" },
-  signature: { required: true, label: "Utarbeidet av" },
+  signature: { required: false, label: "Utarbeidet av" },
   sections: [
     {
       key: "anlegg",

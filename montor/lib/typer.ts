@@ -5,6 +5,8 @@
 
 export type OrderStatus = "opna" | "paagaar" | "ferdig" | "fakturert" | "avbrutt";
 
+export type OrderType = "fastpris" | "tid_og_materiell";
+
 export type MaterialSource = "manuell" | "faktura" | "pakkseddel";
 
 export interface Order {
@@ -23,6 +25,8 @@ export interface Order {
   lead_id: string | null;
   draft_id: string | null;
   quote_type: string | null;
+  /** Fastpris eller timer og materiell. Null = ikke valgt. */
+  order_type: OrderType | null;
   planned_total: number | null;
   boligmappa_number: string | null;
   boligmappa_property: unknown;
@@ -96,9 +100,26 @@ export interface Bilete {
   note_id: string | null;
 }
 
+/** Tilbudet kunden sa ja til, post for post. Uten priser. */
+export interface TilbudIApp {
+  quote_type: "punktpris" | "fastpris" | "tid_og_materiell";
+  quote_no: number | null;
+  title: string | null;
+  sections: { title: string; lines: TilbudLinje[] }[];
+  assumptions: string[];
+}
+
+export interface TilbudLinje {
+  description: string;
+  quantity: number;
+  unit: string;
+}
+
 /** GET /api/app/ordrar/{id} */
 export interface OrdreIApp {
   ordre: Order;
+  /** null for en ordre uten tilbud. */
+  tilbud: TilbudIApp | null;
   timer: (TimeEntry & { user_name: string })[];
   materiell: MaterialEntry[];
   notat: (OrderNote & { user_name: string; bilete: Bilete[] })[];

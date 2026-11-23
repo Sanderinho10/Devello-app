@@ -270,6 +270,22 @@ export async function boligmappaClient(admin: SupabaseClient, companyId: string)
       return typer;
     },
 
+    /**
+     * Sletter en fil firmaet selv har lagt på eiendommen. 404 er greit:
+     * da er den alt borte. Stien følger opplastingen (/plants/{nr}/files);
+     * svarer Boligmappa noe annet enn 2xx/404, kommer svaret med i feilen.
+     */
+    async slettFil(boligmappaNumber: string, fileId: string): Promise<void> {
+      const sti = `/plants/${encodeURIComponent(boligmappaNumber)}/files/${encodeURIComponent(fileId)}`;
+      const res = await kall("DELETE", sti);
+      if (res.ok || res.status === 404) return;
+      const tekst = await res.text();
+      if (res.status === 403) {
+        throw new BoligmappaFeil("Boligmappa lar oss ikke slette denne fila. Bare filer firmaet selv har lastet opp kan slettes.", 403);
+      }
+      throw new BoligmappaFeil(forklar(res.status, tekst, sti), res.status);
+    },
+
     /** Registrerer fila og laster opp bytes til uploadLink. Svarer med Boligmappas fil-id. */
     async lastOppFil(
       boligmappaNumber: string,

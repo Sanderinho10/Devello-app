@@ -31,6 +31,7 @@
     "test:nelfo4": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-nelfo4.ts",
     "test:ehf": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-ehf.ts",
     "test:faktura": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-faktura.ts",
+    "test:ordre": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-ordre.ts",
     "test:dokumentasjon": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-dokumentasjon.ts",
     "grossist:importer": "node --env-file=.env.local --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/importer-grossist.ts",
     "test:ftp-monster": "node --experimental-strip-types --import ./scripts/alias-loader.mjs scripts/test-ftp-monster.ts",

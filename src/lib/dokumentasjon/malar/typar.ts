@@ -67,6 +67,11 @@ export interface Mal {
   /** Slås opp mot Boligmappas /types ved sending. */
   boligmappa: { chapterTagName: string; documentTypeName: string };
   sections: Seksjon[];
+  /**
+   * required: skjemaet godkjennes med en lagret signatur (company_signatures)
+   * — i dag bare samsvarserklæringen. Ellers fullføres det uten signatur, og
+   * arket sier bare hvem som fullførte det og når.
+   */
   signature: { required: boolean; label: string };
 }
 

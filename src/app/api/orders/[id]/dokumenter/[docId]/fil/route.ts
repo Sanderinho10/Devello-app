@@ -21,7 +21,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (r instanceof NextResponse) return r;
     const sti = r.dok!.storage_path;
     if (!sti) return NextResponse.json({ error: "Dokumentet har ingen fil." }, { status: 404 });
-    const { data, error } = await admin.storage.from(BUCKET).createSignedUrl(sti, GYLDIG_S);
+    const lastNed = request.nextUrl.searchParams.get("download") === "1";
+    const { data, error } = await admin.storage
+      .from(BUCKET)
+      .createSignedUrl(sti, GYLDIG_S, lastNed ? { download: r.dok!.file_name || true } : undefined);
     if (error || !data) throw new Error(error?.message ?? "Kunne ikke åpne fila");
     if (request.nextUrl.searchParams.get("format") === "json") {
       return NextResponse.json({ url: data.signedUrl, expires_in: GYLDIG_S });

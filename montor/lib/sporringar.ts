@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { api } from "./api";
-import type { Bilete, FilLenke, KalenderHending, MaterialEntry, Meg, OrderNote, OrderStatus, OrdreIApp, OrdreIListe, SokTreff, TimeEntry, Timeforslag, VarselSvar } from "./typer";
+import type { Bilete, FilLenke, KalenderHending, MaterialEntry, Meg, OrderNote, OrderStatus, OrdreIApp, OrdreIListe, SokTreff, TilbudIApp, TimeEntry, Timeforslag, VarselSvar } from "./typer";
 import { useUtboksForOrdre } from "./utboks/db";
 import type { BiletePayload, MateriellPayload, NotatPayload, StatusPayload, TimePayload, UtboksRad } from "./utboks/typer";
 
@@ -144,6 +144,8 @@ export type NotatRad = OrderNote & { user_name: string; bilete: BileteRad[] } & 
 
 export interface OrdreMedUtboks {
   ordre: OrdreIApp["ordre"] | undefined;
+  /** Tilbudet ordren kom fra. null uten tilbud — og for data hentet før appen kunne vise det. */
+  tilbud: TilbudIApp | null;
   timer: TimeRad[];
   materiell: MateriellRad[];
   notat: NotatRad[];
@@ -271,6 +273,7 @@ export function useOrdreMedUtboks(id: string) {
 
     return {
       ordre,
+      tilbud: data?.tilbud ?? null,
       timer: [...timer, ...(data?.timer ?? [])],
       materiell: [...materiell, ...(data?.materiell ?? [])],
       notat: [...notat, ...serverNotat],

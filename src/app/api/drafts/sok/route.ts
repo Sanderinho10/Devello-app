@@ -8,6 +8,8 @@ export interface TilbudForslag {
   /** Leadet tilbudet hører til; utkastsiden er /tilbud/leads/<lead_id>. */
   lead_id: string;
   quote_no: number;
+  /** Tilbudstypen — ordretypen på ordren følger den. */
+  quote_type: string | null;
   tittel: string;
   kunde: string;
   bekreftet: boolean;
@@ -43,7 +45,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await admin
       .from("drafts")
       .select(
-        "id, quote_no, confirmed_at, sent_at, tittel:document->>title, kunde:document->customer->>name, kontakt:document->customer->>contact, epost:document->customer->>email, telefon:document->customer->>phone, adresse:document->customer->>address, leads!inner(id, company_id, subject, from_name, from_email, customer_id)",
+        "id, quote_no, quote_type, confirmed_at, sent_at, tittel:document->>title, kunde:document->customer->>name, kontakt:document->customer->>contact, epost:document->customer->>email, telefon:document->customer->>phone, adresse:document->customer->>address, leads!inner(id, company_id, subject, from_name, from_email, customer_id)",
       )
       .eq("leads.company_id", session.companyId)
       .not("quote_no", "is", null)
@@ -54,6 +56,7 @@ export async function GET(request: NextRequest) {
     type Rad = {
       id: string;
       quote_no: number;
+      quote_type: string | null;
       confirmed_at: string | null;
       sent_at: string | null;
       tittel: string | null;
@@ -79,6 +82,7 @@ export async function GET(request: NextRequest) {
           id: r.id,
           lead_id: lead?.id ?? "",
           quote_no: r.quote_no,
+          quote_type: r.quote_type,
           tittel: r.tittel || lead?.subject || "(uten tittel)",
           kunde: r.kunde || lead?.from_name || "",
           bekreftet: Boolean(r.confirmed_at),

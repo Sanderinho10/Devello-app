@@ -15,7 +15,7 @@ export const utstyrsdokumentasjon: Mal = {
   lovgrunnlag: "FEL § 36",
   beskrivelse: "Utstyret som er montert, og veiledningen eieren skal ha. Datablad lastes opp som egne filer.",
   boligmappa: { chapterTagName: "Samsvarserklæringer og garantibevis", documentTypeName: "Utstyrsdokumentasjon" },
-  signature: { required: true, label: "Utarbeidet av" },
+  signature: { required: false, label: "Utarbeidet av" },
   sections: [
     {
       key: "anlegg",

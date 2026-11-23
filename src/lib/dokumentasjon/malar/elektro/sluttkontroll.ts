@@ -16,7 +16,7 @@ export const sluttkontroll: Mal = {
   lovgrunnlag: "FEL § 12, NEK 400",
   beskrivelse: "Visuell kontroll, måling og prøving før anlegget tas i bruk. Fyll ut punkt for punkt.",
   boligmappa: { chapterTagName: "Samsvarserklæringer og garantibevis", documentTypeName: "Sluttkontroll" },
-  signature: { required: true, label: "Kontrollen utført av" },
+  signature: { required: false, label: "Kontrollen utført av" },
   sections: [
     {
       key: "anlegg",

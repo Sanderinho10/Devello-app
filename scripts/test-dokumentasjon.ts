@@ -91,6 +91,7 @@ sjekk("finnMal", finnMal("elektro.sluttkontroll")?.title === "Rapport fra sluttk
     sluttkontroll_utfort: true,
     kursfortegnelse_levert: true,
     utstyrsdok_levert: true,
+    utfort_av: "Ola Montør",
   };
   sjekk("utfylt samsvarserklæring er klar", manglandePaakravde(m, ferdig).length === 0, manglandePaakravde(m, ferdig).join("; "));
 
@@ -151,14 +152,18 @@ for (const m of malar) {
       companyName: "Star Elektro AS",
       orgNr: "984447647",
       ordre: { order_no: 1001, title: CTX.order.title, site_address: CTX.order.site_address, customer_name: CTX.order.customer_name },
-      signatur: { name: "Ola Montør", at: "2026-09-17T12:32:00Z" },
+      signatur: { name: "Ola Montør", at: "2026-09-17T12:32:00Z", tittel: "Faglig ansvarlig", bildeSrc: "data:image/png;base64,AAAA" },
     });
   } catch (err) {
     ok = false;
     sjekk(`PDF-HTML ${m.key}`, false, err instanceof Error ? err.message : String(err));
   }
   if (ok) {
-    sjekk(`PDF-HTML ${m.key} rendrer med tittel og lovgrunnlag`, html.includes(m.title) && html.includes(m.lovgrunnlag) && html.includes("Signert i Devello av Ola Montør"));
+    sjekk(`PDF-HTML ${m.key} rendrer med tittel og lovgrunnlag`, html.includes(m.title) && html.includes(m.lovgrunnlag) && html.includes("Ola Montør"));
+    // Bare skjema som signeres får signaturbildet; resten sier hvem som fullførte dem.
+    const signert = html.includes('class="signaturbilde"') && html.includes("Godkjent og signert i Devello");
+    const fullfort = html.includes("Fullført i Devello av Ola Montør") && !html.includes('class="signaturbilde"');
+    sjekk(`${m.key}: ${m.signature.required ? "signaturbilde på arket" : "fullført uten signatur"}`, m.signature.required ? signert : fullfort);
   }
   if (ok && m.key === "elektro.sluttkontroll") {
     sjekk("check3 som ✓ / ✗ / –", html.includes("✓</span> OK") && html.includes("✗</span> Avvik") && html.includes("–</span> Ikke aktuelt"));
@@ -180,6 +185,8 @@ for (const m of malar) {
     signatur: null,
   });
   sjekk("utkast uten signatur merkes UTKAST", html.includes("UTKAST"));
+  sjekk("bare samsvarserklæringen signeres", alleMalar().filter((x) => x.signature.required).map((x) => x.key).join() === "elektro.samsvarserklaering");
+  sjekk("samsvarserklæringen krever montørens navn", manglandePaakravde(m, prefillData(m, CTX)).some((t) => t.includes("Montørens navn")));
 }
 
 console.log(feil === 0 ? "\nAlle sjekker grønne." : `\n${feil} sjekk(er) feilet.`);
