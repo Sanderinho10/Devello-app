@@ -432,19 +432,17 @@ function str(v: unknown): string | null {
 }
 
 /**
- * Eiernavnene ut av en eiendom. Feltnavnet er ikke verifisert mot
- * Boligmappa, så vi leter etter alt som heter noe med eier (owners,
- * propertyOwners, ownerName …) to nivå ned, og tåler både tekst, liste av
- * tekst og liste av objekter med navn.
+ * Eiernavnene ut av en eiendom. Boligmappa sender dem i propertyOwners
+ * (sett i svaret 2026-11-23), men formen på hvert element er ikke
+ * dokumentert for oss. Derfor: alt som heter noe med eier, og inni der
+ * letes det etter navn — som tekst, som fornavn + etternavn, eller pakket
+ * ett eller to nivå ned (owner: { person: { … } }).
  */
 export function eigarar(o: Record<string, unknown>, djupn = 0): string[] {
   const ut: string[] = [];
   for (const [k, v] of Object.entries(o)) {
     if (/owner|eier|eigar|hjemmelshaver/i.test(k)) {
-      for (const e of Array.isArray(v) ? v : [v]) {
-        const n = eigarNamn(e);
-        if (n) ut.push(n);
-      }
+      ut.push(...eigarNamn(v, 0));
     } else if (djupn < 2 && v && typeof v === "object" && !Array.isArray(v)) {
       ut.push(...eigarar(v as Record<string, unknown>, djupn + 1));
     }
@@ -452,14 +450,46 @@ export function eigarar(o: Record<string, unknown>, djupn = 0): string[] {
   return [...new Set(ut)].slice(0, 10);
 }
 
-function eigarNamn(e: unknown): string | null {
-  if (typeof e === "string") return e.trim().slice(0, 120) || null;
-  if (!e || typeof e !== "object") return null;
-  const o = e as Record<string, unknown>;
-  const heilt = o.fullName ?? o.name ?? o.ownerName ?? o.displayName ?? o.companyName ?? o.organizationName;
-  if (typeof heilt === "string" && heilt.trim()) return heilt.trim().slice(0, 120);
-  const delar = [o.firstName, o.middleName, o.lastName ?? o.surname].filter((d) => typeof d === "string" && d.trim());
-  return delar.length ? delar.join(" ").slice(0, 120) : null;
+const HEILT_NAMN = new Set([
+  "name", "fullname", "ownername", "displayname", "personname", "companyname", "organizationname",
+  "organisationname", "businessname", "legalname", "navn", "fulltnavn",
+]);
+
+function eigarNamn(e: unknown, djupn: number): string[] {
+  if (typeof e === "string") return e.trim() ? [e.trim().slice(0, 120)] : [];
+  if (!e || typeof e !== "object" || djupn > 3) return [];
+  if (Array.isArray(e)) return e.flatMap((x) => eigarNamn(x, djupn + 1));
+  const felt = Object.entries(e as Record<string, unknown>);
+  const tekst = (re: RegExp) => {
+    const treff = felt.find(([k, v]) => re.test(k) && typeof v === "string" && v.trim());
+    return treff ? (treff[1] as string).trim() : null;
+  };
+  const delar = [
+    tekst(/first.?name|given.?name|fornavn|^first$/i),
+    tekst(/middle.?name|mellomnavn/i),
+    tekst(/last.?name|sur.?name|family.?name|etternavn|^last$/i),
+  ].filter(Boolean);
+  if (delar.length) return [delar.join(" ").slice(0, 120)];
+  const heilt = felt.find(([k, v]) => HEILT_NAMN.has(k.toLowerCase()) && typeof v === "string" && v.trim());
+  if (heilt) return [(heilt[1] as string).trim().slice(0, 120)];
+  // Ingen navn på dette nivået: se i det som er pakket inni, men ikke i adresser.
+  return felt
+    .filter(([k, v]) => v && typeof v === "object" && !/address|adresse/i.test(k))
+    .flatMap(([, v]) => eigarNamn(v, djupn + 1));
+}
+
+/**
+ * Formen på et svar uten innholdet: feltnavn og typer. Til loggen, når
+ * vi ikke fant det vi lette etter — navn og adresser skal ikke dit.
+ */
+export function skjelett(v: unknown, djupn = 0): string {
+  if (v === null || v === undefined) return "null";
+  if (Array.isArray(v)) return v.length ? `[${skjelett(v[0], djupn + 1)} ×${v.length}]` : "[]";
+  if (typeof v === "object") {
+    if (djupn > 5) return "{…}";
+    return `{${Object.entries(v as Record<string, unknown>).map(([k, x]) => `${k}: ${skjelett(x, djupn + 1)}`).join(", ")}}`;
+  }
+  return typeof v === "string" && !v.trim() ? "tom tekst" : typeof v;
 }
 
 function adresseTekst(a: unknown): string | null {

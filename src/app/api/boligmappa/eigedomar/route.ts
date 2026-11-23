@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
-import { BoligmappaFeil, boligmappaClient } from "@/lib/boligmappa/client";
+import { BoligmappaFeil, boligmappaClient, skjelett } from "@/lib/boligmappa/client";
 import { ordreModulEllers403 } from "@/lib/ordre/tilgang";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
@@ -16,9 +16,10 @@ export async function GET(request: NextRequest) {
     if (!addressId) return NextResponse.json({ error: "addressId mangler." }, { status: 400 });
     const bm = await boligmappaClient(admin, session.companyId);
     const eigedomar = await bm.eigedomar(addressId);
-    // Uten eiernavn: logg feltnavnene, så det går an å se hva Boligmappa faktisk sender.
+    // Uten eiernavn: logg formen på svaret (feltnavn og typer, ikke innhold),
+    // så det går an å se hvor Boligmappa legger navnet.
     if (eigedomar.length && eigedomar.every((e) => e.owners.length === 0)) {
-      console.log(`[boligmappa] ingen eiernavn i svaret. Felt: ${Object.keys(eigedomar[0].raw).join(", ")}`);
+      console.log(`[boligmappa] ingen eiernavn i svaret. Form: ${skjelett(eigedomar[0].raw).slice(0, 1500)}`);
     }
     return NextResponse.json({
       eigedomar: eigedomar.map((e) => ({
