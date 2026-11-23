@@ -8,6 +8,7 @@ export interface GrossistTreff {
   supplier_name: string;
   item_no: string;
   name: string;
+  brand?: string | null;
   unit: string;
   list_price_per_unit: number;
   net_price_per_unit: number | null;
@@ -25,7 +26,7 @@ export interface GrossistTreff {
  */
 export function GrossistSok({
   onVelg,
-  placeholder = "Søk på navn eller elnummer",
+  placeholder = "Søk på navn, merke eller elnummer",
   autoFocus = false,
 }: {
   onVelg?: (treff: GrossistTreff) => void;
@@ -115,7 +116,7 @@ function TreffInnhold({ treff }: { treff: GrossistTreff }) {
           {treff.name}
         </div>
         <div className="lead-meta">
-          {treff.supplier_name} · per {treff.unit}
+          {[treff.brand, treff.supplier_name].filter(Boolean).join(" · ")} · per {treff.unit}
         </div>
       </div>
       <span className="ordre-sum">

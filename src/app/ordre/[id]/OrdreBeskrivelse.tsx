@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { SnippetFelt } from "@/components/SnippetFelt";
 
 /**
@@ -10,6 +10,11 @@ import { SnippetFelt } from "@/components/SnippetFelt";
  * Agenten skriver et første utkast når ordren kommer fra et tilbud. Det er
  * et utkast: hintet under sier hvem som skrev det, og forsvinner så snart
  * et menneske har lagret sin egen versjon.
+ *
+ * Teksten lagres av seg selv: et sekund etter siste tastetrykk, når feltet
+ * mister fokus, og når brukeren går til en annen fane eller lukker siden.
+ * Den siste lagringen går med keepalive, så den fullføres selv om siden
+ * er på vei bort.
  *
  * Feltet vokser med teksten og har snippets: «#» setter inn en av firmaets
  * ferdige tekster, og en ny kan lages rett fra feltet.
@@ -27,29 +32,80 @@ export function OrdreBeskrivelse({
   const [tekst, setTekst] = useState(description ?? "");
   const [lagret, setLagret] = useState(description ?? "");
   const [busy, setBusy] = useState(false);
+  const [harLagret, setHarLagret] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const endret = tekst.trim() !== lagret.trim();
+  // Refs: lagringen ved avmontering må se siste tekst, ikke den fra første tegning.
+  const tekstRef = useRef(tekst);
+  const lagretRef = useRef(lagret);
+  const montert = useRef(true);
+  // Én lagring om gangen, i rekkefølge — ellers kan en eldre tekst lande sist.
+  const koe = useRef<Promise<void>>(Promise.resolve());
 
-  async function lagre() {
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/orders/${orderId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: tekst }),
-      });
-      const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error ?? "Kunne ikke lagre");
-      setLagret(tekst);
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  }
+  const lagre = useCallback(
+    (paaVeiBort = false) => {
+      const ny = tekstRef.current;
+      if (ny.trim() === lagretRef.current.trim()) return;
+      // Settes med en gang, så blur + avmontering ikke sender samme tekst to ganger.
+      const forrige = lagretRef.current;
+      lagretRef.current = ny;
+      if (!paaVeiBort) {
+        setBusy(true);
+        setError(null);
+      }
+      const send = async () => {
+        try {
+          const res = await fetch(`/api/orders/${orderId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ description: ny }),
+            keepalive: true,
+          });
+          const payload = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(payload.error ?? "Kunne ikke lagre");
+          if (montert.current) {
+            setLagret(ny);
+            setHarLagret(true);
+            router.refresh();
+          }
+        } catch (err) {
+          if (lagretRef.current === ny) lagretRef.current = forrige;
+          if (montert.current) setError(err instanceof Error ? err.message : String(err));
+        } finally {
+          if (montert.current) setBusy(false);
+        }
+      };
+      koe.current = paaVeiBort ? send() : koe.current.then(send);
+    },
+    [orderId, router],
+  );
+
+  // Et sekund etter siste tastetrykk.
+  useEffect(() => {
+    tekstRef.current = tekst;
+    if (tekst.trim() === lagretRef.current.trim()) return;
+    const timer = window.setTimeout(() => lagre(), 1000);
+    return () => window.clearTimeout(timer);
+  }, [tekst, lagre]);
+
+  // Ny fane i ordren (avmontering), ny fane i nettleseren eller lukket side.
+  useEffect(() => {
+    montert.current = true;
+    const bort = () => lagre(true);
+    const skjult = () => {
+      if (document.visibilityState === "hidden") lagre(true);
+    };
+    window.addEventListener("pagehide", bort);
+    document.addEventListener("visibilitychange", skjult);
+    return () => {
+      window.removeEventListener("pagehide", bort);
+      document.removeEventListener("visibilitychange", skjult);
+      montert.current = false;
+      lagre(true);
+    };
+  }, [lagre]);
+
+  const endret = tekst.trim() !== lagret.trim();
 
   return (
     // allow-overflow: snippet-lista henger under feltet, utenfor kortet.
@@ -58,14 +114,29 @@ export function OrdreBeskrivelse({
         <span className="label" style={{ marginBottom: 0 }}>
           Beskrivelse
         </span>
-        {endret && (
-          <button type="button" className="button" onClick={lagre} disabled={busy}>
-            {busy ? "Lagrer…" : "Lagre"}
-          </button>
-        )}
+        <span className="tiny muted" aria-live="polite">
+          {busy || endret ? "Lagrer…" : harLagret && !error ? "Lagret" : ""}
+        </span>
       </div>
-      {error && <div className="banner error">{error}</div>}
-      <SnippetFelt value={tekst} onChange={setTekst} placeholder="Skriv kort hva jobben går ut på." />
+      {error && (
+        <div className="banner error">
+          {error}{" "}
+          <button type="button" className="linkish" onClick={() => lagre()}>
+            Prøv igjen
+          </button>
+        </div>
+      )}
+      {/* Blur bobler opp fra tekstfeltet inni SnippetFelt. */}
+      <div onBlur={() => lagre()}>
+        <SnippetFelt
+          value={tekst}
+          onChange={(ny) => {
+            tekstRef.current = ny;
+            setTekst(ny);
+          }}
+          placeholder="Skriv kort hva jobben går ut på."
+        />
+      </div>
       {source === "ai" && !endret && (
         <span className="hint">
           Skrevet av agenten ut fra henvendelsen og tilbudet — rediger fritt.

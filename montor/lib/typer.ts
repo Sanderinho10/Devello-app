@@ -162,6 +162,8 @@ export interface SokTreff {
   item_no: string;
   gtin: string | null;
   name: string;
+  /** Fabrikat fra varefila. Mangler på eldre servere. */
+  brand?: string | null;
   unit: string;
   list_price_per_unit: number;
   net_price_per_unit: number | null;

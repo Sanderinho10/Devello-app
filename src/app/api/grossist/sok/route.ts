@@ -11,7 +11,7 @@ import type { SupplierItem } from "@/lib/types";
  *
  * 8–14 siffer som er en GTIN → varen (strekkoden fra kameraet). Bare
  * siffer → prefiks på varenummer (montøren har elnummeret fra
- * pakkseddelen). Ellers trigram på navnet. Sorteringen skjer i Postgres
+ * pakkseddelen). Ellers ord for ord i navn og merke («elko stikk»). Sorteringen skjer i Postgres
  * (sok_grossistvarer), der indeksene er — 200 000 rader er for mange å
  * sortere her.
  */
@@ -22,6 +22,8 @@ export interface SokTreff {
   item_no: string;
   gtin: string | null;
   name: string;
+  /** Fabrikat fra varefila («SCHNEIDER», «ELKO»). null når fila ikke sier det. */
+  brand: string | null;
   unit: string;
   list_price_per_unit: number;
   net_price_per_unit: number | null;
@@ -54,6 +56,7 @@ export async function GET(request: NextRequest) {
       item_no: v.item_no,
       gtin: v.gtin ?? null,
       name: v.name,
+      brand: v.brand ?? null,
       unit: v.unit,
       list_price_per_unit: Number(v.list_price_per_unit),
       net_price_per_unit: v.net_price_per_unit === null ? null : Number(v.net_price_per_unit),

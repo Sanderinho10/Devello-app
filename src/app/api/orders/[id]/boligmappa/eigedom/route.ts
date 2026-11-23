@@ -28,6 +28,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         unitNumber: typeof p.unitNumber === "string" ? p.unitNumber.slice(0, 20) : null,
         propertyType: typeof p.propertyType === "string" ? p.propertyType.slice(0, 40) : null,
         cadastre: p.cadastre && typeof p.cadastre === "object" ? (p.cadastre as BoligmappaEigedom["cadastre"]) : null,
+        owners: Array.isArray(p.owners)
+          ? p.owners.filter((n): n is string => typeof n === "string" && !!n.trim()).slice(0, 10).map((n) => n.slice(0, 120))
+          : [],
       };
       endringer = { boligmappa_number: nr, boligmappa_property: property };
     }

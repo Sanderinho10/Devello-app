@@ -561,6 +561,8 @@ export interface BoligmappaEigedom {
   unitNumber: string | null;
   propertyType: string | null;
   cadastre: { knr?: string; gnr?: string; bnr?: string; fnr?: string; snr?: string } | null;
+  /** Eiernavn fra Boligmappa. Mangler på ordrer bekreftet før feltet kom. */
+  owners?: string[];
 }
 
 export interface OrderEvent {
