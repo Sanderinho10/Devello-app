@@ -54,6 +54,8 @@ export interface BmEigedom {
   unitNumber: string | null;
   address: string | null;
   cadastre: { knr?: string; gnr?: string; bnr?: string; fnr?: string; snr?: string } | null;
+  /** Navn på eierne, når Boligmappa sender dem med. Tom liste ellers. */
+  owners: string[];
   raw: Record<string, unknown>;
 }
 
@@ -219,6 +221,7 @@ export async function boligmappaClient(admin: SupabaseClient, companyId: string)
         unitNumber: str(o.unitNumber),
         address: typeof o.address === "string" ? o.address : adresseTekst(o.address),
         cadastre: (o.cadastre && typeof o.cadastre === "object" ? o.cadastre : null) as BmEigedom["cadastre"],
+        owners: eigarar(o),
         raw: o,
       }));
     },
@@ -410,6 +413,37 @@ function tilTypar(svar: unknown): BmType[] {
 function str(v: unknown): string | null {
   if (v === null || v === undefined || v === "") return null;
   return String(v);
+}
+
+/**
+ * Eiernavnene ut av en eiendom. Feltnavnet er ikke verifisert mot
+ * Boligmappa, så vi leter etter alt som heter noe med eier (owners,
+ * propertyOwners, ownerName …) to nivå ned, og tåler både tekst, liste av
+ * tekst og liste av objekter med navn.
+ */
+export function eigarar(o: Record<string, unknown>, djupn = 0): string[] {
+  const ut: string[] = [];
+  for (const [k, v] of Object.entries(o)) {
+    if (/owner|eier|eigar|hjemmelshaver/i.test(k)) {
+      for (const e of Array.isArray(v) ? v : [v]) {
+        const n = eigarNamn(e);
+        if (n) ut.push(n);
+      }
+    } else if (djupn < 2 && v && typeof v === "object" && !Array.isArray(v)) {
+      ut.push(...eigarar(v as Record<string, unknown>, djupn + 1));
+    }
+  }
+  return [...new Set(ut)].slice(0, 10);
+}
+
+function eigarNamn(e: unknown): string | null {
+  if (typeof e === "string") return e.trim().slice(0, 120) || null;
+  if (!e || typeof e !== "object") return null;
+  const o = e as Record<string, unknown>;
+  const heilt = o.fullName ?? o.name ?? o.ownerName ?? o.displayName ?? o.companyName ?? o.organizationName;
+  if (typeof heilt === "string" && heilt.trim()) return heilt.trim().slice(0, 120);
+  const delar = [o.firstName, o.middleName, o.lastName ?? o.surname].filter((d) => typeof d === "string" && d.trim());
+  return delar.length ? delar.join(" ").slice(0, 120) : null;
 }
 
 function adresseTekst(a: unknown): string | null {

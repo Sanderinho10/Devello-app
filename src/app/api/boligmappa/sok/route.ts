@@ -1,11 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
 import { BoligmappaFeil, boligmappaClient, type BmAdresse } from "@/lib/boligmappa/client";
+import { tolkSok } from "@/lib/boligmappa/sok";
 import { ordreModulEllers403 } from "@/lib/ordre/tilgang";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
 /**
- * Adressesøk i Boligmappa: ?q=Solheimslien 26 Bergen → adresser med id-en
+ * Adressesøk i Boligmappa: ?q=Solheimslien 26, 5054 Bergen → adresser med id-en
  * /addresses/{id}/properties tar.
  *
  * To steg, som i Boligmappa sin egen søkekomponent: gatene som matcher
@@ -22,14 +23,19 @@ export async function GET(request: NextRequest) {
     const q = (request.nextUrl.searchParams.get("q") ?? "").trim();
     if (q.length < 3) return NextResponse.json({ adresser: [] });
 
-    const { gate, husnummer, bokstav, sted } = tolkSok(q);
+    const { gate, husnummer, bokstav, postnummer, sted } = tolkSok(q);
     const bm = await boligmappaClient(admin, session.companyId);
 
     // Gatenavnet først; treffer det ikke, prøv det første ordet alene —
     // folk skriver «Solheimslien 26 Bergen», og stedsnavnet er ikke en gate.
-    let gater = gate ? await bm.sokGater(gate) : [];
+    // Uten gatenavn («6963» alene) prøves postnummeret eller stedet som søk.
+    const sokeord = gate || postnummer || sted || "";
+    let gater = sokeord ? await bm.sokGater(sokeord) : [];
     if (gater.length === 0 && gate.includes(" ")) gater = await bm.sokGater(gate.split(" ")[0]);
-    if (sted) {
+    // Postnummeret er det sikreste: samme gatenavn finnes i flere kommuner.
+    const paaPostnummer = postnummer ? gater.filter((g) => g.postalCode === postnummer) : [];
+    if (paaPostnummer.length) gater = paaPostnummer;
+    else if (sted) {
       const s = sted.toLowerCase();
       const iSted = gater.filter((g) => (g.postalPlace ?? "").toLowerCase() === s || (g.municipalityName ?? "").toLowerCase() === s);
       if (iSted.length) gater = iSted;
@@ -60,28 +66,4 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     return errorResponse(err, err instanceof BoligmappaFeil ? (err.status === 401 || err.status === 400 ? 400 : 502) : 500);
   }
-}
-
-/**
- * «Solheimslien 26B Bergen» → gate «Solheimslien», husnummer «26», bokstav
- * «B», sted «Bergen». Ord etter husnummeret regnes som sted; et postnummer
- * hoppes over.
- */
-function tolkSok(q: string): { gate: string; husnummer: string | null; bokstav: string | null; sted: string | null } {
-  const ord = q.split(/\s+/).filter(Boolean);
-  const gateOrd: string[] = [];
-  const stedOrd: string[] = [];
-  let husnummer: string | null = null;
-  let bokstav: string | null = null;
-  for (const o of ord) {
-    const m = /^(\d{1,4})([A-Za-zÆØÅæøå]?)$/.exec(o);
-    if (m && husnummer === null) {
-      husnummer = m[1];
-      bokstav = m[2] ? m[2].toUpperCase() : null;
-      continue;
-    }
-    if (/^\d{4}$/.test(o)) continue;
-    (husnummer === null ? gateOrd : stedOrd).push(o);
-  }
-  return { gate: gateOrd.join(" "), husnummer, bokstav, sted: stedOrd.length ? stedOrd.join(" ") : null };
 }

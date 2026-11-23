@@ -41,6 +41,7 @@ interface EigedomTreff {
   unitNumber: string | null;
   propertyType: string | null;
   cadastre: BoligmappaEigedom["cadastre"];
+  owners?: string[];
 }
 
 export function DokumentasjonFane({
@@ -456,6 +457,7 @@ function BoligmappaKort({
             <strong>Eiendom: {p?.address ?? "—"}</strong>
             {p?.unitNumber && <span>, {p.unitNumber}</span>}
             <span className="tiny muted"> · {ordre.boligmappa_number} ✓</span>
+            {p?.owners && p.owners.length > 0 && <div className="tiny">Eier: {p.owners.join(", ")}</div>}
             {p?.cadastre && (
               <div className="tiny muted">
                 {["knr", "gnr", "bnr", "fnr", "snr"]
@@ -522,6 +524,7 @@ function BoligmappaKort({
                         <span className="ordre-nr">{e.unitNumber ?? e.propertyType ?? "—"}</span>
                         <span className="lead-main">
                           <span style={{ display: "block", fontWeight: 550 }}>{e.address ?? e.boligmappaNumber}</span>
+                          {e.owners && e.owners.length > 0 && <span style={{ display: "block" }}>Eier: {e.owners.join(", ")}</span>}
                           <span className="tiny muted">{e.boligmappaNumber}{e.propertyType ? ` · ${e.propertyType}` : ""}</span>
                         </span>
                       </button>

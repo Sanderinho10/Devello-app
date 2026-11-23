@@ -202,7 +202,7 @@ function Treff({ vare, onPress }: { vare: SokTreff; onPress: () => void }) {
         {vare.name}
       </Text>
       <Text style={[skrift.under, tabellTall]}>
-        {vare.item_no} · {vare.supplier_name}
+        {[vare.item_no, vare.brand, vare.supplier_name].filter(Boolean).join(" · ")}
         {vare.net_price_per_unit === null ? " · listepris" : ""}
       </Text>
     </Rad>
@@ -215,7 +215,7 @@ function MengdeArk({ vare, onLukk, onLeggTil }: { vare: SokTreff | null; onLukk:
   const [lagrer, setLagrer] = useState(false);
   const kost = vare ? (vare.net_price_per_unit ?? vare.list_price_per_unit) : 0;
   return (
-    <Sheet synlig={!!vare} onLukk={onLukk} tittel={vare?.name} under={vare ? `${vare.item_no} · ${vare.supplier_name} · ${kroner(kost, vare.unit)}` : ""}>
+    <Sheet synlig={!!vare} onLukk={onLukk} tittel={vare?.name} under={vare ? `${[vare.item_no, vare.brand, vare.supplier_name].filter(Boolean).join(" · ")} · ${kroner(kost, vare.unit)}` : ""}>
       {vare ? (
         <>
           <Stepper verdi={mengde} onChange={setMengde} steg={1} enhet={vare.unit} />

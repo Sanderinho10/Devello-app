@@ -22,6 +22,8 @@ export interface SokTreff {
   item_no: string;
   gtin: string | null;
   name: string;
+  /** Fabrikat fra varefila («SCHNEIDER», «ELKO»). null når fila ikke sier det. */
+  brand: string | null;
   unit: string;
   list_price_per_unit: number;
   net_price_per_unit: number | null;
@@ -54,6 +56,7 @@ export async function GET(request: NextRequest) {
       item_no: v.item_no,
       gtin: v.gtin ?? null,
       name: v.name,
+      brand: v.brand ?? null,
       unit: v.unit,
       list_price_per_unit: Number(v.list_price_per_unit),
       net_price_per_unit: v.net_price_per_unit === null ? null : Number(v.net_price_per_unit),

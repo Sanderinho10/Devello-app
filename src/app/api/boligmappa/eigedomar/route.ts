@@ -16,6 +16,10 @@ export async function GET(request: NextRequest) {
     if (!addressId) return NextResponse.json({ error: "addressId mangler." }, { status: 400 });
     const bm = await boligmappaClient(admin, session.companyId);
     const eigedomar = await bm.eigedomar(addressId);
+    // Uten eiernavn: logg feltnavnene, så det går an å se hva Boligmappa faktisk sender.
+    if (eigedomar.length && eigedomar.every((e) => e.owners.length === 0)) {
+      console.log(`[boligmappa] ingen eiernavn i svaret. Felt: ${Object.keys(eigedomar[0].raw).join(", ")}`);
+    }
     return NextResponse.json({
       eigedomar: eigedomar.map((e) => ({
         boligmappaNumber: e.boligmappaNumber,
@@ -23,6 +27,7 @@ export async function GET(request: NextRequest) {
         unitNumber: e.unitNumber,
         propertyType: e.propertyType,
         cadastre: e.cadastre,
+        owners: e.owners,
       })),
     });
   } catch (err) {
