@@ -148,7 +148,7 @@ export default function NyMateriell() {
           <View style={s.sokFelt}>
             <Sokefelt
               autoFocus
-              placeholder="Navn, elnummer eller EAN"
+              placeholder="Navn, merke, elnummer eller EAN"
               value={tekst}
               onChangeText={(t) => {
                 setSkannet(null);

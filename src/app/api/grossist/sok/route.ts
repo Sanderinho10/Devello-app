@@ -11,7 +11,7 @@ import type { SupplierItem } from "@/lib/types";
  *
  * 8–14 siffer som er en GTIN → varen (strekkoden fra kameraet). Bare
  * siffer → prefiks på varenummer (montøren har elnummeret fra
- * pakkseddelen). Ellers trigram på navnet. Sorteringen skjer i Postgres
+ * pakkseddelen). Ellers ord for ord i navn og merke («elko stikk»). Sorteringen skjer i Postgres
  * (sok_grossistvarer), der indeksene er — 200 000 rader er for mange å
  * sortere her.
  */

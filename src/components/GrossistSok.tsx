@@ -26,7 +26,7 @@ export interface GrossistTreff {
  */
 export function GrossistSok({
   onVelg,
-  placeholder = "Søk på navn eller elnummer",
+  placeholder = "Søk på navn, merke eller elnummer",
   autoFocus = false,
 }: {
   onVelg?: (treff: GrossistTreff) => void;
