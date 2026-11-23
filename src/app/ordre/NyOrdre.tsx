@@ -4,10 +4,12 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { KundeSok, type KundeForslag } from "@/components/KundeSok";
 import { Modal } from "@/components/Modal";
+import { SnippetFelt } from "@/components/SnippetFelt";
 import { TilbudSok, type TilbudForslag } from "@/components/TilbudSok";
 import { AdresseFelt, type AdresseVerdier } from "@/app/register/kontakter/KontaktFelt";
 import { NyKontaktDialog } from "@/app/register/kontakter/NyKontakt";
 import { adresseTekst, delAdresse } from "@/lib/kunder/adresse";
+import { ORDER_TYPE_LABELS, type OrderType } from "@/lib/types";
 
 const TOM_ADRESSE: AdresseVerdier = { linje1: "", linje2: "", postnr: "", sted: "" };
 
@@ -21,6 +23,11 @@ const TOM_ADRESSE: AdresseVerdier = { linje1: "", linje2: "", postnr: "", sted: 
  * Velges et tilbud, står tilbudsnummeret i feltet og resten fylles ut fra
  * tilbudet, men alt kan rettes. Ordren lages da som fra tilbudsutkastet —
  * med postene og prisen fra tilbudet — og med det som står i feltene.
+ *
+ * Beskrivelsen er det montøren leser først. Den skrives her, gjerne med en
+ * snippet («#» i feltet) for jobbene som går igjen. Ordretypen — fastpris
+ * eller timer og materiell — velges for en ordre uten tilbud; med tilbud
+ * følger den tilbudet.
  *
  * Jobben gjøres på kundens adresse, med mindre man krysser av for at den er
  * et annet sted — da overstyrer oppdragsadressen. Oppdragsadressen hører til
@@ -38,6 +45,9 @@ export function NyOrdre() {
     customer_email: "",
     customer_phone: "",
   });
+  const [beskrivelse, setBeskrivelse] = useState("");
+  const [ordretype, setOrdretype] = useState<OrderType | "">("");
+  const [fastpris, setFastpris] = useState("");
   // Kundens adresse og oppdragsadressen, med de samme feltene som kontaktkortet.
   const [kundeAdresse, setKundeAdresse] = useState<AdresseVerdier>(TOM_ADRESSE);
   const [annenAdresse, setAnnenAdresse] = useState(false);
@@ -112,6 +122,8 @@ export function NyOrdre() {
           customer_postal_code: kundeAdresse.postnr,
           customer_city: kundeAdresse.sted,
           site_address,
+          description: beskrivelse,
+          ...(tilbud ? {} : { order_type: ordretype || null, planned_total: ordretype === "fastpris" ? fastpris : "" }),
           ...(tilbud ? { draft_id: tilbud.id } : { customer_id: kunde?.id }),
         }),
       });
@@ -173,6 +185,46 @@ export function NyOrdre() {
               </div>
             </div>
             {rad("Jobben", "title", { required: true, autoFocus: true, placeholder: "Bytte sikringsskap — Storgata 12" })}
+            <div className="kontakt-rad topp">
+              <span className="kontakt-rad-etikett">Beskrivelse</span>
+              <SnippetFelt
+                value={beskrivelse}
+                onChange={setBeskrivelse}
+                minHeight={84}
+                placeholder={tilbud ? "Valgfritt — står feltet tomt, skriver agenten et utkast fra tilbudet." : "Hva skal gjøres, og hvor i bygget?"}
+              />
+            </div>
+            <div className="kontakt-rad">
+              <span className="kontakt-rad-etikett">Ordretype</span>
+              {tilbud ? (
+                <span className="muted">
+                  {ORDER_TYPE_LABELS[tilbud.quote_type === "tid_og_materiell" ? "tid_og_materiell" : "fastpris"]} — følger tilbudet
+                </span>
+              ) : (
+                <div className="ordretype-valg">
+                  <select
+                    className="input"
+                    value={ordretype}
+                    onChange={(e) => setOrdretype(e.target.value as OrderType | "")}
+                    aria-label="Ordretype"
+                  >
+                    <option value="">— velg —</option>
+                    <option value="fastpris">{ORDER_TYPE_LABELS.fastpris}</option>
+                    <option value="tid_og_materiell">{ORDER_TYPE_LABELS.tid_og_materiell}</option>
+                  </select>
+                  {ordretype === "fastpris" && (
+                    <input
+                      className="input"
+                      inputMode="decimal"
+                      value={fastpris}
+                      onChange={(e) => setFastpris(e.target.value)}
+                      placeholder="Avtalt pris eks. mva (valgfritt)"
+                      aria-label="Avtalt pris eks. mva"
+                    />
+                  )}
+                </div>
+              )}
+            </div>
 
             <div className="kontakt-skilje">Kunden</div>
             <div className="kontakt-rad">

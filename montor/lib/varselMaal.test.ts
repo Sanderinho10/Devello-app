@@ -2,7 +2,7 @@ import { lesPushData, varselMaal } from "./varselMaal";
 
 describe("varselMaal", () => {
   it("nytt og endret oppdrag åpner ordren", () => {
-    expect(varselMaal({ type: "nytt_oppdrag", order_id: "o1" })).toBe("/ordrer/o1/timer");
+    expect(varselMaal({ type: "nytt_oppdrag", order_id: "o1" })).toBe("/ordrer/o1/jobben");
     expect(varselMaal({ type: "endra_oppdrag", order_id: "o1" })).toBe("/ordrer/o1/timer");
   });
   it("fjernet oppdrag, eller uten ordre, åpner programmet", () => {

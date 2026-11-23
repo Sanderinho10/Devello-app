@@ -10,8 +10,10 @@ import { kjoer } from "@/lib/utboks/motor";
 
 /**
  * Hva, hvem og hvor — og knappene montøren trenger med én hånd: ring, kart
- * og neste steg på jobben. Bare «Start jobben» og «Merk som ferdig»; avbryt
- * og åpne igjen gjøres på kontoret.
+ * og neste steg på jobben. Bare «Start jobben» og «Ferdig»; avbryt og åpne
+ * igjen gjøres på kontoret. «Ferdig» er der også før jobben er startet —
+ * en liten jobb gjøres ofte på ett besøk. Kontoret ser ferdige ordrer i
+ * lista «Klare til fakturering».
  */
 export function OrdreHode({ id }: { id: string }) {
   const { sammenslaatt, error, data, refetch } = useOrdreMedUtboks(id);
@@ -34,9 +36,9 @@ export function OrdreHode({ id }: { id: string }) {
   };
 
   const merkFerdig = () => {
-    Alert.alert("Merk ordren som ferdig?", "Kontoret får beskjed.", [
+    Alert.alert("Er jobben ferdig?", "Ordren havner hos kontoret som klar til fakturering. Du kan fortsatt føre timer og materiell på den.", [
       { text: "Avbryt", style: "cancel" },
-      { text: "Merk som ferdig", onPress: () => settStatus("ferdig") },
+      { text: "Ferdig", onPress: () => settStatus("ferdig") },
     ]);
   };
 
@@ -62,8 +64,12 @@ export function OrdreHode({ id }: { id: string }) {
             {ordre.customer_phone ? <Knapp tekst="Ring" ikon="call" variant="sekundaer" onPress={ring} style={s.knapp} /> : null}
             {ordre.site_address ? <Knapp tekst="Kart" ikon="navigate" variant="sekundaer" onPress={kart} style={s.knapp} /> : null}
           </View>
-          {kanStarte ? <Knapp tekst="Start jobben" ikon="play" variant="tonet" onPress={() => settStatus("paagaar")} /> : null}
-          {kanFerdig ? <Knapp tekst="Merk som ferdig" ikon="checkmark" variant="tonet" onPress={merkFerdig} /> : null}
+          {kanStarte || kanFerdig ? (
+            <View style={s.steg}>
+              {kanStarte ? <Knapp tekst="Start jobben" ikon="play" variant="tonet" onPress={() => settStatus("paagaar")} style={s.knapp} /> : null}
+              {kanFerdig ? <Knapp tekst="Ferdig" ikon="checkmark" variant={kanStarte ? "sekundaer" : "tonet"} onPress={merkFerdig} style={s.knapp} /> : null}
+            </View>
+          ) : null}
         </>
       ) : null}
     </View>
@@ -75,5 +81,6 @@ const s = StyleSheet.create({
   rad: { flexDirection: "row", alignItems: "center", gap: 8 },
   nr: { flex: 1 },
   knapper: { flexDirection: "row", gap: 8, marginTop: 8 },
+  steg: { flexDirection: "row", gap: 8 },
   knapp: { flex: 1 },
 });

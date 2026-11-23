@@ -70,7 +70,8 @@ const s = StyleSheet.create({
   aktiv: { backgroundColor: farge.flate, ...skyggeLiten },
   tekst: { fontSize: 15, fontWeight: "500", letterSpacing: -0.1, color: farge.tekstSekundaer },
   aktivTekst: { color: farge.tekst, fontWeight: "600" },
-  faner: { flexDirection: "row", gap: 28, borderBottomWidth: 1, borderBottomColor: farge.kantSterk },
+  // 22, ikke 28: fire faner (Tilbud · Timer · Materiell · Notater) skal få plass på en smal telefon.
+  faner: { flexDirection: "row", gap: 22, borderBottomWidth: 1, borderBottomColor: farge.kantSterk },
   fane: { flexDirection: "row", alignItems: "baseline", gap: 6, minHeight: 46, paddingTop: 12, paddingHorizontal: 2, marginBottom: -1, borderBottomWidth: 2, borderBottomColor: "transparent" },
   faneAktiv: { borderBottomColor: farge.tekst },
   faneTekst: { fontSize: 16, letterSpacing: -0.2, color: farge.tekstSekundaer },

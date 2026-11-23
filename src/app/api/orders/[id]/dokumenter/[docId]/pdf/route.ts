@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { errorResponse, sessionOr401 } from "@/lib/api";
-import { BUCKET, lagDokumentPdf, ordreOgDokument } from "@/lib/dokumentasjon/dokument";
+import { BUCKET, lagDokumentPdf, ordreOgDokument, tittelMedVersjon } from "@/lib/dokumentasjon/dokument";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
 export const maxDuration = 120;
@@ -8,8 +8,9 @@ export const maxDuration = 120;
 /**
  * PDF-en. Ferdig skjema: den lagrede fila, via signert lenke. Utkast:
  * rendres på nytt hver gang, merket UTKAST, og strømmes rett ut.
+ * ?download=1 gir fila som nedlasting med et lesbart navn.
  */
-export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string; docId: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string; docId: string }> }) {
   const session = await sessionOr401();
   if (session instanceof NextResponse) return session;
 
@@ -22,7 +23,10 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     if (dok.kind !== "skjema") return NextResponse.json({ error: "Bare skjema har PDF. Bruk /fil for opplastede filer." }, { status: 400 });
 
     if (dok.status === "ferdig" && dok.pdf_path) {
-      const { data, error } = await admin.storage.from(BUCKET).createSignedUrl(dok.pdf_path, 60);
+      const lastNed = request.nextUrl.searchParams.get("download") === "1";
+      const { data, error } = await admin.storage
+        .from(BUCKET)
+        .createSignedUrl(dok.pdf_path, 60, lastNed ? { download: `${filnavn(tittelMedVersjon(dok))}-ordre-${r.ordre.order_no}.pdf` } : undefined);
       if (error || !data) throw new Error(error?.message ?? "Kunne ikke åpne PDF-en");
       return NextResponse.redirect(data.signedUrl);
     }
@@ -38,4 +42,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   } catch (err) {
     return errorResponse(err);
   }
+}
+
+function filnavn(s: string): string {
+  return s.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "dokument";
 }

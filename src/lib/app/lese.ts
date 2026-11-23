@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { brukereISelskap } from "@/lib/selskap/medlemskap";
 import { lovligeOverganger } from "@/lib/ordre/status";
-import type { MaterialEntry, Order, OrderDocument, OrderNote, OrderStatus, TimeEntry } from "@/lib/types";
+import type { MaterialEntry, Order, OrderDocument, OrderNote, OrderStatus, QuoteType, TimeEntry } from "@/lib/types";
 
 /**
  * Det montørappen leser. Rene spørringer med service role og eksplisitt
@@ -92,8 +92,40 @@ export interface BileteIApp {
   note_id: string | null;
 }
 
+/**
+ * Tilbudet slik montøren ser det: hva kunden sa ja til, post for post.
+ * Uten priser — montøren trenger omfanget, og summen står på kontoret.
+ */
+export interface TilbudIApp {
+  quote_type: QuoteType;
+  quote_no: number | null;
+  title: string | null;
+  sections: { title: string; lines: { description: string; quantity: number; unit: string }[] }[];
+  /** Forutsetningene i tilbudet, slik kunden fikk dem. */
+  assumptions: string[];
+}
+
+export function tilbudForApp(snapshot: Order["quote_snapshot"]): TilbudIApp | null {
+  if (!snapshot) return null;
+  const d = snapshot.document;
+  return {
+    quote_type: snapshot.quote_type,
+    quote_no: snapshot.quote_no ?? null,
+    title: d?.title ?? null,
+    sections: (d?.sections ?? [])
+      .map((s) => ({
+        title: s.title,
+        lines: s.lines.map((l) => ({ description: l.description, quantity: Number(l.quantity), unit: l.unit })),
+      }))
+      .filter((s) => s.lines.length > 0),
+    assumptions: (d?.assumptions ?? []).filter((a): a is string => typeof a === "string" && a.trim() !== ""),
+  };
+}
+
 export interface OrdreIApp {
   ordre: Omit<Order, "quote_snapshot">;
+  /** null for en ordre uten tilbud. */
+  tilbud: TilbudIApp | null;
   timer: (TimeEntry & { user_name: string })[];
   materiell: MaterialEntry[];
   notat: (OrderNote & { user_name: string; bilete: BileteIApp[] })[];
@@ -105,8 +137,7 @@ export interface OrdreIApp {
 export async function hentOrdreForApp(admin: SupabaseClient, companyId: string, orderId: string): Promise<OrdreIApp | null> {
   const { data: rad } = await admin.from("orders").select("*").eq("id", orderId).eq("company_id", companyId).maybeSingle();
   if (!rad) return null;
-  const { quote_snapshot: _snapshot, ...ordre } = rad as Order;
-  void _snapshot;
+  const { quote_snapshot: snapshot, ...ordre } = rad as Order;
 
   const [{ data: timer }, { data: materiell }, { data: notat }, { data: dokument }, { data: brukarar }] = await Promise.all([
     admin.from("time_entries").select("*").eq("order_id", orderId).eq("company_id", companyId).order("work_date", { ascending: false }).order("created_at", { ascending: false }).limit(200),
@@ -123,6 +154,7 @@ export async function hentOrdreForApp(admin: SupabaseClient, companyId: string, 
 
   return {
     ordre,
+    tilbud: tilbudForApp(snapshot),
     timer: ((timer ?? []) as TimeEntry[]).map((t) => ({ ...t, user_name: namn.get(t.user_id) ?? "" })),
     materiell: (materiell ?? []) as MaterialEntry[],
     notat: ((notat ?? []) as OrderNote[]).map((n) => ({ ...n, user_name: namn.get(n.user_id) ?? "", bilete: bilete.filter((b) => b.note_id === n.id) })),

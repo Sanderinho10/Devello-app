@@ -143,7 +143,13 @@ curl -H "Authorization: Bearer $TOKEN" "https://app.devello.no/api/app/ordrar?st
 opplastede bilder (`order_documents` med `kind = "fil"` og bilde-MIME);
 `notat[].bilete` er de som hører til notatet. `lovlege_overgangar` sier
 hvilke statuser ordren kan settes til — vis knapp for `paagaar` («Start
-jobben») og `ferdig` («Merk som ferdig»), aldri `avbrutt` eller `opna`.
+jobben») og `ferdig` («Ferdig»), aldri `avbrutt` eller `opna`. En åpen
+ordre kan settes rett til `ferdig`; kontoret ser ferdige ordrer i lista
+«Klare til fakturering».
+
+`tilbud` er tilbudet kunden sa ja til, post for post og uten priser — `null`
+for en ordre uten tilbud. `ordre.order_type` er `fastpris`,
+`tid_og_materiell` eller `null` (ikke valgt).
 
 ```json
 {
@@ -182,11 +188,21 @@ jobben») og `ferdig` («Merk som ferdig»), aldri `avbrutt` eller `opna`.
     }
   ],
   "bilete": [ { "id": "uuid", "title": "IMG_0042", "file_name": "IMG_0042.jpg", "created_at": "…", "note_id": "uuid" } ],
+  "tilbud": {
+    "quote_type": "fastpris", "quote_no": 1007, "title": "Bytte sikringsskap",
+    "sections": [
+      { "title": "Arbeid og materiell", "lines": [ { "description": "Sikringsskap 3-fas, 36 moduler", "quantity": 1, "unit": "stk" } ] }
+    ],
+    "assumptions": ["Eksisterende inntak beholdes."]
+  },
   "lovlege_overgangar": ["ferdig", "opna", "avbrutt"]
 }
 ```
 
-`quote_snapshot` er utelatt fra `ordre` (stort, ikke relevant i appen).
+`quote_snapshot` er utelatt fra `ordre` (stort, og med priser); det appen
+viser av tilbudet står i `tilbud`. Endringer montøren melder fra tilbudet
+lagres som et vanlig notat (`POST /api/orders/{id}/notat`) som begynner med
+«Endringer fra tilbudet:» — tilbudet selv røres aldri.
 `materiell[].source` er `manuell` (ført i appen/nettappen), `faktura`
 (fra leverandørfaktura — mengde og kost er låst) eller `pakkseddel`. Linjer
 med `replaced_by` satt er erstattet av en fakturalinje og teller ikke i

@@ -5,6 +5,8 @@ import { OrdreKunde, type Kundekort } from "./OrdreKunde";
 import { hovedadresse } from "@/lib/kunder/adresse";
 import { OrdreAnsvar } from "./OrdreAnsvar";
 import { OrdrePlan } from "./OrdrePlan";
+import { OrdreType } from "./OrdreType";
+import { TilbudEndring } from "./TilbudEndring";
 import { brukereISelskap } from "@/lib/selskap/medlemskap";
 import { hentOrdre, ordreErLaast } from "@/lib/ordre/hent";
 import { hendelseTekst } from "@/lib/ordre/hendelse";
@@ -106,12 +108,14 @@ export default async function OrdreSide({
         <div className="card ordre-tall">
           <div className="oppsummering">
             <div className="oppsummering-post">
-              <span className="tiny muted">Planlagt (tilbud)</span>
+              <span className="tiny muted">{snapshot ? "Planlagt (tilbud)" : ordre.order_type === "fastpris" ? "Avtalt fastpris" : "Planlagt"}</span>
               <strong>
                 {ordre.planned_total === null ? "—" : formatNok(Number(ordre.planned_total))}
               </strong>
               <span className="tiny muted">
-                {snapshot?.quote_type === "tid_og_materiell" ? "tid og materiell" : "eks. mva"}
+                {ordre.order_type === "tid_og_materiell" || snapshot?.quote_type === "tid_og_materiell"
+                  ? "timer og materiell"
+                  : "eks. mva"}
               </span>
             </div>
             <Link href={`/ordre/${ordre.id}/timer`} className="oppsummering-post clickable">
@@ -163,7 +167,17 @@ export default async function OrdreSide({
               <span className="label" style={{ marginBottom: 0 }}>
                 Grunnlag fra tilbudet
               </span>
-              <span className="tiny muted">{QUOTE_TYPE_LABELS[snapshot.quote_type]}</span>
+              <span className="row" style={{ gap: 10 }}>
+                <span className="tiny muted">{QUOTE_TYPE_LABELS[snapshot.quote_type]}</span>
+                {document && snapshot.quote_type !== "tid_og_materiell" && !ordreErLaast(ordre) && (
+                  <TilbudEndring
+                    orderId={ordre.id}
+                    linjer={document.sections.flatMap((s) =>
+                      s.lines.map((l) => ({ seksjon: s.title, description: l.description, quantity: Number(l.quantity), unit: l.unit })),
+                    )}
+                  />
+                )}
+              </span>
             </div>
 
             {snapshot.quote_type === "tid_og_materiell" || !document ? (
@@ -238,6 +252,14 @@ export default async function OrdreSide({
             site_address: ordre.site_address,
           }}
           kort={kort}
+        />
+
+        <OrdreType
+          orderId={ordre.id}
+          ordretype={ordre.order_type}
+          avtaltPris={ordre.planned_total === null ? null : Number(ordre.planned_total)}
+          harTilbud={Boolean(snapshot)}
+          laast={ordreErLaast(ordre)}
         />
 
         <OrdreAnsvar

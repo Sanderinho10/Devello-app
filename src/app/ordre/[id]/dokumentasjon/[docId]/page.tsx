@@ -1,10 +1,9 @@
 import { notFound } from "next/navigation";
 import { SkjemaSide } from "./SkjemaSide";
 import { finnMal } from "@/lib/dokumentasjon/malar";
-import { manglandePaakravde } from "@/lib/dokumentasjon/motor";
-import type { DokumentData } from "@/lib/dokumentasjon/malar/typar";
+import { hentSignaturer } from "@/lib/dokumentasjon/signatur";
 import { hentOrdre } from "@/lib/ordre/hent";
-import { currentSession, supabaseServer } from "@/lib/supabase/server";
+import { currentSession, supabaseAdmin, supabaseServer } from "@/lib/supabase/server";
 import type { OrderDocument } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -30,13 +29,28 @@ export default async function DokumentSide({ params }: { params: Promise<{ id: s
   const mal = dokument.template_key ? finnMal(dokument.template_key) : null;
   if (!mal) notFound();
 
+  const erAdmin = meg?.role === "admin";
+
+  // Signaturene trengs bare for skjema som signeres. Ordren over er hentet
+  // med brukerens tilgang, så selskapet er sjekket.
+  const admin = supabaseAdmin();
+  const [signaturer, { data: bedtAv }] = await Promise.all([
+    mal.signature.required ? hentSignaturer(admin, ordre.company_id, session!.userId, erAdmin) : Promise.resolve([]),
+    dokument.approval_requested_by
+      ? admin.from("users").select("full_name, email").eq("id", dokument.approval_requested_by).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+
   return (
     <SkjemaSide
+      // Ny nøkkel når dokumentet låses eller åpnes: skjemaet starter på nytt fra det som er lagret.
+      key={`${dokument.id}:${dokument.status}`}
       orderId={ordre.id}
       dok={dokument}
       mal={mal}
-      manglar={manglandePaakravde(mal, dokument.data as DokumentData)}
-      erAdmin={meg?.role === "admin"}
+      erAdmin={erAdmin}
+      signaturer={signaturer}
+      bedtAv={bedtAv?.full_name || bedtAv?.email || null}
     />
   );
 }

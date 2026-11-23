@@ -3,13 +3,16 @@ import { errorResponse, sessionOr401 } from "@/lib/api";
 import { loggAktivitet } from "@/lib/aktivitet";
 import { finnEllerOpprettKunde } from "@/lib/kunder/koble";
 import { harModul } from "@/lib/moduler";
+import { tal } from "@/lib/ordre/api";
 import { lagOrdreBeskrivelse } from "@/lib/ordre/beskrivelse";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import {
   computeTotals,
+  erOrderType,
   type Draft,
   type Lead,
   type OrderQuoteSnapshot,
+  type OrderType,
   type QuoteDocument,
   type QuoteType,
   type ToneSettings,
@@ -26,9 +29,12 @@ import {
  *
  * Uten tilbud: en servicejobb som kom på telefon. Bare tittelen er påkrevd.
  *
- * Beskrivelsen skrives av den lille modellen når ordren kommer fra et
- * tilbud. Den er et første utkast og aldri en betingelse: feiler kallet,
- * opprettes ordren uten.
+ * Beskrivelsen: det som er skrevet i skjemaet gjelder. Står feltet tomt og
+ * ordren kommer fra et tilbud, skriver den lille modellen et første utkast
+ * — aldri en betingelse: feiler kallet, opprettes ordren uten.
+ *
+ * Ordretypen (fastpris eller timer og materiell) følger tilbudet. Uten
+ * tilbud velges den i skjemaet, og en fastpris kan ha en avtalt sum.
  */
 export async function POST(request: NextRequest) {
   const session = await sessionOr401();
@@ -69,6 +75,12 @@ export async function POST(request: NextRequest) {
       customer_city?: string;
       /** Valgt fra kunderegisteret i skjemaet. Må tilhøre selskapet. */
       customer_id?: string;
+      /** Skrevet i skjemaet, gjerne med en snippet. */
+      description?: string;
+      /** Bare for ordre uten tilbud. */
+      order_type?: string | null;
+      /** Avtalt fastpris eks. mva, for en fastprisordre uten tilbud. */
+      planned_total?: string | number | null;
     };
 
     let felt: {
@@ -81,6 +93,7 @@ export async function POST(request: NextRequest) {
       lead_id: string | null;
       draft_id: string | null;
       quote_type: QuoteType | null;
+      order_type: OrderType | null;
       quote_snapshot: OrderQuoteSnapshot | null;
       planned_total: number | null;
     };
@@ -128,6 +141,7 @@ export async function POST(request: NextRequest) {
         lead_id: lead.id,
         draft_id: draft.id,
         quote_type: draft.quote_type,
+        order_type: draft.quote_type === "tid_og_materiell" ? "tid_og_materiell" : "fastpris",
         quote_snapshot: { quote_type: draft.quote_type, quote_no: draft.quote_no ?? null, document, totals },
         planned_total: totals?.subtotal ?? null,
       };
@@ -150,6 +164,11 @@ export async function POST(request: NextRequest) {
       if (!title) {
         return NextResponse.json({ error: "Ordren må ha en tittel." }, { status: 400 });
       }
+      const ordretype = erOrderType(body.order_type) ? body.order_type : null;
+      const avtalt = ordretype === "fastpris" ? tal(body.planned_total) : null;
+      if (avtalt !== null && (avtalt < 0 || avtalt > 100_000_000)) {
+        return NextResponse.json({ error: "Avtalt pris må være et beløp i kroner." }, { status: 400 });
+      }
       felt = {
         title,
         customer_name: tekst(body.customer_name),
@@ -160,8 +179,9 @@ export async function POST(request: NextRequest) {
         lead_id: null,
         draft_id: null,
         quote_type: null,
+        order_type: ordretype,
         quote_snapshot: null,
-        planned_total: null,
+        planned_total: avtalt === null ? null : Math.round(avtalt * 100) / 100,
       };
     }
 
@@ -191,10 +211,13 @@ export async function POST(request: NextRequest) {
         city: body.customer_city,
       }));
 
+    const beskrivelse = tekst(body.description).slice(0, 4000);
+
     const { data: order, error: insertFeil } = await admin
       .from("orders")
       .insert({
         ...felt,
+        ...(beskrivelse ? { description: beskrivelse, description_source: "manuell" } : {}),
         customer_id: customerId,
         company_id: session.companyId,
         order_no: orderNo,
@@ -236,7 +259,7 @@ export async function POST(request: NextRequest) {
 
     // Beskrivelsen kommer etter at ordren er lagret, så en treg modell aldri
     // holder ordrenummeret tilbake — og aldri kan velte opprettingen.
-    if (lead && draft) {
+    if (lead && draft && !beskrivelse) {
       const maalform = ((company?.tone_settings ?? {}) as ToneSettings).maalform ?? "nb";
       const beskrivelse = await lagOrdreBeskrivelse({
         lead,

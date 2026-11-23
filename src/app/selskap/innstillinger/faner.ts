@@ -71,6 +71,11 @@ export function innstillingsMeny(moduler: string[]): InnstillingsGruppe[] {
           beskrivelse: "PowerOffice Go: leverandørfakturaer inn på ordren, og fakturaforslag tilbake som ordreutkast.",
         },
         {
+          label: "Dokumentasjon",
+          href: `${BASE}/dokumentasjon`,
+          beskrivelse: "Signaturene samsvarserklæringen godkjennes med.",
+        },
+        {
           label: "Boligmappa",
           href: `${BASE}/boligmappa`,
           beskrivelse: "Ferdig dokumentasjon sendes til eiendommens Boligmappa med ett trykk fra ordren.",

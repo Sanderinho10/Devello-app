@@ -32,7 +32,7 @@ export function NotatFane({ orderId, userId, erAdmin, notat }: { orderId: string
     <div className="card">
       <div className="card-header">
         <span className="label" style={{ marginBottom: 0 }}>Notater fra jobben</span>
-        <span className="tiny muted">Skrives i montørappen. Her kan de leses og slettes.</span>
+        <span className="tiny muted">Skrives i montørappen. Endringer fra tilbudet havner også her.</span>
       </div>
       {error && <div className="banner error" style={{ margin: 16 }}>{error}</div>}
       {notat.length === 0 ? (

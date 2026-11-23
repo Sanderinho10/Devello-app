@@ -6,16 +6,19 @@ import type { Mal } from "../typar";
  * Installatørens erklæring om at anlegget er utført i samsvar med
  * sikkerhetskravene i forskriften. Eieren skal ha originalen; installatøren
  * oppbevarer kopi i minst fem år.
+ *
+ * Det eneste skjemaet som signeres: montøren skriver navnet sitt under
+ * «Utført av», og den som godkjenner velger en lagret signatur.
  */
 export const samsvarserklaering: Mal = {
   key: "elektro.samsvarserklaering",
-  version: 1,
+  version: 2,
   fag: "elektro",
   title: "Samsvarserklæring",
   lovgrunnlag: "FEL § 12",
   beskrivelse: "Erklæringen om at det utførte arbeidet er i samsvar med forskrift om elektriske lavspenningsanlegg.",
   boligmappa: { chapterTagName: "Samsvarserklæringer og garantibevis", documentTypeName: "Samsvarserklæring" },
-  signature: { required: true, label: "Ansvarlig for arbeidet" },
+  signature: { required: true, label: "Godkjent av" },
   sections: [
     {
       key: "installator",
@@ -81,6 +84,12 @@ export const samsvarserklaering: Mal = {
         { key: "merknad", label: "Merknad", type: "textarea" },
         { key: "dato", label: "Dato", type: "date", prefill: "today", required: true },
       ],
+    },
+    {
+      key: "utfort",
+      title: "Utført av",
+      help: "Montøren som har gjort arbeidet skriver navnet sitt her. Erklæringen signeres av den som godkjenner.",
+      fields: [{ key: "utfort_av", label: "Montørens navn", type: "text", required: true }],
     },
   ],
 };

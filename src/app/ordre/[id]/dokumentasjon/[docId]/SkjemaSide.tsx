@@ -5,29 +5,40 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DokumentData, Felt, Feltverdi, Mal, Seksjon } from "@/lib/dokumentasjon/malar/typar";
 import { manglandePaakravde } from "@/lib/dokumentasjon/motor";
+import { AutoTextarea } from "@/components/AutoTextarea";
+import type { SignaturValg } from "@/lib/dokumentasjon/signatur";
 import { formatDate, type OrderDocument } from "@/lib/types";
 
 /**
  * Skjemaet montøren fyller ut på jobb.
  *
  * Én kolonne, seksjoner som kort, kontrollpunkt som tre store knapper,
- * måleverdier med kravet rett under. Endringer lagres av seg selv etter et
- * sekund («Lagret 14:32»); nederst står hva som mangler før «Fullfør og
- * signer» kan trykkes. Ferdig = låst visning med PDF; administrator kan
- * gjenåpne.
+ * måleverdier med kravet rett under. Tekstfeltene vokser med teksten.
+ * Endringer lagres av seg selv etter et sekund («Lagret 14:32»); nederst
+ * står hva som mangler før skjemaet kan fullføres. Ferdig = låst visning
+ * med PDF; administrator kan gjenåpne.
+ *
+ * Bare samsvarserklæringen signeres. Montøren skriver navnet sitt i
+ * skjemaet og sender det til godkjenning; den som godkjenner, velger en
+ * lagret signatur. Har man selv en signatur, kan man godkjenne med en gang.
+ * De andre skjemaene fullføres uten signatur.
  */
 export function SkjemaSide({
   orderId,
   dok,
   mal,
-  manglar: manglarStart,
   erAdmin,
+  signaturer,
+  bedtAv,
 }: {
   orderId: string;
   dok: OrderDocument;
   mal: Mal;
-  manglar: string[];
   erAdmin: boolean;
+  /** Selskapets lagrede signaturer. Bare de med kan_bruke kan velges. */
+  signaturer: SignaturValg[];
+  /** Navnet på den som ba om godkjenning. */
+  bedtAv: string | null;
 }) {
   const router = useRouter();
   const [data, setData] = useState<DokumentData>(dok.data as DokumentData);
@@ -37,6 +48,10 @@ export function SkjemaSide({
   const [error, setError] = useState<string | null>(null);
   const [manglarServer, setManglarServer] = useState<string[] | null>(null);
   const laast = dok.status === "ferdig";
+  const signeres = mal.signature.required;
+  const mine = signaturer.filter((s) => s.kan_bruke);
+  const [signaturId, setSignaturId] = useState(mine[0]?.id ?? "");
+  const valgt = mine.find((s) => s.id === signaturId) ?? null;
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const siste = useRef<string>(JSON.stringify(dok.data));
 
@@ -111,11 +126,18 @@ export function SkjemaSide({
   async function fullfor() {
     if (timer.current) clearTimeout(timer.current);
     await lagre(data);
-    if (!window.confirm(`Fullføre og signere «${mal.title}»? Skjemaet låses og PDF-en lages med ditt navn og tidspunkt.`)) return;
+    const spor = signeres
+      ? `Godkjenne «${mal.title}» med signaturen til ${valgt?.name ?? ""}? Skjemaet låses og PDF-en lages med signaturen.`
+      : `Fullføre «${mal.title}»? Skjemaet låses og PDF-en lages.`;
+    if (!window.confirm(spor)) return;
     setBusy("fullfor");
     setError(null);
     try {
-      const res = await fetch(`/api/orders/${orderId}/dokumenter/${dok.id}/fullfor`, { method: "POST" });
+      const res = await fetch(`/api/orders/${orderId}/dokumenter/${dok.id}/fullfor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(signeres ? { signature_id: signaturId } : {}),
+      });
       const payload = await res.json();
       if (!res.ok) {
         if (Array.isArray(payload.manglar)) setManglarServer(payload.manglar);
@@ -129,14 +151,43 @@ export function SkjemaSide({
     }
   }
 
+  /** Ber om godkjenning, eller trekker forespørselen tilbake. */
+  async function godkjenning(be: boolean) {
+    if (timer.current) clearTimeout(timer.current);
+    await lagre(data);
+    setBusy("godkjenning");
+    setError(null);
+    try {
+      const res = await fetch(`/api/orders/${orderId}/dokumenter/${dok.id}/godkjenning`, { method: be ? "POST" : "DELETE" });
+      const payload = await res.json();
+      if (!res.ok) {
+        if (Array.isArray(payload.manglar)) setManglarServer(payload.manglar);
+        throw new Error(payload.error ?? "Kunne ikke sende til godkjenning");
+      }
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function gjenopne() {
-    if (!window.confirm("Gjenåpne skjemaet? PDF-en slettes, og dokumentet må sendes til Boligmappa på nytt.")) return;
+    const sendt = Boolean(dok.boligmappa_file_id);
+    const spor = sendt
+      ? "Dokumentet er sendt til Boligmappa. Det lages en kopi du kan rette — den sendte versjonen blir stående. Lage ny versjon?"
+      : "Gjenåpne skjemaet? PDF-en slettes, og skjemaet må fullføres på nytt.";
+    if (!window.confirm(spor)) return;
     setBusy("gjenopne");
     setError(null);
     try {
       const res = await fetch(`/api/orders/${orderId}/dokumenter/${dok.id}/gjenopne`, { method: "POST" });
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.error ?? "Kunne ikke gjenåpne");
+      if (payload.kopi && payload.id) {
+        router.push(`/ordre/${orderId}/dokumentasjon/${payload.id}`);
+        return;
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -153,7 +204,10 @@ export function SkjemaSide({
             <Link className="linkish" href={`/ordre/${orderId}/dokumentasjon`}>
               ← Dokumentasjon
             </Link>
-            <h2 style={{ margin: "6px 0 2px" }}>{mal.title}</h2>
+            <h2 style={{ margin: "6px 0 2px" }}>
+              {mal.title}
+              {dok.revision > 1 && <span className="muted"> · versjon {dok.revision}</span>}
+            </h2>
             <div className="tiny muted">
               {mal.lovgrunnlag}
               {mal.beskrivelse && ` · ${mal.beskrivelse}`}
@@ -161,7 +215,9 @@ export function SkjemaSide({
           </div>
           <span className="row" style={{ flexWrap: "wrap" }}>
             {laast ? (
-              <span className="pill ferdig">Ferdig · signert av {dok.signed_name} {formatDate(dok.signed_at)}</span>
+              <span className="pill ferdig">
+                Ferdig · {signeres ? "signert" : "fullført"} av {dok.signed_name} {formatDate(dok.signed_at)}
+              </span>
             ) : (
               <span className="tiny muted">{lagrar ? "Lagrer…" : lagra ? `Lagret ${lagra}` : "Endringer lagres automatisk"}</span>
             )}
@@ -170,7 +226,7 @@ export function SkjemaSide({
             </a>
             {laast && erAdmin && (
               <button type="button" className="button ghost" onClick={gjenopne} disabled={busy !== null}>
-                {busy === "gjenopne" ? "Gjenåpner…" : "Gjenåpne"}
+                {busy === "gjenopne" ? "Gjenåpner…" : dok.boligmappa_file_id ? "Lag ny versjon" : "Gjenåpne"}
               </button>
             )}
           </span>
@@ -178,7 +234,18 @@ export function SkjemaSide({
         {error && <div className="banner error" style={{ marginTop: 10, marginBottom: 0 }}>{error}</div>}
         {laast && (
           <div className="banner info" style={{ marginTop: 10, marginBottom: 0 }}>
-            Skjemaet er fullført og låst. Signert i Devello av {dok.signed_name} {formatDate(dok.signed_at)}.
+            Skjemaet er fullført og låst. {signeres ? "Godkjent og signert" : "Fullført"} av {dok.signed_name}{" "}
+            {formatDate(dok.signed_at)}.
+            {dok.boligmappa_file_id && " Sendt til Boligmappa — skal noe rettes, lages det en ny versjon, og denne blir stående."}
+          </div>
+        )}
+        {!laast && dok.copied_from && (
+          <div className="banner info" style={{ marginTop: 10, marginBottom: 0 }}>
+            Ny versjon av et dokument som alt er sendt til Boligmappa.{" "}
+            <Link href={`/ordre/${orderId}/dokumentasjon/${dok.copied_from}`} style={{ textDecoration: "underline" }}>
+              Se den sendte versjonen
+            </Link>
+            . Begge blir liggende på ordren.
           </div>
         )}
       </div>
@@ -250,12 +317,65 @@ export function SkjemaSide({
                 {manglar.length > 12 && <li>… og {manglar.length - 12} til</li>}
               </ul>
             </div>
+          ) : !signeres ? (
+            <p className="tiny muted">Alle påkrevde felt er fylt ut. Dette skjemaet trenger ingen signatur — det låses, og PDF-en lages.</p>
+          ) : mine.length > 0 ? (
+            <div className="signer">
+              {dok.approval_requested_at && (
+                <div className="banner info">
+                  {bedtAv ?? "Montøren"} sendte skjemaet til godkjenning {formatDate(dok.approval_requested_at)}.
+                </div>
+              )}
+              <label className="field" style={{ marginBottom: 8 }}>
+                <span className="label">Signatur</span>
+                <select className="input" value={signaturId} onChange={(e) => setSignaturId(e.target.value)} style={{ maxWidth: 360 }}>
+                  {mine.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                      {s.title ? ` — ${s.title}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {valgt && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img className="signatur-visning" src={`/api/signaturer/${valgt.id}/bilde`} alt={`Signaturen til ${valgt.name}`} />
+              )}
+              <p className="tiny muted">Signaturen settes på erklæringen sammen med navnet og tidspunktet.</p>
+            </div>
+          ) : dok.approval_requested_at ? (
+            <div className="banner info">
+              Sendt til godkjenning {formatDate(dok.approval_requested_at)}
+              {bedtAv ? ` av ${bedtAv}` : ""}. Den som godkjenner, signerer erklæringen.{" "}
+              <button type="button" className="linkish" disabled={busy !== null} onClick={() => godkjenning(false)}>
+                Trekk tilbake
+              </button>
+            </div>
           ) : (
-            <p className="tiny muted">Alle påkrevde felt er fylt ut. Signaturen er navnet ditt og tidspunktet, merket «Signert i Devello».</p>
+            <p className="tiny muted">
+              Alle påkrevde felt er fylt ut. Erklæringen signeres av den som godkjenner — send den til godkjenning når du er
+              ferdig.
+              {signaturer.length === 0 &&
+                (erAdmin
+                  ? " Det er ikke lagt inn noen signatur ennå: Selskap → Innstillinger → Dokumentasjon."
+                  : " Det er ikke lagt inn noen signatur ennå — en administrator gjør det under Innstillinger → Dokumentasjon.")}
+            </p>
           )}
-          <button type="button" className="button" disabled={busy !== null || manglar.length > 0 || lagrar} onClick={fullfor}>
-            {busy === "fullfor" ? "Lager PDF…" : "Fullfør og signer"}
-          </button>
+          {!signeres ? (
+            <button type="button" className="button" disabled={busy !== null || manglar.length > 0 || lagrar} onClick={fullfor}>
+              {busy === "fullfor" ? "Lager PDF…" : "Fullfør"}
+            </button>
+          ) : mine.length > 0 ? (
+            <button type="button" className="button" disabled={busy !== null || manglar.length > 0 || lagrar || !valgt} onClick={fullfor}>
+              {busy === "fullfor" ? "Lager PDF…" : "Godkjenn og signer"}
+            </button>
+          ) : (
+            !dok.approval_requested_at && (
+              <button type="button" className="button" disabled={busy !== null || manglar.length > 0 || lagrar} onClick={() => godkjenning(true)}>
+                {busy === "godkjenning" ? "Sender…" : "Send til godkjenning"}
+              </button>
+            )
+          )}
         </div>
       )}
     </div>
@@ -348,7 +468,7 @@ function FeltInput({
           {felt.label}
           {req}
         </span>
-        <textarea id={id} className="input" rows={3} value={String(v)} disabled={laast} onChange={(e) => onChange(e.target.value)} />
+        <AutoTextarea id={id} className="input" minHeight={84} value={String(v)} disabled={laast} onChange={(e) => onChange(e.target.value)} />
         {felt.help && <span className="hint">{felt.help}</span>}
       </label>
     );
