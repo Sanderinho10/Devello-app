@@ -67,7 +67,6 @@ export function LagerSkjema({
               className="input"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder={kind === "bil" ? "Bilen til Martin" : "Hovedlager"}
               autoFocus
               required
             />
