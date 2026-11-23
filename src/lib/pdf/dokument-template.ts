@@ -4,8 +4,9 @@ import type { CompanyBrand } from "@/lib/types";
 /**
  * PDF-malen for dokumentasjon — samme motor og samme merkevare som
  * tilbudet, men et annet dokument: seksjoner som tabeller, kontrollpunkt
- * som ✓ / ✗ / –, måleverdier med kravet ved siden av, og en signaturblokk
- * som sier hvem som fullførte det i Devello og når.
+ * som ✓ / ✗ / –, måleverdier med kravet ved siden av. Skjema som signeres
+ * (samsvarserklæringen) får signaturbildet til den som godkjente; resten
+ * får en linje om hvem som fullførte dem i Devello og når.
  *
  * Utformingen er vår egen. Innholdet er det FEL og NEK 400 krever.
  */
@@ -18,7 +19,8 @@ export function renderDokumentHtml(input: {
   logoSrc?: string | null;
   address?: { line: string | null; postalCode: string | null; city: string | null };
   ordre: { order_no: number; title: string; site_address: string | null; customer_name: string };
-  signatur: { name: string; at: string } | null;
+  /** null = utkast. bildeSrc er signaturbildet som data-URI, for skjema som signeres. */
+  signatur: { name: string; at: string; tittel?: string | null; bildeSrc?: string | null } | null;
 }): string {
   const { mal, data, brand, companyName, logoSrc, address, ordre, signatur } = input;
   const accent = brand.primary_color || "#1d1d1f";
@@ -34,16 +36,24 @@ export function renderDokumentHtml(input: {
     .map((l) => `<div>${esc(String(l))}</div>`)
     .join("");
 
-  const signaturBlokk = signatur
-    ? `<section class="signatur">
+  const signaturBlokk = !signatur
+    ? `<section class="signatur utkast">
          <div class="label">${esc(mal.signature.label)}</div>
-         <div class="navn">${esc(signatur.name)}</div>
-         <div class="stempel">Signert i Devello av ${esc(signatur.name)}, ${formatDatoTid(signatur.at)}</div>
+         <div class="stempel">UTKAST — ikke fullført${mal.signature.required ? " og signert" : ""}</div>
        </section>`
-    : `<section class="signatur utkast">
-         <div class="label">${esc(mal.signature.label)}</div>
-         <div class="stempel">UTKAST — ikke fullført og signert</div>
-       </section>`;
+    : mal.signature.required
+      ? `<section class="signatur">
+           <div class="label">${esc(mal.signature.label)}</div>
+           ${signatur.bildeSrc ? `<img class="signaturbilde" src="${escAttr(signatur.bildeSrc)}" alt="Signatur">` : ""}
+           <div class="navn">${esc(signatur.name)}</div>
+           ${signatur.tittel ? `<div>${esc(signatur.tittel)}</div>` : ""}
+           <div class="stempel">Godkjent og signert i Devello, ${formatDatoTid(signatur.at)}</div>
+         </section>`
+      : `<section class="signatur enkel">
+           <div class="label">${esc(mal.signature.label)}</div>
+           <div class="navn">${esc(signatur.name)}</div>
+           <div class="stempel">Fullført i Devello av ${esc(signatur.name)}, ${formatDatoTid(signatur.at)}</div>
+         </section>`;
 
   return `<!doctype html>
 <html lang="nb">
@@ -85,6 +95,8 @@ export function renderDokumentHtml(input: {
   .tabell td { padding: 3px 6px 3px 0; font-size: 8.5pt; }
   .signatur { margin-top: 22px; padding-top: 10px; border-top: 1px solid #d2d2d7; break-inside: avoid; width: 60%; }
   .signatur .navn { font-size: 12pt; font-weight: 600; margin: 4px 0 2px; }
+  .signatur.enkel .navn { font-size: 10pt; }
+  .signaturbilde { display: block; max-height: 62px; max-width: 240px; margin: 6px 0 2px; }
   .signatur .stempel { font-size: 8pt; color: #6e6e73; }
   .signatur.utkast .stempel { color: #a4271b; font-weight: 600; }
   footer { margin-top: 16px; padding-top: 7px; border-top: 1px solid #e8e8ed; font-size: 7.5pt; color: #86868b; }

@@ -6,6 +6,7 @@ const meg = { user: { id: "u1", full_name: "Kari Nordmann", email: "kari@star.no
 
 const tom: OrdreIApp = {
   ordre: { id: "o1", status: "opna", updated_at: "2026-11-10T08:00:00Z" } as OrdreIApp["ordre"],
+  tilbud: null,
   timer: [],
   materiell: [],
   notat: [],

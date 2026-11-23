@@ -35,13 +35,13 @@ const TIMETYPER = [
   { id: "t0000000-0000-4000-8000-000000000002", name: "Lærling", unit_price: 495 },
   { id: "t0000000-0000-4000-8000-000000000003", name: "Overtid 50 %", unit_price: 1342.5 },
 ];
-const OVERGANGER = { opna: ["paagaar", "avbrutt"], paagaar: ["ferdig", "opna", "avbrutt"], ferdig: ["paagaar", "avbrutt"], fakturert: [], avbrutt: ["opna"] };
+const OVERGANGER = { opna: ["paagaar", "ferdig", "avbrutt"], paagaar: ["ferdig", "opna", "avbrutt"], ferdig: ["paagaar", "avbrutt"], fakturert: [], avbrutt: ["opna"] };
 
 let ordreNr = 1040;
 const ordre = (status, title, kunde, tlf, adr) => ({
   id: randomUUID(), company_id: SELSKAP.id, order_no: ++ordreNr, status, title, description: null, description_source: null,
   customer_name: kunde, customer_contact: null, customer_email: null, customer_phone: tlf, site_address: adr,
-  lead_id: null, draft_id: null, quote_type: null, planned_total: null, boligmappa_number: null, boligmappa_property: null,
+  lead_id: null, draft_id: null, quote_type: null, order_type: null, planned_total: null, boligmappa_number: null, boligmappa_property: null,
   created_by: MEG.id, created_at: naa(), updated_at: naa(), closed_at: null,
 });
 const ORDRAR = [
@@ -52,6 +52,35 @@ const ORDRAR = [
   ordre("opna", "Utelys og bevegelsessensor", "Ingrid Larsen", null, "Kalfarveien 21, 5018 Bergen"),
   ordre("ferdig", "Varmekabler bad", "Per Olsen", "930 00 111", "Welhavens gate 9, 5006 Bergen"),
 ];
+// De to første ordrene kom fra tilbud; resten er laget rett på kontoret.
+ORDRAR[0].description = "Bytte gammelt skrusikringsskap i gangen til nytt automatskap med jordfeilbrytere. Overspenningsvern monteres. Kursene merkes på nytt.";
+ORDRAR[0].order_type = "fastpris";
+ORDRAR[1].description = "Montere elbillader på vegg i garasjen. Egen kurs fra skapet i kjelleren, ca. 18 meter.";
+ORDRAR[1].order_type = "fastpris";
+ORDRAR[2].description = "Bytte de fire stikkontaktene over kjøkkenbenken til doble jordede.";
+ORDRAR[2].order_type = "tid_og_materiell";
+const TILBUD = new Map([
+  [ORDRAR[0].id, {
+    quote_type: "fastpris", quote_no: 1007, title: "Nytt sikringsskap",
+    sections: [
+      { title: "Materiell", lines: [
+        { description: "Sikringsskap 3-fas, 36 moduler", quantity: 1, unit: "stk" },
+        { description: "Jordfeilautomat 16 A", quantity: 9, unit: "stk" },
+        { description: "Overspenningsvern", quantity: 1, unit: "stk" },
+      ] },
+      { title: "Arbeid", lines: [{ description: "Montering og omkobling", quantity: 9, unit: "t" }] },
+    ],
+    assumptions: ["Eksisterende inntak beholdes.", "Strømmen er av i ca. fire timer."],
+  }],
+  [ORDRAR[1].id, {
+    quote_type: "punktpris", quote_no: 1011, title: "Elbillader i garasje",
+    sections: [{ title: "Elbillader", lines: [
+      { description: "Elbillader 22 kW, montert", quantity: 1, unit: "stk" },
+      { description: "Kabel fram til lader", quantity: 18, unit: "m" },
+    ] }],
+    assumptions: [],
+  }],
+]);
 const TIMER = [];
 const MATERIELL = [];
 const NOTAT = [];
@@ -170,6 +199,7 @@ function ordreForApp(o) {
     materiell: MATERIELL.filter((m) => m.order_id === o.id).sort((a, b) => (a.registered_at < b.registered_at ? 1 : -1)),
     notat: NOTAT.filter((n) => n.order_id === o.id).sort((a, b) => (a.created_at < b.created_at ? 1 : -1)).map((n) => ({ ...n, user_name: namn(n.user_id), bilete: bilete.filter((b) => b.note_id === n.id) })),
     bilete,
+    tilbud: TILBUD.get(o.id) ?? null,
     lovlege_overgangar: OVERGANGER[o.status],
   };
 }

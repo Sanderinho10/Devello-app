@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/Modal";
 import { formatDate, type BoligmappaEigedom, type OrderDocument, type OrderStatus } from "@/lib/types";
 
@@ -11,7 +11,12 @@ import { formatDate, type BoligmappaEigedom, type OrderDocument, type OrderStatu
  *
  * Øverst eiendommen i Boligmappa (finn én gang per ordre), så lista over
  * dokumenter med status og Boligmappa-merke, og «Nytt dokument»: et skjema
- * fra en mal, eller en fil — på mobil åpner kameraet.
+ * fra en mal, eller en fil — på mobil åpner kameraet. «Fra tidligere
+ * ordrer» henter fram dokumentasjonen fra kundens forrige jobber.
+ *
+ * Et dokument som er sendt til Boligmappa røres ikke: «Ny versjon» lager en
+ * kopi som kan rettes, og «Slett fra Boligmappa» tar bort fila firmaet selv
+ * la der.
  */
 
 interface MalValg {
@@ -33,6 +38,21 @@ interface OrdreInfo {
 interface AdresseTreff {
   id: string;
   tekst: string;
+}
+
+interface GateTreff {
+  id: string;
+  navn: string;
+  tekst: string;
+}
+
+interface TidligereOrdre {
+  id: string;
+  order_no: number;
+  title: string;
+  site_address: string | null;
+  created_at: string;
+  dokument: { id: string; kind: string; title: string; type: string; dato: string; url: string }[];
 }
 
 interface EigedomTreff {
@@ -61,6 +81,7 @@ export function DokumentasjonFane({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [nytt, setNytt] = useState(false);
+  const [tidligere, setTidligere] = useState(false);
   const filInput = useRef<HTMLInputElement>(null);
 
   const kanLeggeTil = ordre.status !== "avbrutt";
@@ -113,6 +134,31 @@ export function DokumentasjonFane({
     }
   }
 
+  async function gjenopne(d: OrderDocument) {
+    const spor = d.boligmappa_file_id
+      ? `«${d.title}» er sendt til Boligmappa. Det lages en kopi du kan rette — den sendte versjonen blir stående. Lage ny versjon?`
+      : `Gjenåpne «${d.title}»? PDF-en slettes, og skjemaet må fullføres på nytt.`;
+    if (!window.confirm(spor)) return;
+    const r = await post(`/api/orders/${ordre.id}/dokumenter/${d.id}/gjenopne`, {}, `gjenopne:${d.id}`);
+    if (r?.kopi && r.id) router.push(`/ordre/${ordre.id}/dokumentasjon/${r.id}`);
+  }
+
+  async function slettFraBoligmappa(d: OrderDocument) {
+    if (!window.confirm(`Slette «${d.title}» fra Boligmappa? Fila fjernes fra eiendommens mappe. Dokumentet blir stående her på ordren.`)) return;
+    setBusy(`bm-slett:${d.id}`);
+    setError(null);
+    try {
+      const res = await fetch(`/api/orders/${ordre.id}/dokumenter/${d.id}/boligmappa`, { method: "DELETE" });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload.error ?? "Kunne ikke slette fra Boligmappa");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function slett(d: OrderDocument) {
     if (!window.confirm(`Slette «${d.title}»?`)) return;
     setBusy(`slett:${d.id}`);
@@ -136,13 +182,15 @@ export function DokumentasjonFane({
       {error && <div className="banner error" style={{ marginBottom: 0 }}>{error}</div>}
 
       {/* Verktøylinja som i Go: nytt dokument først, sending etter. */}
-      {(kanLeggeTil || (harBoligmappa && ordre.boligmappa_number && usendte.length > 0)) && (
-        <div className="verktoylinje" style={{ margin: 0 }}>
+      <div className="verktoylinje" style={{ margin: 0 }}>
           {kanLeggeTil && (
             <button type="button" className="button" onClick={() => setNytt(true)}>
               Nytt dokument
             </button>
           )}
+          <button type="button" className="button secondary" onClick={() => setTidligere(true)}>
+            Fra tidligere ordrer
+          </button>
           {harBoligmappa && ordre.boligmappa_number && usendte.length > 0 && (
             <button
               type="button"
@@ -156,8 +204,9 @@ export function DokumentasjonFane({
               {busy === "send-alle" ? "Sender…" : `Send alle ferdige til Boligmappa (${usendte.length})`}
             </button>
           )}
-        </div>
-      )}
+      </div>
+
+      <TidligereDokumenter orderId={ordre.id} open={tidligere} onClose={() => setTidligere(false)} />
 
       {/* Nytt dokument som popup: et skjema fra mal, eller en fil. */}
       <Modal open={nytt} onClose={() => busy === null && setNytt(false)} size="wide" title="Nytt dokument">
@@ -229,11 +278,8 @@ export function DokumentasjonFane({
                 busy={busy}
                 onSend={() => post(`/api/orders/${ordre.id}/dokumenter/${d.id}/boligmappa`, {}, `send:${d.id}`)}
                 onSlett={() => slett(d)}
-                onGjenopne={() => {
-                  if (window.confirm(`Gjenåpne «${d.title}»? PDF-en slettes, og dokumentet må sendes til Boligmappa på nytt.`)) {
-                    void post(`/api/orders/${ordre.id}/dokumenter/${d.id}/gjenopne`, {}, `gjenopne:${d.id}`);
-                  }
-                }}
+                onGjenopne={() => void gjenopne(d)}
+                onSlettFraBoligmappa={() => void slettFraBoligmappa(d)}
               />
             ))}
             </tbody>
@@ -254,6 +300,7 @@ function DokumentRad({
   onSend,
   onSlett,
   onGjenopne,
+  onSlettFraBoligmappa,
 }: {
   d: OrderDocument;
   ordre: OrdreInfo;
@@ -263,6 +310,7 @@ function DokumentRad({
   onSend: () => void;
   onSlett: () => void;
   onGjenopne: () => void;
+  onSlettFraBoligmappa: () => void;
 }) {
   const skjema = d.kind === "skjema";
   const ferdig = d.status === "ferdig";
@@ -279,13 +327,16 @@ function DokumentRad({
             {d.title}
           </a>
         )}
+        {d.revision > 1 && <span className="pill versjon" style={{ marginLeft: 8 }}>v{d.revision}</span>}
         {d.boligmappa_error && !d.boligmappa_file_id && (
           <div className="tiny" style={{ color: "var(--negative)", marginTop: 2 }}>{d.boligmappa_error}</div>
         )}
       </td>
       <td className="meta">{skjema ? "Skjema" : d.mime_type?.startsWith("image/") ? "Bilde" : "Fil"}</td>
       <td className="belop">
-        <span className={`pill ${ferdig ? "ferdig" : "opna"}`}>{ferdig ? "Ferdig" : "Utkast"}</span>
+        <span className={`pill ${ferdig ? "ferdig" : d.approval_requested_at ? "paagaar" : "opna"}`}>
+          {ferdig ? "Ferdig" : d.approval_requested_at ? "Til godkjenning" : "Utkast"}
+        </span>
       </td>
       {harBoligmappa && (
         <td className="meta">
@@ -299,7 +350,7 @@ function DokumentRad({
       )}
       <td className="meta muted">
         {ferdig && skjema
-          ? `Signert av ${d.signed_name ?? "—"} ${formatDate(d.signed_at)}`
+          ? `${d.signature_id ? "Signert" : "Fullført"} av ${d.signed_name ?? "—"} ${formatDate(d.signed_at)}`
           : ferdig
             ? `Lastet opp ${formatDate(d.created_at)}`
             : `Endret ${formatDate(d.updated_at)}`}
@@ -308,7 +359,7 @@ function DokumentRad({
         <div className="celle-knapper">
         {skjema && (
           <Link className="button secondary" href={`/ordre/${ordre.id}/dokumentasjon/${d.id}`}>
-            {ferdig ? "Åpne" : "Fyll ut"}
+            {ferdig ? "Åpne" : d.approval_requested_at ? "Godkjenn" : "Fyll ut"}
           </Link>
         )}
         {skjema && (
@@ -323,7 +374,18 @@ function DokumentRad({
         )}
         {skjema && ferdig && erAdmin && (
           <button type="button" className="button ghost" disabled={busy !== null} onClick={onGjenopne}>
-            Gjenåpne
+            {busy === `gjenopne:${d.id}` ? "Åpner…" : d.boligmappa_file_id ? "Ny versjon" : "Gjenåpne"}
+          </button>
+        )}
+        {d.boligmappa_file_id && erAdmin && (
+          <button
+            type="button"
+            className="button ghost"
+            disabled={busy !== null}
+            onClick={onSlettFraBoligmappa}
+            title="Fjerner fila firmaet la i eiendommens Boligmappa"
+          >
+            {busy === `bm-slett:${d.id}` ? "Sletter…" : "Slett fra Boligmappa"}
           </button>
         )}
         {(!ferdig || !skjema) && !d.boligmappa_file_id && (
@@ -349,10 +411,49 @@ function BoligmappaKort({
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState(ordre.site_address ?? "");
   const [adresser, setAdresser] = useState<AdresseTreff[] | null>(null);
-  const [utenHusnummer, setUtenHusnummer] = useState(false);
+  const [gater, setGater] = useState<GateTreff[]>([]);
+  // Gaten brukeren valgte blant forslagene — snevrer inn adressesøket.
+  const [gate, setGate] = useState<GateTreff | null>(null);
   const [eigedomar, setEigedomar] = useState<EigedomTreff[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const [soker, setSoker] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const felt = useRef<HTMLInputElement>(null);
+  const sist = useRef("");
+
+  // Søket går mens man skriver: gatene først, adressene når husnummeret er
+  // med. Et tregt svar på en eldre tekst skal aldri skrive over det nye.
+  useEffect(() => {
+    if (!open || !kopling || kopling.status === "feil") return;
+    const tekst = q.trim();
+    sist.current = tekst;
+    if (tekst.length < 3) {
+      setGater([]);
+      setAdresser(null);
+      setSoker(false);
+      return;
+    }
+    setSoker(true);
+    const t = setTimeout(async () => {
+      try {
+        const gateId = gate && tekst.toLowerCase().startsWith(gate.navn.toLowerCase()) ? `&gate=${encodeURIComponent(gate.id)}` : "";
+        const res = await fetch(`/api/boligmappa/sok?q=${encodeURIComponent(tekst)}${gateId}`);
+        const payload = await res.json();
+        if (sist.current !== tekst) return;
+        if (!res.ok) throw new Error(payload.error ?? "Søket feilet");
+        setError(null);
+        setEigedomar(null);
+        setGater((payload.gater ?? []) as GateTreff[]);
+        // null = ikke søkt på adresser ennå (bare gatenavn skrevet).
+        setAdresser(/(^|\s)\d{1,4}[A-Za-zÆØÅæøå]?(\s|$)/.test(tekst) ? ((payload.adresser ?? []) as AdresseTreff[]) : null);
+      } catch (err) {
+        if (sist.current === tekst) setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        if (sist.current === tekst) setSoker(false);
+      }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [q, open, gate, kopling]);
 
   if (!kopling) {
     return (
@@ -369,21 +470,12 @@ function BoligmappaKort({
     );
   }
 
-  async function sok() {
-    setBusy(true);
-    setError(null);
-    setEigedomar(null);
-    try {
-      const res = await fetch(`/api/boligmappa/sok?q=${encodeURIComponent(q)}`);
-      const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error ?? "Søket feilet");
-      setAdresser(payload.adresser ?? []);
-      setUtenHusnummer(Boolean(payload.utenHusnummer));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
+  /** Gaten er valgt: sett den i feltet, og vent på husnummeret. */
+  function velgGate(g: GateTreff) {
+    setGate(g);
+    setGater([]);
+    setQ(`${g.navn} `);
+    felt.current?.focus();
   }
 
   async function velgAdresse(a: AdresseTreff) {
@@ -478,38 +570,56 @@ function BoligmappaKort({
               <button type="button" className="button" onClick={() => setOpen(true)} disabled={kopling.status === "feil"}>
                 Finn eiendom
               </button>
-              <span className="tiny muted">Slås opp én gang per ordre. Adressen på ordren er fylt inn.</span>
+              <span className="tiny muted">Slås opp én gang per ordre. Adressen på ordren er fylt inn, og treffene kommer mens du skriver.</span>
             </div>
           ) : (
             <div className="stack" style={{ gap: 10 }}>
-              <form
-                className="row"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void sok();
-                }}
-              >
-                <input className="input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Bjørkevegen 22 Bergen" style={{ flex: 1 }} autoFocus />
-                <button className="button" type="submit" disabled={busy || q.trim().length < 3}>
-                  {busy ? "Søker…" : "Søk"}
-                </button>
+              <div className="row">
+                <input
+                  ref={felt}
+                  className="input"
+                  type="search"
+                  value={q}
+                  onChange={(e) => {
+                    setQ(e.target.value);
+                    if (gate && !e.target.value.toLowerCase().startsWith(gate.navn.toLowerCase())) setGate(null);
+                  }}
+                  placeholder="Gatenavn og husnummer — Bjørkevegen 22"
+                  aria-label="Søk etter eiendommen"
+                  style={{ flex: 1 }}
+                  autoFocus
+                />
                 <button type="button" className="button ghost" onClick={() => setOpen(false)}>
                   Avbryt
                 </button>
-              </form>
-              {adresser && !eigedomar && (
+              </div>
+              <div className="tiny muted" aria-live="polite">
+                {soker
+                  ? "Søker…"
+                  : q.trim().length < 3
+                    ? "Skriv gatenavnet. Treffene kommer mens du skriver."
+                    : adresser === null && gater.length > 0
+                      ? "Velg gaten, eller skriv husnummeret for å se adressene."
+                      : ""}
+              </div>
+              {!eigedomar && !soker && adresser === null && q.trim().length >= 3 && (
                 <div className="lead-list boligmappa-treff">
-                  {adresser.length === 0 && <div className="empty">Ingen treff. Prøv gatenavn, nummer og sted.</div>}
+                  {gater.length === 0 && <div className="empty">Fant ingen gate med det navnet.</div>}
+                  {gater.map((g) => (
+                    <button key={g.id} type="button" className="ordre-velger-rad" disabled={busy} onClick={() => velgGate(g)}>
+                      <span className="lead-main">{g.tekst}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {adresser && !eigedomar && !soker && (
+                <div className="lead-list boligmappa-treff">
+                  {adresser.length === 0 && <div className="empty">Ingen adresse med det husnummeret. Sjekk nummeret og gatenavnet.</div>}
                   {adresser.map((a, i) => (
                     <button key={`${a.id}-${i}`} type="button" className="ordre-velger-rad" disabled={busy} onClick={() => velgAdresse(a)}>
                       <span className="lead-main">{a.tekst}</span>
                     </button>
                   ))}
-                  {utenHusnummer && (
-                    <div className="tiny muted" style={{ padding: "8px 10px" }}>
-                      Viser de første 20. Ta med husnummeret for å finne riktig adresse.
-                    </div>
-                  )}
                 </div>
               )}
               {eigedomar && (
@@ -542,6 +652,77 @@ function BoligmappaKort({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Dokumentasjonen fra kundens tidligere ordrer, til nedlasting. Hentes når
+ * popupen åpnes — de fleste gangene trenger man den ikke.
+ */
+function TidligereDokumenter({ orderId, open, onClose }: { orderId: string; open: boolean; onClose: () => void }) {
+  const [ordrer, setOrdrer] = useState<TidligereOrdre[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    let avbrutt = false;
+    setOrdrer(null);
+    setError(null);
+    fetch(`/api/orders/${orderId}/dokumenter/tidligere`)
+      .then(async (res) => {
+        const payload = await res.json();
+        if (!res.ok) throw new Error(payload.error ?? "Kunne ikke hente dokumentene");
+        if (!avbrutt) setOrdrer(payload.ordrer as TidligereOrdre[]);
+      })
+      .catch((err) => {
+        if (!avbrutt) setError(err instanceof Error ? err.message : String(err));
+      });
+    return () => {
+      avbrutt = true;
+    };
+  }, [open, orderId]);
+
+  return (
+    <Modal open={open} onClose={onClose} size="wide" title="Dokumenter fra tidligere ordrer">
+      {error && <div className="banner error">{error}</div>}
+      {!error && ordrer === null && <div className="empty">Henter…</div>}
+      {ordrer && ordrer.length === 0 && (
+        <div className="empty">
+          <div className="empty-title">Ingen tidligere dokumentasjon</div>
+          <div>Kunden har ingen andre ordrer med ferdige dokumenter — verken på kunden eller på adressen.</div>
+        </div>
+      )}
+      {ordrer?.map((o) => (
+        <div key={o.id} className="tidligere-ordre">
+          <div className="row-between" style={{ flexWrap: "wrap", gap: 6 }}>
+            <Link className="lenke" href={`/ordre/${o.id}/dokumentasjon`} style={{ fontWeight: 600 }}>
+              Ordre #{o.order_no} · {o.title}
+            </Link>
+            <span className="tiny muted">
+              {[o.site_address, formatDate(o.created_at)].filter(Boolean).join(" · ")}
+            </span>
+          </div>
+          <div className="lead-list">
+            {o.dokument.map((d) => (
+              <div key={d.id} className="lead-row">
+                <div className="lead-main">
+                  {d.title}
+                  <span className="tiny muted"> · {d.type} · {formatDate(d.dato)}</span>
+                </div>
+                <span className="row" style={{ gap: 6 }}>
+                  <a className="button ghost" href={d.url} target="_blank" rel="noreferrer">
+                    Åpne
+                  </a>
+                  <a className="button secondary" href={`${d.url}?download=1`}>
+                    Last ned
+                  </a>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </Modal>
   );
 }
 

@@ -16,7 +16,7 @@ export const risikovurdering: Mal = {
   beskrivelse:
     "Vurderingen av ytre påvirkninger og valg av utstyr og vern, gjort før arbeidet. Eieren skal ha originalen.",
   boligmappa: { chapterTagName: "Samsvarserklæringer og garantibevis", documentTypeName: "Risikovurdering" },
-  signature: { required: true, label: "Utført av" },
+  signature: { required: false, label: "Utført av" },
   sections: [
     {
       key: "anlegg",

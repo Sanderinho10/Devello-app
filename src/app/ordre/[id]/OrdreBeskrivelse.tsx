@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { SnippetFelt } from "@/components/SnippetFelt";
 
 /**
  * Arbeidsbeskrivelsen — det montøren leser først.
@@ -14,6 +15,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * mister fokus, og når brukeren går til en annen fane eller lukker siden.
  * Den siste lagringen går med keepalive, så den fullføres selv om siden
  * er på vei bort.
+ *
+ * Feltet vokser med teksten og har snippets: «#» setter inn en av firmaets
+ * ferdige tekster, og en ny kan lages rett fra feltet.
  */
 export function OrdreBeskrivelse({
   orderId,
@@ -104,7 +108,8 @@ export function OrdreBeskrivelse({
   const endret = tekst.trim() !== lagret.trim();
 
   return (
-    <div className="card card-pad">
+    // allow-overflow: snippet-lista henger under feltet, utenfor kortet.
+    <div className="card card-pad allow-overflow">
       <div className="row-between" style={{ marginBottom: 8 }}>
         <span className="label" style={{ marginBottom: 0 }}>
           Beskrivelse
@@ -121,17 +126,17 @@ export function OrdreBeskrivelse({
           </button>
         </div>
       )}
-      <textarea
-        className="textarea"
-        value={tekst}
-        onChange={(e) => {
-          tekstRef.current = e.target.value;
-          setTekst(e.target.value);
-        }}
-        onBlur={() => lagre()}
-        placeholder="Skriv kort hva jobben går ut på."
-        style={{ minHeight: 110 }}
-      />
+      {/* Blur bobler opp fra tekstfeltet inni SnippetFelt. */}
+      <div onBlur={() => lagre()}>
+        <SnippetFelt
+          value={tekst}
+          onChange={(ny) => {
+            tekstRef.current = ny;
+            setTekst(ny);
+          }}
+          placeholder="Skriv kort hva jobben går ut på."
+        />
+      </div>
       {source === "ai" && !endret && (
         <span className="hint">
           Skrevet av agenten ut fra henvendelsen og tilbudet — rediger fritt.

@@ -103,6 +103,7 @@ Eller lim inn migrasjonene i SQL-editoren i rekkefølge, så `seed.sql`.
 | `0048_tilbudsnummer.sql` | løpenummer på tilbud: `companies.next_quote_no`, `drafts.company_id/quote_no`, `neste_tilbudsnummer()`, `tildel_tilbudsnummer()`; eksisterende tilbud nummerert i rekkefølge |
 | `0049_kunderegister.sql` | kunderegister: `customers` (RLS lesing per selskap), `customer_id` på `leads` og `orders`, `finn_eller_opprett_kunde()`; eksisterende tilbud og ordrer koblet på e-post og navn |
 | `0060_fakturapdf_og_konto.sql` | leverandørfakturaer: `has_pdf`, `pdf_storage_path`, `doc_checked_at` (PDF-en fra Go) og `account_numbers` (konteringen, til kontofilteret 4000–4999 i `accounting_connections.settings.account_filter`) |
+| `0069_snippets_signatur_ordretype.sql` | `order_snippets` (ferdige tekster til beskrivelsen), `orders.order_type` (fastpris / tid_og_materiell), `company_signatures` (lagrede signaturbilder), og på `order_documents`: `approval_requested_at/by`, `signature_id`, `copied_from`, `revision` |
 
 ### 3. Azure
 

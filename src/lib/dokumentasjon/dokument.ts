@@ -75,14 +75,15 @@ export function malFor(dok: Pick<OrderDocument, "kind" | "template_key">): Mal |
 
 /**
  * PDF-en for et skjema, med firmaets merkevare, lagret i order-documents.
- * Kalles ved «Fullfør og signer» — signaturblokka er med når signatur er
- * satt, ellers merkes arket UTKAST (forhåndsvisning).
+ * Kalles ved fullføring — signaturblokka er med når signatur er satt,
+ * ellers merkes arket UTKAST (forhåndsvisning). bildeSti er signaturbildet
+ * i order-documents-bøtta, for skjema som godkjennes med lagret signatur.
  */
 export async function lagDokumentPdf(
   admin: SupabaseClient,
   ordre: Order,
   dok: OrderDocument,
-  signatur: { name: string; at: string } | null,
+  signatur: { name: string; at: string; tittel?: string | null; bildeSti?: string | null } | null,
 ): Promise<{ bytes: Buffer; path: string }> {
   const mal = malFor(dok);
   if (!mal) throw new Error("Dokumentet er ikke et skjema.");
@@ -107,13 +108,29 @@ export async function lagDokumentPdf(
       city: company?.billing_city ?? null,
     },
     ordre: { order_no: ordre.order_no, title: ordre.title, site_address: ordre.site_address, customer_name: ordre.customer_name },
-    signatur,
+    signatur: signatur
+      ? { name: signatur.name, at: signatur.at, tittel: signatur.tittel ?? null, bildeSrc: await bildeDataUri(admin, signatur.bildeSti) }
+      : null,
   });
   const bytes = await htmlToPdf(html);
   const path = `${ordre.company_id}/${ordre.id}/${dok.id}.pdf`;
   const { error } = await admin.storage.from(BUCKET).upload(path, bytes, { contentType: "application/pdf", upsert: true });
   if (error) throw new Error(`Kunne ikke lagre PDF: ${error.message}`);
   return { bytes, path };
+}
+
+/** Signaturbildet som data-URI. Chromium henter ingenting utenfra mens PDF-en lages. */
+async function bildeDataUri(admin: SupabaseClient, sti: string | null | undefined): Promise<string | null> {
+  if (!sti) return null;
+  const { data, error } = await admin.storage.from(BUCKET).download(sti);
+  if (error || !data) throw new Error("Kunne ikke lese signaturbildet. Last det opp på nytt under Innstillinger → Dokumentasjon.");
+  const bytes = Buffer.from(await data.arrayBuffer());
+  return `data:${data.type || "image/png"};base64,${bytes.toString("base64")}`;
+}
+
+/** Tittelen med versjon, slik den står i Boligmappa og i lista når dokumentet er en ny versjon. */
+export function tittelMedVersjon(dok: Pick<OrderDocument, "title" | "revision">): string {
+  return (dok.revision ?? 1) > 1 ? `${dok.title} (versjon ${dok.revision})` : dok.title;
 }
 
 export function klarTilFullfoering(dok: OrderDocument): string[] {
@@ -135,7 +152,7 @@ export async function sendTilBoligmappa(
 ): Promise<{ ok: true; fileId: string; alleredeSendt: boolean } | { ok: false; error: string; status: number }> {
   if (dok.boligmappa_file_id) return { ok: true, fileId: dok.boligmappa_file_id, alleredeSendt: true };
   if (!ordre.boligmappa_number) return { ok: false, error: "Ordren har ingen eiendom i Boligmappa. Finn eiendommen først.", status: 400 };
-  if (dok.kind === "skjema" && dok.status !== "ferdig") return { ok: false, error: "Fullfør og signer skjemaet før det sendes.", status: 400 };
+  if (dok.kind === "skjema" && dok.status !== "ferdig") return { ok: false, error: "Fullfør skjemaet før det sendes.", status: 400 };
 
   const sti = dok.kind === "skjema" ? dok.pdf_path : dok.storage_path;
   if (!sti) return { ok: false, error: "Dokumentet har ingen fil å sende.", status: 400 };
@@ -177,14 +194,15 @@ export async function sendTilBoligmappa(
     if (nedlastFeil || !fil) throw new Error(`Kunne ikke lese fila: ${nedlastFeil?.message ?? "ukjent"}`);
     const bytes = Buffer.from(await fil.arrayBuffer());
     const contentType = dok.kind === "skjema" ? "application/pdf" : dok.mime_type || "application/octet-stream";
-    const fileName = dok.kind === "skjema" ? `${slug(dok.title)}-ordre-${ordre.order_no}.pdf` : dok.file_name || `fil-${dok.id}`;
+    const tittel = tittelMedVersjon(dok);
+    const fileName = dok.kind === "skjema" ? `${slug(tittel)}-ordre-${ordre.order_no}.pdf` : dok.file_name || `fil-${dok.id}`;
 
     const fileId = await bm.lastOppFil(
       ordre.boligmappa_number,
       {
         fileName,
-        title: dok.title,
-        description: `${dok.title} — ordre ${ordre.order_no}${ordre.title ? `, ${ordre.title}` : ""}`,
+        title: tittel,
+        description: `${tittel} — ordre ${ordre.order_no}${ordre.title ? `, ${ordre.title}` : ""}`,
         orderNumber: String(ordre.order_no),
         chapterTagId: kapittel.id,
         professionTypeId: fag.id,
@@ -203,6 +221,35 @@ export async function sendTilBoligmappa(
     const m = err instanceof Error ? err.message : String(err);
     await admin.from("order_documents").update({ boligmappa_error: m }).eq("id", dok.id);
     return { ok: false, error: m, status: err instanceof BoligmappaFeil ? (err.status === 401 ? 400 : 502) : 502 };
+  }
+}
+
+/**
+ * Fjerner dokumentet fra Boligmappa: fila firmaet selv la der slettes, og
+ * dokumentet står igjen på ordren som ikke sendt. Finnes ikke fila lenger
+ * hos Boligmappa, er det like bra — feltene nullstilles uansett.
+ */
+export async function fjernFraBoligmappa(
+  admin: SupabaseClient,
+  ordre: Order,
+  dok: OrderDocument,
+): Promise<{ ok: true } | { ok: false; error: string; status: number }> {
+  if (!dok.boligmappa_file_id) return { ok: true };
+  if (!ordre.boligmappa_number) {
+    return { ok: false, error: "Ordren har ingen eiendom i Boligmappa lenger. Finn eiendommen dokumentet ble sendt til først.", status: 400 };
+  }
+  try {
+    const bm = await boligmappaClient(admin, ordre.company_id);
+    await bm.slettFil(ordre.boligmappa_number, dok.boligmappa_file_id);
+    const { error } = await admin
+      .from("order_documents")
+      .update({ boligmappa_file_id: null, boligmappa_sent_at: null, boligmappa_error: null })
+      .eq("id", dok.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  } catch (err) {
+    const m = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: m, status: err instanceof BoligmappaFeil ? (err.status === 401 ? 400 : 502) : 500 };
   }
 }
 

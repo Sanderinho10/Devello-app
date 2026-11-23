@@ -8,6 +8,7 @@ import { timer } from "@/lib/format";
 import { useMeg, useOrdrar } from "@/lib/sporringar";
 import { farge, marg, skrift, tabellTall } from "@/lib/tema";
 import type { OrdreIListe } from "@/lib/typer";
+import { ordreSti } from "@/lib/varselMaal";
 
 type Fane = "paagaar" | "opna" | "ferdig";
 
@@ -74,7 +75,7 @@ export default function Ordreliste() {
           renderItem={({ item }) => (
             <Gruppe>
               {item.map((o) => (
-                <OrdreRad key={o.id} ordre={o} visStatus={!!sok.trim()} onPress={() => router.push(`/ordrer/${o.id}/timer`)} />
+                <OrdreRad key={o.id} ordre={o} visStatus={!!sok.trim()} onPress={() => router.push(ordreSti(o.id, o.status))} />
               ))}
             </Gruppe>
           )}

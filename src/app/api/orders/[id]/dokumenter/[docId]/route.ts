@@ -7,7 +7,8 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 /**
  * PATCH { data } — autolagring fra skjemaet; { title } — nytt navn.
  * Avvises når dokumentet er ferdig: da må en administrator gjenåpne det.
- * DELETE — bare utkast.
+ * DELETE — utkast og opplastede filer som ikke ligger i Boligmappa. Er
+ * dokumentet sendt dit, må det fjernes derfra først (…/boligmappa DELETE).
  */
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string; docId: string }> }) {
   const session = await sessionOr401();
@@ -20,7 +21,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (r instanceof NextResponse) return r;
     const dok = r.dok!;
     if (dok.status === "ferdig" && dok.kind === "skjema") {
-      return NextResponse.json({ error: "Skjemaet er fullført og signert. En administrator kan gjenåpne det." }, { status: 400 });
+      return NextResponse.json({ error: "Skjemaet er fullført og låst. En administrator kan gjenåpne det." }, { status: 400 });
     }
 
     const body = (await request.json().catch(() => ({}))) as { data?: unknown; title?: unknown };
@@ -59,7 +60,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
       return NextResponse.json({ error: "Et ferdig skjema kan ikke slettes. En administrator kan gjenåpne det." }, { status: 400 });
     }
     if (dok.boligmappa_file_id) {
-      return NextResponse.json({ error: "Dokumentet er sendt til Boligmappa og kan ikke slettes her." }, { status: 400 });
+      return NextResponse.json({ error: "Dokumentet ligger i Boligmappa. Slett det derfra først, så kan det slettes her." }, { status: 400 });
     }
     const stiar = [dok.storage_path, dok.pdf_path].filter((s): s is string => Boolean(s));
     if (stiar.length) await admin.storage.from(BUCKET).remove(stiar);

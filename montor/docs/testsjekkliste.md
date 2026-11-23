@@ -47,6 +47,15 @@ nettapp med ordre-modulen på (lokalt eller app.devello.no). Kryss av.
 - [ ] «Merk som ferdig» spør «Merk ordren som ferdig? Kontoret får beskjed.» — Avbryt gjør ingenting.
 - [ ] Bekreft → status «Ferdig» med en gang, «Sendes …» til den er sendt; nettappen viser ferdig.
 
+## Tilbudet på ordren
+
+- [ ] Ordre fra tilbud: første fane heter «Tilbud» og viser beskrivelsen, ordretypen og postene med antall — uten priser. Forutsetningene står under.
+- [ ] Ordre uten tilbud: fanen heter «Jobben» og viser beskrivelsen og «Ordren har ikke noe tilbud».
+- [ ] En åpen ordre åpner på Tilbud/Jobben; en som pågår åpner på Timer.
+- [ ] «Meld endring fra tilbudet» → rett et antall med − / + og skriv en kommentar → «Lagre som notat». Notatet dukker opp under Notater og på ordren i nettappen, og begynner med «Endringer fra tilbudet:».
+- [ ] Samme i flymodus: notatet står som «Sendes» og går av seg selv når nettet er tilbake.
+- [ ] «Ferdig» vises også på en åpen ordre. Trykk → bekreft → ordren står som Ferdig, og i nettappen ligger den under Ordrer → «Klare til fakturering».
+
 ## Timer (online)
 
 - [ ] «Før timer» → dato (I dag / I går / Annen dag), timetype-chips, stepper, 1 · 2 · 4 · 7,5, notat.

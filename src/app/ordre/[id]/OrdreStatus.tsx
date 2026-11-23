@@ -46,8 +46,9 @@ export function OrdreStatus({ orderId, status }: { orderId: string; status: Orde
 
   // Neste steg framover er hovedknappen; et steg tilbake er sekundært.
   const REKKEFOLGE: OrderStatus[] = ["opna", "paagaar", "ferdig", "fakturert"];
+  // Fra åpen er «Start jobben» det vanlige; «Merk som ferdig» er snarveien.
   const erTilbake = (til: OrderStatus) =>
-    REKKEFOLGE.indexOf(til) < REKKEFOLGE.indexOf(status);
+    REKKEFOLGE.indexOf(til) < REKKEFOLGE.indexOf(status) || (status === "opna" && til === "ferdig");
 
   return (
     <div className="ordre-status">

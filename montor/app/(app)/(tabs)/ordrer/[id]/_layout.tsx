@@ -6,12 +6,18 @@ import { useOrdreMedUtboks } from "@/lib/sporringar";
 import { farge, marg } from "@/lib/tema";
 import { useOrdreId } from "@/lib/useOrdreId";
 
-type Fane = "timer" | "materiell" | "notater";
+type Fane = "jobben" | "timer" | "materiell" | "notater";
 
 /**
- * Én ordre: hodet øverst, så fanene Timer · Materiell · Notater som i Go —
- * tekst på rad med strek under den aktive. Tabs-navigatoren holder fanene i
- * live; den innebygde fanelinja er skrudd av og erstattet av vår egen.
+ * Én ordre: hodet øverst, så fanene Tilbud · Timer · Materiell · Notater som
+ * i Go — tekst på rad med strek under den aktive. Tabs-navigatoren holder
+ * fanene i live; den innebygde fanelinja er skrudd av og erstattet av vår
+ * egen.
+ *
+ * Første fane er jobben: beskrivelsen og tilbudet kunden sa ja til. Den
+ * heter «Tilbud» når ordren har et, ellers «Jobben». En ordre som ikke er
+ * startet åpner der, så montøren leser jobben først; en som pågår åpner i
+ * Timer (se ordreSti i lib/varselMaal.ts).
  */
 export default function OrdreLayout() {
   const id = useOrdreId();
@@ -33,6 +39,7 @@ export default function OrdreLayout() {
                 <OrdreHode id={id} />
                 <Faner
                   valg={[
+                    { verdi: "jobben", tekst: sammenslaatt.tilbud ? "Tilbud" : "Jobben" },
                     { verdi: "timer", tekst: "Timer", tal: sammenslaatt.timer.length },
                     { verdi: "materiell", tekst: "Materiell", tal: aktive },
                     { verdi: "notater", tekst: "Notater", tal: sammenslaatt.notat.length },
@@ -46,6 +53,7 @@ export default function OrdreLayout() {
           );
         }}
       >
+        <Tabs.Screen name="jobben" options={{ title: "Tilbud" }} />
         <Tabs.Screen name="timer" options={{ title: "Timer" }} />
         <Tabs.Screen name="materiell" options={{ title: "Materiell" }} />
         <Tabs.Screen name="notater" options={{ title: "Notater" }} />

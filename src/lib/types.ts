@@ -439,6 +439,22 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
 export const ORDER_ACTIVE_STATUSES: OrderStatus[] = ["opna", "paagaar"];
 
 /**
+ * Hvordan jobben skal faktureres. Ordrer fra tilbud arver tilbudstypen
+ * (punktpris og fastpris → fastpris); på en ordre uten tilbud velges den
+ * for hånd.
+ */
+export type OrderType = "fastpris" | "tid_og_materiell";
+
+export const ORDER_TYPE_LABELS: Record<OrderType, string> = {
+  fastpris: "Fastpris",
+  tid_og_materiell: "Timer og materiell",
+};
+
+export function erOrderType(v: unknown): v is OrderType {
+  return v === "fastpris" || v === "tid_og_materiell";
+}
+
+/**
  * Tilbudet slik det var da ordren ble opprettet. Tilbudet kan redigeres
  * videre i tilbudsmodulen; ordren skal vise det kunden faktisk sa ja til.
  */
@@ -473,8 +489,10 @@ export interface Order {
   lead_id: string | null;
   draft_id: string | null;
   quote_type: QuoteType | null;
+  /** Fastpris eller timer og materiell (0069). Null = ikke valgt. */
+  order_type: OrderType | null;
   quote_snapshot: OrderQuoteSnapshot | null;
-  /** Planlagt sum eks. mva fra snapshotet. Null for tid og materiell. */
+  /** Planlagt sum eks. mva: fra snapshotet, eller avtalt fastpris på en ordre uten tilbud. */
   planned_total: number | null;
   /** Eiendommen i Boligmappa, når brukeren har bekreftet den. */
   boligmappa_number: string | null;
@@ -1085,6 +1103,38 @@ export interface OrderDocument {
   /** Bildet hører til et notat på ordren (montørappen). */
   note_id: string | null;
   client_id: string | null;
+  /** Montøren har bedt om godkjenning (0069). Skjemaet er utkast til noen signerer. */
+  approval_requested_at: string | null;
+  approval_requested_by: string | null;
+  /** Signaturen som ble brukt da skjemaet ble godkjent. */
+  signature_id: string | null;
+  /** Forrige versjon, når dokumentet er en kopi av ett som alt var sendt. */
+  copied_from: string | null;
+  revision: number;
+}
+
+/** Ferdig tekst som settes inn i beskrivelsen på en ordre (0069). */
+export interface OrderSnippet {
+  id: string;
+  company_id: string;
+  name: string;
+  text: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Lagret signaturbilde (0069). Bildet hentes via /api/signaturer/{id}/bilde. */
+export interface CompanySignature {
+  id: string;
+  company_id: string;
+  name: string;
+  title: string | null;
+  user_id: string | null;
+  image_path: string;
+  mime_type: string;
+  created_by: string | null;
+  created_at: string;
 }
 
 /** Notat på ordren — fritekst fra montøren, ofte med bilder knyttet til. */

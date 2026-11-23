@@ -3,7 +3,9 @@ import type { OrderStatus } from "@/lib/types";
 /**
  * Lovlige statusoverganger.
  *
- * Framover: åpen → pågår → ferdig. Tilbake igjen ett steg om gangen, for
+ * Framover: åpen → pågår → ferdig. En liten jobb kan merkes ferdig rett
+ * fra åpen — montøren som glemte «Start jobben» skal ikke måtte trykke to
+ * ganger for å si at han er ferdig. Tilbake igjen ett steg om gangen, for
  * en jobb som ble merket ferdig for tidlig. Avbrutt fra alle — og fra
  * avbrutt kan man angre og åpne ordren igjen. Fakturert settes av
  * fakturasteget senere, aldri for hånd; en fakturert ordre hører til
@@ -13,7 +15,7 @@ import type { OrderStatus } from "@/lib/types";
  * ordresiden (som bare viser det som er lov). Da kan de ikke sprike.
  */
 const OVERGANGER: Record<OrderStatus, OrderStatus[]> = {
-  opna: ["paagaar", "avbrutt"],
+  opna: ["paagaar", "ferdig", "avbrutt"],
   paagaar: ["ferdig", "opna", "avbrutt"],
   ferdig: ["paagaar", "avbrutt"],
   fakturert: [],

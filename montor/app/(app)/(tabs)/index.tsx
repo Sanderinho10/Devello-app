@@ -9,6 +9,7 @@ import { dagTittel, klokke, kortDato, langDato, tidsrom, timer as fmtTimer, uked
 import { useKalender, useTimeforslag, useVarsel } from "@/lib/sporringar";
 import { farge, marg, radius, skrift, tabellTall } from "@/lib/tema";
 import type { HendingType, KalenderHending, Timeforslag } from "@/lib/typer";
+import { ordreSti } from "@/lib/varselMaal";
 
 const TYPE_TEKST: Record<HendingType, string> = { oppdrag: "Oppdrag", mote: "Møte", fravaer: "Fravær", annet: "Annet" };
 /** Fargen på streken til venstre for avtalen — de samme som i kalenderen på nett. */
@@ -159,7 +160,7 @@ export default function Program() {
               </View>
               <Gruppe>
                 {hendingar.map((h) => (
-                  <Hending key={h.id} hending={h} visDeltakarar={visning === "alle"} naa={naa} onPress={h.order ? () => router.push(`/ordrer/${h.order!.id}/timer`) : undefined} />
+                  <Hending key={h.id} hending={h} visDeltakarar={visning === "alle"} naa={naa} onPress={h.order ? () => router.push(ordreSti(h.order!.id, h.order!.status)) : undefined} />
                 ))}
               </Gruppe>
             </View>
