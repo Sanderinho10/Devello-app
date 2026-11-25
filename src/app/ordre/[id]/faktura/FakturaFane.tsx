@@ -621,10 +621,8 @@ function LinjeTabell({
         <span className="label" style={{ marginBottom: 0 }}>
           Linjer
         </span>
-        {!laast && onLeggTil && (
-          <button type="button" className="linkish" onClick={onLeggTil}>
-            + Legg til linje
-          </button>
+        {!laast && (
+          <span className="tiny muted">Klikk i et felt for å endre det. Haken styrer om linjen er med.</span>
         )}
       </div>
       {lines.length === 0 ? (
@@ -642,7 +640,7 @@ function LinjeTabell({
                 <th>Enhet</th>
                 <th className="num">Pris</th>
                 <th className="num">Sum</th>
-                {!laast && <th style={{ width: 32 }} />}
+                {!laast && <th style={{ width: 40 }} />}
               </tr>
             </thead>
             <tbody>
@@ -686,31 +684,27 @@ function LinjeTabell({
                       </div>
                     </td>
                     <td className="num">
-                      {erTekst ? (
-                        <span className="muted">—</span>
-                      ) : fast ? (
-                        Number(l.quantity).toLocaleString("nb-NO")
+                      {fast ? (
+                        erTekst ? <span className="muted">—</span> : Number(l.quantity).toLocaleString("nb-NO")
                       ) : (
-                        <input
-                          className="cell-input num"
-                          inputMode="decimal"
-                          value={String(l.quantity)}
-                          onChange={(e) => onEndre(l.id, { quantity: Number(e.target.value.replace(",", ".")) || 0 })}
-                          style={{ width: 80 }}
+                        <TallFelt
+                          verdi={erTekst && Number(l.quantity) === 0 ? null : Number(l.quantity)}
+                          onEndre={(v) => onEndre(l.id, { quantity: v ?? 0 })}
+                          bredde={80}
+                          etikett="Mengde"
                         />
                       )}
                     </td>
                     <td>
-                      {erTekst ? (
-                        ""
-                      ) : fast ? (
-                        l.unit
+                      {fast ? (
+                        erTekst ? "" : l.unit
                       ) : (
                         <input
                           className="cell-input"
                           value={l.unit}
                           onChange={(e) => onEndre(l.id, { unit: e.target.value })}
                           style={{ width: 60 }}
+                          aria-label="Enhet"
                         />
                       )}
                     </td>
@@ -718,19 +712,19 @@ function LinjeTabell({
                       {fast ? (
                         erTekst ? <span className="muted">—</span> : formatPris(Number(l.unit_price))
                       ) : (
-                        <input
-                          className="cell-input num"
-                          inputMode="decimal"
-                          value={l.unit_price === null ? "" : String(l.unit_price)}
-                          placeholder="—"
-                          onChange={(e) => {
-                            const v = e.target.value.trim();
+                        <TallFelt
+                          verdi={l.unit_price === null ? null : Number(l.unit_price)}
+                          onEndre={(v) =>
                             onEndre(l.id, {
-                              unit_price: v === "" ? null : Number(v.replace(",", ".")) || 0,
+                              unit_price: v,
                               unit_price_manual: true,
-                            });
-                          }}
-                          style={{ width: 100 }}
+                              // En tekstlinje som får pris, blir en vanlig linje: 1 stk om ikke annet er sagt.
+                              ...(v !== null && Number(l.quantity) === 0 ? { quantity: 1 } : {}),
+                              ...(v !== null && !l.unit.trim() ? { unit: "stk" } : {}),
+                            })
+                          }
+                          bredde={100}
+                          etikett="Pris"
                           title={erTekst ? "Tekstlinje uten pris. Skriv en pris for å gjøre den til en vare-/tjenestelinje." : undefined}
                         />
                       )}
@@ -739,8 +733,16 @@ function LinjeTabell({
                     {!laast && (
                       <td>
                         {!fratrekk && (
-                          <button type="button" className="linkish" onClick={() => onFjern(l.id)} title="Ta ut linjen">
-                            ×
+                          <button
+                            type="button"
+                            className="linje-fjern"
+                            onClick={() => onFjern(l.id)}
+                            title="Fjern linjen"
+                            aria-label={`Fjern linjen ${l.description}`}
+                          >
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <path d="M2.5 4h11M6.5 4V2.5h3V4M4 4l.6 9.5h6.8L12 4M6.6 6.5v4.5M9.4 6.5v4.5" />
+                            </svg>
                           </button>
                         )}
                       </td>
@@ -752,8 +754,54 @@ function LinjeTabell({
           </table>
         </div>
       )}
+      {!laast && onLeggTil && (
+        <div className="faktura-ny-linje">
+          <button type="button" className="button secondary" onClick={onLeggTil}>
+            + Legg til linje
+          </button>
+        </div>
+      )}
       {children}
     </div>
+  );
+}
+
+/**
+ * Et tallfelt som tåler at man skriver. Teksten er brukerens mens feltet
+ * har fokus («12,» er på vei til å bli 12,5), og tallet sendes opp for
+ * hvert gyldige tastetrykk. Komma og punktum er begge desimaltegn.
+ */
+function TallFelt({
+  verdi,
+  onEndre,
+  bredde,
+  etikett,
+  title,
+}: {
+  verdi: number | null;
+  onEndre: (v: number | null) => void;
+  bredde: number;
+  etikett: string;
+  title?: string;
+}) {
+  const [tekst, setTekst] = useState<string | null>(null);
+  return (
+    <input
+      className="cell-input num"
+      inputMode="decimal"
+      aria-label={etikett}
+      title={title}
+      placeholder="—"
+      value={tekst ?? (verdi === null ? "" : String(verdi).replace(".", ","))}
+      onChange={(e) => {
+        setTekst(e.target.value);
+        const v = e.target.value.replace(/\s/g, "").replace(",", ".");
+        if (v === "") onEndre(null);
+        else if (Number.isFinite(Number(v)) && Number(v) >= 0) onEndre(Number(v));
+      }}
+      onBlur={() => setTekst(null)}
+      style={{ width: bredde }}
+    />
   );
 }
 

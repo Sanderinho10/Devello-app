@@ -85,7 +85,7 @@ function Visning({ hending, onClose }: { hending: KalenderHending; onClose: () =
       </Rad>
       {hending.order && (
         <Rad etikett="Ordre">
-          <Link className="lenke" href={`/ordre/${hending.order.id}`}>
+          <Link className="lenke-bla" href={`/ordre/${hending.order.id}`}>
             #{hending.order.order_no} · {hending.order.title}
           </Link>
           <div className="hint">{[hending.order.customer_name, hending.order.site_address].filter(Boolean).join(" · ")}</div>
@@ -321,7 +321,13 @@ function Skjema({
                 autoFocus={!ordre && !hending}
               />
               {ordre ? (
-                <span className="hint">{[ordre.customer_name, ordre.site_address].filter(Boolean).join(" · ") || "Ingen kunde på ordren"}</span>
+                <span className="hint">
+                  {[ordre.customer_name, ordre.site_address].filter(Boolean).join(" · ") || "Ingen kunde på ordren"}
+                  {" · "}
+                  <Link className="lenke-bla" href={`/ordre/${ordre.id}`}>
+                    Åpne ordren →
+                  </Link>
+                </span>
               ) : (
                 <span className="hint">Søk blant aktive ordrer.</span>
               )}
