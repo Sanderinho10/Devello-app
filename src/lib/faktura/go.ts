@@ -37,6 +37,9 @@ export function produktNokkel(linje: Pick<InvoiceLine, "kind" | "unit_price">): 
   if (linje.kind === "timer") return "arbeid";
   if (linje.kind === "materiell") return "materiell";
   if (linje.kind === "tilbod_seksjon" || linje.kind === "tilbod_linje") return "fastpris";
+  // Akonto og fratrekket på sluttfakturaen går på samme produkt, så de
+  // nuller hverandre ut på samme konto i regnskapet.
+  if (linje.kind === "akonto" || linje.kind === "akonto_fratrekk") return "akonto";
   if (linje.kind === "tekst" && linje.unit_price !== null) return "annet";
   return null;
 }

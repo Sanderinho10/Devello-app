@@ -84,6 +84,8 @@ export default async function KontaktPage({
     id: string;
     order_id: string;
     customer_id: string | null;
+    is_akonto: boolean;
+    akonto_no: number | null;
     status: InvoiceDraftStatus;
     totals: { subtotal: number; vat: number; total: number } | null;
     transfer_order_no: string | null;
@@ -93,7 +95,7 @@ export default async function KontaktPage({
   const egneOrdrer = ordrer.map((o) => o.id);
   const { data: fakturaRader } = await supabase
     .from("invoice_drafts")
-    .select("id, order_id, customer_id, status, totals, transfer_order_no, created_at, orders(order_no, title, customer_id)")
+    .select("id, order_id, customer_id, is_akonto, akonto_no, status, totals, transfer_order_no, created_at, orders(order_no, title, customer_id)")
     .or(
       [`customer_id.eq.${id}`, ...(egneOrdrer.length ? [`and(customer_id.is.null,order_id.in.(${egneOrdrer.join(",")}))`] : [])].join(","),
     )
@@ -280,7 +282,7 @@ export default async function KontaktPage({
                       <tbody>
                         {fakturaer.map((f) => {
                           const ordre = f.orders ?? ordreAv.get(f.order_id);
-                          const href = `/ordre/${f.order_id}/faktura`;
+                          const href = f.is_akonto || !f.order_id ? `/fakturaer/${f.id}` : `/ordre/${f.order_id}/faktura`;
                           // Jobben ble gjort for en annen kunde enn den som betaler.
                           const annanOrdrekunde = Boolean(f.orders?.customer_id && f.orders.customer_id !== id);
                           return (
@@ -288,6 +290,7 @@ export default async function KontaktPage({
                               <td className="ordre-nr">{ordre?.order_no ?? ""}</td>
                               <td>
                                 <Link className="lenke" href={href}>
+                                  {f.is_akonto ? `A konto nr. ${f.akonto_no} · ` : ""}
                                   {ordre?.title ?? "Ordre"}
                                 </Link>
                                 {annanOrdrekunde && <span className="tiny muted"> · ordren står på en annen kunde</span>}

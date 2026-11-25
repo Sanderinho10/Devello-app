@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { leggFratrekkPaaSluttfaktura } from "./akonto";
 import { byggSalsordre, manglandeProdukt } from "./go";
 import { loggFakturaVersjon } from "./versjon";
 import { PogoFeil, pogoClient, type PogoKunde, type PogoKundePost } from "@/lib/regnskap/poweroffice";
@@ -30,7 +31,8 @@ import {
  *   3. POST /SalesOrders/Complete med status Draft.
  *   4. Først når Go har svart ja: utkastet låses, føringene merkes
  *      fakturert, ordren blir fakturert, og kundenummeret lagres på
- *      kontakten. Feiler Go, endres ingenting annet enn transfer_error
+ *      kontakten. En akontofaktura (0071) lukker ikke ordren — den legger
+ *      i stedet fratrekket på sluttfakturaforslaget, om det finnes. Feiler Go, endres ingenting annet enn transfer_error
  *      (og et lagret kundenummer Go avviste), og knappen kan trykkes igjen.
  */
 
@@ -184,7 +186,21 @@ export async function overforTilRegnskap(
       await admin.from("material_entries").update({ invoice_draft_id: draft.id }).in("id", matIds).is("invoice_draft_id", null);
     }
 
-    if (ordre) {
+    if (ordre && draft.is_akonto) {
+      await admin.from("order_events").insert({
+        order_id: ordre.id,
+        kind: "faktura",
+        note: `A konto nr. ${draft.akonto_no} overført til PowerOffice Go${go.SalesOrderNo ? `, ordre ${go.SalesOrderNo}` : ""}`,
+        created_by: input.userId,
+      });
+      // Akontofakturaen ligger i Go uansett: feiler dette, stopper
+      // overføringen av sluttfakturaen til forslaget er laget på nytt.
+      try {
+        await leggFratrekkPaaSluttfaktura(admin, ferdig, input.userId);
+      } catch (err) {
+        console.error(err instanceof Error ? err.message : err);
+      }
+    } else if (ordre) {
       await admin
         .from("orders")
         .update({ status: "fakturert", closed_at: naa })

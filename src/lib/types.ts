@@ -874,7 +874,7 @@ export interface AccountingConnectionPublic {
  * Produktene i regnskapssystemet som fakturalinjene skal gå på. Produktet
  * bærer salgskonto og mva-kode der — derfor må hver linje ha ett.
  */
-export type ProductMapKey = "arbeid" | "materiell" | "fastpris" | "annet";
+export type ProductMapKey = "arbeid" | "materiell" | "fastpris" | "annet" | "akonto";
 
 export type ProductMap = Partial<Record<ProductMapKey, string>>;
 
@@ -883,6 +883,7 @@ export const PRODUCT_MAP_LABELS: Record<ProductMapKey, string> = {
   materiell: "Materiell",
   fastpris: "Fastpris iht. tilbud",
   annet: "Annet",
+  akonto: "A konto",
 };
 
 export interface ConnectionSettings {
@@ -1017,14 +1018,18 @@ export const INVOICE_DRAFT_STATUS_LABELS: Record<InvoiceDraftStatus, string> = {
   feil: "Feil ved overføring",
 };
 
-/** «manuell»: en faktura uten ordre, med linjer et menneske har skrevet (0065). */
-export type InvoiceStrategy = "fastpris" | "fastpris_med_tillegg" | "tid_og_materiell" | "manuell";
+/**
+ * «manuell»: en faktura uten ordre, med linjer et menneske har skrevet (0065).
+ * «akonto»: en akontofaktura på en ordre, med beløpet et menneske har satt (0071).
+ */
+export type InvoiceStrategy = "fastpris" | "fastpris_med_tillegg" | "tid_og_materiell" | "manuell" | "akonto";
 
 export const INVOICE_STRATEGY_LABELS: Record<InvoiceStrategy, string> = {
   fastpris: "Fastpris",
   fastpris_med_tillegg: "Fastpris med tillegg",
   tid_og_materiell: "Tid og materiell",
   manuell: "Manuell",
+  akonto: "A konto",
 };
 
 /** Formen på linjene og kildene ligger i lib/faktura/typar.ts. */
@@ -1047,6 +1052,12 @@ export interface InvoiceDraft {
    * registeret — da gjelder ordrens kundefelt.
    */
   customer_id: string | null;
+  /**
+   * Akontofaktura (0071): et beløp fakturert underveis. Lukker ikke ordren,
+   * og trekkes fra på sluttfakturaen. akonto_no er løpenummeret på ordren.
+   */
+  is_akonto: boolean;
+  akonto_no: number | null;
   status: InvoiceDraftStatus;
   strategy: InvoiceStrategy;
   lines: import("./faktura/typar").InvoiceLine[];

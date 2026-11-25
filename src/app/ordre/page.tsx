@@ -99,6 +99,7 @@ export default async function OrdrePage({
       .from("invoice_drafts")
       .select("order_id, transfer_order_no, transfer_external_id")
       .in("order_id", fakturerte)
+      .eq("is_akonto", false)
       .eq("status", "overfort");
     for (const u of utkast ?? []) {
       if (u.transfer_order_no ?? u.transfer_external_id) goNr.set(u.order_id, u.transfer_order_no ?? "");

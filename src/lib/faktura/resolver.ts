@@ -34,6 +34,8 @@ const SOURCE_TYPE_FOR_KIND: Record<LineKind, InvoiceSource["type"] | null> = {
   timer: "time_entry",
   materiell: "material_entry",
   tekst: null,
+  akonto: null,
+  akonto_fratrekk: "invoice_draft",
 };
 
 export function planTilLinjer(plan: FakturaPlan, kjelder: Kjelder): ResolverResultat {
