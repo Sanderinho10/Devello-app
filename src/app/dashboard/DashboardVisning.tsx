@@ -119,16 +119,20 @@ export function DashboardVisning({
                   <span className="dash-kal-vekedag">{d.idag ? "I dag" : d.vekedag}</span>
                   <span className="dash-kal-dato">{d.dag}</span>
                 </span>
-                {d.hendingar.slice(0, MAKS_PER_DAG).map((h) => (
-                  <span key={h.id} className={`kal-brikke ${h.kind}`} title={[h.tittel, h.kven].filter(Boolean).join(" · ")}>
-                    <span className="kal-brikke-tid">{h.tid}</span>
-                    <span className="kal-brikke-tittel">
-                      {h.ordreNr !== null && <span className="kal-ordrenr">#{h.ordreNr} </span>}
-                      {h.tittel}
-                    </span>
-                    {h.kven && <span className="kal-brikke-stad">{h.kven}</span>}
+                {d.hendingar.length > 0 && (
+                  <span className="kal-side-om-side">
+                    {d.hendingar.slice(0, MAKS_PER_DAG).map((h) => (
+                      <span key={h.id} className={`kal-brikke ${h.kind}`} title={[h.tittel, h.kven].filter(Boolean).join(" · ")}>
+                        <span className="kal-brikke-tid">{h.tid}</span>
+                        <span className="kal-brikke-tittel">
+                          {h.ordreNr !== null && <span className="kal-ordrenr">#{h.ordreNr} </span>}
+                          {h.tittel}
+                        </span>
+                        {h.kven && <span className="kal-brikke-stad">{h.kven}</span>}
+                      </span>
+                    ))}
                   </span>
-                ))}
+                )}
                 {d.hendingar.length > MAKS_PER_DAG && (
                   <span className="tiny muted">+{d.hendingar.length - MAKS_PER_DAG} til</span>
                 )}
