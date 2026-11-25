@@ -4220,6 +4220,10 @@ dl.kunde-kort-info {
   cursor: inherit;
 }
 
+.dash-kal-dag .kal-side-om-side {
+  margin-bottom: 4px;
+}
+
 .dash-kal-ledig {
   font-size: 12px;
   color: var(--text-tertiary);
