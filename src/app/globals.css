@@ -5163,6 +5163,16 @@ dl.kunde-kort-info {
   color: var(--text-secondary);
 }
 
+/* Ordrenummeret i en avtale går rett til ordren. */
+.kal-ordrenr.lenkje {
+  cursor: pointer;
+}
+
+.kal-ordrenr.lenkje:hover {
+  color: var(--link);
+  text-decoration: underline;
+}
+
 /* Ukevisningen: klokkeslett nedover, dager bortover. */
 .kal-uke {
   min-width: 760px;

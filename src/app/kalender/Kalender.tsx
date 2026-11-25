@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { KalenderHending, Kollega } from "@/lib/kalender/hent";
 import {
@@ -452,11 +453,36 @@ function Brikke({
     >
       <span className="kal-brikke-tid">{tid}</span>
       <span className="kal-brikke-tittel">
-        {h.order && <span className="kal-ordrenr">#{h.order.order_no} </span>}
+        {h.order && <OrdreNr ordre={h.order} />}
         {h.title}
       </span>
       {h.order?.site_address && <span className="kal-brikke-stad">{h.order.site_address}</span>}
     </button>
+  );
+}
+
+/**
+ * Ordrenummeret i ein avtale: eit trykk går rett til ordren, utan å gå via
+ * skjemaet. Avtalen er alt ein knapp, så dette er ikkje ei ekte lenkje; med
+ * tastatur går vegen gjennom skjemaet, som har lenkja.
+ */
+function OrdreNr({ ordre }: { ordre: { id: string; order_no: number } }) {
+  const router = useRouter();
+  const sti = `/ordre/${ordre.id}`;
+  return (
+    <span
+      className="kal-ordrenr lenkje"
+      title="Åpne ordren"
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (rettEtterDrag()) return;
+        if (e.metaKey || e.ctrlKey) window.open(sti, "_blank", "noopener");
+        else router.push(sti);
+      }}
+    >
+      #{ordre.order_no}{" "}
+    </span>
   );
 }
 
@@ -781,7 +807,7 @@ function Ukevisning({
                           {klokke(b.fraKl)}–{klokke(b.tilKl) === "00:00" ? "24:00" : klokke(b.tilKl)}
                         </span>
                         <span className="kal-blokk-tittel">
-                          {b.order && <span className="kal-ordrenr">#{b.order.order_no} </span>}
+                          {b.order && <OrdreNr ordre={b.order} />}
                           {b.title}
                         </span>
                         {b.deltakarar.length > 0 && (
