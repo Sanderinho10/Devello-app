@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
+import { AkontoKort } from "./AkontoKort";
 import { FakturaFane, type FakturaKunde } from "./FakturaFane";
+import { akontoSum } from "@/lib/faktura/akonto";
 import { manglandeProdukt } from "@/lib/faktura/go";
 import { hentOrdre } from "@/lib/ordre/hent";
 import { summerMateriell, summerTimar } from "@/lib/ordre/summering";
@@ -9,7 +11,8 @@ import type { InvoiceDraft, MaterialEntry, ProductMap, TimeEntry } from "@/lib/t
 export const dynamic = "force-dynamic";
 
 /**
- * Faktura-fanen: forslaget, eller det som ligger klart til å bli et.
+ * Faktura-fanen: forslaget, eller det som ligger klart til å bli et — og
+ * over det akontofakturaene på ordren (0071), som er egne utkast.
  * Alt skrives gjennom /api/orders/[id]/faktura; sida bare leser.
  */
 export default async function FakturaSide({ params }: { params: Promise<{ id: string }> }) {
@@ -20,14 +23,21 @@ export default async function FakturaSide({ params }: { params: Promise<{ id: st
   const session = await currentSession();
   const supabase = await supabaseServer();
 
-  const [{ data: draft }, { data: timar }, { data: materiell }, { data: kopling }] = await Promise.all([
+  const [{ data: draft }, { data: akontoRader }, { data: timar }, { data: materiell }, { data: kopling }] = await Promise.all([
     supabase
       .from("invoice_drafts")
       .select("*")
       .eq("order_id", ordre.id)
+      .eq("is_akonto", false)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from("invoice_drafts")
+      .select("id, akonto_no, status, lines, transferred_at, transfer_order_no")
+      .eq("order_id", ordre.id)
+      .eq("is_akonto", true)
+      .order("akonto_no", { ascending: true }),
     supabase
       .from("time_entries")
       .select("hours, unit_price, time_type_name, billable, invoice_draft_id")
@@ -71,7 +81,26 @@ export default async function FakturaSide({ params }: { params: Promise<{ id: st
   );
   const aktivKopling = kopling && kopling.status !== "kopla_fra" ? kopling : null;
 
+  const akontoar = ((akontoRader ?? []) as Pick<
+    InvoiceDraft,
+    "id" | "akonto_no" | "status" | "lines" | "transferred_at" | "transfer_order_no"
+  >[]).map((a) => ({
+    id: a.id,
+    nr: a.akonto_no ?? 0,
+    status: a.status,
+    belop: akontoSum(a),
+    transferred_at: a.transferred_at,
+    transfer_order_no: a.transfer_order_no,
+  }));
+
   return (
+    <div className="stack">
+    <AkontoKort
+      orderId={ordre.id}
+      orderStatus={ordre.status}
+      planlagt={ordre.planned_total === null ? null : Number(ordre.planned_total)}
+      akontoar={akontoar}
+    />
     <FakturaFane
       orderId={ordre.id}
       orderStatus={ordre.status}
@@ -95,5 +124,6 @@ export default async function FakturaSide({ params }: { params: Promise<{ id: st
           : null
       }
     />
+    </div>
   );
 }

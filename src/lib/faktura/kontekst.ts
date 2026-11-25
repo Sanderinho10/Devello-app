@@ -14,6 +14,8 @@ export function byggKontekst(
   ordre: Pick<Order, "order_no" | "title" | "description" | "customer_name" | "customer_contact" | "quote_type">,
   kjelder: Kjelder,
   maalform: "nb" | "nn",
+  /** Akontofakturaene som er overført (0071). Koden trekker dem fra. */
+  akonto: { nr: number; belop: number }[] = [],
 ): string {
   const deler: string[] = [];
 
@@ -67,6 +69,18 @@ export function byggKontekst(
 
   deler.push(timeBlokk(kjelder.timar));
   deler.push(materiellBlokk(kjelder.materiell));
+
+  if (akonto.length > 0) {
+    deler.push(
+      [
+        "# Fakturert a konto",
+        "",
+        ...akonto.map((a) => `- A konto nr. ${a.nr}: ${tal(a.belop)} kr eks. mva`),
+        "",
+        "Dette er en sluttfaktura. Lag planen for hele jobben som vanlig: koden legger selv inn fratrekket for det som er fakturert a konto. Ikke lag linjer for det, og ikke hold noe tilbake på grunn av det.",
+      ].join("\n"),
+    );
+  }
 
   return deler.join("\n\n");
 }

@@ -359,7 +359,7 @@ function TestTilkobling() {
   );
 }
 
-const NOKLAR: ProductMapKey[] = ["arbeid", "materiell", "fastpris", "annet"];
+const NOKLAR: ProductMapKey[] = ["arbeid", "materiell", "fastpris", "annet", "akonto"];
 
 /**
  * Produktene i Go som fakturalinjene skal gå på. Produktet bærer salgskonto

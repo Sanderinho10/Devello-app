@@ -26,6 +26,9 @@ import {
  * linjene skrives for hånd. Ellers er alt likt, og alle endringer går
  * gjennom /api/fakturaer/[id].
  *
+ * En akontofaktura (0071) er et utkast på en ordre uten agent: én linje med
+ * beløpet. Den kan slettes, men ikke lages på nytt, og lukker ikke ordren.
+ *
  * Tre tilstander: ingenting ennå (kortet sier hva som ligger klart), et
  * forslag (redigerbart, med agentens spørsmål og merknader øverst), og
  * overført (låst, med ordrenummeret i regnskapssystemet). Redigeringen
@@ -104,6 +107,7 @@ export function FakturaFane({
   const api = draft ? `/api/fakturaer/${draft.id}` : null;
 
   const laast = draft?.status === "overfort";
+  const akonto = Boolean(draft?.is_akonto);
   const providerNavn = kopling ? ACCOUNTING_PROVIDER_LABELS[kopling.provider] : "regnskapssystemet";
 
   async function kall(url: string, body: unknown, nokkel: string): Promise<Record<string, unknown> | null> {
@@ -195,12 +199,12 @@ export function FakturaFane({
     if (r) router.refresh();
   }
 
-  /** Bare uten ordre: et utkast som ikke skal faktureres likevel. */
+  /** Uten ordre, eller a konto: et utkast som ikke skal faktureres likevel. */
   async function slett() {
-    if (!window.confirm("Slette dette fakturautkastet?")) return;
+    if (!window.confirm(akonto ? "Slette dette akontoutkastet?" : "Slette dette fakturautkastet?")) return;
     const r = await kall(`${api}`, {}, "slett");
     if (r) {
-      router.push("/fakturaer");
+      router.push(orderId ? `/ordre/${orderId}/faktura` : "/fakturaer");
       router.refresh();
     }
   }
@@ -283,7 +287,7 @@ export function FakturaFane({
         <div className="card card-pad">
           <div className="row-between" style={{ marginBottom: 8 }}>
             <span className="label" style={{ marginBottom: 0 }}>
-              Faktura
+              {akonto ? `A konto nr. ${draft.akonto_no}` : "Faktura"}
             </span>
             <span className="pill ferdig">Overført</span>
           </div>
@@ -305,9 +309,18 @@ export function FakturaFane({
           </p>
           <p className="muted tiny">
             Fakturaen ligger som ordreutkast der. Send den fra {providerNavn} — Devello sender aldri.
-            {orderId && " Timene og materiellet som er med er låst, og ordren er fakturert."}
+            {akonto
+              ? " Ordren står åpen, og beløpet trekkes fra på sluttfakturaen."
+              : orderId && " Timene og materiellet som er med er låst, og ordren er fakturert."}
           </p>
-          {orderId && (
+          {akonto && orderId && (
+            <div className="row" style={{ marginTop: 10 }}>
+              <Link className="button secondary" href={`/ordre/${orderId}/faktura`}>
+                Til ordren
+              </Link>
+            </div>
+          )}
+          {orderId && !akonto && (
             <div className="row" style={{ marginTop: 10 }}>
               <Link className="button secondary" href={`/ordre/${orderId}/timer`}>
                 Timer
@@ -373,7 +386,7 @@ export function FakturaFane({
             Angre godkjenning
           </button>
         )}
-        {orderId ? (
+        {orderId && !akonto ? (
           <button type="button" className="button secondary" onClick={generer} disabled={busy !== null}>
             {busy === "generer" ? "Lager…" : "Nytt forslag"}
           </button>
@@ -387,7 +400,11 @@ export function FakturaFane({
             {draft.generated_at ? `Forslag ${formatDate(draft.generated_at)}` : `Opprettet ${formatDate(draft.created_at)}`}
             {draft.approved_at && ` · godkjent ${formatDate(draft.approved_at)}`}
           </span>
-          {draft.strategy !== "manuell" && <span className="pill paagaar">{INVOICE_STRATEGY_LABELS[draft.strategy]}</span>}
+          {draft.strategy !== "manuell" && (
+            <span className="pill paagaar">
+              {akonto ? `A konto nr. ${draft.akonto_no}` : INVOICE_STRATEGY_LABELS[draft.strategy]}
+            </span>
+          )}
           <span className={`pill ${draft.status === "godkjent" ? "ferdig" : draft.status === "feil" ? "avbrutt" : "opna"}`}>
             {INVOICE_DRAFT_STATUS_LABELS[draft.status]}
           </span>
@@ -567,6 +584,19 @@ const KILDE_MERKE: Record<InvoiceLine["kind"], string> = {
   timer: "timer",
   materiell: "materiell",
   tekst: "tekst",
+  akonto: "a konto",
+  akonto_fratrekk: "a konto",
+};
+
+/** Klassen på kildemerket. Akonto deler farge med tilbudet: begge er avtalt, ikke ført. */
+const KILDE_KLASSE: Record<InvoiceLine["kind"], string> = {
+  tilbod_seksjon: "tilbud",
+  tilbod_linje: "tilbud",
+  timer: "timer",
+  materiell: "materiell",
+  tekst: "tekst",
+  akonto: "tilbud",
+  akonto_fratrekk: "tilbud",
 };
 
 function LinjeTabell({
@@ -619,7 +649,11 @@ function LinjeTabell({
               {lines.map((l) => {
                 const erTekst = l.unit_price === null;
                 const sum = erTekst ? 0 : Number(l.quantity) * Number(l.unit_price);
-                const manuell = Boolean(l.unit_price_manual);
+                // Fratrekk for a konto: beløpet følger det som ble fakturert, og
+                // linjen kan holdes utenfor, men ikke endres eller fjernes.
+                const fratrekk = l.kind === "akonto_fratrekk";
+                const fast = laast || fratrekk;
+                const manuell = Boolean(l.unit_price_manual) && !fratrekk && l.kind !== "akonto";
                 return (
                   <tr key={l.id} className={l.included ? "" : "utelatt"}>
                     {!laast && (
@@ -644,7 +678,7 @@ function LinjeTabell({
                         />
                       )}
                       <div className="chips">
-                        <span className={`chip kilde ${manuell ? "manuell" : KILDE_MERKE[l.kind]}`}>
+                        <span className={`chip kilde ${manuell ? "manuell" : KILDE_KLASSE[l.kind]}`}>
                           {manuell ? "manuell" : KILDE_MERKE[l.kind]}
                           {l.sources.length > 1 && ` · ${l.sources.length} kilder`}
                         </span>
@@ -654,7 +688,7 @@ function LinjeTabell({
                     <td className="num">
                       {erTekst ? (
                         <span className="muted">—</span>
-                      ) : laast ? (
+                      ) : fast ? (
                         Number(l.quantity).toLocaleString("nb-NO")
                       ) : (
                         <input
@@ -669,7 +703,7 @@ function LinjeTabell({
                     <td>
                       {erTekst ? (
                         ""
-                      ) : laast ? (
+                      ) : fast ? (
                         l.unit
                       ) : (
                         <input
@@ -681,7 +715,7 @@ function LinjeTabell({
                       )}
                     </td>
                     <td className="num">
-                      {laast ? (
+                      {fast ? (
                         erTekst ? <span className="muted">—</span> : formatPris(Number(l.unit_price))
                       ) : (
                         <input
@@ -704,9 +738,11 @@ function LinjeTabell({
                     <td className="num">{erTekst ? <span className="muted">—</span> : formatNok(sum)}</td>
                     {!laast && (
                       <td>
-                        <button type="button" className="linkish" onClick={() => onFjern(l.id)} title="Ta ut linjen">
-                          ×
-                        </button>
+                        {!fratrekk && (
+                          <button type="button" className="linkish" onClick={() => onFjern(l.id)} title="Ta ut linjen">
+                            ×
+                          </button>
+                        )}
                       </td>
                     )}
                   </tr>

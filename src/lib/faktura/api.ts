@@ -6,7 +6,8 @@ import type { InvoiceDraft, Order } from "@/lib/types";
 
 /**
  * Felles inngang for fakturarutene: modulen er på (403), ordren er
- * selskapets (404), og det siste utkastet på ordren om det finnes.
+ * selskapets (404), og det siste fakturaforslaget på ordren om det finnes.
+ * Akontofakturaene (0071) er egne utkast og nås med id under /api/fakturaer.
  * Ordrestatus sjekkes ikke her — hver rute har sin egen regel.
  */
 export async function ordreOgUtkast(
@@ -30,6 +31,7 @@ export async function ordreOgUtkast(
     .select("*")
     .eq("order_id", orderId)
     .eq("company_id", session.companyId)
+    .eq("is_akonto", false)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();

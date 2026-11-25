@@ -17,6 +17,7 @@ const STANDARD: { key: ProductMapKey; code: string; name: string; description: s
   { key: "materiell", code: "DEV-MAT", name: "Materiell", description: "Materiell fra Devello-ordre" },
   { key: "fastpris", code: "DEV-FAST", name: "Fastpris iht. tilbud", description: "Fastpris eller punktpris iht. tilbud, fra Devello-ordre" },
   { key: "annet", code: "DEV-ANN", name: "Annet", description: "Andre linjer fra Devello-ordre" },
+  { key: "akonto", code: "DEV-AKONTO", name: "A konto", description: "Akontofakturering og fratrekk på sluttfaktura, fra Devello-ordre" },
 ];
 
 export async function POST() {

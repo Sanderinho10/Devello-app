@@ -8,8 +8,9 @@
  * (2 typer, én ikke fakturerbar), 5 materiell-linjer (2 fra faktura, 1
  * erstattet, 1 ikke fakturerbar).
  */
+import { akontoBelop, akontoLinje, akontoSum, fratrekkLinje, manglandeFratrekk, medFratrekk } from "@/lib/faktura/akonto";
 import { byggSalsordre, manglandeProdukt } from "@/lib/faktura/go";
-import { planTilLinjer, reknOmLinjer } from "@/lib/faktura/resolver";
+import { planTilLinjer, reknOmLinjer, summer } from "@/lib/faktura/resolver";
 import type { FakturaPlan, Kjelder } from "@/lib/faktura/typar";
 
 let feil = 0;
@@ -271,6 +272,75 @@ const KJELDER: Kjelder = {
   ]);
   sjekk("manuell linje: sum regnet av koden", linjer.lines[0].line_total === 2850 && linjer.totals.subtotal === 2850);
   sjekk("manuell linje: krever «annet» i mappingen", manglandeProdukt(linjer.lines, { arbeid: "A" }).join(",") === "annet");
+}
+
+{
+  // A konto (0071): beløp eller prosent av avtalt pris, og fratrekk på sluttfakturaen.
+  const p30 = akontoBelop({ amount: null, percent: 30, grunnlag: 85000 });
+  sjekk("akonto: 30 % av 85 000 = 25 500", "belop" in p30 && p30.belop === 25500 && p30.prosent === 30);
+  const p33 = akontoBelop({ amount: null, percent: 33.3, grunnlag: 10000.5 });
+  sjekk("akonto: prosent rundes til øre", "belop" in p33 && p33.belop === 3330.17);
+  sjekk("akonto: prosent uten avtalt pris → feil", "feil" in akontoBelop({ amount: null, percent: 30, grunnlag: null }));
+  sjekk("akonto: prosent over 100 → feil", "feil" in akontoBelop({ amount: null, percent: 120, grunnlag: 1000 }));
+  sjekk("akonto: verken beløp eller prosent → feil", "feil" in akontoBelop({ amount: null, percent: null, grunnlag: 1000 }));
+  sjekk("akonto: negativt beløp → feil", "feil" in akontoBelop({ amount: -5, percent: null, grunnlag: null }));
+  const fast = akontoBelop({ amount: 12000, percent: null, grunnlag: null });
+  sjekk("akonto: beløp uten avtalt pris går", "belop" in fast && fast.belop === 12000 && fast.prosent === null);
+
+  const linje = akontoLinje({ nr: 1, belop: 25500, prosent: 30, vatPct: 25 });
+  sjekk("akontolinje: tekst, beløp og type", linje.kind === "akonto" && linje.description === "A konto nr. 1 – 30 % av avtalt pris" && linje.line_total === 25500);
+  const totalar = summer([linje]);
+  sjekk("akontofaktura: mva kommer i tillegg", totalar.subtotal === 25500 && totalar.vat === 6375 && totalar.total === 31875);
+
+  // En ekstra linje på akontofakturaen er vanlig salg og skal ikke trekkes fra.
+  const ekstra = { ...linje, id: "x", kind: "tekst" as const, description: "Rigg", unit_price: 2000, line_total: 2000 };
+  const a1 = { id: "ak-1", akonto_no: 1, lines: [linje, ekstra], transferred_at: "2026-11-25T10:00:00Z" };
+  const a2 = { id: "ak-2", akonto_no: 2, lines: [akontoLinje({ nr: 2, belop: 10000, prosent: null, vatPct: 25 })], transferred_at: null };
+  sjekk("akontoSum: bare akontolinjene", akontoSum(a1) === 25500);
+
+  const f1 = fratrekkLinje(a1)!;
+  sjekk("fratrekk: mengde −1 × beløpet", f1.kind === "akonto_fratrekk" && f1.quantity === -1 && f1.unit_price === 25500 && f1.line_total === -25500);
+  sjekk("fratrekk: peker på akontofakturaen", f1.sources.length === 1 && f1.sources[0].type === "invoice_draft" && f1.sources[0].id === "ak-1");
+  sjekk("fratrekk: tekst med nummer og dato", f1.description === "Fratrekk: a konto nr. 1, fakturert 25.11.2026", f1.description);
+  sjekk("fratrekk: nynorsk", fratrekkLinje(a2, "nn")!.description === "Frådrag: a konto nr. 2");
+  sjekk("fratrekk: akonto uten beløp gir ingen linje", fratrekkLinje({ ...a1, lines: [ekstra] }) === null);
+
+  const arbeid = reknOmLinjer([
+    { id: "t", kind: "tilbod_seksjon", description: "Elbillader iht. tilbud", quantity: 1, unit: "stk", unit_price: 85000, line_total: 0, vat_pct: 25, included: true, sources: [{ type: "quote_section", id: "s1" }], ai_reason: null },
+  ]).lines;
+  const slutt = medFratrekk(arbeid, [a1, a2]);
+  const sluttsum = summer(slutt);
+  sjekk("sluttfaktura: ett fratrekk per akonto", slutt.length === 3 && slutt.filter((l) => l.kind === "akonto_fratrekk").length === 2);
+  sjekk("sluttfaktura: 85 000 − 25 500 − 10 000 = 49 500", sluttsum.subtotal === 49500 && sluttsum.vat === 12375 && sluttsum.total === 61875);
+  sjekk("sluttfaktura: samme akonto trekkes ikke to ganger", medFratrekk(slutt, [a1, a2]) === slutt);
+  sjekk("manglandeFratrekk: finner den som ikke er trukket", manglandeFratrekk(medFratrekk(arbeid, [a1]), [a1, a2]).map((a) => a.id).join() === "ak-2");
+
+  // Omregning etter redigering beholder fortegnet, og et fratrekk holdt utenfor teller ikke.
+  const om = reknOmLinjer(slutt, slutt);
+  sjekk("omregning: fratrekket er fortsatt negativt", om.totals.subtotal === 49500 && om.lines[1].line_total === -25500 && !om.lines[1].unit_price_manual);
+  const utan = reknOmLinjer(slutt.map((l) => (l.kind === "akonto_fratrekk" ? { ...l, included: false } : l)), slutt);
+  sjekk("omregning: fratrekk holdt utenfor teller ikke", utan.totals.subtotal === 85000);
+
+  // Go: akonto og fratrekk på samme produkt, fratrekket med negativ mengde.
+  const map = { fastpris: "DEV-FAST", akonto: "DEV-AKONTO" };
+  sjekk("Go: krever «akonto» i mappingen", manglandeProdukt(slutt, { fastpris: "DEV-FAST" }).join(",") === "akonto");
+  const go = byggSalsordre({
+    draft: { id: "d-slutt", lines: slutt, invoice_text: null, customer_reference: null },
+    ordre: { order_no: 1001 },
+    customerNo: 5,
+    productMap: map,
+    settings: {},
+  });
+  const goFratrekk = go.SalesOrderLines.filter((l) => l.ProductCode === "DEV-AKONTO");
+  sjekk("Go: fratrekk som Normal-linje med mengde −1", goFratrekk.length === 2 && goFratrekk[0].Quantity === -1 && goFratrekk[0].ProductUnitPrice === 25500);
+  const goAkonto = byggSalsordre({
+    draft: { id: "ak-1", lines: [linje], invoice_text: "Gjelder ordre 1001: Elbillader", customer_reference: null },
+    ordre: { order_no: 1001 },
+    customerNo: 5,
+    productMap: map,
+    settings: {},
+  });
+  sjekk("Go: akontofakturaen går på akonto-produktet", goAkonto.SalesOrderLines.some((l) => l.ProductCode === "DEV-AKONTO" && l.Quantity === 1 && l.ProductUnitPrice === 25500));
 }
 
 console.log(feil === 0 ? "\nAlle sjekker grønne." : `\n${feil} sjekk(er) feilet.`);

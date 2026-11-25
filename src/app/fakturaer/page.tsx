@@ -152,8 +152,10 @@ export default async function FakturaerPage({
               </thead>
               <tbody>
                 {fakturaer.map((f) => {
-                  const href = f.order_id ? `/ordre/${f.order_id}/faktura` : `/fakturaer/${f.id}`;
-                  const tittel = f.title || f.orders?.title || f.invoice_text || "Uten tittel";
+                  // En akontofaktura har sin egen side; forslaget på en ordre ligger på ordren.
+                  const href = f.order_id && !f.is_akonto ? `/ordre/${f.order_id}/faktura` : `/fakturaer/${f.id}`;
+                  const grunntittel = f.title || f.orders?.title || f.invoice_text || "Uten tittel";
+                  const tittel = f.is_akonto ? `A konto nr. ${f.akonto_no} · ${grunntittel}` : grunntittel;
                   const kunde = f.customers?.name || f.customer_name || f.orders?.customer_name || "—";
                   return (
                     <KlikkbarRad key={f.id} href={href}>

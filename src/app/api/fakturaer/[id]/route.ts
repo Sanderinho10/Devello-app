@@ -6,8 +6,9 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 /**
  * PATCH  — redigering: linjer, fakturatekst, Deres ref., fakturakunden og
  *          (uten ordre) tittelen. Se redigerUtkast.
- * DELETE — slett et utkast uten ordre. Et forslag på en ordre lages på nytt
- *          fra ordren i stedet, og en overført faktura ligger i Go.
+ * DELETE — slett et utkast uten ordre, eller et akontoutkast (0071). Et
+ *          forslag på en ordre lages på nytt fra ordren i stedet, og en
+ *          overført faktura ligger i Go.
  */
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await sessionOr401();
@@ -34,7 +35,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
     const admin = supabaseAdmin();
     const r = await utkastMedId(admin, session, id);
     if (r instanceof NextResponse) return r;
-    if (r.draft.order_id) {
+    if (r.draft.order_id && !r.draft.is_akonto) {
       return NextResponse.json({ error: "Fakturaen hører til en ordre. Lag et nytt forslag fra ordren i stedet." }, { status: 400 });
     }
     if (r.draft.status === "overfort") {

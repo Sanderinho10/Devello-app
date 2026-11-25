@@ -2,7 +2,8 @@ import path from "node:path";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { byggKontekst } from "./kontekst";
 import { hentKjelder } from "./kjelder";
-import { planTilLinjer } from "./resolver";
+import { akontoSum, hentAkonto, medFratrekk } from "./akonto";
+import { planTilLinjer, summer } from "./resolver";
 import type { FakturaPlan } from "./typar";
 import { loggFakturaVersjon } from "./versjon";
 import { loggAktivitet } from "@/lib/aktivitet";
@@ -118,6 +119,7 @@ export async function lagFakturaforslag(
     .select("*")
     .eq("order_id", ordre.id)
     .eq("company_id", ordre.company_id)
+    .eq("is_akonto", false)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -136,8 +138,18 @@ export async function lagFakturaforslag(
   }
 
   const maalform = input.company.tone_settings?.maalform === "nn" ? "nn" : "nb";
+  // Akonto (0071): det som er overført trekkes fra av koden under. Et
+  // akontoutkast som ikke er overført ennå, er ikke fakturert og trekkes ikke.
+  const akontoar = await hentAkonto(admin, ordre);
+  const overforte = akontoar.filter((a) => a.status === "overfort");
+  const aapne = akontoar.filter((a) => a.status !== "overfort");
   const system = await loadFakturaAgent();
-  const kontekst = byggKontekst(ordre, kjelder, maalform);
+  const kontekst = byggKontekst(
+    ordre,
+    kjelder,
+    maalform,
+    overforte.map((a) => ({ nr: a.akonto_no ?? 0, belop: akontoSum(a) })),
+  );
   const usage = { companyId: ordre.company_id, kind: "fakturaforslag" as const, leadId: ordre.lead_id };
 
   const kall = (prompt: string) =>
@@ -166,17 +178,27 @@ export async function lagFakturaforslag(
     }
   }
 
+  const lines = medFratrekk(resultat.lines, overforte, maalform);
+  const notes = [
+    ...aapne.map((a) =>
+      maalform === "nn"
+        ? `A konto nr. ${a.akonto_no} er ikkje overført enno og er ikkje trekt frå. Overfør eller slett ho før sluttfakturaen.`
+        : `A konto nr. ${a.akonto_no} er ikke overført ennå og er ikke trukket fra. Overfør eller slett den før sluttfakturaen.`,
+    ),
+    ...plan.notes,
+  ];
+
   const naa = new Date().toISOString();
   const rad = {
     company_id: ordre.company_id,
     order_id: ordre.id,
     status: "utkast",
     strategy: plan.strategy,
-    lines: resultat.lines,
-    totals: resultat.totals,
+    lines,
+    totals: summer(lines),
     invoice_text: plan.invoice_text.trim() || null,
     customer_reference: gammalt?.customer_reference ?? ordre.customer_contact ?? null,
-    notes: plan.notes,
+    notes,
     questions: plan.questions,
     ai_model: MODEL,
     generated_at: naa,

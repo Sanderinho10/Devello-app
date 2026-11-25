@@ -77,7 +77,7 @@ export async function PUT(request: NextRequest) {
 
 /**
  * Produktmapping og innstillinger på koplinga. Bare administratorer.
- * Body: { product_map?: { arbeid, materiell, fastpris, annet }, settings?: { project_per_order } }.
+ * Body: { product_map?: { arbeid, materiell, fastpris, annet, akonto }, settings?: { project_per_order } }.
  */
 export async function PATCH(request: NextRequest) {
   const session = await sessionOr401();
@@ -106,7 +106,7 @@ export async function PATCH(request: NextRequest) {
       }
       const inn = body.product_map as Record<string, unknown>;
       const map: Record<string, string> = {};
-      for (const key of ["arbeid", "materiell", "fastpris", "annet"] as const) {
+      for (const key of ["arbeid", "materiell", "fastpris", "annet", "akonto"] as const) {
         const v = inn[key];
         if (typeof v === "string" && v.trim()) map[key] = v.trim().slice(0, 60);
       }

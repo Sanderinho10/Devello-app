@@ -11,9 +11,21 @@
  *                  planen peker på.
  */
 
-export type LineKind = "tilbod_seksjon" | "tilbod_linje" | "timer" | "materiell" | "tekst";
+/**
+ * «akonto» er beløpet på en akontofaktura. «akonto_fratrekk» er fratrekket
+ * på sluttfakturaen, med akontofakturaen som kilde (0071). Ingen av dem
+ * kommer fra agenten — koden legger dem inn (lib/faktura/akonto.ts).
+ */
+export type LineKind =
+  | "tilbod_seksjon"
+  | "tilbod_linje"
+  | "timer"
+  | "materiell"
+  | "tekst"
+  | "akonto"
+  | "akonto_fratrekk";
 
-export type SourceType = "quote_section" | "quote_line" | "time_entry" | "material_entry";
+export type SourceType = "quote_section" | "quote_line" | "time_entry" | "material_entry" | "invoice_draft";
 
 /** En linje slik agenten foreslår den: kilder og ord, ingen tall. */
 export interface PlanLine {
