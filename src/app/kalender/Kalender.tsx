@@ -570,31 +570,33 @@ function Montorvisning({
                           onNy({ start: settKl(d, 7), slutt: settKl(d, 15), deltakarar: r.id ? [r.id] : [], kind: r.id ? "oppdrag" : "mote" });
                         }}
                       >
-                        {iDag.map((h) => (
-                          <Brikke
-                            key={h.id}
-                            h={h}
-                            dag={d}
-                            onVelg={onVelg}
-                            drar={drag?.id === h.id}
-                            onPointerDown={
-                              kanRedigere
-                                ? (e) =>
-                                    startDrag(e, {
-                                      flytt: (ev) => {
-                                        const m = under(ev, "data-kal-celle");
-                                        setDrag({ id: h.id, maal: m ? `${m.dataset.rad || FELLES}|${m.dataset.dag}` : null });
-                                      },
-                                      slepp: (ev) => {
-                                        setDrag(null);
-                                        slepp(h, r.id, d, under(ev, "data-kal-celle"));
-                                      },
-                                      avbryt: () => setDrag(null),
-                                    })
-                                : undefined
-                            }
-                          />
-                        ))}
+                        <div className="kal-side-om-side">
+                          {iDag.map((h) => (
+                            <Brikke
+                              key={h.id}
+                              h={h}
+                              dag={d}
+                              onVelg={onVelg}
+                              drar={drag?.id === h.id}
+                              onPointerDown={
+                                kanRedigere
+                                  ? (e) =>
+                                      startDrag(e, {
+                                        flytt: (ev) => {
+                                          const m = under(ev, "data-kal-celle");
+                                          setDrag({ id: h.id, maal: m ? `${m.dataset.rad || FELLES}|${m.dataset.dag}` : null });
+                                        },
+                                        slepp: (ev) => {
+                                          setDrag(null);
+                                          slepp(h, r.id, d, under(ev, "data-kal-celle"));
+                                        },
+                                        avbryt: () => setDrag(null),
+                                      })
+                                  : undefined
+                              }
+                            />
+                          ))}
+                        </div>
                       </td>
                     );
                   })}
@@ -707,7 +709,7 @@ function Ukevisning({
             <div className="kal-uke-heildag">
               <div className="tiny muted">Hele dagen</div>
               {dagar.map((d) => (
-                <div key={isoDato(d)}>
+                <div key={isoDato(d)} className="kal-side-om-side">
                   {hendingar
                     .filter((h) => bitPaaDag(h, d) && erHeildag(h, d))
                     .map((h) => (

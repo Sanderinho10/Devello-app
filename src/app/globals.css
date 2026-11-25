@@ -5141,12 +5141,27 @@ dl.kunde-kort-info {
   cursor: pointer;
   overflow: hidden;
 }
+/* Flere avtaler i samme rute står side om side og deler bredden, opptil
+   tre i bredden før de bryter til ny linje. */
+.kal-side-om-side {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 4px;
+}
+.kal-side-om-side > .kal-brikke {
+  flex: 1 1 calc((100% - 8px) / 3);
+  width: auto;
+  min-width: 0;
+  margin-bottom: 0;
+}
 .kal-brikke:hover { filter: brightness(0.96); }
 .kal-brikke.oppdrag { border-left-color: var(--kal-oppdrag); background: var(--kal-oppdrag-soft); }
 .kal-brikke.mote { border-left-color: var(--kal-mote); background: var(--kal-mote-soft); }
 .kal-brikke.fravaer { border-left-color: var(--kal-fravaer); background: var(--kal-fravaer-soft); }
 .kal-brikke-tid {
   font-weight: 600;
+  white-space: nowrap;
 }
 .kal-brikke-tittel,
 .kal-brikke-stad {
