@@ -11,6 +11,9 @@ process.env.TZ = "Europe/Oslo";
 const {
   bitPaaDag,
   fraSkjema,
+  innanfor,
+  klokketimar,
+  utanforArbeidstid,
   isoDato,
   klokke,
   leggTilDagar,
@@ -70,6 +73,17 @@ sjekk("a i kolonne 0 av 2", plass.get("a"), { kolonne: 0, kolonnar: 2 });
 sjekk("b i kolonne 1 av 2", plass.get("b"), { kolonne: 1, kolonnar: 2 });
 sjekk("c gjenbruker kolonne 1", plass.get("c"), { kolonne: 1, kolonnar: 2 });
 sjekk("d står aleine", plass.get("d"), { kolonne: 0, kolonnar: 1 });
+
+// Timeruter og arbeidstid
+const dagen = t("2026-11-09");
+sjekk("klokketimar 07:30–15:00", klokketimar(bit("x", "07:30", "15:00"), dagen), { fra: 7.5, til: 15 });
+sjekk("klokketimar til midnatt er 24", klokketimar({ fraKl: t("2026-11-09", "22:00"), tilKl: t("2026-11-10") }, dagen), { fra: 22, til: 24 });
+sjekk("innanfor klipper til arbeidstida", innanfor({ fra: 6, til: 9 }, 7, 15), { fra: 7, til: 9 });
+sjekk("innanfor: heilt utanfor", innanfor({ fra: 15, til: 17 }, 7, 15), null);
+sjekk("7–15 er i arbeidstida", utanforArbeidstid({ start: t("2026-11-09", "07:00"), slutt: t("2026-11-09", "15:00") }), false);
+sjekk("15–17 er utanfor", utanforArbeidstid({ start: t("2026-11-09", "15:00"), slutt: t("2026-11-09", "17:00") }), true);
+sjekk("06–08 er utanfor", utanforArbeidstid({ start: t("2026-11-09", "06:00"), slutt: t("2026-11-09", "08:00") }), true);
+sjekk("heildag er ikkje utanfor", utanforArbeidstid({ start: t("2026-11-09"), slutt: t("2026-11-10"), all_day: true }), false);
 
 // Tekst
 sjekk("tidTekst same dag", tidTekst({ start: t("2026-11-09", "10:00"), slutt: t("2026-11-09", "15:00"), heileDagen: false }), "10:00–15:00");

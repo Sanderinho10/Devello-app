@@ -102,6 +102,34 @@ export function bitPaaDag<T extends Tidsrom>(h: T, dag: Date): (T & { fraKl: Dat
   };
 }
 
+/** Vanleg arbeidstid, i heile timar. Kalenderen viser desse timane til vanleg. */
+export const ARBEID_FRA = 7;
+export const ARBEID_TIL = 15;
+
+/** Biten av ein avtale på ein dag som timar etter midnatt: 07:30–15:00 blir 7,5–15. Midnatt etterpå er 24. */
+export function klokketimar(bit: { fraKl: Date; tilKl: Date }, dag: Date): { fra: number; til: number } {
+  const timar = (d: Date) => (isoDato(d) !== isoDato(dag) ? 24 : d.getHours() + d.getMinutes() / 60);
+  return { fra: bit.fraKl.getHours() + bit.fraKl.getMinutes() / 60, til: timar(bit.tilKl) };
+}
+
+/** Delen av eit tidsrom (i timar) som fell innanfor timane som er viste, eller null. */
+export function innanfor(
+  t: { fra: number; til: number },
+  fraTime: number,
+  tilTime: number,
+): { fra: number; til: number } | null {
+  if (t.til <= fraTime || t.fra >= tilTime) return null;
+  return { fra: Math.max(t.fra, fraTime), til: Math.min(t.til, tilTime) };
+}
+
+/** Startar eller sluttar avtalen utanfor arbeidstida? Heildagsavtalar gjer ikkje det. */
+export function utanforArbeidstid(h: { start: Date; slutt: Date; all_day?: boolean }): boolean {
+  if (h.all_day) return false;
+  const start = h.start.getHours() + h.start.getMinutes() / 60;
+  const slutt = h.slutt.getHours() + h.slutt.getMinutes() / 60;
+  return start < ARBEID_FRA || start >= ARBEID_TIL || slutt > ARBEID_TIL || slutt <= ARBEID_FRA;
+}
+
 /**
  * Avtalar som overlappar kvarandre på same dag, side om side.
  *

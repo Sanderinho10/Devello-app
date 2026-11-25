@@ -4,16 +4,21 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { KalenderHending, Kollega } from "@/lib/kalender/hent";
 import {
+  ARBEID_FRA,
+  ARBEID_TIL,
   HENDING_NAMN,
   HENDING_TYPAR,
   bitPaaDag,
+  innanfor,
   isoDato,
   klokke,
+  klokketimar,
   leggTilDagar,
   mandag,
   plasserSideOmSide,
   startPaaDag,
   tidTekst,
+  utanforArbeidstid,
   vekenummer,
 } from "@/lib/kalender/tid";
 import { HendingDialog, type Forslag } from "./HendingDialog";
@@ -39,17 +44,26 @@ interface Flytting {
 
 const TIME_PX = 48;
 const KVARTER_PX = TIME_PX / 4;
+/** Høgda på éi linje med avtalar i montørvisninga. */
+const LINJE_PX = 38;
+/** Lågaste rad: plass til namnet og timetalet til venstre. */
+const RAD_MIN_PX = 58;
 const LAGRA_VISNING = "devello.kalender.visning";
+const LAGRA_DOGN = "devello.kalender.heiledognet";
 
 /**
  * Kalenderen.
  *
  * To visningar av same veke:
- *   - Montører: éi rad per person, éi kolonne per dag. Sjefen ser kven som
- *     er ledig og legg inn oppdrag ved å trykkje i ruta, eller drar ein
- *     avtale til ein annan dag eller ein annan montør.
+ *   - Montører: éi rad per person, og kvar dag delt i ruter på éin time.
+ *     Sjefen ser kva timar kvar montør er ledig, legg inn oppdrag ved å
+ *     trykkje i ei rute, eller drar ein avtale til ei anna tid, ein annan
+ *     dag eller ein annan montør.
  *   - Uke: klassisk timeplan med klokkeslett. Dra for å flytte, dra i
  *     nedre kant for å endre lengda. Kvarter for kvarter.
+ *
+ * Begge viser arbeidstida (07–15), markert med farge. «Hele døgnet» tek
+ * fram timane utanfor.
  *
  * Flytting blir lagra med ein gong og kan angrast. Dra og slepp er for mus
  * og penn; på telefon opnar eit trykk avtalen som før, så sidene framleis
@@ -64,6 +78,7 @@ export function Kalender({ startDato }: { startDato: string | null }) {
     return mandag(Number.isNaN(d.getTime()) ? new Date() : d);
   });
   const [visning, setVisning] = useState<Visning>("montorer");
+  const [heileDognet, setHeileDognet] = useState(false);
   const [filter, setFilter] = useState<string>("");
   const [data, setData] = useState<Data | null>(null);
   const [laster, setLaster] = useState(true);
@@ -75,6 +90,7 @@ export function Kalender({ startDato }: { startDato: string | null }) {
     try {
       const v = localStorage.getItem(LAGRA_VISNING);
       if (v === "uke" || v === "montorer") setVisning(v);
+      if (localStorage.getItem(LAGRA_DOGN) === "1") setHeileDognet(true);
     } catch {
       // Uten lagring: montørvisningen.
     }
@@ -84,6 +100,16 @@ export function Kalender({ startDato }: { startDato: string | null }) {
     setVisning(v);
     try {
       localStorage.setItem(LAGRA_VISNING, v);
+    } catch {
+      // Ikke viktig.
+    }
+  }
+
+  function byttDogn() {
+    const ny = !heileDognet;
+    setHeileDognet(ny);
+    try {
+      localStorage.setItem(LAGRA_DOGN, ny ? "1" : "0");
     } catch {
       // Ikke viktig.
     }
@@ -132,6 +158,10 @@ export function Kalender({ startDato }: { startDato: string | null }) {
         .filter((h) => !filter || h.deltakarar.some((d) => d.id === filter) || h.deltakarar.length === 0),
     [data, filter],
   );
+  // Timane som blir viste, og kor mange avtalar som ligg (delvis) utanfor dei.
+  const fraTime = heileDognet ? 0 : ARBEID_FRA;
+  const tilTime = heileDognet ? 24 : ARBEID_TIL;
+  const utanfor = useMemo(() => hendingar.filter(utanforArbeidstid).length, [hendingar]);
   const kanRedigere = Boolean(data?.kan_redigere);
   const kolleger = data?.kolleger ?? [];
 
@@ -244,6 +274,16 @@ export function Kalender({ startDato }: { startDato: string | null }) {
                 </option>
               ))}
           </select>
+          <button
+            type="button"
+            className={`button secondary kal-dogn${heileDognet ? " aktiv" : ""}`}
+            aria-pressed={heileDognet}
+            onClick={byttDogn}
+            title={heileDognet ? "Vis bare arbeidstiden, 07–15" : "Vis også timene utenfor arbeidstiden"}
+          >
+            Hele døgnet
+            {!heileDognet && utanfor > 0 && <span className="kal-dogn-tal">{utanfor} utenfor</span>}
+          </button>
           <nav className="type-switch kompakt" aria-label="Visning">
             <button type="button" className={`type-option${visning === "montorer" ? " active" : ""}`} onClick={() => byttVisning("montorer")}>
               Montører
@@ -258,7 +298,7 @@ export function Kalender({ startDato }: { startDato: string | null }) {
               className="button"
               onClick={() => {
                 const dag = dagar.find((d) => isoDato(d) === isoDato(new Date())) ?? ukeStart;
-                nyAvtale({ start: settKl(dag, 7), slutt: settKl(dag, 15) });
+                nyAvtale({ start: settKl(dag, ARBEID_FRA), slutt: settKl(dag, ARBEID_TIL) });
               }}
             >
               Ny avtale
@@ -283,6 +323,9 @@ export function Kalender({ startDato }: { startDato: string | null }) {
             <span className={`kal-prikk ${t}`} /> {HENDING_NAMN[t]}
           </span>
         ))}
+        <span>
+          <span className="kal-arbeid-prov" /> Arbeidstid {String(ARBEID_FRA).padStart(2, "0")}–{ARBEID_TIL}
+        </span>
         {kanRedigere && <span>· Trykk i en tom rute for å legge inn en avtale, dra en avtale for å flytte den.</span>}
       </div>
 
@@ -293,6 +336,8 @@ export function Kalender({ startDato }: { startDato: string | null }) {
             hendingar={hendingar}
             kolleger={filter ? kolleger.filter((k) => k.id === filter) : kolleger}
             kanRedigere={kanRedigere}
+            fraTime={fraTime}
+            tilTime={tilTime}
             onVelg={(h) => setDialog({ hending: h })}
             onNy={nyAvtale}
             onFlytt={flytt}
@@ -303,6 +348,8 @@ export function Kalender({ startDato }: { startDato: string | null }) {
             dagar={dagar}
             hendingar={hendingar}
             kanRedigere={kanRedigere}
+            fraTime={fraTime}
+            tilTime={tilTime}
             filter={filter}
             onVelg={(h) => setDialog({ hending: h })}
             onNy={nyAvtale}
@@ -341,6 +388,9 @@ function dagarMellom(fra: Date, til: Date): number {
 
 const dagNamn = (d: Date) => new Intl.DateTimeFormat("nb-NO", { weekday: "short" }).format(d).replace(".", "");
 const erIDag = (d: Date) => isoDato(d) === isoDato(new Date());
+const erHelg = (d: Date) => d.getDay() % 6 === 0;
+/** Er timen i arbeidstida? Helga har inga. */
+const erArbeidstime = (d: Date, t: number) => !erHelg(d) && t >= ARBEID_FRA && t < ARBEID_TIL;
 
 // ── Dra og slepp ────────────────────────────────────────────────────────────
 
@@ -422,6 +472,25 @@ function kortKl(d: Date): string {
   return d.getMinutes() === 0 ? String(d.getHours()) : klokke(d);
 }
 
+/** Dekkjer biten heile dagen, anten fordi avtalen er heildags eller går over midnatt begge vegar? */
+function dekkjerDagen(h: Hending, dag: Date): boolean {
+  if (h.all_day) return true;
+  const bit = bitPaaDag(h, dag);
+  return Boolean(bit && klokke(bit.fraKl) === "00:00" && isoDato(bit.tilKl) !== isoDato(bit.fraKl));
+}
+
+/** «7–15», «10:30–15» eller «Hele dagen» for biten av avtalen på dagen. */
+function brikkeTid(h: Hending, dag: Date): string {
+  const bit = bitPaaDag(h, dag);
+  if (!bit || dekkjerDagen(h, dag)) return "Hele dagen";
+  return `${kortKl(bit.fraKl)}–${klokke(bit.tilKl) === "00:00" ? "24" : kortKl(bit.tilKl)}`;
+}
+
+const brikkeTittel = (h: Hending) =>
+  [h.order ? `#${h.order.order_no} ${h.title}` : h.title, h.order?.customer_name, h.location ?? h.order?.site_address]
+    .filter(Boolean)
+    .join("\n");
+
 function Brikke({
   h,
   dag,
@@ -435,9 +504,7 @@ function Brikke({
   onPointerDown?: (e: React.PointerEvent) => void;
   drar?: boolean;
 }) {
-  const bit = bitPaaDag(h, dag);
-  const heile = h.all_day || (bit && klokke(bit.fraKl) === "00:00" && isoDato(bit.tilKl) !== isoDato(bit.fraKl));
-  const tid = heile || !bit ? "Hele dagen" : `${kortKl(bit.fraKl)}–${klokke(bit.tilKl) === "00:00" ? "24" : kortKl(bit.tilKl)}`;
+  const tid = brikkeTid(h, dag);
   return (
     <button
       type="button"
@@ -447,9 +514,7 @@ function Brikke({
         e.stopPropagation();
         if (!rettEtterDrag()) onVelg(h);
       }}
-      title={[h.order ? `#${h.order.order_no} ${h.title}` : h.title, h.order?.customer_name, h.location ?? h.order?.site_address]
-        .filter(Boolean)
-        .join("\n")}
+      title={brikkeTittel(h)}
     >
       <span className="kal-brikke-tid">{tid}</span>
       <span className="kal-brikke-tittel">
@@ -501,11 +566,30 @@ function planlagdeTimar(hendingar: Hending[], dagar: Date[]): number {
 
 const FELLES = "felles";
 
+/** Ein avtale slik han står i ei dagsrute: frå og til i timar, klipt til timane som er viste. */
+interface Stolpe {
+  h: Hending;
+  fra: number;
+  til: number;
+  linje: number;
+}
+
+/** Kvar avtalen blir viss han blir sleppt no (montørvisninga). */
+interface MontorDrag {
+  id: string;
+  maal: string | null;
+  start: Date;
+  slutt: Date;
+  heileDagen: boolean;
+}
+
 function Montorvisning({
   dagar,
   hendingar,
   kolleger,
   kanRedigere,
+  fraTime,
+  tilTime,
   onVelg,
   onNy,
   onFlytt,
@@ -515,13 +599,20 @@ function Montorvisning({
   hendingar: Hending[];
   kolleger: Kollega[];
   kanRedigere: boolean;
+  fraTime: number;
+  tilTime: number;
   onVelg: (h: KalenderHending) => void;
   onNy: (f: Forslag) => void;
   onFlytt: (h: KalenderHending, ny: Flytting) => void;
   onFeil: (f: string | null) => void;
 }) {
-  // Kva som blir dratt, og ruta det ville landa i.
-  const [drag, setDrag] = useState<{ id: string; maal: string | null } | null>(null);
+  // Kva som blir dratt, og kvar det ville landa.
+  const [drag, setDrag] = useState<MontorDrag | null>(null);
+
+  const timar = Array.from({ length: tilTime - fraTime }, (_, i) => fraTime + i);
+  const tal = timar.length;
+  const trong = tal > 12;
+  const pst = (t: number) => `${((t - fraTime) / tal) * 100}%`;
 
   // Avtalar utan deltakarar gjeld heile firmaet: éi felles rad øvst.
   const felles = hendingar.filter((h) => h.deltakarar.length === 0);
@@ -535,13 +626,55 @@ function Montorvisning({
   ];
   const namn = new Map(kolleger.map((k) => [k.id, k.navn]));
 
-  /** Frå rad og dag til rad og dag: same klokkeslett, ny dag, og ny person i staden for den gamle. */
-  function slepp(h: Hending, fraRad: string | null, fraDag: Date, maal: HTMLElement | null) {
-    if (!maal) return;
-    const tilRad = maal.dataset.rad || null;
-    const tilDag = new Date(`${maal.dataset.dag}T12:00:00`);
-    const dagar = dagarMellom(fraDag, tilDag);
-    if (dagar === 0 && tilRad === fraRad) return;
+  /** Avtalane i éi dagsrute. Dei som overlappar får kvar si linje under kvarandre. */
+  function stolpar(hs: Hending[], d: Date): { stolpar: Stolpe[]; linjer: number } {
+    const synlege = hs.flatMap((h) => {
+      const bit = bitPaaDag(h, d);
+      if (!bit) return [];
+      const t = dekkjerDagen(h, d) ? { fra: fraTime, til: tilTime } : innanfor(klokketimar(bit, d), fraTime, tilTime);
+      return t ? [{ bit, ...t }] : [];
+    });
+    const plass = plasserSideOmSide(synlege.map((s) => s.bit));
+    let linjer = 1;
+    const ut = synlege.map((s) => {
+      const p = plass.get(s.bit.id) ?? { kolonne: 0, kolonnar: 1 };
+      linjer = Math.max(linjer, p.kolonnar);
+      return { h: s.bit as Hending, fra: s.fra, til: s.til, linje: p.kolonne };
+    });
+    return { stolpar: ut, linjer };
+  }
+
+  /** Klokkeslettet (i timar) under peikaren i ei dagsrute. */
+  function timeVed(spor: HTMLElement, x: number): number {
+    const r = spor.getBoundingClientRect();
+    return fraTime + Math.min(Math.max((x - r.left) / r.width, 0), 1) * tal;
+  }
+
+  /**
+   * Ny plass for avtalen: dagen og personen frå ruta under peikaren, og
+   * klokkeslettet flytta like langt som peikaren — i halve timar, så ei
+   * flytting rett opp eller ned ikkje endrar tida.
+   */
+  function nyPlass(h: Hending, fraDag: Date, t0: number, ev: PointerEvent): MontorDrag {
+    const maal = under(ev, "data-kal-celle");
+    if (!maal) return { id: h.id, maal: null, start: h.start, slutt: h.slutt, heileDagen: h.all_day };
+    const dagarFram = dagarMellom(fraDag, new Date(`${maal.dataset.dag}T12:00:00`));
+    const ms = h.all_day ? 0 : Math.round((timeVed(maal, ev.clientX) - t0) * 2) * 30 * 60_000;
+    return {
+      id: h.id,
+      maal: `${maal.dataset.rad || FELLES}|${maal.dataset.dag}`,
+      start: new Date(leggTilDagar(h.start, dagarFram).getTime() + ms),
+      slutt: new Date(leggTilDagar(h.slutt, dagarFram).getTime() + ms),
+      heileDagen: h.all_day,
+    };
+  }
+
+  /** Slepp: ny tid og dag, og ny person i staden for den gamle når rada er ei anna. */
+  function slepp(h: Hending, fraRad: string | null, ny: MontorDrag) {
+    if (!ny.maal) return;
+    const rad = ny.maal.split("|")[0];
+    const tilRad = rad === FELLES ? null : rad;
+    if (tilRad === fraRad && ny.start.getTime() === h.start.getTime()) return;
 
     let deltakarar = h.deltakarar;
     if (tilRad !== fraRad) {
@@ -553,75 +686,126 @@ function Montorvisning({
         deltakarar = utan.some((d) => d.id === tilRad) ? utan : [...utan, { id: tilRad, navn: namn.get(tilRad) ?? "" }];
       }
     }
-    onFlytt(h, { start: leggTilDagar(h.start, dagar), slutt: leggTilDagar(h.slutt, dagar), deltakarar });
+    onFlytt(h, { start: ny.start, slutt: ny.slutt, deltakarar });
   }
 
   return (
     <div className="card">
       <div className="tabell-rull">
-        <table className="kal-montorer">
+        <table className="kal-montorer kal-tidslinje" style={{ minWidth: 150 + 7 * tal * (trong ? 14 : 16) }}>
           <thead>
             <tr>
-              <th className="kal-person">Ansatt</th>
+              <th className="kal-person" rowSpan={2}>
+                Ansatt
+              </th>
               {dagar.map((d) => (
-                <th key={isoDato(d)} className={`${erIDag(d) ? "i-dag" : ""}${d.getDay() % 6 === 0 ? " helg" : ""}`}>
+                <th key={isoDato(d)} className={`kal-dag${erIDag(d) ? " i-dag" : ""}${erHelg(d) ? " helg" : ""}`}>
                   <span className="kal-dagnamn">{dagNamn(d)}</span> {d.getDate()}.{d.getMonth() + 1}
+                </th>
+              ))}
+            </tr>
+            <tr>
+              {dagar.map((d) => (
+                <th key={isoDato(d)} className={`kal-timehovud${erHelg(d) ? " helg" : ""}`}>
+                  <div className="kal-spor">
+                    {timar.map((t) => (
+                      <span key={t} className={`kal-timetal${erArbeidstime(d, t) ? " arbeid" : ""}`}>
+                        {!trong || t % 2 === 0 ? t : ""}
+                      </span>
+                    ))}
+                  </div>
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
             {rader.map((r) => {
-              const timar = planlagdeTimar(r.hendingar, dagar);
+              const timarPlanlagt = planlagdeTimar(r.hendingar, dagar);
+              const celler = dagar.map((d) => ({ d, ...stolpar(r.hendingar, d) }));
+              const hogd = Math.max(Math.max(...celler.map((c) => c.linjer)) * LINJE_PX + 6, RAD_MIN_PX);
               return (
                 <tr key={r.id ?? FELLES}>
                   <th className="kal-person" scope="row">
                     <div>{r.navn}</div>
-                    {r.id && <div className="tiny muted">{timar.toLocaleString("nb-NO")} t planlagt</div>}
+                    {r.id && <div className="tiny muted">{timarPlanlagt.toLocaleString("nb-NO")} t planlagt</div>}
                   </th>
-                  {dagar.map((d) => {
+                  {celler.map(({ d, stolpar: iDag }) => {
                     const nokkel = `${r.id ?? FELLES}|${isoDato(d)}`;
-                    const iDag = r.hendingar
-                      .filter((h) => bitPaaDag(h, d))
-                      .sort((a, b) => Number(b.all_day) - Number(a.all_day) || a.start.getTime() - b.start.getTime());
+                    const her = drag?.maal === nokkel ? drag : null;
+                    const forhandBit = her && bitPaaDag({ id: "forhand", start: her.start, slutt: her.slutt }, d);
+                    const forhand =
+                      her && (her.heileDagen ? { fra: fraTime, til: tilTime } : forhandBit && innanfor(klokketimar(forhandBit, d), fraTime, tilTime));
                     return (
-                      <td
-                        key={isoDato(d)}
-                        data-kal-celle=""
-                        data-rad={r.id ?? ""}
-                        data-dag={isoDato(d)}
-                        className={`kal-celle${kanRedigere ? " ledig" : ""}${erIDag(d) ? " i-dag" : ""}${d.getDay() % 6 === 0 ? " helg" : ""}${drag?.maal === nokkel ? " slepp-her" : ""}`}
-                        onClick={() => {
-                          if (rettEtterDrag()) return;
-                          onNy({ start: settKl(d, 7), slutt: settKl(d, 15), deltakarar: r.id ? [r.id] : [], kind: r.id ? "oppdrag" : "mote" });
-                        }}
-                      >
-                        <div className="kal-side-om-side">
-                          {iDag.map((h) => (
-                            <Brikke
-                              key={h.id}
-                              h={h}
-                              dag={d}
-                              onVelg={onVelg}
-                              drar={drag?.id === h.id}
-                              onPointerDown={
-                                kanRedigere
-                                  ? (e) =>
-                                      startDrag(e, {
-                                        flytt: (ev) => {
-                                          const m = under(ev, "data-kal-celle");
-                                          setDrag({ id: h.id, maal: m ? `${m.dataset.rad || FELLES}|${m.dataset.dag}` : null });
-                                        },
-                                        slepp: (ev) => {
-                                          setDrag(null);
-                                          slepp(h, r.id, d, under(ev, "data-kal-celle"));
-                                        },
-                                        avbryt: () => setDrag(null),
-                                      })
-                                  : undefined
-                              }
+                      <td key={isoDato(d)} className={`kal-celle${erIDag(d) ? " i-dag" : ""}${erHelg(d) ? " helg" : ""}${her ? " slepp-her" : ""}`}>
+                        <div
+                          className={`kal-spor${kanRedigere ? " ledig" : ""}`}
+                          data-kal-celle=""
+                          data-rad={r.id ?? ""}
+                          data-dag={isoDato(d)}
+                          style={{ height: hogd }}
+                        >
+                          {timar.map((t) => (
+                            <div
+                              key={t}
+                              className={`kal-rute${erArbeidstime(d, t) ? " arbeid" : ""}`}
+                              title={kanRedigere ? `${String(t).padStart(2, "0")}:00 – ledig` : undefined}
+                              onClick={() => {
+                                if (rettEtterDrag()) return;
+                                onNy({ start: settKl(d, t), slutt: settKl(d, t + 1), deltakarar: r.id ? [r.id] : [], kind: r.id ? "oppdrag" : "mote" });
+                              }}
                             />
                           ))}
+                          {iDag.map(({ h, fra, til, linje }) => (
+                            <button
+                              key={h.id}
+                              type="button"
+                              className={`kal-brikke kal-stolpe ${h.kind}${kanRedigere ? " flyttbar" : ""}${drag?.id === h.id ? " drar" : ""}`}
+                              style={{
+                                left: `calc(${pst(fra)} + 1px)`,
+                                width: `calc(${((til - fra) / tal) * 100}% - 2px)`,
+                                top: 3 + linje * LINJE_PX,
+                                height: LINJE_PX - 3,
+                              }}
+                              title={`${brikkeTid(h, d)}\n${brikkeTittel(h)}`}
+                              onPointerDown={
+                                kanRedigere
+                                  ? (e) => {
+                                      const spor = e.currentTarget.parentElement as HTMLElement;
+                                      const t0 = timeVed(spor, e.clientX);
+                                      startDrag(e, {
+                                        flytt: (ev) => setDrag(nyPlass(h, d, t0, ev)),
+                                        slepp: (ev) => {
+                                          setDrag(null);
+                                          slepp(h, r.id, nyPlass(h, d, t0, ev));
+                                        },
+                                        avbryt: () => setDrag(null),
+                                      });
+                                    }
+                                  : undefined
+                              }
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!rettEtterDrag()) onVelg(h);
+                              }}
+                            >
+                              <span className="kal-brikke-tittel">
+                                {h.order && <OrdreNr ordre={h.order} />}
+                                {h.title}
+                              </span>
+                              <span className="kal-brikke-stad">
+                                {brikkeTid(h, d)}
+                                {h.order?.site_address ? ` · ${h.order.site_address}` : ""}
+                              </span>
+                            </button>
+                          ))}
+                          {forhand && her && (
+                            <div
+                              className="kal-stolpe forhand"
+                              style={{ left: pst(forhand.fra), width: `${((forhand.til - forhand.fra) / tal) * 100}%`, top: 3, height: hogd - 6 }}
+                            >
+                              {her.heileDagen ? "" : klokke(her.start)}
+                            </div>
+                          )}
                         </div>
                       </td>
                     );
@@ -650,6 +834,8 @@ function Ukevisning({
   dagar,
   hendingar,
   kanRedigere,
+  fraTime,
+  tilTime,
   filter,
   onVelg,
   onNy,
@@ -658,6 +844,8 @@ function Ukevisning({
   dagar: Date[];
   hendingar: Hending[];
   kanRedigere: boolean;
+  fraTime: number;
+  tilTime: number;
   filter: string;
   onVelg: (h: KalenderHending) => void;
   onNy: (f: Forslag) => void;
@@ -674,18 +862,6 @@ function Ukevisning({
   // Berre avtalar innanfor éin dag kan drast her; fleirdagars blir endra i skjemaet.
   const eiDag = (h: Hending) => !h.all_day && isoDato(h.start) === isoDato(new Date(h.slutt.getTime() - 1));
 
-  // Timane som blir viste: 06–20, utvida så alle avtalar i veka får plass.
-  let fraTime = 6;
-  let tilTime = 20;
-  for (const d of dagar) {
-    for (const h of hendingar) {
-      const bit = bitPaaDag(h, d);
-      if (!bit || erHeildag(h, d)) continue;
-      fraTime = Math.min(fraTime, bit.fraKl.getHours());
-      const slutt = bit.tilKl.getHours() + (bit.tilKl.getMinutes() > 0 ? 1 : 0);
-      tilTime = Math.max(tilTime, isoDato(bit.tilKl) !== isoDato(d) ? 24 : slutt);
-    }
-  }
   const timar = Array.from({ length: tilTime - fraTime }, (_, i) => fraTime + i);
   const hogd = timar.length * TIME_PX;
   const harHeildag = dagar.some((d) => hendingar.some((h) => bitPaaDag(h, d) && erHeildag(h, d)));
@@ -712,10 +888,11 @@ function Ukevisning({
     onFlytt(h, { start: ny.start, slutt: ny.slutt, deltakarar: h.deltakarar });
   }
 
+  /** Plassen til eit tidsrom i dagskolonna, klipt til timane som er viste. Null når alt ligg utanfor. */
   const blokkStil = (fraKl: Date, tilKl: Date, dag: Date) => {
-    const topp = ((fraKl.getTime() - settKl(dag, fraTime).getTime()) / 3_600_000) * TIME_PX;
-    const lengd = Math.max(((tilKl.getTime() - fraKl.getTime()) / 3_600_000) * TIME_PX, 22);
-    return { top: topp, height: lengd - 2 };
+    const t = innanfor(klokketimar({ fraKl, tilKl }, dag), fraTime, tilTime);
+    if (!t) return null;
+    return { top: (t.fra - fraTime) * TIME_PX, height: Math.max((t.til - t.fra) * TIME_PX, 22) - 2 };
   };
 
   return (
@@ -761,11 +938,12 @@ function Ukevisning({
                 .filter((b): b is NonNullable<typeof b> => b !== null);
               const plass = plasserSideOmSide(bitar);
               const forhand = drag && isoDato(drag.dag) === isoDato(d) ? drag : null;
+              const forhandStil = forhand && blokkStil(forhand.start, forhand.slutt, d);
               return (
                 <div
                   key={isoDato(d)}
                   data-kal-dag={isoDato(d)}
-                  className={`kal-uke-kolonne${kanRedigere ? " ledig" : ""}${erIDag(d) ? " i-dag" : ""}`}
+                  className={`kal-uke-kolonne${kanRedigere ? " ledig" : ""}${erIDag(d) ? " i-dag" : ""}${erHelg(d) ? " helg" : ""}`}
                   style={{ backgroundSize: `100% ${TIME_PX}px` }}
                   onClick={(e) => {
                     if (rettEtterDrag()) return;
@@ -775,17 +953,25 @@ function Ukevisning({
                     onNy({ start, slutt: new Date(start.getTime() + 2 * 3_600_000), deltakarar: filter ? [filter] : [] });
                   }}
                 >
+                  {!erHelg(d) && (
+                    <div
+                      className="kal-uke-arbeid"
+                      style={{ top: (ARBEID_FRA - fraTime) * TIME_PX, height: (ARBEID_TIL - ARBEID_FRA) * TIME_PX }}
+                    />
+                  )}
                   {erIDag(d) && <NoLinje fraTime={fraTime} tilTime={tilTime} />}
                   {bitar.map((b) => {
                     const p = plass.get(b.id) ?? { kolonne: 0, kolonnar: 1 };
                     const flyttbar = kanRedigere && eiDag(b);
+                    const stil = blokkStil(b.fraKl, b.tilKl, d);
+                    if (!stil) return null;
                     return (
                       <button
                         key={b.id}
                         type="button"
                         className={`kal-blokk ${b.kind}${flyttbar ? " flyttbar" : ""}${drag?.id === b.id ? " drar" : ""}`}
                         style={{
-                          ...blokkStil(b.fraKl, b.tilKl, d),
+                          ...stil,
                           left: `calc(${(p.kolonne / p.kolonnar) * 100}% + 2px)`,
                           width: `calc(${100 / p.kolonnar}% - 4px)`,
                         }}
@@ -832,8 +1018,8 @@ function Ukevisning({
                       </button>
                     );
                   })}
-                  {forhand && (
-                    <div className="kal-blokk forhand" style={{ ...blokkStil(forhand.start, forhand.slutt, d), left: 2, right: 2 }}>
+                  {forhand && forhandStil && (
+                    <div className="kal-blokk forhand" style={{ ...forhandStil, left: 2, right: 2 }}>
                       <span className="kal-blokk-tid">
                         {klokke(forhand.start)}–{klokke(forhand.slutt)}
                       </span>
