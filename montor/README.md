@@ -96,6 +96,37 @@ lenke montøren åpner på telefonen, og enheten kommer med i neste build.
 
 Alternativt TestFlight: `--profile production` og `npx eas-cli@latest submit`.
 
+## Oppdatere appene som er installert (EAS Update)
+
+Appene bygget med `--profile preview` eller `production` henter nye
+versjoner av koden selv. Montøren installerer én gang; etterpå:
+
+```sh
+npm run oppdater -- "Kortere ordrehode"
+```
+
+Krever `npx eas-cli@latest login` og de ekte Supabase-verdiene i `.env`.
+Skriptet (`dev/oppdater.mjs`) setter API-adressen til `https://app.devello.no`
+og nekter å sende hvis Supabase-verdiene peker på en utviklingsmaskin — en
+oppdatering bygges på maskinen den sendes fra, og en feil adresse ville gitt
+montørene en app som ikke får logget inn.
+
+Appen ser etter oppdateringer når den åpnes og laster ned i bakgrunnen. Den
+nye versjonen tas i bruk neste gang appen startes — altså etter at montøren
+har lukket den helt og åpnet den igjen.
+
+Dette gjelder bare kode: skjermer, tekst og logikk. Nytt bygg (og ny
+installasjon) trengs når en pakke med native kode legges til eller
+oppgraderes, når `app.json` endres, og ved ny Expo-versjon. Da skal
+`version` i `app.json` opp: en oppdatering går bare til apper med samme
+versjon (`runtimeVersion` følger `version`), så gamle apper ikke får kode de
+ikke tåler.
+
+Kanaler: `preview`-bygg lytter på kanalen `preview`, `production`-bygg på
+`production` (`eas.json`). `KANAL=production npm run oppdater -- "…"` sender
+til den andre. Et bygg laget før dette oppsettet har ikke oppdateringer i
+seg og må installeres på nytt én gang.
+
 ## Det Sander må ha på plass
 
 1. **Apple Developer Program** for Devello AS (organisasjon, ikke person —
@@ -120,6 +151,8 @@ npm run lint        # expo lint
 npm test            # jest: utboks-planleggeren, svar-til-liste og formatering
 npm start           # expo start
 npm run liksom      # liksom-server (se under)
+npm run telefon     # appen på telefonen med testdata
+npm run oppdater    # send en oppdatering til installerte apper (EAS Update)
 npm run web         # appen i nettleseren, til forhåndsvisning
 ```
 

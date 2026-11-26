@@ -27,6 +27,7 @@
     "expo-splash-screen": "~58.0.13",
     "expo-sqlite": "~58.0.15",
     "expo-status-bar": "~58.0.4",
+    "expo-updates": "~58.0.21",
     "react": "19.3.0",
     "react-native": "0.88.1",
     "react-native-safe-area-context": "~5.11.1",
@@ -54,7 +55,8 @@
     "lint": "expo lint",
     "web": "expo start --web",
     "liksom": "node dev/liksom-server.mjs",
-    "telefon": "node dev/telefon.mjs"
+    "telefon": "node dev/telefon.mjs",
+    "oppdater": "node dev/oppdater.mjs"
   },
   "private": true,
   "jest": {
