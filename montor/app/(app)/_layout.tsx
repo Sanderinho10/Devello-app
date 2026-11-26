@@ -12,7 +12,7 @@ import { farge, marg, skrift } from "@/lib/tema";
 
 /**
  * Innlogget del. Fanene (Program · Ordrer · Meg) ligger nederst i en stack,
- * og skjemaene — før timer, legg til materiell, nytt notat, endring fra tilbudet — er modaler over
+ * og skjemaene — før timer, legg til materiell, nytt notat, endring fra tilbudet, tilbakemelding — er modaler over
  * hele appen. Da lukker «Avbryt» og «Lagre» alltid tilbake dit man kom fra,
  * uansett hvilken fane det var.
  *
@@ -74,6 +74,7 @@ export default function AppLayout() {
         <Stack.Screen name="ny-materiell" options={{ presentation: "modal", title: "Legg til materiell" }} />
         <Stack.Screen name="nytt-notat" options={{ presentation: "modal", title: "Nytt notat" }} />
         <Stack.Screen name="endring" options={{ presentation: "modal", title: "Endring fra tilbudet" }} />
+        <Stack.Screen name="tilbakemelding" options={{ presentation: "modal", title: "Gi tilbakemelding" }} />
         <Stack.Screen name="varsler" options={{ presentation: "modal", title: "Varsler", headerLeft: () => <Avbryt tekst="Lukk" /> }} />
         <Stack.Screen
           name="bilete"

@@ -517,6 +517,22 @@ merket på ikonet.
 `POST /api/app/varsel/lest` med `{ "ids": ["uuid"] }` merker de valgte som
 lest; med `{}` merkes alle.
 
+## POST /api/tilbakemelding — «Gi tilbakemelding»
+
+Samme endepunkt som skjemaet i nettappen. Meldingen lagres og sendes på
+e-post til Devello, med brukeren som svar-til.
+
+```json
+{ "type": "onske", "melding": "Fritekst, maks 5000 tegn", "side": "Montørappen 0.1.0 (android)" }
+```
+
+`type` er `onske`, `feil` eller `annet` (ukjent verdi blir `annet`). `side`
+er valgfri og sier hvor meldingen kom fra — nettappen sender stien, appen
+sender navn, versjon og plattform. Svar: `{ "ok": true }`, eller 400 med
+`error` når meldingen er tom eller for lang. Virker også uten aktivt
+abonnement. Ingen `client_id`: kallet er ikke idempotent, så appen sender
+det direkte og ikke gjennom utboksen.
+
 ## Anbefalt flyt i appen
 
 1. Innlogging → `GET /api/app/meg` (cache `timetyper` og påslag), og

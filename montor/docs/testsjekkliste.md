@@ -98,6 +98,13 @@ nettapp med ordre-modulen på (lokalt eller app.devello.no). Kryss av.
 - [ ] Før timer på en ordre kontoret i mellomtida har fakturert → raden står som «Feilet» i lista, og under Meg med serverens melding. Trykk på raden → «Prøv igjen» / «Slett fra utboksen».
 - [ ] Bytt passord i nettappen mens appen er åpen → appen logger ut ved neste kall; utboksen ligger igjen etter ny innlogging.
 
+## Tilbakemelding
+
+- [ ] Meg → «Gi tilbakemelding» → velg «Noe virker ikke», skriv en melding → «Send». «Takk! Tilbakemeldingen er sendt» øverst, og skjemaet lukkes.
+- [ ] E-posten kommer til Devello med «Side: Montørappen …», og meldingen ligger under Devello → Tilbakemeldinger i nettappen.
+- [ ] Tom melding: «Send» er grå. «Avbryt» lukker uten å sende.
+- [ ] Flymodus → «Send» gir «Ingen dekning — prøv igjen når du har nett», og teksten står fortsatt i feltet.
+
 ## Logg ut
 
 - [ ] Med usendte føringer → Alert «Du har N usendte føringer. Logg ut likevel?». Logg inn igjen → de sendes.

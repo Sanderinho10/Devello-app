@@ -1,4 +1,5 @@
 import Constants from "expo-constants";
+import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Avatar, Gruppe, Ikon, Knapp, Pille, Rad, Sheet, Skjermhode, type IkonNavn } from "@/components/ui";
@@ -53,6 +54,7 @@ export default function Meg() {
   const utboks = useUtboks();
   const n = antall(utboks);
   const [valgt, setValgt] = useState<UtboksRad | null>(null);
+  const router = useRouter();
 
   const ordreNr = (id: string) => {
     const o = ordrar.find((x) => x.id === id);
@@ -141,6 +143,18 @@ export default function Meg() {
           )}
         </Gruppe>
         {utboks.length ? <Text style={[skrift.liten, s.hjelp]}>Utboksen sender seg selv når du har dekning. Trykk på en rad for å prøve igjen eller slette den.</Text> : null}
+
+        <Gruppe>
+          <Rad onPress={() => router.push("/tilbakemelding")} pil>
+            <View style={s.altSendt}>
+              <Ikon navn="mail-outline" storleik={22} farge={farge.tekst} />
+              <View style={s.profilTekst}>
+                <Text style={skrift.kropp}>Gi tilbakemelding</Text>
+                <Text style={skrift.under}>Noe som ikke virker, eller noe du savner? Si fra til oss.</Text>
+              </View>
+            </View>
+          </Rad>
+        </Gruppe>
 
         <View style={s.bunn}>
           <Knapp tekst="Logg ut" variant="sekundaer" stor onPress={spoerLoggUt} />

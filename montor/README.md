@@ -236,12 +236,13 @@ app/                         expo-router — hver fil er en skjerm
   (app)/(tabs)/_layout.tsx   Program · Ordrer · Meg (merket på Meg = usendt i utboksen)
   (app)/(tabs)/index.tsx     programmet (i dag + 14 dager) og timeforslag
   (app)/(tabs)/ordrer/       ordrelista, og én ordre: hode + fanene Timer · Materiell · Notater
-  (app)/(tabs)/meg.tsx       hvem som er innlogget, utboksen, logg ut
+  (app)/(tabs)/meg.tsx       hvem som er innlogget, utboksen, gi tilbakemelding, logg ut
   (app)/ny-time.tsx          modal, ?ordre=<id> (+ dato, timar, timetype fra et timeforslag)
   (app)/ny-materiell.tsx     modal, ?ordre=<id>: søk/skann → mengde, eller fritekst
   (app)/nytt-notat.tsx       modal, ?ordre=<id>: tekst + inntil fem bilder
   (app)/bilete.tsx           bilde i fullskjerm
   (app)/varsler.tsx          modal: varsel-lista og «Slå på varsler»
+  (app)/tilbakemelding.tsx   modal: «Gi tilbakemelding» fra Meg — rett til Devello, som i nettappen
 lib/
   api.ts                     fetch-wrapper: Bearer, 401 → refresh, tidsgrense, ApiFeil/NettFeil
   supabase.ts, sesjonslager  klient + LargeSecureStore (AES i AsyncStorage, nøkkel i SecureStore)

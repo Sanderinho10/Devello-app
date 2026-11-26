@@ -269,6 +269,12 @@ const server = createServer(async (req, res) => {
     for (const v of VARSEL) if (!v.read_at && (!ids || ids.has(v.id))) v.read_at = naa();
     return json(res, 200, { ok: true });
   }
+  if (sti === "/api/tilbakemelding" && m === "POST") {
+    const melding = String(body.melding ?? "").trim();
+    if (!melding) return json(res, 400, { error: "Skriv noen ord først." });
+    if (melding.length > 5000) return json(res, 400, { error: "Meldingen er for lang (maks 5000 tegn)." });
+    return json(res, 200, { ok: true });
+  }
   if (sti === "/api/app/push-token") {
     if (!/^Expo(nent)?PushToken\[[^\]]{10,200}\]$/.test(body.token ?? "")) return json(res, 400, { error: "Ugyldig push-token." });
     if (m === "POST") PUSH_TOKEN.add(body.token);
