@@ -9,6 +9,29 @@ API-kontrakten appen er bygd mot ligger i [`docs/api.md`](docs/api.md)
 (kopi av `Devello-app/docs/montorapp-api.md`). Manuell sjekkliste før en
 build gis ut: [`docs/testsjekkliste.md`](docs/testsjekkliste.md).
 
+## Raskeste vei: appen på telefonen med testdata
+
+Gratis, uten utviklerkonto og uten bygging. Installer Expo Go på telefonen
+(App Store / Google Play), og på maskinen:
+
+```sh
+npm install
+npm run telefon
+```
+
+Skann QR-koden — med kameraet på iPhone, fra Expo Go på Android. Flere
+telefoner kan skanne samme kode. Telefonen må være på samme wifi som
+maskinen. Alle e-poster og passord slipper inn.
+
+`npm run telefon` starter liksom-serveren (se under) og Expo, og peker appen
+på maskinens adresse på nettverket, så det trengs ingen `.env`. Dataene er
+testdata i minnet og nullstilles hver gang kommandoen startes. Kommer ikke
+telefonen gjennom, er det oftest brannmuren på maskinen (slipp inn Node på
+private nett) eller et gjestenett som sperrer enheter fra hverandre.
+
+Slik jobber to samtidig: hver sin maskin, hver sin gren, hver sin
+`npm run telefon`. Endringer vises på telefonen når fila lagres.
+
 ## Kjøre lokalt
 
 Raskest: Expo Go fra App Store / Google Play, `npx expo start --tunnel`, og

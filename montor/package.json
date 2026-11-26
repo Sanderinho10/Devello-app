@@ -53,7 +53,8 @@
     "test": "jest",
     "lint": "expo lint",
     "web": "expo start --web",
-    "liksom": "node dev/liksom-server.mjs"
+    "liksom": "node dev/liksom-server.mjs",
+    "telefon": "node dev/telefon.mjs"
   },
   "private": true,
   "jest": {
