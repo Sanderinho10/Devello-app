@@ -59,8 +59,8 @@ liksom.on("exit", (kode) => {
   }
 });
 
-// shell: true så «npx» finnes på Windows også (npx.cmd).
-const expo = spawn("npx", ["expo", "start", ...process.argv.slice(2)], {
+// Én kommandostreng med shell: true, så «npx» finnes på Windows også (npx.cmd).
+const expo = spawn(["npx", "expo", "start", ...process.argv.slice(2)].join(" "), {
   cwd: rot,
   stdio: "inherit",
   shell: true,

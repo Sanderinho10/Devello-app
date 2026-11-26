@@ -16,7 +16,7 @@
  * Supabase-verdiene (fra .env eller miljøet) må være de ekte.
  *
  * Kanal: preview (appene bygget med --profile preview). En annen kanal:
- * KANAL=production npm run oppdater -- "…"
+ * KANAL=production npm run oppdater -- "…". EAS-miljøet følger kanalen.
  */
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -63,9 +63,12 @@ console.log(`\nSender «${melding}» til kanalen ${kanal}`);
 console.log(`  API:      ${API_URL}`);
 console.log(`  Supabase: ${supabase}\n`);
 
-// shell: true så «npx» finnes på Windows også (npx.cmd) — meldingen siteres selv.
+// Én kommandostreng med shell: true, så «npx» finnes på Windows også (npx.cmd).
+// --environment: samme EAS-miljø som appene på kanalen ble bygget med — uten
+// den stopper eas-cli og spør.
 const sitert = `"${melding.replace(/"/g, "'")}"`;
-const eas = spawn("npx", ["eas-cli@latest", "update", "--channel", kanal, "--message", sitert, ...rest], {
+const kommando = ["npx", "eas-cli@latest", "update", "--channel", kanal, "--environment", kanal, "--message", sitert, ...rest].join(" ");
+const eas = spawn(kommando, {
   cwd: rot,
   stdio: "inherit",
   shell: true,
